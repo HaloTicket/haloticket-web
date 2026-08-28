@@ -4,11 +4,8 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Chi tiết sự kiện</h1>
-      <p className="mt-2">
-        Đang hiển thị thông tin cho mã sự kiện: <strong>{id}</strong>
-      </p>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold">Chi Tiết Sự Kiện #{id}</h1>
     </div>
   );
 }
