@@ -29,12 +29,12 @@ export const Header: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 glass-header transition-colors duration-300">
+    <header className="sticky top-0 z-50 app-bg-header border-b app-border transition-colors duration-300">
       {/* Top Header Bar */}
       <div className="container mx-auto px-4 md:px-8 py-3 flex items-center justify-between gap-4">
         {/* Brand Logo with Glow */}
         <Link to={PATHS.HOME} className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-cyan flex items-center justify-center text-white font-bold shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
+          <div className="w-10 h-10 rounded-xl gradient-btn flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform duration-300">
             <FaTicketAlt className="w-5 h-5 transform -rotate-12 animate-ticket-bounce" />
           </div>
           <span className="text-2xl font-extrabold tracking-tight gradient-text">
@@ -50,7 +50,7 @@ export const Header: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Bạn tìm gì hôm nay?"
-              className="w-full bg-slate-100 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm rounded-xl pl-4 pr-24 py-2.5 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all"
+              className="w-full app-bg-card app-text-main placeholder-zinc-400 text-sm rounded-xl pl-4 pr-24 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all shadow-xs"
             />
             <button
               type="button"
@@ -68,21 +68,21 @@ export const Header: React.FC = () => {
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 cursor-pointer"
+            className="p-2.5 rounded-xl app-bg-card app-text-main hover:opacity-80 transition-all duration-200 focus:outline-none border app-border cursor-pointer shadow-xs"
             aria-label="Tắt/Mở Chế độ Tối"
             title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
           >
             {isDark ? (
               <FiSun className="w-5 h-5 text-amber-400 transform hover:rotate-90 transition-transform duration-500" />
             ) : (
-              <FiMoon className="w-5 h-5 text-slate-700 hover:-rotate-12 transition-transform duration-300" />
+              <FiMoon className="w-5 h-5 app-text-main hover:-rotate-12 transition-transform duration-300" />
             )}
           </button>
 
           {/* Create Event Button */}
           <Link
             to="/organizer/create-event"
-            className="hidden sm:inline-flex items-center gap-1.5 border border-brand-500 text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 px-4 py-2 rounded-full text-xs font-bold transition-all"
+            className="hidden sm:inline-flex items-center gap-1.5 border app-border app-text-brand hover:opacity-80 px-4 py-2 rounded-full text-xs font-bold transition-all"
           >
             <FiPlusCircle className="w-4 h-4" />
             <span>Tạo sự kiện</span>
@@ -91,16 +91,16 @@ export const Header: React.FC = () => {
           {/* My Tickets */}
           <Link
             to={PATHS.MY_TICKETS}
-            className="hidden md:inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 text-xs font-semibold px-3 py-2 transition-colors"
+            className="hidden md:inline-flex items-center gap-1.5 app-text-main app-hover-text-brand text-xs font-semibold px-3 py-2 transition-colors"
           >
-            <FaTicketAlt className="w-4 h-4 text-brand-500" />
+            <FaTicketAlt className="w-4 h-4 app-text-brand" />
             <span>Vé của tôi</span>
           </Link>
 
           {/* Login / Register Button */}
           <Link
             to={PATHS.LOGIN}
-            className="gradient-btn text-white px-4 py-2 rounded-full text-xs font-extrabold shadow-lg shadow-brand-500/25 transition-all active:scale-95 flex items-center gap-1.5"
+            className="gradient-btn text-white px-4 py-2 rounded-full text-xs font-extrabold shadow-lg transition-all active:scale-95 flex items-center gap-1.5"
           >
             <FiUser className="w-4 h-4" />
             <span>Đăng nhập | Đăng ký</span>
@@ -110,7 +110,7 @@ export const Header: React.FC = () => {
           <button
             type="button"
             onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-            className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:border-brand-500 transition-all"
+            className="flex items-center gap-1 px-2.5 py-1 app-bg-card border app-border rounded-lg text-xs app-text-main hover:opacity-80 transition-all cursor-pointer"
             title="Đổi ngôn ngữ"
           >
             {lang === "vi" ? (
@@ -129,7 +129,7 @@ export const Header: React.FC = () => {
       </div>
 
       {/* Sub-Header Category Navigation Bar */}
-      <div className="bg-slate-100/80 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800/80 overflow-x-auto no-scrollbar">
+      <div className="app-bg-subnav border-t app-border overflow-x-auto no-scrollbar">
         <div className="container mx-auto px-4 md:px-8 flex items-center gap-6 text-xs md:text-sm font-medium whitespace-nowrap py-2.5">
           {categories.map((cat) => {
             const isActive = location.pathname === cat.path;
@@ -137,14 +137,15 @@ export const Header: React.FC = () => {
               <Link
                 key={cat.label}
                 to={cat.path}
-                className={`transition-colors py-0.5 relative ${cat.isResale
-                    ? "text-accent-rose dark:text-rose-400 font-extrabold hover:text-rose-500 flex items-center gap-1"
+                className={`transition-colors py-0.5 relative cursor-pointer ${
+                  cat.isResale
+                    ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
                     : isActive
-                      ? "text-brand-600 dark:text-brand-400 font-bold"
-                      : "text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400"
-                  }`}
+                    ? "app-text-brand font-bold"
+                    : "app-text-main app-hover-text-brand"
+                }`}
               >
-                {cat.isResale && <span className="w-2 h-2 rounded-full bg-accent-rose animate-pulse" />}
+                {cat.isResale && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                 {cat.label}
               </Link>
             );

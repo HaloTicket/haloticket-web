@@ -20,10 +20,10 @@ export const EventCard: React.FC<EventCardProps> = ({
   return (
     <Link
       to={`/events/${event.id}`}
-      className={`group flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden card-hover-zoom cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 ${className}`}
+      className={`group flex flex-col app-bg-card border app-border rounded-xl overflow-hidden card-hover-zoom cursor-pointer shadow-xs hover:shadow-xl transition-all duration-300 ${className}`}
     >
       {/* Image Container */}
-      <div className={`relative w-full overflow-hidden ${isPoster ? "aspect-[3/4]" : "aspect-[16/9]"} bg-slate-100 dark:bg-slate-800`}>
+      <div className={`relative w-full overflow-hidden ${isPoster ? "aspect-[3/4]" : "aspect-[16/9]"} bg-zinc-200 dark:bg-zinc-800`}>
         <img
           src={event.image}
           alt={event.title}
@@ -51,26 +51,26 @@ export const EventCard: React.FC<EventCardProps> = ({
       {/* Content Container */}
       <div className="p-3.5 flex flex-col grow justify-between">
         <div>
-          <h4 className="font-bold text-sm md:text-base text-slate-800 dark:text-slate-100 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug mb-2">
+          <h4 className="font-bold text-sm md:text-base app-text-main app-hover-text-brand transition-colors line-clamp-2 leading-snug mb-2">
             {event.title}
           </h4>
         </div>
 
-        <div className="mt-2 space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        <div className="mt-2 space-y-1.5 pt-2 border-t app-border">
           {/* Price */}
-          <div className="text-brand-600 dark:text-brand-400 font-extrabold text-sm md:text-base">
+          <div className="app-text-brand font-extrabold text-sm md:text-base">
             {event.price.startsWith("Từ") ? event.price : `Từ ${event.price}`}
           </div>
 
           {/* Date & Location */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-            <FiCalendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs app-text-muted font-medium">
+            <FiCalendar className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{event.date}</span>
           </div>
 
           {event.location && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <FiMapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1.5 text-xs app-text-muted font-medium">
+              <FiMapPin className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{event.location}</span>
             </div>
           )}

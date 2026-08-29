@@ -19,7 +19,7 @@ export const TrendingEvents: React.FC = () => {
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <FaFire className="w-6 h-6 text-rose-500" />
-        <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white">Sự kiện xu hướng</h2>
+        <h2 className="text-xl md:text-2xl font-extrabold text-zinc-900 dark:text-white">Sự kiện xu hướng</h2>
       </div>
 
       {/* Top Ranked Events 1..4 Horizontal Row */}
@@ -28,7 +28,7 @@ export const TrendingEvents: React.FC = () => {
           <Link
             key={event.id}
             to={`/events/${event.id}`}
-            className="group relative flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden p-2.5 hover:border-brand-500/50 transition-all shadow-sm hover:shadow-lg"
+            className="group relative flex items-center bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700/80 rounded-xl overflow-hidden p-2.5 hover:border-brand-500/50 transition-all shadow-xs hover:shadow-md cursor-pointer"
           >
             {/* Rank Number with Indigo/Cyan Glow */}
             <div className="rank-number-glow font-black text-5xl md:text-6xl px-3 italic select-none">
@@ -36,7 +36,7 @@ export const TrendingEvents: React.FC = () => {
             </div>
 
             {/* Event Image */}
-            <div className="w-24 h-24 rounded-lg overflow-hidden shrink-0 relative bg-slate-100 dark:bg-slate-800 mr-3">
+            <div className="w-24 h-24 rounded-lg overflow-hidden shrink-0 relative bg-zinc-100 dark:bg-zinc-800 mr-3">
               <img
                 src={event.image}
                 alt={event.title}
@@ -46,13 +46,13 @@ export const TrendingEvents: React.FC = () => {
 
             {/* Info */}
             <div className="grow min-w-0">
-              <h4 className="text-xs md:text-sm font-bold text-slate-800 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-tight mb-1.5">
+              <h4 className="text-xs md:text-sm font-bold text-zinc-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-tight mb-1.5">
                 {event.title}
               </h4>
               <div className="text-brand-600 dark:text-brand-400 text-xs font-extrabold mb-1">
                 {event.price}
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                 <FiCalendar className="w-3 h-3 shrink-0" />
                 <span className="truncate">{event.date}</span>
               </div>

@@ -18,7 +18,7 @@ import { FiMusic, FiTv, FiBookOpen, FiCompass, FiActivity } from "react-icons/fi
 
 export const Home: React.FC = () => {
   return (
-    <div className="bg-slate-50 dark:bg-[#121418] text-slate-900 dark:text-slate-100 min-h-screen pb-16 transition-colors duration-300">
+    <div className="bg-[#f4f4f5] dark:bg-[#27272a] text-zinc-900 dark:text-zinc-100 min-h-screen pb-16 transition-colors duration-300">
       {/* Main Container */}
       <div className="container mx-auto px-4 md:px-8 pt-6">
         {/* Hero Carousel Switcher */}
