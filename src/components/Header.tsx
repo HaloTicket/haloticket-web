@@ -1,117 +1,158 @@
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/context/ThemeContext";
+import {
+  FiSearch,
+  FiPlusCircle,
+  FiSun,
+  FiMoon,
+  FiUser
+} from "react-icons/fi";
+import { FaTicketAlt } from "react-icons/fa";
 
-export default function Header() {
+export const Header: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [lang, setLang] = useState<"vi" | "en">("vi");
 
-  const isActive = (path: string) => location.pathname === path;
+  const categories = [
+    { label: "Nhạc sống", path: "/category/music" },
+    { label: "Sân khấu & Nghệ thuật", path: "/category/stage" },
+    { label: "Thể Thao", path: "/category/sports" },
+    { label: "Hội thảo & Workshop", path: "/category/workshop" },
+    { label: "Tham quan & Trải nghiệm", path: "/category/experience" },
+    { label: "Khác", path: "/category/others" },
+    { label: "Vé bán lại", path: "/resale", isResale: true },
+    { label: "Blog", path: "/blog" }
+  ];
 
   return (
-    <header className="glass-header sticky top-0 z-50 transition-all duration-300">
-      <div className="container mx-auto px-4 md:px-8 py-3.5 flex justify-between items-center">
+    <header className="sticky top-0 z-50 glass-header transition-colors duration-300">
+      {/* Top Header Bar */}
+      <div className="container mx-auto px-4 md:px-8 py-3 flex items-center justify-between gap-4">
         {/* Brand Logo with Glow */}
-        <Link
-          to={PATHS.HOME}
-          className="flex items-center space-x-2 group focus:outline-none"
-        >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-cyan flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
-            <svg
-              className="w-5 h-5 animate-ticket-bounce"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
-              />
-            </svg>
+        <Link to={PATHS.HOME} className="flex items-center gap-2.5 group shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-cyan flex items-center justify-center text-white font-bold shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
+            <FaTicketAlt className="w-5 h-5 transform -rotate-12 animate-ticket-bounce" />
           </div>
           <span className="text-2xl font-extrabold tracking-tight gradient-text">
             HaloTicket
           </span>
         </Link>
 
-        {/* Main Navigation */}
-        <nav className="hidden md:flex items-center space-x-8">
-          <Link
-            to={PATHS.HOME}
-            className={`font-semibold text-sm transition-all duration-200 relative py-1 ${
-              isActive(PATHS.HOME)
-                ? "text-brand-600 dark:text-brand-400"
-                : "text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400"
-            }`}
-          >
-            Khám phá sự kiện
-            {isActive(PATHS.HOME) && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-brand-600 to-accent-cyan rounded-full animate-fade-in-up" />
-            )}
-          </Link>
+        {/* Search Bar Component */}
+        <div className="hidden lg:flex items-center grow max-w-xl mx-4">
+          <div className="relative w-full flex items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Bạn tìm gì hôm nay?"
+              className="w-full bg-slate-100 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm rounded-xl pl-4 pr-24 py-2.5 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all"
+            />
+            <button
+              type="button"
+              className="absolute right-1.5 px-4 py-1.5 gradient-btn text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-md"
+            >
+              <FiSearch className="w-3.5 h-3.5" />
+              <span>Tìm kiếm</span>
+            </button>
+          </div>
+        </div>
 
-          <Link
-            to="#"
-            className="font-semibold text-sm text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors py-1"
-          >
-            Tra cứu vé
-          </Link>
-        </nav>
-
-        {/* Actions & Theme Toggle */}
-        <div className="flex items-center space-x-3">
-          {/* Dark Mode Toggle Button */}
+        {/* Header Actions */}
+        <div className="flex items-center gap-3">
+          {/* Dark Mode Switcher */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-            aria-label="Chuyển giao diện Sáng/Tối"
+            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 cursor-pointer"
+            aria-label="Tắt/Mở Chế độ Tối"
             title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
           >
             {isDark ? (
-              /* Sun Icon for Dark mode */
-              <svg
-                className="w-5 h-5 text-amber-400 transform rotate-0 hover:rotate-90 transition-transform duration-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
+              <FiSun className="w-5 h-5 text-amber-400 transform hover:rotate-90 transition-transform duration-500" />
             ) : (
-              /* Moon Icon for Light mode */
-              <svg
-                className="w-5 h-5 text-slate-700 hover:-rotate-12 transition-transform duration-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                />
-              </svg>
+              <FiMoon className="w-5 h-5 text-slate-700 hover:-rotate-12 transition-transform duration-300" />
             )}
           </button>
 
-          {/* Login Button */}
+          {/* Create Event Button */}
+          <Link
+            to="/organizer/create-event"
+            className="hidden sm:inline-flex items-center gap-1.5 border border-brand-500 text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 px-4 py-2 rounded-full text-xs font-bold transition-all"
+          >
+            <FiPlusCircle className="w-4 h-4" />
+            <span>Tạo sự kiện</span>
+          </Link>
+
+          {/* My Tickets */}
+          <Link
+            to={PATHS.MY_TICKETS}
+            className="hidden md:inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 text-xs font-semibold px-3 py-2 transition-colors"
+          >
+            <FaTicketAlt className="w-4 h-4 text-brand-500" />
+            <span>Vé của tôi</span>
+          </Link>
+
+          {/* Login / Register Button */}
           <Link
             to={PATHS.LOGIN}
-            className="gradient-btn text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-md shadow-brand-500/20 active:scale-95 transition-all duration-200"
+            className="gradient-btn text-white px-4 py-2 rounded-full text-xs font-extrabold shadow-lg shadow-brand-500/25 transition-all active:scale-95 flex items-center gap-1.5"
           >
-            Đăng nhập
+            <FiUser className="w-4 h-4" />
+            <span>Đăng nhập | Đăng ký</span>
           </Link>
+
+          {/* Language Flag Selector */}
+          <button
+            type="button"
+            onClick={() => setLang(lang === "vi" ? "en" : "vi")}
+            className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:border-brand-500 transition-all"
+            title="Đổi ngôn ngữ"
+          >
+            {lang === "vi" ? (
+              <span className="flex items-center gap-1">
+                <span>🇻🇳</span>
+                <span className="font-bold text-[10px]">VIE</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <span>🇬🇧</span>
+                <span className="font-bold text-[10px]">ENG</span>
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Sub-Header Category Navigation Bar */}
+      <div className="bg-slate-100/80 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800/80 overflow-x-auto no-scrollbar">
+        <div className="container mx-auto px-4 md:px-8 flex items-center gap-6 text-xs md:text-sm font-medium whitespace-nowrap py-2.5">
+          {categories.map((cat) => {
+            const isActive = location.pathname === cat.path;
+            return (
+              <Link
+                key={cat.label}
+                to={cat.path}
+                className={`transition-colors py-0.5 relative ${cat.isResale
+                    ? "text-accent-rose dark:text-rose-400 font-extrabold hover:text-rose-500 flex items-center gap-1"
+                    : isActive
+                      ? "text-brand-600 dark:text-brand-400 font-bold"
+                      : "text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400"
+                  }`}
+              >
+                {cat.isResale && <span className="w-2 h-2 rounded-full bg-accent-rose animate-pulse" />}
+                {cat.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </header>
   );
-}
+};
+
+export default Header;
