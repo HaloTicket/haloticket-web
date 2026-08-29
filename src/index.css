@@ -248,3 +248,21 @@ input[type="submit"],
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #52525b;
 }
+
+/* Hover Gradient Match Utility */
+.hover-gradient-btn:hover {
+  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 100%) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 25px -5px rgba(79, 70, 229, 0.4);
+}
+
+/* Hide scrollbars for chrome, safari, firefox, edge */
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}

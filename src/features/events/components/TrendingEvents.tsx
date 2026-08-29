@@ -1,80 +1,182 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FiCalendar } from "react-icons/fi";
 import { FaFire } from "react-icons/fa";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { TRENDING_EVENTS, WEEKEND_EVENTS } from "@/mock/eventData";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
 
 export const TrendingEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
+  const rankScrollRef = useRef<HTMLDivElement>(null);
+  const eventsScrollRef = useRef<HTMLDivElement>(null);
+
+  const [showRankLeft, setShowRankLeft] = useState(false);
+  const [showRankRight, setShowRankRight] = useState(true);
+
+  const [showEventsLeft, setShowEventsLeft] = useState(false);
+  const [showEventsRight, setShowEventsRight] = useState(true);
 
   const filterTabs = [
     { id: "weekend", label: "Cuối tuần này" },
     { id: "month", label: "Tháng này" }
   ];
 
+  const checkRankScroll = () => {
+    if (rankScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = rankScrollRef.current;
+      setShowRankLeft(scrollLeft > 10);
+      setShowRankRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  const checkEventsScroll = () => {
+    if (eventsScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = eventsScrollRef.current;
+      setShowEventsLeft(scrollLeft > 10);
+      setShowEventsRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkRankScroll();
+    checkEventsScroll();
+  }, []);
+
+  const scrollRankLeft = () => {
+    if (rankScrollRef.current) {
+      rankScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
+    }
+  };
+
+  const scrollRankRight = () => {
+    if (rankScrollRef.current) {
+      rankScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
+    }
+  };
+
+  const scrollEventsLeft = () => {
+    if (eventsScrollRef.current) {
+      eventsScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
+    }
+  };
+
+  const scrollEventsRight = () => {
+    if (eventsScrollRef.current) {
+      eventsScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
+    }
+  };
+
   return (
     <div className="mb-12">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-6">
-        <FaFire className="w-6 h-6 text-rose-500" />
-        <h2 className="text-xl md:text-2xl font-extrabold text-zinc-900 dark:text-white">Sự kiện xu hướng</h2>
+      {/* Section Title Header */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
+          <FaFire className="w-6 h-6 text-rose-500 animate-pulse" />
+          <span>Sự kiện xu hướng</span>
+        </h2>
       </div>
 
-      {/* Top Ranked Events 1..4 Horizontal Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        {TRENDING_EVENTS.map((event) => (
-          <Link
-            key={event.id}
-            to={`/events/${event.id}`}
-            className="group relative flex items-center bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700/80 rounded-xl overflow-hidden p-2.5 hover:border-brand-500/50 transition-all shadow-xs hover:shadow-md cursor-pointer"
+      {/* Top Ranked Cards Carousel */}
+      <div className="relative group mb-10">
+        {/* Navigation Arrow Left */}
+        {showRankLeft && (
+          <button
+            type="button"
+            onClick={scrollRankLeft}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang trái"
           >
-            {/* Rank Number with Indigo/Cyan Glow */}
-            <div className="rank-number-glow font-black text-5xl md:text-6xl px-3 italic select-none">
-              {event.rank}
-            </div>
+            <FiChevronLeft className="w-5 h-5" />
+          </button>
+        )}
 
-            {/* Event Image */}
-            <div className="w-24 h-24 rounded-lg overflow-hidden shrink-0 relative bg-zinc-100 dark:bg-zinc-800 mr-3">
-              <img
-                src={event.image}
-                alt={event.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
+        {/* Scrollable Ranked Cards Container */}
+        <div
+          ref={rankScrollRef}
+          onScroll={checkRankScroll}
+          className="flex items-center gap-5 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
+        >
+          {TRENDING_EVENTS.map((event) => (
+            <Link
+              key={event.id}
+              to={`/events/${event.id}`}
+              className="group/rank flex items-center shrink-0 cursor-pointer"
+            >
+              <div className="rank-number-glow font-black text-6xl md:text-7xl mr-2 italic select-none">
+                {event.rank}
+              </div>
 
-            {/* Info */}
-            <div className="grow min-w-0">
-              <h4 className="text-xs md:text-sm font-bold text-zinc-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-tight mb-1.5">
-                {event.title}
-              </h4>
-              <div className="text-brand-600 dark:text-brand-400 text-xs font-extrabold mb-1">
-                {event.price}
+              <div className="w-[280px] md:w-[340px] aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 border app-border hover:border-brand-primary transition-all duration-300 group-hover/rank:scale-105 shadow-xl">
+                <img
+                  src={event.image}
+                  alt={event.title}
+                  className="w-full h-full object-cover group-hover/rank:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
               </div>
-              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                <FiCalendar className="w-3 h-3 shrink-0" />
-                <span className="truncate">{event.date}</span>
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))}
+        </div>
+
+        {/* Navigation Arrow Right */}
+        {showRankRight && (
+          <button
+            type="button"
+            onClick={scrollRankRight}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang phải"
+          >
+            <FiChevronRight className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      {/* Sub-Section with Tabs */}
+      {/* Filter Tabs Sub-header with Smooth Button Transition Animation */}
       <SectionHeader
         title=""
         tabs={filterTabs}
         activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as "weekend" | "month")}
-        seeMoreLink="/events?trending=true"
+        onTabChange={(tabId) => setActiveTab(tabId as "weekend" | "month")}
       />
 
-      {/* Grid of weekend / month events */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {WEEKEND_EVENTS.map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
+      {/* Carousel of Weekend / Month Event Cards */}
+      <div className="relative group">
+        {/* Navigation Arrow Left */}
+        {showEventsLeft && (
+          <button
+            type="button"
+            onClick={scrollEventsLeft}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang trái"
+          >
+            <FiChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        <div
+          ref={eventsScrollRef}
+          onScroll={checkEventsScroll}
+          className="flex items-center gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
+        >
+          {WEEKEND_EVENTS.map((event) => (
+            <div key={event.id} className="w-[260px] md:w-[285px] shrink-0">
+              <EventCard event={event} />
+            </div>
+          ))}
+        </div>
+
+        {/* Navigation Arrow Right */}
+        {showEventsRight && (
+          <button
+            type="button"
+            onClick={scrollEventsRight}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang phải"
+          >
+            <FiChevronRight className="w-5 h-5" />
+          </button>
+        )}
       </div>
     </div>
   );

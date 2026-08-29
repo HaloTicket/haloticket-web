@@ -64,27 +64,12 @@ export const Header: React.FC = () => {
 
         {/* Header Actions */}
         <div className="flex items-center gap-3">
-          {/* Dark Mode Switcher */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl app-bg-card app-text-main hover:opacity-80 transition-all duration-200 focus:outline-none border app-border cursor-pointer shadow-xs"
-            aria-label="Tắt/Mở Chế độ Tối"
-            title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
-          >
-            {isDark ? (
-              <FiSun className="w-5 h-5 text-amber-400 transform hover:rotate-90 transition-transform duration-500" />
-            ) : (
-              <FiMoon className="w-5 h-5 app-text-main hover:-rotate-12 transition-transform duration-300" />
-            )}
-          </button>
-
-          {/* Create Event Button */}
+          {/* "Tạo sự kiện" Button (Hover matches "Đăng nhập | Đăng ký" button gradient 100%) */}
           <Link
             to="/organizer/create-event"
-            className="hidden sm:inline-flex items-center gap-1.5 border app-border app-text-brand hover:opacity-80 px-4 py-2 rounded-full text-xs font-bold transition-all"
+            className="group hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold transition-all duration-300 border border-brand-primary/40 app-text-brand bg-brand-primary/10 hover-gradient-btn hover:scale-105 active:scale-95 cursor-pointer"
           >
-            <FiPlusCircle className="w-4 h-4" />
+            <FiPlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
             <span>Tạo sự kiện</span>
           </Link>
 
@@ -106,11 +91,26 @@ export const Header: React.FC = () => {
             <span>Đăng nhập | Đăng ký</span>
           </Link>
 
+          {/* Dark Mode Switcher */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 rounded-xl app-bg-card app-text-main hover:opacity-80 transition-all duration-200 focus:outline-none border app-border cursor-pointer shadow-xs"
+            aria-label="Tắt/Mở Chế độ Tối"
+            title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
+          >
+            {isDark ? (
+              <FiSun className="w-5 h-5 text-amber-400 transform hover:rotate-90 transition-transform duration-500" />
+            ) : (
+              <FiMoon className="w-5 h-5 app-text-main hover:-rotate-12 transition-transform duration-300" />
+            )}
+          </button>
+
           {/* Language Flag Selector */}
           <button
             type="button"
             onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-            className="flex items-center gap-1 px-2.5 py-1 app-bg-card border app-border rounded-lg text-xs app-text-main hover:opacity-80 transition-all cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-2 app-bg-card border app-border rounded-lg text-xs app-text-main hover:opacity-80 transition-all cursor-pointer"
             title="Đổi ngôn ngữ"
           >
             {lang === "vi" ? (
@@ -137,13 +137,12 @@ export const Header: React.FC = () => {
               <Link
                 key={cat.label}
                 to={cat.path}
-                className={`transition-colors py-0.5 relative cursor-pointer ${
-                  cat.isResale
-                    ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
-                    : isActive
+                className={`transition-colors py-0.5 relative cursor-pointer ${cat.isResale
+                  ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
+                  : isActive
                     ? "app-text-brand font-bold"
                     : "app-text-main app-hover-text-brand"
-                }`}
+                  }`}
               >
                 {cat.isResale && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                 {cat.label}

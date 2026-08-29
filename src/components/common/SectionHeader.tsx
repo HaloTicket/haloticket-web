@@ -25,14 +25,16 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     <div className={`flex flex-col md:flex-row md:items-center justify-between mb-5 gap-3 ${className}`}>
       {/* Title & Tabs Group */}
       <div className="flex flex-wrap items-center gap-4">
-        <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2.5">
-          {icon && <span className="app-text-brand">{icon}</span>}
-          <span>{title}</span>
-        </h2>
+        {title && (
+          <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2.5 tracking-tight">
+            {icon && <span className="app-text-brand">{icon}</span>}
+            <span>{title}</span>
+          </h2>
+        )}
 
-        {/* Filter Tabs if provided */}
+        {/* Filter Tabs with Smooth Button Transition Animation */}
         {tabs && tabs.length > 0 && (
-          <div className="flex items-center gap-2 app-bg-card p-1 rounded-xl border app-border">
+          <div className="relative flex items-center bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-300/60 dark:border-slate-700/60">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -40,10 +42,10 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => onTabChange && onTabChange(tab.id)}
-                  className={`px-3.5 py-1 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`relative z-10 px-4 py-1.5 text-xs md:text-sm font-extrabold rounded-lg transition-all duration-300 ease-in-out cursor-pointer ${
                     isActive
-                      ? "gradient-btn text-white shadow-md"
-                      : "app-text-muted hover:app-text-main"
+                      ? "gradient-btn text-white shadow-md scale-105"
+                      : "app-text-muted hover:app-text-main scale-100"
                   }`}
                 >
                   {tab.label}
@@ -58,7 +60,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
       {seeMoreLink && (
         <Link
           to={seeMoreLink}
-          className="inline-flex items-center gap-1 text-sm font-medium app-text-muted app-hover-text-brand transition-colors self-start md:self-auto group cursor-pointer"
+          className="inline-flex items-center gap-1 text-sm font-semibold app-text-muted app-hover-text-brand transition-colors self-start md:self-auto group cursor-pointer"
         >
           <span>Xem thêm</span>
           <FiChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

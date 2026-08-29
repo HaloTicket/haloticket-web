@@ -20,10 +20,10 @@ export const EventCard: React.FC<EventCardProps> = ({
   return (
     <Link
       to={`/events/${event.id}`}
-      className={`group flex flex-col app-bg-card border app-border rounded-xl overflow-hidden card-hover-zoom cursor-pointer shadow-xs hover:shadow-xl transition-all duration-300 ${className}`}
+      className={`group flex flex-col h-full app-bg-card border-0 rounded-2xl overflow-hidden card-hover-zoom cursor-pointer shadow-xs hover:shadow-xl transition-all duration-300 ${className}`}
     >
       {/* Image Container */}
-      <div className={`relative w-full overflow-hidden ${isPoster ? "aspect-[3/4]" : "aspect-[16/9]"} bg-zinc-200 dark:bg-zinc-800`}>
+      <div className={`relative w-full overflow-hidden ${isPoster ? "aspect-[3/4]" : "aspect-[16/9]"} bg-slate-200 dark:bg-slate-800 shrink-0`}>
         <img
           src={event.image}
           alt={event.title}
@@ -45,18 +45,18 @@ export const EventCard: React.FC<EventCardProps> = ({
         </div>
 
         {/* Hover overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
 
-      {/* Content Container */}
+      {/* Content Container (Fixed Height Title Area for 100% Equal Card Heights) */}
       <div className="p-3.5 flex flex-col grow justify-between">
         <div>
-          <h4 className="font-bold text-sm md:text-base app-text-main app-hover-text-brand transition-colors line-clamp-2 leading-snug mb-2">
+          <h4 className="font-extrabold text-sm md:text-base app-text-main group-hover:text-brand-primary transition-colors line-clamp-2 leading-snug mb-2 min-h-[2.6rem] flex items-start">
             {event.title}
           </h4>
         </div>
 
-        <div className="mt-2 space-y-1.5 pt-2 border-t app-border">
+        <div className="mt-auto space-y-1.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
           {/* Price */}
           <div className="app-text-brand font-extrabold text-sm md:text-base">
             {event.price.startsWith("Từ") ? event.price : `Từ ${event.price}`}
