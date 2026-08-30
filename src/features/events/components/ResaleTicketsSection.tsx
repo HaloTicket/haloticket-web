@@ -55,7 +55,7 @@ export const ResaleTicketsSection: React.FC = () => {
         </div>
 
         <Link
-          to="/resale"
+          to="/resale-ticket"
           className="px-5 py-2.5 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
         >
           Khám phá vé bán lại

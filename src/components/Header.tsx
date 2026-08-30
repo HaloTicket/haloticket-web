@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
     { label: "Hội thảo & Workshop", path: "/category/workshop" },
     { label: "Tham quan & Trải nghiệm", path: "/category/experience" },
     { label: "Khác", path: "/category/others" },
-    { label: "Vé bán lại", path: "/resale", isResale: true },
+    { label: "Vé bán lại", path: "/resale-ticket", isResale: true },
     { label: "Blog", path: "/blog" }
   ];
 

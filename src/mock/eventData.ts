@@ -447,3 +447,168 @@ export const DESTINATIONS: DestinationItem[] = [
     count: 67
   }
 ];
+
+export interface TicketTier {
+  id: string;
+  name: string;
+  price: string;
+  priceValue: number;
+  available: boolean;
+  statusText?: string;
+}
+
+export interface Showtime {
+  id: string;
+  dateStr: string;
+  timeStr: string;
+  fullDateTime: string;
+  tickets: TicketTier[];
+  isOpen: boolean;
+  dayNumber: number; // e.g. 25, 26, 27
+  monthNumber: number; // e.g. 9
+  yearNumber: number; // e.g. 2026
+}
+
+export interface EventDetailData {
+  id: string;
+  title: string;
+  locationName: string;
+  address: string;
+  minPrice: string;
+  posterImage: string;
+  datesSummary: string;
+  extraDaysCount: number;
+  author: string;
+  director: string;
+  cast: string[];
+  descriptionText: string;
+  galleryImages: string[];
+  showtimes: Showtime[];
+  organizer: {
+    name: string;
+    avatar: string;
+    description?: string;
+  };
+}
+
+export const MOCK_EVENT_DETAIL: EventDetailData = {
+  id: "nxnx37-hoc-vien-phep-thuat",
+  title: "Nhà Hát Kịch IDECAF: NXNX37 - Học Viện Phép Thuật",
+  locationName: "Nhà Hát Bến Thành",
+  address: "Số 06 Mạc Đĩnh Chi, Phường Sài Gòn, Thành phố Hồ Chí Minh",
+  minPrice: "250.000 đ",
+  posterImage: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=1000&q=80",
+  datesSummary: "20:00, 25 Tháng 09, 2026 - 23:00, 27 Tháng 09, 2026",
+  extraDaysCount: 5,
+  author: "Quang Thảo",
+  director: "Đình Toàn",
+  cast: [
+    "Bạch Long", "Thanh Thuỷ", "Hoàng Trinh", "Đình Toàn", "Đại Nghĩa",
+    "Mỹ Duyên", "Hồng Ánh", "Quang Thảo", "Quốc Thịnh", "Trịnh Minh Dũng",
+    "Tuyền Mập", "Tâm Anh", "Cẩm Hò", "Mai Phượng", "Quốc Tuấn", "Thiên Trang",
+    "Trung Tín", "Kan Lê", "Quách Bình", "Bảo Cường", "Trà Ngọc", "Đông Hải",
+    "Việt Trang", "Phạm Hạnh", "Hoài Trang", "Kim Thanh và Nhà Hát Thiếu Nhi Nụ Cười."
+  ],
+  descriptionText: `Chương trình Ngày Xửa Ngày Xưa 37 [NXNX37]\n-- HỌC VIỆN PHÉP THUẬT --\n\nVở kịch thiếu nhi hoành tráng được đầu tư công phu với bối cảnh Học Viện Phép Thuật huyền bí. Những cuộc phiêu lưu nghẹt thở, các phép thuật thần kỳ cùng dàn diễn viên gạo cội sẽ mang tới cho quý khán giả những giây phút thư giãn tuyệt vời nhất.`,
+  galleryImages: [
+    "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=800&q=80",
+    "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=800&q=80",
+    "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&q=80",
+    "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&q=80",
+    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80",
+    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80"
+  ],
+  organizer: {
+    name: "Nhà Hát Kịch IDECAF",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80",
+    description: "Nhà Hát Kịch IDECAF - Sân khấu kịch nổi tiếng hàng đầu tại TP.HCM"
+  },
+  showtimes: [
+    {
+      id: "st-1",
+      dateStr: "25 Tháng 09, 2026",
+      timeStr: "20:00 - 23:00",
+      fullDateTime: "20:00 - 23:00, 25 Tháng 09, 2026",
+      dayNumber: 25,
+      monthNumber: 9,
+      yearNumber: 2026,
+      isOpen: true,
+      tickets: [
+        { id: "t1-1", name: "VVIP", price: "400.000 đ", priceValue: 400000, available: true },
+        { id: "t1-2", name: "VIP", price: "350.000 đ", priceValue: 350000, available: true },
+        { id: "t1-3", name: "THƯỜNG", price: "300.000 đ", priceValue: 300000, available: true },
+        { id: "t1-4", name: "LẦU", price: "250.000 đ", priceValue: 250000, available: false, statusText: "Vé chưa mở bán" }
+      ]
+    },
+    {
+      id: "st-2",
+      dateStr: "26 Tháng 09, 2026",
+      timeStr: "16:00 - 19:00",
+      fullDateTime: "16:00 - 19:00, 26 Tháng 09, 2026",
+      dayNumber: 26,
+      monthNumber: 9,
+      yearNumber: 2026,
+      isOpen: true,
+      tickets: [
+        { id: "t2-1", name: "VVIP", price: "400.000 đ", priceValue: 400000, available: true },
+        { id: "t2-2", name: "VIP", price: "350.000 đ", priceValue: 350000, available: true },
+        { id: "t2-3", name: "THƯỜNG", price: "300.000 đ", priceValue: 300000, available: true }
+      ]
+    },
+    {
+      id: "st-3",
+      dateStr: "26 Tháng 09, 2026",
+      timeStr: "20:00 - 23:00",
+      fullDateTime: "20:00 - 23:00, 26 Tháng 09, 2026",
+      dayNumber: 26,
+      monthNumber: 9,
+      yearNumber: 2026,
+      isOpen: true,
+      tickets: [
+        { id: "t3-1", name: "VVIP", price: "400.000 đ", priceValue: 400000, available: true },
+        { id: "t3-2", name: "VIP", price: "350.000 đ", priceValue: 350000, available: true }
+      ]
+    },
+    {
+      id: "st-4",
+      dateStr: "27 Tháng 09, 2026",
+      timeStr: "09:30 - 12:30",
+      fullDateTime: "09:30 - 12:30, 27 Tháng 09, 2026",
+      dayNumber: 27,
+      monthNumber: 9,
+      yearNumber: 2026,
+      isOpen: true,
+      tickets: [
+        { id: "t4-1", name: "VVIP", price: "400.000 đ", priceValue: 400000, available: true },
+        { id: "t4-2", name: "THƯỜNG", price: "300.000 đ", priceValue: 300000, available: true }
+      ]
+    },
+    {
+      id: "st-5",
+      dateStr: "27 Tháng 09, 2026",
+      timeStr: "16:00 - 19:00",
+      fullDateTime: "16:00 - 19:00, 27 Tháng 09, 2026",
+      dayNumber: 27,
+      monthNumber: 9,
+      yearNumber: 2026,
+      isOpen: true,
+      tickets: [
+        { id: "t5-1", name: "VIP", price: "350.000 đ", priceValue: 350000, available: true }
+      ]
+    },
+    {
+      id: "st-6",
+      dateStr: "27 Tháng 09, 2026",
+      timeStr: "20:00 - 23:00",
+      fullDateTime: "20:00 - 23:00, 27 Tháng 09, 2026",
+      dayNumber: 27,
+      monthNumber: 9,
+      yearNumber: 2026,
+      isOpen: true,
+      tickets: [
+        { id: "t6-1", name: "VVIP", price: "400.000 đ", priceValue: 400000, available: true }
+      ]
+    }
+  ]
+};
+

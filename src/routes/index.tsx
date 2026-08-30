@@ -24,6 +24,11 @@ import TicketDetail from "@/features/tickets/TicketDetail";
 // User Feature
 import Profile from "@/features/user/Profile";
 
+// Resale Feature
+import ResaleList from "@/features/resale/ResaleList";
+import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
+import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
+
 // Common / Error
 import NotFound from "@/features/common/NotFound";
 
@@ -48,6 +53,18 @@ export const router = createBrowserRouter([
       {
         path: "/events/:id/select-ticket",
         element: <SelectTicket />,
+      },
+      {
+        path: "/resale-ticket",
+        element: <ResaleList />,
+      },
+      {
+        path: "/resale-ticket/:eventId",
+        element: <ResaleEventDetail />,
+      },
+      {
+        path: "/resale-ticket/:eventId/ticket/:ticketId",
+        element: <ResaleTicketCheckout />,
       },
       {
         path: PATHS.CHECKOUT,
