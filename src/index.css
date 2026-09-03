@@ -100,6 +100,19 @@
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
 
+  /* Clone-compatible Semantic Tokens registered in Tailwind */
+  --color-primary: var(--color-brand-primary);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--bg-subnav);
+  --color-secondary-foreground: var(--text-main);
+  --color-muted: var(--bg-subnav);
+  --color-muted-foreground: var(--text-muted);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-main);
+  --color-border: var(--border-color);
+  --color-input: var(--border-color);
+  --font-heading: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+
   /* Brand Colors registered in Tailwind */
   --color-brand-primary: var(--color-brand-primary);
   --color-brand-accent: var(--color-brand-accent);

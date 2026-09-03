@@ -38,89 +38,71 @@ export interface DestinationItem {
 export const HERO_BANNERS: HeroBannerItem[] = [
   {
     id: "hero-1",
-    title: '"SAY HI" PLAYHITS - Live Concert',
-    date: "13.09.2026",
-    location: "Vạn Phúc City, TP.HCM",
-    image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80",
-    link: "/events/say-hi-playhits",
-    badge: "CONCERT HOT"
+    title: "Hero Event 1",
+    date: "2026",
+    location: "HaloTicket",
+    image: "https://images.tkbcdn.com/2/614/350/ts/ds/96/8e/f7/8d2ebdfa2947ec1cbbcebece74df891b.jpg",
+    link: "/events/hero-1",
+    badge: "NỔI BẬT"
   },
   {
     id: "hero-2",
-    title: "'GIỮA MỘT VẠN TOUR' - PHÙNG KHÁNH LINH",
-    date: "17.10.2026",
-    location: "Sân vận động Phú Thọ, TP.HCM",
-    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=1200&q=80",
-    link: "/events/phung-khanh-linh-tour",
-    badge: "MỞ RỘNG"
-  },
-  {
-    id: "hero-3",
-    title: "XOAY TRÒN CONCERT 2026 - HOÀNG DŨNG",
-    date: "06.09.2026",
-    location: "Vinhomes Ocean Park 3, Hà Nội",
-    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200&q=80",
-    link: "/events/hoang-dung-xoay-tron",
-    badge: "VÉ BÁN BỔ SUNG"
-  },
-  {
-    id: "hero-4",
-    title: "BỐC FEST 2026 - BỐC LỬA BỎ TẢI NGƯỜI",
-    date: "19.09.2026",
-    location: "Nhà máy Xe Lửa Gia Lâm, Hà Nội",
-    image: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1200&q=80",
-    link: "/events/boc-fest-2026",
-    badge: "FESTIVAL"
+    title: "Hero Event 2",
+    date: "2026",
+    location: "HaloTicket",
+    image: "https://images.tkbcdn.com/2/614/350/ts/ds/64/ec/f7/1774645017a670715ea14aba00cf7130.jpg",
+    link: "/events/hero-2",
+    badge: "ĐANG BÁN"
   }
 ];
 
 export const FEATURED_STARS: ArtistItem[] = [
   {
     id: "star-1",
-    name: "Vie Concert",
-    avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&q=80",
+    name: "SS Label",
+    avatar: "https://salt.tkbcdn.com/ts/ds/80/44/52/f143ddd06c30a353f9830f2886fab35f.jpg",
     verified: true
   },
   {
     id: "star-2",
-    name: "SS Label",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80",
+    name: "Phùng Khánh Linh",
+    avatar: "https://salt.tkbcdn.com/ts/ds/c8/8d/2a/7bff570aac6a5b8da3e3978be0a10523.jpeg",
     verified: true
   },
   {
     id: "star-3",
-    name: "Phùng Khánh Linh",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&q=80",
+    name: "Jun Phạm",
+    avatar: "https://salt.tkbcdn.com/ts/ds/6c/9c/c6/9795b95561c2cdb5f6a26d54ddd4d294.jpg",
     verified: true
   },
   {
     id: "star-4",
-    name: "Jun Phạm",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80",
+    name: "Cheng",
+    avatar: "https://salt.tkbcdn.com/ts/ds/1c/bb/f5/aabba9b832b261727956df145404e1a6.jpg",
     verified: true
   },
   {
     id: "star-5",
-    name: "Cheng",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80",
+    name: "Subicha",
+    avatar: "https://salt.tkbcdn.com/ts/ds/7f/b1/ef/3928ba728b71eda9dca2055579ad6719.png",
     verified: true
   },
   {
     id: "star-6",
-    name: "Quốc Thiên",
-    avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&q=80",
+    name: "Hoàng Dũng",
+    avatar: "https://salt.tkbcdn.com/ts/ds/fc/0d/ba/620818361469476b1d42ee28c522860b.jpg",
     verified: true
   },
   {
     id: "star-7",
-    name: "Subicha",
-    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&q=80",
+    name: "Mr. Siro",
+    avatar: "https://salt.tkbcdn.com/ts/ds/80/26/5d/da7a92d2420ce878abe7501dee0decd4.jpeg",
     verified: true
   },
   {
     id: "star-8",
-    name: "Hoàng Dũng",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&q=80",
+    name: "Nguyễn Văn Chung",
+    avatar: "https://salt.tkbcdn.com/ts/ds/17/41/14/6767ba2534c92c7b47e93624d33442f6.png",
     verified: true
   }
 ];
@@ -128,43 +110,43 @@ export const FEATURED_STARS: ArtistItem[] = [
 export const SPECIAL_EVENTS: EventItem[] = [
   {
     id: "spec-1",
-    title: "BỐC FEST - BỐC LỬA BỎ TẢI NGƯỜI",
+    title: "Sự kiện đặc biệt 1",
     price: "599.000đ",
     date: "19 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/360/479/ts/ds/41/16/76/654b77bfcee9d4b57987dd0c9d9b8e38.jpg",
     category: "Concert",
     isHot: true
   },
   {
     id: "spec-2",
-    title: "Eugene Onegin - Vở Vũ Kịch Kinh Điển",
+    title: "Sự kiện đặc biệt 2",
     price: "800.000đ",
     date: "20 tháng 10, 2026",
-    image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/360/479/ts/ds/3a/01/47/ce9770caf25d827e3d0098c35e502186.jpg",
     category: "Nghệ thuật"
   },
   {
     id: "spec-3",
-    title: "Trăng Ơi Trăng À - Nhạc Kịch Thiếu Nhi Trung Thu",
+    title: "Sự kiện đặc biệt 3",
     price: "250.000đ",
     date: "15 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/360/479/ts/ds/a3/25/24/0f337ee5480452962ce534ab54528873.jpg",
     category: "Sân khấu"
   },
   {
     id: "spec-4",
-    title: "Ai Chồng Ai Vợ - Hài Kịch Đặc Sắc 2026",
+    title: "Sự kiện đặc biệt 4",
     price: "350.000đ",
     date: "25 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/360/479/ts/ds/69/43/12/0862b6cf4ce62863aab774588b8b28dc.jpg",
     category: "Hài kịch"
   },
   {
     id: "spec-5",
-    title: "Triển Lãm Bảo Tàng Ẩm Thực Việt Nam",
+    title: "Sự kiện đặc biệt 5",
     price: "120.000đ",
     date: "Hằng ngày 2026",
-    image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/360/479/ts/ds/eb/aa/bb/9d6a5edc549c2c98c3a090c7c226efe5.jpg",
     category: "Tham quan"
   }
 ];
@@ -173,37 +155,37 @@ export const TRENDING_EVENTS: EventItem[] = [
   {
     id: "trend-1",
     rank: 1,
-    title: "M-CONCERT 2026: VƯỢT NGÀN CHÔNG GAI",
+    title: "Sự kiện xu hướng 1",
     price: "1.200.000đ",
     date: "17 - 18.10.2026",
-    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/b5/15/da/e6461a9460a6f010e98e8b8ccced9fc5.png",
     location: "Sân vận động Mỹ Đình, Hà Nội"
   },
   {
     id: "trend-2",
     rank: 2,
-    title: "FC ONLINE SUMMER 2026 - VÒNG CHUNG KẾT",
+    title: "Sự kiện xu hướng 2",
     price: "150.000đ",
     date: "13 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/38/ba/bb/0e6970c4c57a2c271efa1b001cdb88da.jpg",
     location: "Cung Thể thao Quần Ngựa, Hà Nội"
   },
   {
     id: "trend-3",
     rank: 3,
-    title: "HEINEKEN PICKLEBALL WORLD CUP 2026",
+    title: "Sự kiện xu hướng 3",
     price: "300.000đ",
     date: "24 - 26.09.2026",
-    image: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/b5/74/82/d8011fdc192aa1c655b71f81bb35b016.jpeg",
     location: "CLB Lan Anh, TP.HCM"
   },
   {
     id: "trend-4",
     rank: 4,
-    title: "ĐÊM NHẠC LIGHT UP THE NIGHT 2026",
+    title: "Sự kiện xu hướng 4",
     price: "750.000đ",
     date: "05 tháng 10, 2026",
-    image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/36/d1/6f/98ed8fedb0a57abd4f33503ff2f3c324.jpg",
     location: "Công viên Yên Sở, Hà Nội"
   }
 ];
@@ -211,31 +193,31 @@ export const TRENDING_EVENTS: EventItem[] = [
 export const WEEKEND_EVENTS: EventItem[] = [
   {
     id: "wk-1",
-    title: "[LEMLAB] Workshop TRẢI NGHIỆM LÀM GỐM TRẺ EM",
-    price: "350.000đ",
-    date: "23 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600&q=80"
+    title: "[LEMLAB] Workshop TRẢI NGHIỆM LÀM GỐM",
+    price: "150.000đ",
+    date: "14 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/b6/7d/6b/df1d44d30bf41ae140f6383dfce54c88.jpg"
   },
   {
     id: "wk-2",
-    title: "Nha Trang Day Tour: Suối Thơm Trekking - Tắm suối thiên nhiên",
-    price: "790.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80"
+    title: "[LEMLAB] Mini Workshop VẼ LY GỐM",
+    price: "250.000đ",
+    date: "14 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/04/ae/18/9ee650dff5237d8bcfdb2f92aa049e1c.jpg"
   },
   {
     id: "wk-3",
-    title: "City Sightseeing SaiGon: Xe Buýt 2 Tầng",
-    price: "105.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&q=80"
+    title: "BAKING WORKSHOP: MANGO & EARL GREY CHIFFON CAKE",
+    price: "460.000đ",
+    date: "14 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/f8/16/13/704eb8f779bb52bfdeabb990a588755c.jpg"
   },
   {
     id: "wk-4",
-    title: "ĐUA XE GO-KART CITY PARK",
-    price: "342.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&q=80"
+    title: "[FLOWER 1969] ROLLERBALL PERFUME WORKSHOP",
+    price: "379.000đ",
+    date: "14 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/82/66/e4/c197c2255d40eb0940465707418f239c.png"
   }
 ];
 
@@ -244,24 +226,16 @@ export const RESALE_EVENTS: EventItem[] = [
     id: "res-1",
     title: "Xoay Tròn Concert - Hoàng Dũng",
     price: "Từ 800.000đ",
-    date: "06 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&q=80",
+    date: "14 tháng 08, 2026",
+    image: "https://salt.tkbcdn.com/ts/ds/08/4e/17/f9e030d4ab618eab76553bbebe08030c.png",
     isResale: true
   },
   {
     id: "res-2",
-    title: "'GIỮA MỘT VẠN TOUR (MỞ RỘNG)' - PHÙNG KHÁNH LINH",
-    price: "Từ 950.000đ",
-    date: "17 tháng 10, 2026",
-    image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
-    isResale: true
-  },
-  {
-    id: "res-3",
     title: "Nhà Hát Kịch IDECAF: TẤM CÁM ĐẠI CHIẾN!",
     price: "Từ 350.000đ",
-    date: "03 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&q=80",
+    date: "15 tháng 08, 2026",
+    image: "https://salt.tkbcdn.com/ts/ds/12/c5/75/d09af12e58cebe049ce432dcf109e26b.jpg",
     isResale: true
   }
 ];
@@ -269,93 +243,93 @@ export const RESALE_EVENTS: EventItem[] = [
 export const MUSIC_EVENTS: EventItem[] = [
   {
     id: "mus-1",
-    title: "BỐC FEST",
-    price: "599.000đ",
-    date: "19 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&q=80"
+    title: "Giuseppe Ottaviani - APLUS HANOI [MUSEUM OF SOUND]",
+    price: "400.000đ",
+    date: "16 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/12/29/ca/277480e093794573ad1dac4d5f006a38.png"
   },
   {
     id: "mus-2",
-    title: "[BẾN THÀNH] Đêm nhạc SWAN - HUYR - LIGHT",
-    price: "300.000đ",
-    date: "30 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&q=80"
+    title: "RESONATE - SOLO PIANO CONCERT",
+    price: "900.000đ",
+    date: "15 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/d7/d4/1c/17d488d0e88c1471a195609024326daf.png"
   },
   {
     id: "mus-3",
-    title: "[ĐÀ LẠT LIVE MUSIC] NGƯỜI VIẾT TÊN NỖI BUỒN | 31.08.2026",
-    price: "800.000đ",
-    date: "31 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&q=80"
+    title: "VOLAR SAIGON PRESENTS CRISTOPH | MELODIC TECHNO",
+    price: "850.000đ",
+    date: "23 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/ea/69/7e/b9edb328a5a3cc0ba40d66d9253e6c80.jpg"
   },
   {
     id: "mus-4",
-    title: '"SAY HI" PLAYHITS - Live Concert, thuộc Vũ Trụ "Say Hi"',
-    price: "800.000đ",
-    date: "13 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80"
+    title: "CARROT DAY 2026",
+    price: "600.000đ",
+    date: "15 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/36/96/87/21a83b95223417e3b005cb71de02c687.jpg"
   }
 ];
 
 export const STAGE_EVENTS: EventItem[] = [
   {
     id: "stg-1",
-    title: "Chào Show - The Sound of Vietnam",
-    price: "1.300.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&q=80"
+    title: "ART WORKSHOP: MOMOFUKU STYLE BASIL RASPBERRY CAKE",
+    price: "450.000đ",
+    date: "16 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/ee/04/57/30c09e53caaf0abe6a9f1b316818dc68.jpg"
   },
   {
     id: "stg-2",
-    title: "Nhà Hát Kịch IDECAF: THUỐC ĐẮNG GIÃ TẬT",
-    price: "300.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&q=80"
+    title: "SKNT TRƯƠNG HÙNG MINH: HẸN EM RẰM THÁNG 7",
+    price: "350.000đ",
+    date: "15 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/b1/74/ac/22dc559b56bbec77079390a8d9f89ec8.jpg"
   },
   {
     id: "stg-3",
-    title: 'ART WORKSHOP "UJI MATCHA CHEESECAKE TARTE"',
-    price: "420.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1535141192574-5d4897c13136?w=600&q=80"
+    title: "Sân Khấu Hồng Vân: Ngôi Nhà Hoang",
+    price: "280.000đ",
+    date: "17 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/7a/df/41/c361f18cb885b50da5f692c04571dc66.png"
   },
   {
     id: "stg-4",
-    title: "Sân Khấu Hồng Vân: Vở Kịch Người Vợ Ma",
-    price: "300.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&q=80"
+    title: "ART WORKSHOP: COURONNE DE CHOUX",
+    price: "450.000đ",
+    date: "18 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/41/ae/69/84c7687705ceafdaa16c2eddb28cd87e.jpg"
   }
 ];
 
 export const WORKSHOP_EVENTS: EventItem[] = [
   {
     id: "wk-art-1",
-    title: 'ART WORKSHOP: HANOI FUSION MOCHI "CỐM"',
-    price: "390.000đ",
-    date: "31 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=80"
+    title: "Tipsy Art Painting Workshop - Thử tự tay vẽ một bức tranh",
+    price: "520.000đ",
+    date: "15 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/28/19/0b/4644748f70853aa321c586d2f90deee5.png"
   },
   {
     id: "wk-art-2",
-    title: 'BAKING WORKSHOP FROM SPECIAL SUMMER ALBUM: "MANGO & EARL GREY"',
-    price: "480.000đ",
-    date: "30 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&q=80"
+    title: "Chào Show - The Sound of Vietnam",
+    price: "490.000đ",
+    date: "20 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/87/79/61/39a5a9fd0f92576d410ccbb0a0317543.jpg"
   },
   {
     id: "wk-art-3",
-    title: '[GARDEN ART] - ART WORKSHOP "TERRARIUM CAKE"',
-    price: "379.000đ",
-    date: "06 tháng 09, 2026",
-    image: "https://images.unsplash.com/photo-1587314168485-3236d6710814?w=600&q=80"
+    title: "Trải nghiệm bay dù lượn tại Sapa",
+    price: "1.950.000đ",
+    date: "26 tháng 07, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/36/d1/6f/98ed8fedb0a57abd4f33503ff2f3c324.jpg"
   },
   {
     id: "wk-art-4",
-    title: "[FLOWER 1969'S] ROLLERBALL PERFUME WORKSHOP - TRẢI NGHIỆM LÀM NƯỚC HOA",
-    price: "279.000đ",
-    date: "29 tháng 08, 2026",
-    image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=600&q=80"
+    title: "ART WORKSHOP: BLUSH & BERRIES CHARLOTTE",
+    price: "450.000đ",
+    date: "17 tháng 08, 2026",
+    image: "https://images.tkbcdn.com/2/608/332/ts/ds/99/06/33/62c45b644eb852db380370cffb345241.jpg"
   }
 ];
 
@@ -425,25 +399,25 @@ export const DESTINATIONS: DestinationItem[] = [
   {
     id: "dest-1",
     name: "Tp. Hồ Chí Minh",
-    image: "https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=600&q=80",
+    image: "https://salt.tkbcdn.com/ts/ds/69/8f/41/3d80536931f8821f24c4a7634793869b.jpg",
     count: 142
   },
   {
     id: "dest-2",
     name: "Hà Nội",
-    image: "https://images.unsplash.com/photo-1509030450996-93f2e3d84074?w=600&q=80",
+    image: "https://salt.tkbcdn.com/ts/ds/42/87/61/3995bf7edc9a5fbd3a16526a11970315.jpg",
     count: 98
   },
   {
     id: "dest-3",
     name: "Đà Lạt",
-    image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80",
+    image: "https://salt.tkbcdn.com/ts/ds/23/a1/e6/3001900cbb6041cb00c7df3dcefe8ed7.png",
     count: 45
   },
   {
     id: "dest-4",
     name: "Vị trí khác",
-    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80",
+    image: "https://salt.tkbcdn.com/ts/ds/d8/b7/4e/313ff0caab3c8f518be523da266c0fe7.png",
     count: 67
   }
 ];
