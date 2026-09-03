@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FiTrendingUp, FiCalendar, FiMapPin, FiChevronRight } from "react-icons/fi";
+import { FiTrendingUp, FiClock, FiCalendar, FiMapPin, FiChevronRight, FiTrash2 } from "react-icons/fi";
 import { DESTINATIONS } from "@/mock/eventData";
+import { eventApi } from "@/services/eventApi";
+import {
+  getSearchHistory,
+  removeSearchHistoryItem
+} from "@/utils/searchHistory";
 
 interface SearchOverlayModalProps {
   isOpen: boolean;
@@ -13,10 +18,34 @@ interface SearchOverlayModalProps {
 export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   isOpen,
   onClose,
-  searchQuery: _searchQuery,
+  searchQuery,
   onSelectKeyword
 }) => {
   const [activeTab, setActiveTab] = useState<"category" | "city">("category");
+  const [history, setHistory] = useState<string[]>([]);
+  const [realEvents, setRealEvents] = useState<any[]>([]);
+  const [trendingKeywords, setTrendingKeywords] = useState<string[]>(["idecaf", "xoay tròn", "Pickleball World Cup"]);
+
+  // Sync search history & trending keywords from DB query whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setHistory(getSearchHistory());
+      eventApi.getTrendingSearches(3).then((list) => {
+        if (list && list.length > 0) {
+          setTrendingKeywords(list);
+        }
+      });
+    }
+  }, [isOpen]);
+
+  // Fetch real events from backend API for recommendations
+  useEffect(() => {
+    eventApi.getAllEvents().then((events) => {
+      if (events && events.length > 0) {
+        setRealEvents(events.slice(0, 6));
+      }
+    });
+  }, []);
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -30,12 +59,6 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const trendingKeywords = [
-    { label: "idecaf", value: "idecaf" },
-    { label: "xoay tròn", value: "xoay tròn" },
-    { label: "Pickleball World Cup", value: "Pickleball" }
-  ];
 
   const categoryCards = [
     {
@@ -60,68 +83,61 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
     }
   ];
 
-  const recommendedEvents = [
-    {
-      id: "nxnx37-hoc-vien-phep-thuat",
-      title: "Bảo Tàng Phở - Bảo Tàng Ẩm Thực Đầu Tiên tại Việt Nam",
-      image: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&q=80",
-      price: "Từ 200.000đ",
-      date: "01 tháng 09, 2026"
-    },
-    {
-      id: "xoay-tron-concert-hoang-dung",
-      title: "CHƯƠNG TRÌNH TỊNH KHẨU THÁNG 9/2026",
-      image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&q=80",
-      price: "Từ 600.000đ",
-      date: "03 tháng 09, 2026"
-    },
-    {
-      id: "idecaf-tam-cam-dai-chien",
-      title: 'ART WORKSHOP "RABBIT & MOON PINEAPPLE SHORTCAKE"',
-      image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&q=80",
-      price: "Từ 390.000đ",
-      date: "04 tháng 09, 2026"
-    },
-    {
-      id: "phung-khanh-linh-tour",
-      title: "Ngắm nhìn bầu trời đêm tuyệt đẹp cùng Đài thiên văn Nha Trang",
-      image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&q=80",
-      price: "Từ 139.000đ",
-      date: "05 tháng 09, 2026"
-    },
-    {
-      id: "idecaf-mot-ngay-lam-vua",
-      title: "Sân Khấu Thế Giới Trẻ: Chuyện 2 Chàng",
-      image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&q=80",
-      price: "Từ 330.000đ",
-      date: "05 tháng 09, 2026"
-    },
-    {
-      id: "mat-nham-mat-mo-concert",
-      title: "Nhà Hát Kịch IDECAF: Một Ngày Làm VUA",
-      image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
-      price: "Từ 300.000đ",
-      date: "06 tháng 09, 2026"
-    }
-  ];
+  const handleRemoveHistory = (e: React.MouseEvent, item: string) => {
+    e.stopPropagation();
+    removeSearchHistoryItem(item);
+    setHistory(getSearchHistory());
+  };
 
   return (
     <div className="absolute top-full left-0 z-50 mt-2.5 w-[82vw] max-w-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in slide-in-from-top-2 max-h-[75vh] overflow-y-auto no-scrollbar">
-      {/* 1. Trending Keywords Section */}
-      <div className="space-y-1.5">
+
+      {/* Saved Search History Items */}
+      {history.length > 0 && (
+        <div className="space-y-1">
+          {history.map((item) => (
+            <div
+              key={item}
+              onClick={() => {
+                onSelectKeyword(item);
+                onClose();
+              }}
+              className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <FiClock className="w-4 h-4 app-text-muted group-hover:app-text-brand transition-colors shrink-0" />
+                <span className="font-semibold text-xs md:text-sm app-text-main group-hover:app-text-brand transition-colors">
+                  {item}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => handleRemoveHistory(e, item)}
+                className="p-1 text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer shrink-0"
+                title="Xóa lịch sử này"
+              >
+                <FiTrash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Top 3 Dynamic Searched Keywords */}
+      <div className="space-y-1">
         {trendingKeywords.map((kw) => (
           <button
-            key={kw.value}
+            key={kw}
             type="button"
             onClick={() => {
-              onSelectKeyword(kw.label);
+              onSelectKeyword(kw);
               onClose();
             }}
-            className="flex items-center gap-2.5 w-full text-left py-1.5 px-3 rounded-xl hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors group cursor-pointer"
+            className="flex items-center gap-3 w-full text-left py-2 px-3 rounded-xl hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors group cursor-pointer"
           >
-            <FiTrendingUp className="w-3.5 h-3.5 app-text-brand group-hover:scale-110 transition-transform" />
-            <span className="font-extrabold text-xs md:text-sm app-text-main group-hover:app-text-brand transition-colors">
-              {kw.label}
+            <FiTrendingUp className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform shrink-0" />
+            <span className="font-semibold text-xs md:text-sm app-text-main group-hover:app-text-brand transition-colors">
+              {kw}
             </span>
           </button>
         ))}
@@ -129,17 +145,16 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
 
       <hr className="border-slate-200/60 dark:border-slate-800/60" />
 
-      {/* 2. Explore Tab Switcher (Category vs City) */}
+      {/* Explore Tab Switcher*/}
       <div>
         <div className="flex items-center gap-6 mb-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-2.5">
           <button
             type="button"
             onClick={() => setActiveTab("category")}
-            className={`font-extrabold text-xs md:text-sm relative pb-1.5 transition-colors cursor-pointer ${
-              activeTab === "category"
+            className={`font-extrabold text-xs md:text-sm relative pb-1.5 transition-colors cursor-pointer ${activeTab === "category"
                 ? "app-text-brand"
                 : "app-text-muted hover:app-text-main"
-            }`}
+              }`}
           >
             Khám phá theo Thể loại
             {activeTab === "category" && (
@@ -150,11 +165,10 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("city")}
-            className={`font-extrabold text-xs md:text-sm relative pb-1.5 transition-colors cursor-pointer ${
-              activeTab === "city"
+            className={`font-extrabold text-xs md:text-sm relative pb-1.5 transition-colors cursor-pointer ${activeTab === "city"
                 ? "app-text-brand"
                 : "app-text-muted hover:app-text-main"
-            }`}
+              }`}
           >
             Khám phá theo Thành phố
             {activeTab === "city" && (
@@ -163,7 +177,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Content 1: Categories Cards Grid */}
+        {/* Categories Cards Grid */}
         {activeTab === "category" ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {categoryCards.map((cat) => (
@@ -187,7 +201,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
             ))}
           </div>
         ) : (
-          /* Tab Content 2: Cities Cards Grid */
+          /* Cities Cards Grid */
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {DESTINATIONS.map((city) => (
               <Link
@@ -215,14 +229,14 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
 
       <hr className="border-slate-200/60 dark:border-slate-800/60" />
 
-      {/* 3. Recommendations Grid Section ("Gợi ý dành cho bạn") */}
+      {/* Recommendations Grid */}
       <div>
         <h4 className="font-extrabold text-xs md:text-sm app-text-main mb-3 tracking-tight">
           Gợi ý dành cho bạn
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-          {recommendedEvents.map((ev) => (
+          {realEvents.map((ev) => (
             <Link
               key={ev.id}
               to={`/events/${ev.id}`}
