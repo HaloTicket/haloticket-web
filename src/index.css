@@ -1,72 +1,115 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap");
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    /* LIGHT MODE THEME VARIABLES (Soft non-glare off-white)          */
-    --bg-page: #f4f4f5;
-    /* Soft off-white page background */
-    --bg-header: rgba(244, 244, 245, 0.92);
-    --bg-subnav: #e4e4e7;
+    /* HaloTicket Clone palette: runtime source of truth */
+    --bg-page: #ffffff;
+    --bg-header: rgba(255, 255, 255, 0.92);
+    --bg-subnav: #f1f5f9;
     --bg-card: #ffffff;
-    /* Clean white card for contrast */
-    --bg-card-hover: #fafafa;
-    --bg-footer: #e4e4e7;
+    --bg-card-hover: #f8fafc;
+    --bg-footer: #f1f5f9;
+    --bg-overlay: rgb(15 23 42 / 0.56);
 
-    --text-main: #18181b;
-    /* Primary text */
-    --text-muted: #71717a;
-    /* Muted subtitle text */
-    --border-color: #e4e4e7;
-    /* Subtile border */
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+    --text-inverse: #ffffff;
+    --border-color: #e2e8f0;
+    --border-strong: #cbd5e1;
 
-    /* Brand Accent Colors (Light Mode) */
-    --color-brand-primary: #4F46E5;
-    /* Indigo */
-    --color-brand-hover: #4338CA;
-    --color-brand-accent: #06B6D4;
-    /* Cyan */
-    --color-brand-rose: #F43F5E;
-    /* Rose */
+    --color-brand-primary: #2563eb;
+    --color-brand-hover: #1d4ed8;
+    --color-brand-active: #1e40af;
+    --color-brand-accent: #f59e0b;
+    --color-brand-rose: #ef4444;
+    --color-success: #16a34a;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #2563eb;
+    --focus-ring: #2563eb;
+
+    --radius-xs: 0.25rem;
+    --radius-sm: 0.3rem;
+    --radius-md: 0.4rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.7rem;
+    --radius-2xl: 0.9rem;
+    --radius-full: 9999px;
+
+    --shadow-xs: 0 1px 2px rgb(15 23 42 / 0.05);
+    --shadow-sm: 0 2px 8px rgb(15 23 42 / 0.08);
+    --shadow-md: 0 8px 24px rgb(15 23 42 / 0.10);
+    --shadow-lg: 0 18px 40px rgb(15 23 42 / 0.14);
+    --shadow-xl: 0 24px 60px rgb(15 23 42 / 0.18);
+    --shadow-brand: 0 12px 32px rgb(37 99 235 / 0.22);
+    --shadow-accent: 0 12px 32px rgb(245 158 11 / 0.24);
+    --shadow-rose: 0 12px 32px rgb(239 68 68 / 0.20);
+
+    --duration-fast: 120ms;
+    --duration-normal: 220ms;
+    --duration-slow: 360ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: all var(--duration-normal) var(--ease-standard);
+
+    --container-max: 1200px;
+    --header-height: 72px;
+
+    --gradient-brand: linear-gradient(135deg, var(--color-brand-primary) 0%, #3b82f6 100%);
+    --gradient-brand-hover: linear-gradient(135deg, var(--color-brand-hover) 0%, var(--color-brand-primary) 100%);
+    --gradient-text: linear-gradient(135deg, var(--color-brand-primary) 0%, #3b82f6 50%, var(--color-brand-accent) 100%);
   }
 
   .dark {
-    /* DARK MODE THEME VARIABLES (#27272a standard dark background)   */
-    --bg-page: #27272a;
-    /* Standard dark background #27272a */
-    --bg-header: rgba(39, 39, 42, 0.95);
-    --bg-subnav: #18181b;
-    --bg-card: #18181b;
-    /* Slightly darker card background */
-    --bg-card-hover: #27272a;
-    --bg-footer: #18181b;
+    --bg-page: #020817;
+    --bg-header: rgba(2, 8, 23, 0.95);
+    --bg-subnav: #1e293b;
+    --bg-card: #0f172a;
+    --bg-card-hover: #1e293b;
+    --bg-footer: #0f172a;
+    --bg-overlay: rgb(0 0 0 / 0.68);
 
-    --text-main: #f4f4f5;
-    /* Primary dark text */
-    --text-muted: #a1a1aa;
-    /* Muted dark text */
-    --border-color: #3f3f46;
-    /* Dark border */
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --text-inverse: #020817;
+    --border-color: #1e293b;
+    --border-strong: #334155;
 
-    /* Brand Accent Colors (Dark Mode) */
-    --color-brand-primary: #818CF8;
-    /* Light Indigo */
-    --color-brand-hover: #6366F1;
-    --color-brand-accent: #22D3EE;
-    /* Bright Cyan */
-    --color-brand-rose: #FB7185;
-    /* Bright Rose */
+    --color-brand-primary: #3b82f6;
+    --color-brand-hover: #2563eb;
+    --color-brand-active: #1d4ed8;
+    --color-brand-accent: #f59e0b;
+    --color-brand-rose: #ef4444;
+    --focus-ring: #3b82f6;
+
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.22);
+    --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.28);
+    --shadow-md: 0 8px 24px rgb(0 0 0 / 0.34);
+    --shadow-lg: 0 18px 40px rgb(0 0 0 / 0.40);
+    --shadow-xl: 0 24px 60px rgb(0 0 0 / 0.48);
+    --shadow-brand: 0 12px 32px rgb(59 130 246 / 0.22);
+    --shadow-accent: 0 12px 32px rgb(245 158 11 / 0.22);
+    --shadow-rose: 0 12px 32px rgb(239 68 68 / 0.18);
   }
 }
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
 
   /* Brand Colors registered in Tailwind */
   --color-brand-primary: var(--color-brand-primary);
   --color-brand-accent: var(--color-brand-accent);
   --color-brand-rose: var(--color-brand-rose);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-bg-page: var(--bg-page);
+  --color-bg-card: var(--bg-card);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-app: var(--border-color);
 
   /* Keyframe Animations */
   --animate-float: float 3s ease-in-out infinite;
@@ -116,7 +159,7 @@
 .app-bg-page {
   background-color: var(--bg-page) !important;
   color: var(--text-main);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color var(--duration-normal) var(--ease-standard), color var(--duration-normal) var(--ease-standard);
 }
 
 .app-bg-card {
@@ -167,6 +210,14 @@
   color: var(--color-brand-primary) !important;
 }
 
+.text-gradient-brand,
+.gradient-text {
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 /* Universal Cursor Pointer for Interactive Elements */
 button,
 a,
@@ -177,23 +228,17 @@ input[type="submit"],
   cursor: pointer !important;
 }
 
-/* Custom Gradient Utilities */
-.gradient-text {
-  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 50%, var(--color-brand-rose) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
+.bg-gradient-brand,
 .gradient-btn {
-  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 100%);
+  background: var(--gradient-brand);
   color: #ffffff;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--transition-base);
   cursor: pointer;
 }
 
 .gradient-btn:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 8px 25px -5px rgba(99, 102, 241, 0.4);
+  background: var(--gradient-brand-hover);
+  box-shadow: var(--shadow-brand);
   transform: translateY(-1px);
 }
 
@@ -213,13 +258,13 @@ input[type="submit"],
 
 /* Rank Number styling for Trending Events */
 .rank-number-glow {
-  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-family: "Impact", "Arial Black", sans-serif;
   font-size: 5rem;
   line-height: 1;
-  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 100%);
+  background: var(--gradient-text);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.4));
+  filter: drop-shadow(0 0 10px rgb(37 99 235 / 0.32));
 }
 
 /* Custom Scrollbar */
@@ -251,10 +296,23 @@ input[type="submit"],
 
 /* Hover Gradient Match Utility */
 .hover-gradient-btn:hover {
-  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 100%) !important;
+  background: var(--gradient-brand) !important;
   color: #ffffff !important;
   border-color: transparent !important;
-  box-shadow: 0 8px 25px -5px rgba(79, 70, 229, 0.4);
+  box-shadow: var(--shadow-brand);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.card-hover-zoom {
+  transition: transform var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard), border-color var(--duration-normal) var(--ease-standard);
+}
+
+.card-hover-zoom:hover {
+  transform: translateY(-2px);
 }
 
 /* Hide scrollbars for chrome, safari, firefox, edge */
@@ -265,4 +323,4 @@ input[type="submit"],
 .no-scrollbar {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
-}
+}

@@ -1,0 +1,410 @@
+/**
+ * HaloTicket Design System - Token File
+ * =====================================
+ * Import once from src/index.css.
+ *
+ * The app is a shared React + TypeScript + Vite SPA for client and admin
+ * workflows. Tokens must support both surfaces without requiring separate
+ * client/admin applications.
+ */
+
+:root {
+  /* Primitive colors */
+  --halo-indigo-50: #eef2ff;
+  --halo-indigo-100: #e0e7ff;
+  --halo-indigo-400: #818cf8;
+  --halo-indigo-500: #6366f1;
+  --halo-indigo-600: #4f46e5;
+  --halo-indigo-700: #4338ca;
+  --halo-indigo-800: #3730a3;
+
+  --halo-cyan-50: #ecfeff;
+  --halo-cyan-100: #cffafe;
+  --halo-cyan-400: #22d3ee;
+  --halo-cyan-500: #06b6d4;
+  --halo-cyan-600: #0891b2;
+
+  --halo-rose-50: #fff1f2;
+  --halo-rose-100: #ffe4e6;
+  --halo-rose-400: #fb7185;
+  --halo-rose-500: #f43f5e;
+  --halo-rose-600: #e11d48;
+
+  --halo-green-50: #f0fdf4;
+  --halo-green-500: #22c55e;
+  --halo-green-600: #16a34a;
+
+  --halo-amber-50: #fffbeb;
+  --halo-amber-500: #f59e0b;
+  --halo-amber-600: #d97706;
+
+  --halo-red-50: #fef2f2;
+  --halo-red-500: #ef4444;
+  --halo-red-600: #dc2626;
+
+  --halo-zinc-50: #fafafa;
+  --halo-zinc-100: #f4f4f5;
+  --halo-zinc-200: #e4e4e7;
+  --halo-zinc-300: #d4d4d8;
+  --halo-zinc-400: #a1a1aa;
+  --halo-zinc-500: #71717a;
+  --halo-zinc-600: #52525b;
+  --halo-zinc-700: #3f3f46;
+  --halo-zinc-800: #27272a;
+  --halo-zinc-900: #18181b;
+  --halo-white: #ffffff;
+  --halo-black: #09090b;
+
+  /* Primitive typography */
+  --font-display: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: var(--font-body);
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Primitive spacing */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Primitive shape, depth, motion */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --shadow-xs: 0 1px 2px rgb(24 24 27 / 0.05);
+  --shadow-sm: 0 2px 8px rgb(24 24 27 / 0.07);
+  --shadow-md: 0 8px 24px rgb(24 24 27 / 0.10);
+  --shadow-lg: 0 18px 40px rgb(24 24 27 / 0.14);
+  --shadow-xl: 0 24px 60px rgb(24 24 27 / 0.18);
+  --shadow-brand: 0 12px 32px rgb(79 70 229 / 0.22);
+  --shadow-accent: 0 12px 32px rgb(6 182 212 / 0.22);
+  --shadow-rose: 0 12px 32px rgb(244 63 94 / 0.22);
+
+  --duration-fast: 120ms;
+  --duration-normal: 220ms;
+  --duration-slow: 360ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --transition-base: all var(--duration-normal) var(--ease-standard);
+  --transition-fast: all var(--duration-fast) var(--ease-standard);
+
+  /* Semantic brand */
+  --color-brand-primary: var(--halo-indigo-600);
+  --color-brand-hover: var(--halo-indigo-700);
+  --color-brand-active: var(--halo-indigo-800);
+  --color-brand-accent: var(--halo-cyan-500);
+  --color-brand-rose: var(--halo-rose-500);
+
+  --color-primary: var(--color-brand-primary);
+  --color-primary-hover: var(--color-brand-hover);
+  --color-primary-foreground: var(--halo-white);
+  --color-accent: var(--color-brand-accent);
+  --color-accent-foreground: var(--halo-black);
+
+  /* Semantic surfaces */
+  --bg-page: var(--halo-zinc-100);
+  --bg-header: rgb(244 244 245 / 0.92);
+  --bg-subnav: var(--halo-zinc-200);
+  --bg-card: var(--halo-white);
+  --bg-card-hover: var(--halo-zinc-50);
+  --bg-footer: var(--halo-zinc-200);
+  --bg-overlay: rgb(9 9 11 / 0.52);
+
+  --color-background: var(--bg-page);
+  --color-surface: var(--bg-card);
+  --color-surface-hover: var(--bg-card-hover);
+  --color-surface-sunken: var(--halo-zinc-200);
+
+  /* Semantic text and borders */
+  --text-main: var(--halo-zinc-900);
+  --text-muted: var(--halo-zinc-500);
+  --text-subtle: var(--halo-zinc-400);
+  --text-inverse: var(--halo-white);
+  --border-color: var(--halo-zinc-200);
+  --border-strong: var(--halo-zinc-300);
+  --focus-ring: var(--halo-indigo-500);
+
+  --color-foreground: var(--text-main);
+  --color-muted-foreground: var(--text-muted);
+  --color-border: var(--border-color);
+
+  /* Semantic states */
+  --color-success: var(--halo-green-600);
+  --color-success-subtle: var(--halo-green-50);
+  --color-warning: var(--halo-amber-500);
+  --color-warning-subtle: var(--halo-amber-50);
+  --color-danger: var(--halo-red-600);
+  --color-danger-subtle: var(--halo-red-50);
+  --color-info: var(--halo-cyan-600);
+  --color-info-subtle: var(--halo-cyan-50);
+
+  /* Layout */
+  --container-max: 1200px;
+  --container-padding: var(--space-4);
+  --app-shell-max: 1440px;
+  --header-height: 72px;
+  --topbar-height: 64px;
+  --admin-sidebar-width: 272px;
+  --admin-sidebar-collapsed-width: 76px;
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 100%);
+  --gradient-brand-hover: linear-gradient(135deg, var(--color-brand-hover) 0%, var(--halo-cyan-600) 100%);
+  --gradient-text: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-accent) 50%, var(--color-brand-rose) 100%);
+  --gradient-hero: linear-gradient(135deg, #312e81 0%, #0e7490 52%, #be123c 100%);
+
+  /* Component tokens */
+  --button-radius: var(--radius-xl);
+  --button-font-weight: var(--font-weight-semibold);
+  --button-bg: var(--color-primary);
+  --button-bg-hover: var(--color-primary-hover);
+  --button-fg: var(--color-primary-foreground);
+  --button-border: transparent;
+  --button-shadow: var(--shadow-brand);
+
+  --card-bg: var(--bg-card);
+  --card-bg-hover: var(--bg-card-hover);
+  --card-border: var(--border-color);
+  --card-radius: var(--radius-2xl);
+  --card-shadow: var(--shadow-xs);
+  --card-shadow-hover: var(--shadow-xl);
+
+  --event-card-image-bg: var(--halo-zinc-200);
+  --event-card-title: var(--text-main);
+  --event-card-meta: var(--text-muted);
+  --event-card-price: var(--color-brand-primary);
+
+  --badge-radius: var(--radius-full);
+  --badge-bg: var(--halo-zinc-900);
+  --badge-fg: var(--halo-white);
+  --badge-hot-bg: var(--color-danger);
+  --badge-resale-bg: var(--color-brand-rose);
+
+  --input-bg: var(--bg-card);
+  --input-fg: var(--text-main);
+  --input-placeholder: var(--text-muted);
+  --input-border: var(--border-color);
+  --input-border-focus: var(--focus-ring);
+  --input-radius: var(--radius-xl);
+
+  --table-bg: var(--bg-card);
+  --table-header-bg: var(--halo-zinc-50);
+  --table-row-hover-bg: var(--halo-zinc-50);
+  --table-border: var(--border-color);
+
+  --admin-shell-bg: var(--halo-zinc-100);
+  --admin-sidebar-bg: var(--halo-white);
+  --admin-panel-bg: var(--halo-white);
+  --admin-panel-border: var(--border-color);
+}
+
+.dark,
+[data-theme="dark"] {
+  --color-brand-primary: var(--halo-indigo-400);
+  --color-brand-hover: var(--halo-indigo-500);
+  --color-brand-active: var(--halo-indigo-600);
+  --color-brand-accent: var(--halo-cyan-400);
+  --color-brand-rose: var(--halo-rose-400);
+
+  --bg-page: var(--halo-zinc-800);
+  --bg-header: rgb(39 39 42 / 0.95);
+  --bg-subnav: var(--halo-zinc-900);
+  --bg-card: var(--halo-zinc-900);
+  --bg-card-hover: var(--halo-zinc-800);
+  --bg-footer: var(--halo-zinc-900);
+  --bg-overlay: rgb(0 0 0 / 0.68);
+
+  --color-background: var(--bg-page);
+  --color-surface: var(--bg-card);
+  --color-surface-hover: var(--bg-card-hover);
+  --color-surface-sunken: var(--halo-zinc-900);
+
+  --text-main: var(--halo-zinc-100);
+  --text-muted: var(--halo-zinc-400);
+  --text-subtle: var(--halo-zinc-500);
+  --text-inverse: var(--halo-zinc-900);
+  --border-color: var(--halo-zinc-700);
+  --border-strong: var(--halo-zinc-600);
+  --focus-ring: var(--halo-indigo-400);
+
+  --color-success-subtle: rgb(22 163 74 / 0.16);
+  --color-warning-subtle: rgb(245 158 11 / 0.16);
+  --color-danger-subtle: rgb(220 38 38 / 0.16);
+  --color-info-subtle: rgb(6 182 212 / 0.16);
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.22);
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.28);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.34);
+  --shadow-lg: 0 18px 40px rgb(0 0 0 / 0.40);
+  --shadow-xl: 0 24px 60px rgb(0 0 0 / 0.48);
+  --shadow-brand: 0 12px 32px rgb(129 140 248 / 0.20);
+  --shadow-accent: 0 12px 32px rgb(34 211 238 / 0.18);
+  --shadow-rose: 0 12px 32px rgb(251 113 133 / 0.18);
+
+  --gradient-hero: linear-gradient(135deg, #111827 0%, #164e63 50%, #881337 100%);
+
+  --event-card-image-bg: var(--halo-zinc-800);
+  --table-header-bg: var(--halo-zinc-800);
+  --table-row-hover-bg: var(--halo-zinc-800);
+
+  --admin-shell-bg: var(--halo-zinc-800);
+  --admin-sidebar-bg: var(--halo-zinc-900);
+  --admin-panel-bg: var(--halo-zinc-900);
+  --admin-panel-border: var(--halo-zinc-700);
+}
+
+/* Shared token-backed utilities */
+.app-bg-page {
+  background-color: var(--bg-page) !important;
+  color: var(--text-main);
+  transition: background-color var(--duration-normal) var(--ease-standard), color var(--duration-normal) var(--ease-standard);
+}
+
+.app-bg-card {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main);
+}
+
+.app-bg-header {
+  background-color: var(--bg-header) !important;
+  border-color: var(--border-color) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.app-bg-subnav {
+  background-color: var(--bg-subnav) !important;
+  border-color: var(--border-color) !important;
+}
+
+.app-bg-footer {
+  background-color: var(--bg-footer) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main);
+}
+
+.app-text-main {
+  color: var(--text-main) !important;
+}
+
+.app-text-muted {
+  color: var(--text-muted) !important;
+}
+
+.app-border {
+  border-color: var(--border-color) !important;
+}
+
+.app-text-brand {
+  color: var(--color-brand-primary) !important;
+}
+
+.app-bg-brand {
+  background-color: var(--color-brand-primary) !important;
+}
+
+.app-hover-text-brand:hover {
+  color: var(--color-brand-primary) !important;
+}
+
+.text-gradient-brand,
+.gradient-text {
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-gradient-brand,
+.gradient-btn {
+  background: var(--gradient-brand);
+  color: var(--halo-white);
+}
+
+.gradient-btn {
+  transition: var(--transition-base);
+  cursor: pointer;
+}
+
+.gradient-btn:hover {
+  background: var(--gradient-brand-hover);
+  box-shadow: var(--shadow-brand);
+  transform: translateY(-1px);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.card-hover-zoom {
+  transition: transform var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard), border-color var(--duration-normal) var(--ease-standard);
+}
+
+.card-hover-zoom:hover {
+  transform: translateY(-2px);
+}
+
+.admin-shell {
+  background: var(--admin-shell-bg);
+  color: var(--text-main);
+}
+
+.admin-panel {
+  background: var(--admin-panel-bg);
+  border: 1px solid var(--admin-panel-border);
+  border-radius: var(--radius-xl);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface-sunken) 25%, var(--border-color) 50%, var(--color-surface-sunken) 75%);
+  background-size: 200% 100%;
+  animation: halo-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes halo-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
