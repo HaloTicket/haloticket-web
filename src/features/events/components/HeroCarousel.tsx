@@ -2,35 +2,58 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight, FiPlay } from "react-icons/fi";
 import { HERO_BANNERS } from "@/mock/eventData";
+import { eventApi } from "@/services/eventApi";
 
 export const HeroCarousel: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [banners, setBanners] = useState<any[]>(HERO_BANNERS);
 
+  // fetch live event data
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveIndex((prev) => (prev === HERO_BANNERS.length - 1 ? 0 : prev + 1));
-    }, 4500);
-    return () => clearInterval(timer);
+    eventApi.getAllEvents().then((data) => {
+      if (data && data.length > 0) {
+        const liveBanners = data.map((ev) => ({
+          id: ev.id,
+          title: ev.title,
+          image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
+          link: `/events/${ev.id}`,
+          badge: ev.categoryName || "Hot Event"
+        }));
+        setBanners(liveBanners);
+      }
+    });
   }, []);
 
+  useEffect(() => {
+    if (!banners || banners.length === 0) return;
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [banners]);
+
   const nextBanner = () => {
-    setActiveIndex((prev) => (prev === HERO_BANNERS.length - 1 ? 0 : prev + 1));
+    if (!banners || banners.length === 0) return;
+    setActiveIndex((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
   };
 
   const prevBanner = () => {
-    setActiveIndex((prev) => (prev === 0 ? HERO_BANNERS.length - 1 : prev - 1));
+    if (!banners || banners.length === 0) return;
+    setActiveIndex((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
   };
 
-  const currentBanner1 = HERO_BANNERS[activeIndex];
-  const currentBanner2 = HERO_BANNERS[(activeIndex + 1) % HERO_BANNERS.length];
+  if (!banners || banners.length === 0) return null;
+
+  const currentBanner1 = banners[activeIndex % banners.length];
+  const currentBanner2 = banners[(activeIndex + 1) % banners.length];
 
   return (
     <div className="relative mb-8 group">
       {/* Dual Side-by-Side Banners */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        {[currentBanner1, currentBanner2].map((banner) => (
+        {[currentBanner1, currentBanner2].map((banner, index) => (
           <div
-            key={banner.id}
+            key={`${banner.id}-${index}`}
             className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl group/item"
           >
             <img
@@ -83,16 +106,15 @@ export const HeroCarousel: React.FC = () => {
 
       {/* Slide Dots Indicator */}
       <div className="flex items-center justify-center gap-2 mt-4">
-        {HERO_BANNERS.map((_, idx) => (
+        {banners.map((_, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => setActiveIndex(idx)}
-            className={`transition-all duration-300 rounded-full ${
-              idx === activeIndex
+            className={`transition-all duration-300 rounded-full ${idx === activeIndex
                 ? "w-6 h-2 bg-brand-500 shadow-md shadow-brand-500/50"
                 : "w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-500"
-            }`}
+              }`}
           />
         ))}
       </div>

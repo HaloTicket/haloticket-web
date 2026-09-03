@@ -2,11 +2,22 @@ import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { SPECIAL_EVENTS } from "@/mock/eventData";
+import { eventApi } from "@/services/eventApi";
 
 export const SpecialEvents: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
+  const [events, setEvents] = useState<any[]>(SPECIAL_EVENTS);
+
+  // fetch event data
+  useEffect(() => {
+    eventApi.getAllEvents().then((data) => {
+      if (data && data.length > 0) {
+        setEvents(data);
+      }
+    });
+  }, []);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
@@ -18,7 +29,7 @@ export const SpecialEvents: React.FC = () => {
 
   useEffect(() => {
     checkScroll();
-  }, []);
+  }, [events]);
 
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
@@ -61,14 +72,14 @@ export const SpecialEvents: React.FC = () => {
           onScroll={checkScroll}
           className="flex items-center gap-4 overflow-x-auto pb-2 no-scrollbar scroll-smooth"
         >
-          {SPECIAL_EVENTS.map((event) => (
+          {events.map((event) => (
             <Link
               key={event.id}
               to={`/events/${event.id}`}
               className="group/poster relative shrink-0 w-[220px] md:w-[250px] aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 border app-border hover:border-brand-primary transition-all duration-300 hover:scale-105 shadow-xl cursor-pointer"
             >
               <img
-                src={event.image}
+                src={event.image || event.bannerUrl || event.thumbnailUrl}
                 alt={event.title}
                 className="w-full h-full object-cover group-hover/poster:scale-105 transition-transform duration-500"
                 loading="lazy"

@@ -5,6 +5,7 @@ import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { TRENDING_EVENTS, WEEKEND_EVENTS } from "@/mock/eventData";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
+import { eventApi } from "@/services/eventApi";
 
 export const TrendingEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
@@ -16,6 +17,26 @@ export const TrendingEvents: React.FC = () => {
 
   const [showEventsLeft, setShowEventsLeft] = useState(false);
   const [showEventsRight, setShowEventsRight] = useState(true);
+
+  const [trendingList, setTrendingList] = useState<any[]>(TRENDING_EVENTS);
+  const [tabEvents, setTabEvents] = useState<any[]>(WEEKEND_EVENTS);
+
+  // fetch trending events
+  useEffect(() => {
+    eventApi.getAllEvents().then((data) => {
+      if (data && data.length > 0) {
+        // build ranked list 1..N
+        const ranked = data.map((ev, index) => ({
+          id: ev.id,
+          rank: index + 1,
+          title: ev.title,
+          image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
+        }));
+        setTrendingList(ranked);
+        setTabEvents(data);
+      }
+    });
+  }, []);
 
   const filterTabs = [
     { id: "weekend", label: "Cuối tuần này" },
@@ -41,7 +62,7 @@ export const TrendingEvents: React.FC = () => {
   useEffect(() => {
     checkRankScroll();
     checkEventsScroll();
-  }, []);
+  }, [trendingList, tabEvents]);
 
   const scrollRankLeft = () => {
     if (rankScrollRef.current) {
@@ -97,7 +118,7 @@ export const TrendingEvents: React.FC = () => {
           onScroll={checkRankScroll}
           className="flex items-center gap-5 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
         >
-          {TRENDING_EVENTS.map((event) => (
+          {trendingList.map((event) => (
             <Link
               key={event.id}
               to={`/events/${event.id}`}
@@ -159,7 +180,7 @@ export const TrendingEvents: React.FC = () => {
           onScroll={checkEventsScroll}
           className="flex items-center gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
         >
-          {WEEKEND_EVENTS.map((event) => (
+          {tabEvents.map((event) => (
             <div key={event.id} className="w-[260px] md:w-[285px] shrink-0">
               <EventCard event={event} />
             </div>

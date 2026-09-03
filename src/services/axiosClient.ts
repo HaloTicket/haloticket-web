@@ -9,11 +9,11 @@ const axiosClient = axios.create({
   timeout: CONFIG.TIMEOUT,
 });
 
-// Request Interceptor: Automatically attach the token before sending the API request.
+// request interceptor: automatically attach the token before sending the API request.
 axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
-    if (token && config.headers) {
+    if (token && token !== "null" && token !== "undefined" && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -21,13 +21,12 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response Interceptor: Automatically handle errors (e.g., token expiration)
+// response interceptor: automatically handle errors
 axiosClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
-      // Logic for handling expired token (e.g., redirect to login page)
-      console.error("Unauthorized! Token expired.");
+      console.warn("Unauthorized API call:", error.config?.url);
     }
     return Promise.reject(error);
   },

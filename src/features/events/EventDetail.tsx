@@ -7,19 +7,27 @@ import EventSchedule from "./components/detail/EventSchedule";
 import EventStickyHeader from "./components/detail/EventStickyHeader";
 import EventOrganizer from "./components/detail/EventOrganizer";
 import EventCard from "@/components/common/EventCard";
+import { eventApi } from "@/services/eventApi";
 import { FiGrid } from "react-icons/fi";
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
-  console.log("Viewing event id:", id);
   const [isStickyVisible, setIsStickyVisible] = useState(false);
+  const [eventData, setEventData] = useState<any>(MOCK_EVENT_DETAIL);
 
-  // Always scroll to top when opening event detail page
+  // always scroll to top when opening event detail page & fetch event data from API
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (id) {
+      eventApi.getEventById(id).then((data) => {
+        if (data) {
+          setEventData(data);
+        }
+      });
+    }
   }, [id]);
 
-  // Scroll listener for sticky header bar on scroll
+  // scroll listener for sticky header bar on scroll
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 350) {
@@ -40,9 +48,7 @@ export default function EventDetail() {
     }
   };
 
-  const eventData = MOCK_EVENT_DETAIL;
-
-  // Recommended events list
+  // recommended events list
   const recommendedEvents = [...SPECIAL_EVENTS, ...WEEKEND_EVENTS].slice(0, 8);
 
   return (
@@ -78,7 +84,7 @@ export default function EventDetail() {
             />
 
             {/* Organizer Section */}
-            <EventOrganizer organizer={eventData.organizer} />
+            <EventOrganizer organizer={eventData.organizer || MOCK_EVENT_DETAIL.organizer} />
           </div>
         </div>
 
