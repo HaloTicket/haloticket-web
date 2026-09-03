@@ -1,7 +1,10 @@
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useRef, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/context/ThemeContext";
+import SearchOverlayModal from "./SearchOverlayModal";
+import { addSearchHistory } from "@/utils/searchHistory";
+import { eventApi } from "@/services/eventApi";
 import {
   FiSearch,
   FiPlusCircle,
@@ -14,8 +17,47 @@ import { FaTicketAlt } from "react-icons/fa";
 export const Header: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [lang, setLang] = useState<"vi" | "en">("vi");
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // sync searchQuery with URL on /search, or clear searchQuery when navigating away to other pages
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get("q");
+    if (location.pathname === "/search" && q) {
+      setSearchQuery(q);
+    } else {
+      setSearchQuery("");
+    }
+    setIsSearchOpen(false);
+  }, [location.pathname, location.search]);
+
+  // close search overlay on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    addSearchHistory(trimmed);
+    eventApi.logSearchQuery(trimmed);
+    setIsSearchOpen(false);
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+  };
 
   const categories = [
     { label: "Nhạc sống", path: "/category/music" },
@@ -42,29 +84,51 @@ export const Header: React.FC = () => {
           </span>
         </Link>
 
-        {/* Search Bar Component */}
-        <div className="hidden lg:flex items-center grow max-w-xl mx-4">
-          <div className="relative w-full flex items-center">
+        {/* Search Bar Component & Overlay Modal */}
+        <div ref={searchContainerRef} className="hidden lg:flex items-center grow max-w-xl mx-4 relative">
+          <form onSubmit={handleSearchSubmit} className="relative w-full flex items-center">
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchOpen(true)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!isSearchOpen) setIsSearchOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSearchSubmit(e);
+                }
+              }}
               placeholder="Bạn tìm gì hôm nay?"
               className="w-full app-bg-card app-text-main placeholder-zinc-400 text-sm rounded-xl pl-4 pr-24 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all shadow-xs"
             />
             <button
-              type="button"
-              className="absolute right-1.5 px-4 py-1.5 gradient-btn text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-md"
+              type="submit"
+              className="absolute right-1.5 px-4 py-1.5 gradient-btn text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-md cursor-pointer"
             >
               <FiSearch className="w-3.5 h-3.5" />
               <span>Tìm kiếm</span>
             </button>
-          </div>
+          </form>
+
+          {/* Interactive Search Overlay Modal Popover */}
+          <SearchOverlayModal
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            searchQuery={searchQuery}
+            onSelectKeyword={(kw) => {
+              addSearchHistory(kw);
+              eventApi.logSearchQuery(kw);
+              setSearchQuery(kw);
+              navigate(`/search?q=${encodeURIComponent(kw)}`);
+            }}
+          />
         </div>
 
         {/* Header Actions */}
         <div className="flex items-center gap-3">
-          {/* "Tạo sự kiện" Button (Hover matches "Đăng nhập | Đăng ký" button gradient 100%) */}
+          {/* Button Create Event */}
           <Link
             to="/organizer/create-event"
             className="group hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold transition-all duration-300 border border-brand-primary/40 app-text-brand bg-brand-primary/10 hover-gradient-btn hover:scale-105 active:scale-95 cursor-pointer"
