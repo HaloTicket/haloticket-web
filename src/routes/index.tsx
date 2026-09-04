@@ -14,6 +14,8 @@ import EventDetail from "@/features/events/EventDetail";
 // Auth Feature
 import Login from "@/features/auth/Login";
 import Register from "@/features/auth/Register";
+import ForgotPassword from "@/features/auth/ForgotPassword";
+import ResetPassword from "@/features/auth/ResetPassword";
 
 // Tickets Feature
 import SelectTicket from "@/features/tickets/SelectTicket";
@@ -119,6 +121,14 @@ export const router = createBrowserRouter([
       {
         path: PATHS.REGISTER,
         element: <Register />,
+      },
+      {
+        path: PATHS.FORGOT_PASSWORD,
+        element: <ForgotPassword />,
+      },
+      {
+        path: PATHS.RESET_PASSWORD,
+        element: <ResetPassword />,
       },
     ],
   },

@@ -18,7 +18,6 @@ interface SearchOverlayModalProps {
 export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   isOpen,
   onClose,
-  searchQuery,
   onSelectKeyword
 }) => {
   const [activeTab, setActiveTab] = useState<"category" | "city">("category");
