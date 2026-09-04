@@ -283,7 +283,8 @@ input[type="submit"],
 .auth-shell {
   position: relative;
   isolation: isolate;
-  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-y: auto;
   color: var(--text-main);
   background: var(--color-canvas-dark) url("/assets/auth-stage.png") center / cover no-repeat;
 }
@@ -311,12 +312,22 @@ input[type="submit"],
 
 .auth-panel {
   width: min(100%, 29rem);
+  max-height: calc(100dvh - 7rem);
+  overflow-y: auto;
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
   border-radius: 1rem;
-  padding: clamp(1.25rem, 4vw, 2rem);
+  padding: clamp(1rem, 3vw, 1.5rem);
   background: color-mix(in srgb, var(--color-surface-white) 96%, transparent);
   box-shadow: 0 24px 70px color-mix(in srgb, var(--color-canvas-dark) 42%, transparent), 0 0 0 6px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
 }
+
+.auth-main { min-height: 0; }
+.auth-heading { margin-bottom: 1rem; display: grid; gap: 0.25rem; }
+.auth-form { display: grid; gap: 0.75rem; }
+.auth-terms { margin-top: 0.875rem; color: var(--text-muted); font-size: 0.75rem; line-height: 1.35; text-align: center; }
+.auth-terms a { color: var(--color-brand-primary); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.auth-terms a:hover { color: var(--color-brand-hover); }
+.auth-switch { margin-top: 0.875rem; text-align: center; font-size: 0.875rem; }
 
 .auth-eyebrow { color: var(--color-brand-primary); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; }
 .auth-title { color: var(--text-main); font-size: 2rem; font-weight: 800; line-height: 1.15; }
@@ -336,6 +347,6 @@ input[type="submit"],
 @media (max-width: 640px) {
   .auth-shell { background-position: 25% center; }
   .auth-shell::before { background: color-mix(in srgb, var(--color-canvas-dark) 82%, transparent); }
-  .auth-panel { border-radius: 0.85rem; }
+  .auth-panel { max-height: none; border-radius: 0.85rem; }
 }
 
