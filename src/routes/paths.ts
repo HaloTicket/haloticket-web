@@ -11,5 +11,10 @@ export const PATHS = {
   MY_TICKETS: "/my-tickets",
   TICKET_DETAIL: (id: string | number) => `/my-tickets/${id}`,
   PROFILE: "/profile",
+  ORGANIZER: "/organizer",
+  MY_EVENTS: "/organizer/my-events",
+  REPORTS: "/organizer/reports",
+  TERMS: "/organizer/terms",
+  CREATE_EVENT: "/organizer/create-event",
   NOT_FOUND: "*",
 };

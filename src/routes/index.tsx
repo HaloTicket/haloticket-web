@@ -1,9 +1,10 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { PATHS } from "./paths";
 
 // Layouts
 import MainLayout from "@/layouts/MainLayout";
 import AuthLayout from "@/layouts/AuthLayout";
+import OrganizerLayout from "@/layouts/OrganizerLayout";
 
 // Events Feature
 import Home from "@/features/events/Home";
@@ -23,6 +24,12 @@ import TicketDetail from "@/features/tickets/TicketDetail";
 
 // User Feature
 import Profile from "@/features/user/Profile";
+
+// Organizer Feature
+import CreateEvent from "@/features/organizer/CreateEvent";
+import MyEvents from "@/features/organizer/MyEvents";
+import OrganizerReports from "@/features/organizer/OrganizerReports";
+import OrganizerTerms from "@/features/organizer/OrganizerTerms";
 
 // Resale Feature
 import ResaleList from "@/features/resale/ResaleList";
@@ -112,6 +119,33 @@ export const router = createBrowserRouter([
       {
         path: PATHS.REGISTER,
         element: <Register />,
+      },
+    ],
+  },
+
+  // Organizer Center Routes (Separate Layout WITHOUT Main Header & Footer)
+  {
+    element: <OrganizerLayout />,
+    children: [
+      {
+        path: PATHS.ORGANIZER,
+        element: <Navigate to={PATHS.MY_EVENTS} replace />,
+      },
+      {
+        path: PATHS.MY_EVENTS,
+        element: <MyEvents />,
+      },
+      {
+        path: PATHS.REPORTS,
+        element: <OrganizerReports />,
+      },
+      {
+        path: PATHS.TERMS,
+        element: <OrganizerTerms />,
+      },
+      {
+        path: PATHS.CREATE_EVENT,
+        element: <CreateEvent />,
       },
     ],
   },
