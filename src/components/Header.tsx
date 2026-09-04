@@ -6,46 +6,101 @@ import { useTheme } from "@/context/ThemeContext";
 import SearchOverlayModal from "./SearchOverlayModal";
 import { addSearchHistory } from "@/utils/searchHistory";
 import { eventApi } from "@/services/eventApi";
+import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
+import { VietnamFlag, UKFlag } from "./common/FlagIcons";
 import {
   FiSearch,
   FiPlusCircle,
   FiSun,
   FiMoon,
-  FiUser,
   FiMenu,
   FiX,
-  FiCheck,
-  FiChevronDown
+  FiChevronDown,
 } from "react-icons/fi";
+import {
+  LuTicket,
+  LuGem,
+  LuCalendarDays,
+  LuChartColumn,
+  LuBuilding2,
+  LuLogOut,
+  LuUser,
+} from "react-icons/lu";
 import { FaTicketAlt } from "react-icons/fa";
 
 export const Header: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get("q");
+    return location.pathname === "/search" && q ? q : "";
+  });
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [lang, setLang] = useState<"vi" | "en">("vi");
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [lang, setLang] = useState<"vi" | "en">(() => {
+    const saved = localStorage.getItem("app_lang");
+    return saved === "en" ? "en" : "vi";
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() =>
+    Boolean(localStorage.getItem("access_token"))
+  );
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
+    getCachedUserProfile()
+  );
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
 
-  // sync searchQuery with URL on /search, or clear searchQuery when navigating away
-  useEffect(() => {
+  const currentNavKey = location.pathname + location.search;
+  const [prevNavKey, setPrevNavKey] = useState(currentNavKey);
+
+  // Sync state during render when route changes without cascading effect renders
+  if (prevNavKey !== currentNavKey) {
+    setPrevNavKey(currentNavKey);
     const params = new URLSearchParams(location.search);
     const q = params.get("q");
-    if (location.pathname === "/search" && q) {
-      setSearchQuery(q);
-    } else {
-      setSearchQuery("");
-    }
+    setSearchQuery(location.pathname === "/search" && q ? q : "");
     setIsSearchOpen(false);
     setIsMobileMenuOpen(false);
-  }, [location.pathname, location.search]);
+    setIsAccountOpen(false);
+    setIsLangOpen(false);
+  }
 
-  // close search overlay and language dropdown on click outside
+  // Check auth and user info on mount & sync across storage/profile events
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem("access_token");
+      const authed = Boolean(token);
+      setIsAuthenticated(authed);
+      if (authed) {
+        setUserProfile(getCachedUserProfile());
+        userApi.getProfile().then((data) => {
+          if (data) setUserProfile(data);
+        }).catch(() => {});
+      } else {
+        setUserProfile(null);
+      }
+    };
+
+    const handleProfileUpdate = () => {
+      setUserProfile(getCachedUserProfile());
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-updated", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-updated", handleProfileUpdate);
+    };
+  }, []);
+
+  // Close dropdowns on click outside or escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -60,10 +115,41 @@ export const Header: React.FC = () => {
       ) {
         setIsLangOpen(false);
       }
+      if (
+        accountDropdownRef.current &&
+        !accountDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsAccountOpen(false);
+      }
     };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsLangOpen(false);
+        setIsAccountOpen(false);
+        setIsSearchOpen(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("haloticket_user_profile");
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    setIsAccountOpen(false);
+    setIsMobileMenuOpen(false);
+    window.dispatchEvent(new Event("user-updated"));
+    navigate(PATHS.HOME, { replace: true });
+  };
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -76,6 +162,12 @@ export const Header: React.FC = () => {
     navigate(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
+  const userInitial = (
+    userProfile?.fullName?.[0] ||
+    userProfile?.email?.[0] ||
+    "M"
+  ).toUpperCase();
+
   const categories = [
     { label: "Nhạc sống", path: "/category/music" },
     { label: "Sân khấu & Nghệ thuật", path: "/category/stage" },
@@ -84,12 +176,12 @@ export const Header: React.FC = () => {
     { label: "Tham quan & Trải nghiệm", path: "/category/experience" },
     { label: "Khác", path: "/category/others" },
     { label: "Vé bán lại", path: "/resale-ticket", isResale: true },
-    { label: "Blog", path: "/blog" }
+    { label: "Blog", path: "/blog" },
   ];
 
   return (
     <header className="sticky top-0 z-50 app-bg-header border-b app-border transition-colors duration-300">
-      {/* Top Header Bar with side padding */}
+      {/* Top Header Bar */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <Link to={PATHS.HOME} className="flex items-center gap-2.5 group shrink-0">
@@ -102,7 +194,10 @@ export const Header: React.FC = () => {
         </Link>
 
         {/* Search Bar Component & Overlay Modal (Desktop) */}
-        <div ref={searchContainerRef} className="hidden lg:flex items-center grow max-w-xl mx-4 relative">
+        <div
+          ref={searchContainerRef}
+          className="hidden lg:flex items-center grow max-w-xl mx-4 relative"
+        >
           <form onSubmit={handleSearchSubmit} className="relative w-full flex items-center">
             <input
               type="text"
@@ -143,36 +238,215 @@ export const Header: React.FC = () => {
           />
         </div>
 
-        {/* Header Actions */}
+        {/* Header Right Actions */}
         <div className="flex items-center gap-3">
           {/* Button Create Event (Desktop) */}
           <Link
             to="/organizer/create-event"
-            className="group hidden lg:inline-flex items-center gap-1.5 px-7 py-2 rounded-full text-xs font-extrabold transition-all duration-300 border border-blue-500/40 text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 hover:scale-105 active:scale-95 cursor-pointer"
+            className="group hidden lg:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
           >
-            <FiPlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
+            <FiPlusCircle className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
             <span>Tạo sự kiện</span>
           </Link>
 
           {/* My Tickets (Desktop) */}
           <Link
             to={PATHS.MY_TICKETS}
-            className="hidden lg:inline-flex items-center gap-1.5 app-text-main hover:text-blue-600 dark:hover:text-blue-400 text-xs font-semibold px-3 py-2 transition-colors"
+            className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold app-text-main hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-all active:scale-95"
           >
-            <FaTicketAlt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Vé của tôi</span>
           </Link>
 
-          {/* Login / Register Button (Desktop) */}
-          <Link
-            to={PATHS.LOGIN}
-            className="hidden sm:inline-flex bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-extrabold shadow-xs transition-all active:scale-95 items-center gap-1.5"
-          >
-            <FiUser className="w-4 h-4" />
-            <span>Đăng nhập | Đăng ký</span>
-          </Link>
+          <div className="h-6 w-px app-border hidden lg:block" />
 
-          {/* Dark Mode Switcher */}
+          {/* Auth Dropdown (Ảnh 1) */}
+          {isAuthenticated ? (
+            <div ref={accountDropdownRef} className="relative group py-1">
+              <button
+                type="button"
+                onClick={() => setIsAccountOpen((prev) => !prev)}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer active:scale-95"
+                aria-expanded={isAccountOpen}
+                aria-haspopup="menu"
+              >
+                <span className="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-[10px]">
+                  {userInitial}
+                </span>
+                <span>Tài khoản</span>
+                <FiChevronDown
+                  className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${
+                    isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
+                  }`}
+                />
+              </button>
+
+              {/* Account Hover Dropdown Menu (Ảnh 1) */}
+              <div
+                className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${
+                  isAccountOpen
+                    ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
+                    : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
+                }`}
+                role="menu"
+              >
+                <div className="app-bg-card border app-border rounded-2xl p-2 shadow-2xl space-y-1 app-text-main animate-in zoom-in-95">
+                  {/* Customer section */}
+                  <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
+                    Cá nhân
+                  </div>
+
+                  <Link
+                    to={PATHS.MY_TICKETS}
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
+                  >
+                    <LuTicket className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Vé của tôi</span>
+                  </Link>
+
+                  <Link
+                    to={PATHS.PROFILE}
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
+                  >
+                    <LuUser className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>Thông tin cá nhân</span>
+                  </Link>
+
+                  <Link
+                    to="/profile?tab=membership"
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors w-full text-left cursor-pointer"
+                  >
+                    <LuGem className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Thẻ thành viên</span>
+                  </Link>
+
+                  <div className="my-1 border-t app-border" />
+
+                  {/* Organizer section */}
+                  <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
+                    Ban Tổ Chức
+                  </div>
+
+                  <Link
+                    to={PATHS.MY_EVENTS}
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
+                  >
+                    <LuCalendarDays className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>Quản lý sự kiện</span>
+                  </Link>
+
+                  <Link
+                    to={PATHS.REPORTS}
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
+                  >
+                    <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span>Báo cáo doanh thu</span>
+                  </Link>
+
+                  <Link
+                    to={PATHS.TERMS}
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
+                  >
+                    <LuBuilding2 className="w-4 h-4 text-purple-500 shrink-0" />
+                    <span>Hồ sơ Ban tổ chức</span>
+                  </Link>
+
+                  <div className="my-1 border-t app-border" />
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 text-xs font-medium transition-colors w-full text-left cursor-pointer"
+                  >
+                    <LuLogOut className="w-4 h-4 shrink-0" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Link
+              to={PATHS.LOGIN}
+              className="hidden sm:flex text-sm font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer app-text-main"
+            >
+              Đăng nhập <span className="app-text-muted font-normal mx-1">|</span> Đăng ký
+            </Link>
+          )}
+
+          {/* Language Flag Dropdown (Ảnh 2) */}
+          <div ref={langDropdownRef} className="relative group py-1">
+            <button
+              type="button"
+              onClick={() => setIsLangOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 text-sm font-medium hover:opacity-90 transition-all bg-secondary/60 hover:bg-secondary app-bg-subnav px-2.5 py-1.5 rounded-xl active:scale-95 cursor-pointer border app-border"
+              title="Ngôn ngữ"
+              aria-label="Chọn ngôn ngữ"
+            >
+              {lang === "vi" ? (
+                <VietnamFlag className="w-5 h-5" />
+              ) : (
+                <UKFlag className="w-5 h-5" />
+              )}
+              <FiChevronDown
+                className={`w-3 h-3 text-muted-foreground app-text-muted transition-transform duration-200 ${
+                  isLangOpen ? "rotate-180" : "group-hover:rotate-180"
+                }`}
+              />
+            </button>
+
+            {/* Flag Hover Menu (Ảnh 2) */}
+            <div
+              className={`absolute right-0 top-full pt-2 w-40 transition-all duration-200 z-50 origin-top-right ${
+                isLangOpen
+                  ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
+                  : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
+              }`}
+            >
+              <div className="app-bg-card border app-border rounded-2xl p-1.5 shadow-2xl space-y-1 animate-in zoom-in-95">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLang("vi");
+                    localStorage.setItem("app_lang", "vi");
+                    setIsLangOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${
+                    lang === "vi"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
+                      : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <VietnamFlag className="w-5 h-5" />
+                  <span>Tiếng Việt</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLang("en");
+                    localStorage.setItem("app_lang", "en");
+                    setIsLangOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${
+                    lang === "en"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
+                      : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <UKFlag className="w-5 h-5" />
+                  <span>English</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={toggleTheme}
@@ -187,79 +461,7 @@ export const Header: React.FC = () => {
             )}
           </button>
 
-          {/* Language Flag Selector with Seamless Group Hover & Touch Click Support */}
-          <div
-            ref={langDropdownRef}
-            className="relative group py-1"
-          >
-            <button
-              type="button"
-              onClick={() => setIsLangOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1 app-bg-card border app-border rounded-xl text-xs app-text-main hover:border-blue-500/50 transition-all cursor-pointer shadow-xs"
-              aria-label="Chọn ngôn ngữ"
-            >
-              {lang === "vi" ? (
-                <span className="flex items-center gap-1.5 font-bold">
-                  <span className="text-base">🇻🇳</span>
-                  <span>VIE</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 font-bold">
-                  <span className="text-base">🇬🇧</span>
-                  <span>ENG</span>
-                </span>
-              )}
-              <FiChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isLangOpen ? "rotate-180" : "group-hover:rotate-180"}`} />
-            </button>
-
-            {/* Continuous Hover Popover with Invisible Bridge Area */}
-            <div
-              className={`absolute right-0 top-full pt-1.5 w-40 z-50 transition-all duration-200 origin-top-right ${isLangOpen
-                ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
-                : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
-                }`}
-            >
-              <div className="p-1.5 rounded-2xl app-bg-card border app-border shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLang("vi");
-                    setIsLangOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${lang === "vi"
-                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
-                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">🇻🇳</span>
-                    <span>Tiếng Việt</span>
-                  </div>
-                  {lang === "vi" && <FiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLang("en");
-                    setIsLangOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer mt-0.5 ${lang === "en"
-                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
-                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">🇬🇧</span>
-                    <span>English</span>
-                  </div>
-                  {lang === "en" && <FiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile & Tablet Drawer Menu Toggle Button */}
+          {/* Mobile menu toggle */}
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
@@ -280,12 +482,13 @@ export const Header: React.FC = () => {
               <Link
                 key={cat.label}
                 to={cat.path}
-                className={`transition-colors py-0.5 relative cursor-pointer ${cat.isResale
-                  ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
-                  : isActive
+                className={`transition-colors py-0.5 relative cursor-pointer ${
+                  cat.isResale
+                    ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
+                    : isActive
                     ? "text-blue-600 dark:text-blue-400 font-bold"
                     : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
-                  }`}
+                }`}
               >
                 {cat.isResale && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                 {cat.label}
@@ -295,7 +498,7 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile & Tablet Slide-out Drawer Panel (Portaled to document.body to bypass header backdrop-filter containing block) */}
+      {/* Mobile Drawer Menu */}
       {isMobileMenuOpen &&
         createPortal(
           <div
@@ -326,37 +529,122 @@ export const Header: React.FC = () => {
                 </button>
               </form>
 
-              {/* Quick Action Buttons */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* Mobile Action Buttons */}
+              <div className="space-y-2">
                 <Link
                   to="/organizer/create-event"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-blue-500/40 text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 font-bold text-xs text-center"
+                  className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
                 >
-                  <FiPlusCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">Tạo sự kiện</span>
+                  <FiPlusCircle className="h-4 w-4" /> Tạo sự kiện mới
                 </Link>
 
-                <Link
-                  to={PATHS.MY_TICKETS}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl app-bg-subnav app-text-main font-bold text-xs border app-border text-center"
-                >
-                  <FaTicketAlt className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                  <span className="truncate">Vé của tôi</span>
-                </Link>
-
-                <Link
-                  to={PATHS.LOGIN}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-1.5 p-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs text-center"
-                >
-                  <FiUser className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">Đăng nhập</span>
-                </Link>
+                {isAuthenticated ? (
+                  <div className="space-y-1 pt-2 border-t app-border">
+                    <div className="px-2 py-1 text-[10px] font-bold app-text-muted uppercase tracking-wider">
+                      Tài khoản của bạn ({userProfile?.fullName || "Khách hàng"})
+                    </div>
+                    <Link
+                      to={PATHS.MY_TICKETS}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
+                    >
+                      <LuTicket className="h-4 w-4 text-emerald-600" /> Vé của tôi
+                    </Link>
+                    <Link
+                      to={PATHS.PROFILE}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
+                    >
+                      <LuUser className="h-4 w-4 text-blue-500" /> Thông tin cá nhân
+                    </Link>
+                    <Link
+                      to="/profile?tab=membership"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
+                    >
+                      <LuGem className="h-4 w-4 text-amber-500" /> Thẻ thành viên
+                    </Link>
+                    <Link
+                      to={PATHS.MY_EVENTS}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
+                    >
+                      <LuCalendarDays className="h-4 w-4 text-blue-500" /> Quản lý sự kiện
+                    </Link>
+                    <Link
+                      to={PATHS.REPORTS}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
+                    >
+                      <LuChartColumn className="h-4 w-4 text-indigo-500" /> Báo cáo doanh thu
+                    </Link>
+                    <Link
+                      to={PATHS.TERMS}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
+                    >
+                      <LuBuilding2 className="h-4 w-4 text-purple-500" /> Hồ sơ Ban tổ chức
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 text-xs font-semibold py-2 px-2 text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors text-left w-full cursor-pointer mt-1"
+                    >
+                      <LuLogOut className="h-4 w-4" /> Đăng xuất
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    to={PATHS.LOGIN}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
+                  >
+                    <LuUser className="h-4 w-4" /> Đăng nhập | Đăng ký
+                  </Link>
+                )}
               </div>
 
-              {/* Mobile Category Links Grid (2 columns to display ALL items without scrolling) */}
+              {/* Language Selector in Mobile Drawer */}
+              <div className="pt-3 border-t app-border">
+                <div className="text-[11px] font-extrabold app-text-muted uppercase tracking-wider mb-2">
+                  Ngôn ngữ
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLang("vi");
+                      localStorage.setItem("app_lang", "vi");
+                    }}
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${
+                      lang === "vi"
+                        ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
+                        : "app-bg-subnav app-text-main app-border"
+                    }`}
+                  >
+                    <VietnamFlag className="w-4 h-4" />
+                    <span>Tiếng Việt</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLang("en");
+                      localStorage.setItem("app_lang", "en");
+                    }}
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${
+                      lang === "en"
+                        ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
+                        : "app-bg-subnav app-text-main app-border"
+                    }`}
+                  >
+                    <UKFlag className="w-4 h-4" />
+                    <span>English</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Category Links Grid */}
               <div className="pt-3 border-t app-border space-y-2">
                 <div className="text-[11px] font-extrabold app-text-muted uppercase tracking-wider">
                   Danh mục sự kiện
@@ -367,22 +655,28 @@ export const Header: React.FC = () => {
                       key={cat.label}
                       to={cat.path}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${cat.isResale
-                        ? "text-rose-500 font-extrabold bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50"
-                        : location.pathname === cat.path
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${
+                        cat.isResale
+                          ? "text-rose-500 font-extrabold bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50"
+                          : location.pathname === cat.path
                           ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-blue-200 dark:border-blue-800/50"
                           : "app-bg-subnav app-text-main hover:bg-slate-200 dark:hover:bg-slate-800 app-border"
-                        }`}
+                      }`}
                     >
                       <span className="truncate">{cat.label}</span>
-                      {cat.isResale && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0 ml-1" />}
+                      {cat.isResale && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0 ml-1" />
+                      )}
                     </Link>
                   ))}
                 </div>
               </div>
             </div>
             {/* Backdrop dismiss touch area */}
-            <div className="flex-1 w-full cursor-pointer" onClick={() => setIsMobileMenuOpen(false)} />
+            <div
+              className="flex-1 w-full cursor-pointer"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
           </div>,
           document.body
         )}
