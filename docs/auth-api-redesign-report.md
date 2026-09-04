@@ -18,7 +18,14 @@ Error mapping handles HTTP 429 rate limits, 410 expiry, and 423 OTP lock respons
 
 ## Visual implementation
 
-The supplied concert image is stored at `public/assets/auth-stage.png`. `AuthLayout` uses it as a full-screen background with a navy 70% overlay. Auth panels use translucent white, cyan borders, a restrained shadow, responsive sizing, and visible focus rings. The treatment applies consistently to login, registration, forgot password, and reset password.
+The supplied concert image is stored at `public/assets/auth-stage.png`. `AuthLayout` uses it as a full-screen background with the canonical `#020817` overlay. Auth panels use the canonical white surface, blue primary border/focus treatment, restrained shadow, responsive sizing, and visible keyboard focus rings. Login, registration, forgot password, and reset password share the same panel, input, link, button, and semantic success/danger state tokens from `src/index.css`.
+
+## Token alignment follow-up
+
+- Replaced the previous cyan/teal auth palette with `--color-brand-primary`, `--color-brand-hover`, `--color-brand-accent`, `--color-canvas-dark`, surface, ink, success, and danger variables.
+- Updated the shared light/dark app variables to the canonical HaloTicket values from `DESIGN.md`.
+- Added token-backed semantic helpers for validation and recovery feedback; no auth screen uses hardcoded cyan, green, purple, or ad-hoc brand colors.
+- Kept the image composition responsive: desktop centers the quiet right side of the supplied artwork, while mobile shifts toward the stage with a stronger dark overlay so the panel remains readable.
 
 ## Verification
 

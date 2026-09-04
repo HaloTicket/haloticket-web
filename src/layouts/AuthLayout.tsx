@@ -10,10 +10,10 @@ export default function AuthLayout() {
         {/* Minimal Auth Header */}
         <header className="auth-header flex items-center justify-between px-4 py-5 sm:px-8">
           <Link to={PATHS.HOME} className="flex min-h-11 items-center gap-2">
-            <div className="auth-mark flex h-8 w-8 items-center justify-center rounded-lg text-sm font-extrabold text-white">
+            <div className="auth-mark flex h-8 w-8 items-center justify-center rounded-lg text-sm font-extrabold">
               H
             </div>
-            <span className="text-xl font-extrabold text-white">
+            <span className="auth-brand-name text-xl font-extrabold">
               HaloTicket
             </span>
           </Link>
