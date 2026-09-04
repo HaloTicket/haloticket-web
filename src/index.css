@@ -274,4 +274,61 @@ input[type="submit"],
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
-
+
+/* Auth is intentionally framed by the supplied concert image: the stage remains visible while the form sits in the quiet negative space. */
+.auth-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  color: #10233f;
+  background: #06172f url("/assets/auth-stage.png") center / cover no-repeat;
+}
+
+.auth-shell::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: rgba(3, 16, 39, 0.7);
+  content: "";
+}
+
+.auth-header,
+.auth-footer {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.auth-mark {
+  background: #13b7c8;
+  box-shadow: 0 0 0 4px rgba(19, 183, 200, 0.18);
+}
+
+.auth-panel {
+  width: min(100%, 29rem);
+  border: 1px solid rgba(19, 183, 200, 0.6);
+  border-radius: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34), 0 0 0 6px rgba(34, 211, 238, 0.08);
+}
+
+.auth-eyebrow { color: #087f9a; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; }
+.auth-title { color: #10233f; font-size: clamp(1.55rem, 4vw, 2rem); font-weight: 800; line-height: 1.15; }
+.auth-subtitle { color: #61708a; font-size: 0.9rem; }
+.auth-label { display: block; margin-bottom: 0.5rem; color: #253858; font-size: 0.875rem; font-weight: 700; }
+.auth-input { height: 2.75rem; width: 100%; border: 1px solid #c8d5e5; border-radius: 0.7rem; padding: 0 0.875rem; color: #10233f; background: rgba(255, 255, 255, 0.9); outline: none; }
+.auth-input:focus { border-color: #13b7c8; box-shadow: 0 0 0 3px rgba(19, 183, 200, 0.2); }
+.auth-button { min-height: 2.75rem; width: 100%; border-radius: 0.7rem; background: #087f9a !important; box-shadow: 0 8px 18px rgba(8, 127, 154, 0.24); }
+.auth-button:hover { background: #056276 !important; }
+.auth-secondary-button { min-height: 2.75rem; width: 100%; color: #087f9a; font-size: 0.875rem; font-weight: 700; }
+.auth-secondary-button:hover { color: #056276; text-decoration: underline; }
+.auth-link { color: #087f9a; font-weight: 700; }
+.auth-link:hover { color: #056276; text-decoration: underline; }
+.auth-error { border-radius: 0.65rem; background: #fff1f2; padding: 0.75rem; color: #be123c; font-size: 0.875rem; }
+.auth-success { border: 1px solid #86efac; border-radius: 0.7rem; background: #f0fdf4; padding: 0.9rem; color: #166534; font-size: 0.875rem; }
+
+@media (max-width: 640px) {
+  .auth-shell { background-position: 25% center; }
+  .auth-shell::before { background: rgba(3, 16, 39, 0.76); }
+  .auth-panel { border-radius: 0.85rem; }
+}
+

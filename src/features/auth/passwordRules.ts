@@ -5,7 +5,7 @@ export interface PasswordRules {
   hasUppercase: boolean;
 }
 
-const specialCharacterPattern = /[^A-Za-z0-9]/;
+const specialCharacterPattern = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/;
 
 export function getPasswordRules(password: string): PasswordRules {
   return {
