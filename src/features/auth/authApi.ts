@@ -8,6 +8,7 @@ export const AUTH_ENDPOINTS = {
   registerResend: "/auth/register/resend",
   forgotStart: "/auth/password/forgot",
   forgotVerify: "/auth/password/verify",
+  forgotResend: "/auth/password/resend",
   resetPassword: "/auth/password/reset",
 } as const;
 
@@ -82,7 +83,7 @@ export const authApi = {
     "Mã OTP khôi phục không hợp lệ hoặc đã hết hạn.",
   ),
   forgotResend: (challengeId: string) => request<AuthChallengeResponse>(
-    () => axiosClient.post(AUTH_ENDPOINTS.registerResend, { challengeId }),
+    () => axiosClient.post(AUTH_ENDPOINTS.forgotResend, { challengeId }),
     "Không thể gửi lại mã OTP khôi phục.",
   ),
   resetPassword: (resetToken: string, password: string) => request<void>(
