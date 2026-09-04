@@ -1,5 +1,5 @@
-import { useId, useState } from "react";
-import { FiEye, FiEyeOff } from "react-icons/fi";
+import { useId, useState, type ReactNode } from "react";
+import { FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 
 interface PasswordFieldProps {
   autoComplete: string;
@@ -9,21 +9,62 @@ interface PasswordFieldProps {
   onChange: (value: string) => void;
   placeholder: string;
   value: string;
+  leftIcon?: ReactNode;
 }
 
-export function PasswordField({ autoComplete, error, id, label, onChange, placeholder, value }: PasswordFieldProps) {
+export function PasswordField({
+  autoComplete,
+  error,
+  id,
+  label,
+  onChange,
+  placeholder,
+  value,
+  leftIcon = <FiLock aria-hidden="true" />,
+}: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
   const errorId = useId();
+
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-semibold app-text-main" htmlFor={id}>{label}</label>
-      <div className="relative">
-        <input aria-describedby={error ? errorId : undefined} aria-invalid={Boolean(error)} autoComplete={autoComplete} className={`auth-input pr-12 ${error ? "app-border-danger" : ""}`} id={id} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required type={isVisible ? "text" : "password"} value={value} />
-        <button aria-label={isVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"} aria-pressed={isVisible} className="absolute inset-y-0 right-0 flex min-h-11 w-11 items-center justify-center app-text-muted hover:app-text-brand focus:outline-none focus:ring-2 focus:ring-brand-primary/30" onClick={() => setIsVisible((current) => !current)} type="button">
-          {isVisible ? <FiEyeOff aria-hidden="true" size={19} /> : <FiEye aria-hidden="true" size={19} />}
+    <div>
+      <label className="auth-label" htmlFor={id}>
+        {label}
+      </label>
+      <div className="auth-input-shell">
+        {leftIcon && (
+          <div className="auth-input-icon">
+            {leftIcon}
+          </div>
+        )}
+        <input
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={Boolean(error)}
+          autoComplete={autoComplete}
+          className={`auth-input auth-input--password ${leftIcon ? "auth-input--icon" : ""} ${
+            error ? "auth-input--error" : ""
+          }`}
+          id={id}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required
+          type={isVisible ? "text" : "password"}
+          value={value}
+        />
+        <button
+          aria-label={isVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+          aria-pressed={isVisible}
+          className="auth-password-toggle"
+          onClick={() => setIsVisible((current) => !current)}
+          type="button"
+        >
+          {isVisible ? <FiEyeOff size={19} aria-hidden="true" /> : <FiEye size={19} aria-hidden="true" />}
         </button>
       </div>
-      {error && <p className="auth-error" id={errorId} role="alert">{error}</p>}
+      {error && (
+        <p className="auth-field-error" id={errorId} role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -35,7 +35,7 @@ function AuthHandlers() {
   const registerStart = (data: RegistrationData) => authApi.registerStart(data.email, data.password, createIdempotencyKey("register"));
   const registerVerify = ({ challengeId, email, password, otp }: RegistrationOtpData) => authApi.registerVerify(challengeId, email, password, otp);
   const registerResend = (challengeId: string) => authApi.registerResend(challengeId);
-  const forgotStart = (data: PasswordRecoveryRequest) => authApi.forgotStart(data.email, data.phoneNumber, createIdempotencyKey("password-reset"));
+  const forgotStart = (data: PasswordRecoveryRequest) => authApi.forgotStart(data.identifier, createIdempotencyKey("password-reset"));
   const forgotVerify = (challengeId: string, otp: string) => authApi.forgotVerify(challengeId, otp);
   const forgotResend = (challengeId: string) => authApi.forgotResend(challengeId);
   const resetPassword = (data: PasswordResetData) => authApi.resetPassword(data.resetToken, data.password);

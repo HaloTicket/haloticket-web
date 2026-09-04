@@ -74,8 +74,8 @@ export const authApi = {
     () => axiosClient.post(AUTH_ENDPOINTS.registerResend, { challengeId }),
     "Không thể gửi lại mã OTP đăng ký.",
   ),
-  forgotStart: (email: string, phoneNumber: string, idempotencyKey: string) => request<AuthChallengeResponse>(
-    () => axiosClient.post(AUTH_ENDPOINTS.forgotStart, { email, phoneNumber, idempotencyKey }),
+  forgotStart: (identifier: string, idempotencyKey: string) => request<AuthChallengeResponse>(
+    () => axiosClient.post(AUTH_ENDPOINTS.forgotStart, { identifier, idempotencyKey }),
     "Không thể gửi mã khôi phục mật khẩu.",
   ),
   forgotVerify: (challengeId: string, otp: string) => request<PasswordResetVerificationResponse>(
