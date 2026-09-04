@@ -283,8 +283,11 @@ input[type="submit"],
 .auth-shell {
   position: relative;
   isolation: isolate;
+  height: 100dvh;
   min-height: 100dvh;
   overflow-y: auto;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
   color: var(--text-main);
   background: var(--color-canvas-dark) url("/assets/auth-stage.png") center / cover no-repeat;
 }
@@ -312,8 +315,8 @@ input[type="submit"],
 
 .auth-panel {
   width: min(100%, 29rem);
-  max-height: calc(100dvh - 7rem);
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
   border-radius: 1rem;
   padding: clamp(1rem, 3vw, 1.5rem);
@@ -321,7 +324,12 @@ input[type="submit"],
   box-shadow: 0 24px 70px color-mix(in srgb, var(--color-canvas-dark) 42%, transparent), 0 0 0 6px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
 }
 
-.auth-main { min-height: 0; }
+.auth-main {
+  min-height: calc(100dvh - 7rem);
+  flex: 1 0 auto;
+  align-items: center;
+  overscroll-behavior-y: auto;
+}
 .auth-heading { margin-bottom: 1rem; display: grid; gap: 0.25rem; }
 .auth-form { display: grid; gap: 0.75rem; }
 .auth-terms { margin-top: 0.875rem; color: var(--text-muted); font-size: 0.75rem; line-height: 1.35; text-align: center; }
@@ -347,6 +355,11 @@ input[type="submit"],
 @media (max-width: 640px) {
   .auth-shell { background-position: 25% center; }
   .auth-shell::before { background: color-mix(in srgb, var(--color-canvas-dark) 82%, transparent); }
-  .auth-panel { max-height: none; border-radius: 0.85rem; }
+  .auth-main {
+    align-items: flex-start;
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+  }
+  .auth-panel { border-radius: 0.85rem; }
 }
 
