@@ -52,7 +52,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               name="sortOption"
               checked={localFilters.sortOption === "latest"}
               onChange={() => setLocalFilters({ ...localFilters, sortOption: "latest" })}
-              className="accent-indigo-600 cursor-pointer"
+              className="accent-blue-600 cursor-pointer"
             />
             <span>Tin đăng mới nhất</span>
           </label>
@@ -63,7 +63,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               name="sortOption"
               checked={localFilters.sortOption === "price-asc"}
               onChange={() => setLocalFilters({ ...localFilters, sortOption: "price-asc" })}
-              className="accent-indigo-600 cursor-pointer"
+              className="accent-blue-600 cursor-pointer"
             />
             <span>Giá từ thấp đến cao</span>
           </label>
@@ -74,7 +74,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               name="sortOption"
               checked={localFilters.sortOption === "price-desc"}
               onChange={() => setLocalFilters({ ...localFilters, sortOption: "price-desc" })}
-              className="accent-indigo-600 cursor-pointer"
+              className="accent-blue-600 cursor-pointer"
             />
             <span>Giá từ cao đến thấp</span>
           </label>

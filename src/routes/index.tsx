@@ -47,6 +47,14 @@ export const router = createBrowserRouter([
         element: <EventSearch />,
       },
       {
+        path: PATHS.SEARCH,
+        element: <EventSearch />,
+      },
+      {
+        path: "/category/:slug",
+        element: <EventSearch />,
+      },
+      {
         path: "/events/:id",
         element: <EventDetail />,
       },

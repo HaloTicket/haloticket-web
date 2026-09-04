@@ -20,17 +20,19 @@ export interface EventApiData {
 }
 
 export const eventApi = {
-  // fetch all events
+  // fetch all events safely
   getAllEvents: async (): Promise<EventApiData[]> => {
     try {
       const response: any = await axiosClient.get("/events");
       if (Array.isArray(response) && response.length > 0) {
-        return response.map((item: any) => ({
-          ...item,
-          image: item.bannerUrl || item.thumbnailUrl || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
-          price: item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : "250.000đ",
-          date: item.startTime ? new Date(item.startTime).toLocaleDateString("vi-VN") : "25 tháng 09, 2026"
-        }));
+        return response
+          .filter((item: any) => item != null && typeof item === "object")
+          .map((item: any) => ({
+            ...item,
+            image: item.bannerUrl || item.thumbnailUrl || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
+            price: item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : "250.000đ",
+            date: item.startTime ? new Date(item.startTime).toLocaleDateString("vi-VN") : "25 tháng 09, 2026"
+          }));
       }
       return SPECIAL_EVENTS as any;
     } catch (err) {
@@ -39,7 +41,7 @@ export const eventApi = {
     }
   },
 
-  // fetch event details by id
+  // fetch event details by id safely
   getEventById: async (id: string): Promise<any> => {
     try {
       const response: any = await axiosClient.get(`/events/${id}`);
@@ -69,16 +71,39 @@ export const eventApi = {
     }
   },
 
-  // fetch categories
+  // fetch categories safely
   getCategories: async (): Promise<any[]> => {
     try {
       const response: any = await axiosClient.get("/events/categories");
       if (Array.isArray(response) && response.length > 0) {
-        return response;
+        return response.filter((cat: any) => cat != null && typeof cat === "object");
       }
       return [];
     } catch (err) {
       return [];
+    }
+  },
+
+  // fetch top 3 searched keywords dynamically from backend DB query safely
+  getTrendingSearches: async (limit = 3): Promise<string[]> => {
+    try {
+      const response: any = await axiosClient.get(`/events/trending-searches?limit=${limit}`);
+      if (Array.isArray(response) && response.length > 0) {
+        return response.filter((k: any) => typeof k === "string" && k.trim() !== "");
+      }
+      return ["idecaf", "xoay tròn", "Pickleball World Cup"];
+    } catch (err) {
+      return ["idecaf", "xoay tròn", "Pickleball World Cup"];
+    }
+  },
+
+  // log user search query to backend DB for search analytics safely
+  logSearchQuery: async (query: string): Promise<void> => {
+    if (!query || !query.trim()) return;
+    try {
+      await axiosClient.post(`/events/search-log?query=${encodeURIComponent(query.trim())}`);
+    } catch (err) {
+      // silent catch
     }
   }
 };

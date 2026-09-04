@@ -177,7 +177,7 @@ export const ResaleTicketCheckout: React.FC = () => {
               type="checkbox"
               checked={isAgreed}
               onChange={(e) => setIsAgreed(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+              className="mt-0.5 w-4 h-4 rounded accent-blue-600 cursor-pointer"
             />
             <span className="leading-relaxed">
               Tôi đã đọc, hiểu, đồng ý và cam kết tuân thủ các{" "}

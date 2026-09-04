@@ -53,15 +53,15 @@ export default function EventDetail() {
 
   return (
     <div className="w-full transition-colors duration-300">
-      {/* Fixed Top Header Bar on Scroll*/}
+      {/* Fixed Top Header Bar on Scroll */}
       <EventStickyHeader
         event={eventData}
         isVisible={isStickyVisible}
         onBuyTicketsClick={handleScrollToSchedule}
       />
 
-      {/* Main Container */}
-      <div className="container mx-auto px-4 md:px-8 py-6 md:py-8">
+      {/* Main Container with side margins */}
+      <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-6 md:py-8">
         {/* Top Physical Ticket Stub Banner*/}
         <EventHero
           event={eventData}
@@ -71,7 +71,7 @@ export default function EventDetail() {
         {/* Compact Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-6">
           {/* Main Content Column */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-8 space-y-8">
             {/* Collapsible Event Description & Gallery */}
             <EventDescription event={eventData} />
 

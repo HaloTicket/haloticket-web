@@ -1,6 +1,7 @@
 export const PATHS = {
   HOME: "/",
   EVENTS: "/events",
+  SEARCH: "/search",
   EVENT_DETAIL: (id: string | number) => `/events/${id}`,
   SELECT_TICKET: (id: string | number) => `/events/${id}/select-ticket`,
   LOGIN: "/login",

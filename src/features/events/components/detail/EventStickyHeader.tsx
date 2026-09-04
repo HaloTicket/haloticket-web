@@ -16,7 +16,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
 }) => {
   return (
     <div
-      className={`fixed top-0 inset-x-0 z-[100] h-17 app-bg-header backdrop-blur-xl border-b app-border shadow-2xl transition-all duration-300 flex items-center justify-between px-4 md:px-12 lg:px-16 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+      className={`fixed top-0 inset-x-0 z-[100] h-18 app-bg-header backdrop-blur-xl border-b app-border shadow-2xl transition-all duration-300 flex items-center justify-between px-4 md:px-12 lg:px-16 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
         }`}
     >
       {/* Left Event Title & Location (Bigger & Clearer) */}
@@ -24,7 +24,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
         <h3 className="text-base md:text-lg lg:text-xl font-extrabold app-text-main truncate max-w-lg md:max-w-2xl tracking-tight">
           {event.title}
         </h3>
-        <div className="hidden md:flex items-center gap-1.5 text-xs md:text-sm app-text-brand font-extrabold shrink-0 bg-brand-primary/10 px-3 py-1 rounded-full border border-brand-primary/20">
+        <div className="hidden md:flex items-center gap-1.5 text-xs md:text-sm app-text-brand font-extrabold shrink-0 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800/60">
           <FiMapPin className="w-4 h-4 shrink-0" />
           <span className="truncate">{event.locationName}</span>
         </div>
