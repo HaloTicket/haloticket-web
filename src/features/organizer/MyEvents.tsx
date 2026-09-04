@@ -1,11 +1,26 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { FiSearch, FiInbox, FiPlus, FiCalendar, FiMapPin, FiEye, FiEdit3 } from "react-icons/fi";
-import { PATHS } from "@/routes/paths";
+import {
+  FiSearch,
+  FiInbox,
+  FiPlus,
+  FiCalendar,
+  FiMapPin,
+  FiPieChart,
+  FiUsers,
+  FiFileText,
+  FiGrid,
+  FiEdit3,
+  FiChevronLeft,
+  FiChevronRight,
+  FiAlertTriangle
+} from "react-icons/fi";
+import PendingApprovalModal from "./components/PendingApprovalModal";
 
 export const MyEvents: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "pending" | "draft">("upcoming");
+  const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "pending" | "draft">("pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showPendingModal, setShowPendingModal] = useState(false);
 
   const tabs = [
     { id: "upcoming", label: "Sắp tới" },
@@ -14,16 +29,23 @@ export const MyEvents: React.FC = () => {
     { id: "draft", label: "Nháp" }
   ];
 
-  // mock events list 
+  // Mock events list matching user's layout
   const mockEvents = [
     {
       id: "ev1",
-      title: "Đêm Nhạc Đỉnh Cao Halo Concert 2026",
-      date: "15/10/2026 - 18:00",
-      location: "Sân vận động Mỹ Đình, Hà Nội",
-      status: "upcoming",
-      sold: "350 / 500",
-      priceRange: "450.000 - 1.500.000 đ"
+      title: "Concert Test",
+      date: "00:00, Thứ 7, 05 tháng 09 2026",
+      location: "Online Event",
+      status: "pending",
+      image: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: "ev2",
+      title: "Concert Test",
+      date: "18:00, Thứ 5, 20 tháng 08 2026",
+      location: "IUH, Phường An Nhơn, Thành phố Hồ Chí Minh",
+      status: "pending",
+      image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80"
     }
   ];
 
@@ -33,9 +55,14 @@ export const MyEvents: React.FC = () => {
     return matchesTab && matchesQuery;
   });
 
+  const handleActionClick = () => {
+    if (activeTab === "pending") {
+      setShowPendingModal(true);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen app-bg-page p-4 md:p-8 space-y-6">
-
       {/* Search Bar & Tab Navigation Filters */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         {/* Search Input Box */}
@@ -46,7 +73,7 @@ export const MyEvents: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm sự kiện..."
+              placeholder="Tìm kiếm sự kiện"
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
             />
           </div>
@@ -67,10 +94,11 @@ export const MyEvents: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${isActive
-                    ? "bg-blue-600 text-white shadow-xs"
+                className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? "bg-blue-600 dark:bg-blue-500 text-white shadow-xs"
                     : "app-text-muted hover:app-text-main"
-                  }`}
+                }`}
               >
                 {tab.label}
               </button>
@@ -79,8 +107,18 @@ export const MyEvents: React.FC = () => {
         </div>
       </div>
 
+      {/* Amber Alert Box when on Pending tab */}
+      {activeTab === "pending" && (
+        <div className="w-full p-4 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs md:text-sm shadow-xs flex items-center gap-2.5">
+          <FiAlertTriangle className="w-5 h-5 shrink-0 text-slate-900" />
+          <span>
+            Lưu ý: Sự kiện đang chờ duyệt. Để đảm bảo tính bảo mật cho sự kiện của bạn, quyền truy cập vào trang chỉ dành cho chủ sở hữu và quản trị viên được ủy quyền
+          </span>
+        </div>
+      )}
+
       {/* Main Full Width Content List */}
-      <div className="w-full">
+      <div className="w-full space-y-6">
         {filteredEvents.length === 0 ? (
           /* Empty State Illustration */
           <div className="w-full app-bg-card border app-border rounded-2xl p-12 md:p-16 flex flex-col items-center justify-center text-center space-y-4 shadow-sm min-h-[380px]">
@@ -93,7 +131,7 @@ export const MyEvents: React.FC = () => {
                 Không có sự kiện nào
               </h3>
               <p className="text-xs app-text-muted leading-relaxed">
-                Bạn chưa có sự kiện nào trong danh mục "{tabs.find((t) => t.id === activeTab)?.label}". Hãy tạo sự kiện mới để tiếp cận khán giả ngay hôm nay!
+                Bạn chưa có sự kiện nào trong danh mục "{tabs.find((t) => t.id === activeTab)?.label}".
               </p>
             </div>
 
@@ -106,63 +144,115 @@ export const MyEvents: React.FC = () => {
             </Link>
           </div>
         ) : (
-          /* List of Events Cards */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          /* List of Events Cards (Horizontal Layout with Royal Blue Theme) */
+          <div className="space-y-4">
             {filteredEvents.map((ev) => (
               <div
                 key={ev.id}
-                className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
               >
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-extrabold rounded-lg">
-                      Sắp diễn ra
-                    </span>
-                    <span className="text-xs font-bold app-text-muted">Vé: {ev.sold}</span>
+                {/* Main Card Top Section */}
+                <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
+                  {/* Poster Image 16:9 */}
+                  <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-slate-800 shrink-0">
+                    <img src={ev.image} alt={ev.title} className="w-full h-full object-cover" />
                   </div>
 
-                  <h4 className="text-sm font-extrabold app-text-main line-clamp-2">
-                    {ev.title}
-                  </h4>
+                  {/* Event Information */}
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <h3 className="text-base md:text-lg font-extrabold app-text-main">
+                      {ev.title}
+                    </h3>
 
-                  <div className="space-y-1.5 text-xs app-text-muted pt-1">
-                    <div className="flex items-center gap-2">
-                      <FiCalendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                      <span>{ev.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FiMapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                      <span className="truncate">{ev.location}</span>
+                    <div className="space-y-1 text-xs app-text-muted">
+                      <div className="flex items-center gap-2">
+                        <FiCalendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <span>{ev.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FiMapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <span className="truncate">{ev.location}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-5 py-3 app-bg-subnav border-t app-border flex items-center justify-between">
-                  <span className="text-xs font-black text-blue-600 dark:text-blue-400">
-                    {ev.priceRange}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg app-text-muted hover:app-text-main cursor-pointer"
-                      title="Xem chi tiết"
-                    >
-                      <FiEye className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg app-text-muted hover:app-text-main cursor-pointer"
-                      title="Chỉnh sửa"
-                    >
-                      <FiEdit3 className="w-4 h-4" />
-                    </button>
-                  </div>
+                {/* Bottom Action Bar with 5 icons (Royal Blue Theme) */}
+                <div className="border-t app-border bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-5 text-center divide-x app-border">
+                  <button
+                    type="button"
+                    onClick={handleActionClick}
+                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                  >
+                    <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Tổng quan</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleActionClick}
+                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                  >
+                    <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Thành viên</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleActionClick}
+                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                  >
+                    <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Đơn hàng</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleActionClick}
+                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                  >
+                    <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Sơ đồ ghế</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleActionClick}
+                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                  >
+                    <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Chỉnh sửa</span>
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* Bottom Pagination Controls */}
+        <div className="flex items-center justify-end gap-2 pt-4">
+          <button
+            type="button"
+            className="w-8 h-8 rounded-lg app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main cursor-pointer"
+          >
+            <FiChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="w-8 h-8 rounded-lg bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+            1
+          </span>
+          <button
+            type="button"
+            className="w-8 h-8 rounded-lg app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main cursor-pointer"
+          >
+            <FiChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+
+      {/* Modal Popup: Sự Kiện Đang Chờ Duyệt */}
+      {showPendingModal && (
+        <PendingApprovalModal onClose={() => setShowPendingModal(false)} />
+      )}
     </div>
   );
 };
