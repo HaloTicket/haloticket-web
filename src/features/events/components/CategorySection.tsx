@@ -1,8 +1,8 @@
-import React from "react";
-import { FiChevronRight } from "react-icons/fi";
-import { Link } from "react-router-dom";
-import { EventCard } from "@/components/common/EventCard";
+import React, { useRef, useState, useEffect } from "react";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { EventItem } from "@/mock/eventData";
+import { EventCard } from "@/components/common/EventCard";
+import { SectionHeader } from "@/components/common/SectionHeader";
 
 interface CategorySectionProps {
   title: string;
@@ -17,33 +17,79 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   icon,
   seeMoreLink,
   events,
-  className = "mb-8 py-4"
+  className = "mb-10"
 }) => {
-  return (
-    <section className={className}>
-      <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight app-text-main md:text-2xl">
-          {icon && <span className="app-text-brand">{icon}</span>}
-          <span>{title}</span>
-        </h2>
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(true);
 
-        {seeMoreLink && (
-          <Link
-            to={seeMoreLink}
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold transition-colors app-text-muted app-hover-text-brand"
+  const checkScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setShowLeft(scrollLeft > 10);
+      setShowRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+  }, []);
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -350, behavior: "smooth" });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 350, behavior: "smooth" });
+    }
+  };
+
+  return (
+    <div className={className}>
+      <SectionHeader title={title} icon={icon} seeMoreLink={seeMoreLink} />
+
+      <div className="relative group">
+        {/* Navigation Arrow Left (Smart Visibility) */}
+        {showLeft && (
+          <button
+            type="button"
+            onClick={scrollLeft}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang trái"
           >
-            <span>Xem thêm</span>
-            <FiChevronRight className="h-4 w-4" />
-          </Link>
+            <FiChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Scrollable Event Cards */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={checkScroll}
+          className="flex items-center gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
+        >
+          {events.map((event) => (
+            <div key={event.id} className="w-[260px] md:w-[285px] shrink-0">
+              <EventCard event={event} />
+            </div>
+          ))}
+        </div>
+
+        {/* Navigation Arrow Right (Smart Visibility) */}
+        {showRight && (
+          <button
+            type="button"
+            onClick={scrollRight}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang phải"
+          >
+            <FiChevronRight className="w-5 h-5" />
+          </button>
         )}
       </div>
-
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {events.slice(0, 4).map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
-      </div>
-    </section>
+    </div>
   );
 };
 

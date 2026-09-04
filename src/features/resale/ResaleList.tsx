@@ -13,7 +13,7 @@ export const ResaleList: React.FC = () => {
   return (
     <div className="w-full transition-colors duration-300 pb-16">
       {/* Hero Promo Banner */}
-      <div className="w-full bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-600 py-12 md:py-16 px-4 text-center relative overflow-hidden shadow-xl mb-8">
+      <div className="w-full bg-blue-600 dark:bg-blue-700 py-12 md:py-16 px-4 text-center relative overflow-hidden shadow-xl mb-8">
         <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
 
         <div className="container mx-auto relative z-10 max-w-4xl">

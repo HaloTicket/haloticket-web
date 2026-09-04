@@ -44,7 +44,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                   onClick={() => onTabChange && onTabChange(tab.id)}
                   className={`relative z-10 px-4 py-1.5 text-xs md:text-sm font-extrabold rounded-lg transition-all duration-300 ease-in-out cursor-pointer ${
                     isActive
-                      ? "gradient-btn text-white shadow-md scale-105"
+                      ? "bg-blue-600 dark:bg-blue-500 text-white shadow-sm"
                       : "app-text-muted hover:app-text-main scale-100"
                   }`}
                 >

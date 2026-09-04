@@ -14,10 +14,10 @@ export const Badge: React.FC<BadgeProps> = ({
   icon
 }) => {
   const variantStyles = {
-    primary: "bg-brand-500/20 text-brand-600 dark:text-brand-300 border border-brand-500/30",
+    primary: "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
     secondary: "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700",
     success: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
-    resale: "bg-gradient-to-r from-rose-500 to-amber-500 text-white font-extrabold shadow-md shadow-rose-500/30",
+    resale: "bg-rose-500 text-white font-extrabold shadow-sm",
     warning: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30",
     danger: "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30",
     dark: "bg-slate-900/80 text-white border border-slate-700/80 backdrop-blur-md"

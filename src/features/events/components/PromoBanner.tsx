@@ -11,24 +11,24 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
 }) => {
   const bannerConfigs = {
     vib: {
-      bg: "bg-gradient-to-r from-[#121629] via-[#1E1B4B] to-[#121629]",
-      partnerColor: "text-cyan-400 dark:text-cyan-300",
-      partner: "VIB | HaloTicket",
+      bg: "bg-slate-900 dark:bg-slate-900/90",
+      partnerColor: "text-blue-400",
+      partner: "VIB | HALOTICKET",
       title: "MỞ THẺ MỚI - NHẬN LIÊN ƯU ĐÃI 500K",
       subtitle: "Mua vé Idol cực hời khi thanh toán bằng thẻ VIB Platinum",
       cta: "Mở thẻ ngay"
     },
     shopee: {
-      bg: "bg-gradient-to-r from-[#1E1B4B] via-[#0F172A] to-[#1E1B4B]",
-      partnerColor: "text-amber-400 dark:text-amber-300",
+      bg: "bg-slate-900 dark:bg-slate-900/90",
+      partnerColor: "text-amber-400",
       partner: "SPayLater | ShopeePay",
       title: "SĂN VÉ TẠI HALOTICKET - GIẢM ĐẾN 100.000 ĐỒNG",
       subtitle: "Khi thanh toán bằng Ví ShopeePay hoặc SPayLater - Mua Trước Trả Sau",
       cta: "Nhận voucher"
     },
     greensm: {
-      bg: "bg-gradient-to-r from-[#0F172A] via-[#064E3B] to-[#0F172A]",
-      partnerColor: "text-emerald-400 dark:text-emerald-300",
+      bg: "bg-slate-900 dark:bg-slate-900/90",
+      partnerColor: "text-emerald-400",
       partner: "GREEN SM | HaloTicket",
       title: "MUA VÉ SỰ KIỆN - NHẬN ƯU ĐÃI GREEN SM DEAL 50K",
       subtitle: "Áp dụng cho dịch vụ Taxi Xanh khi di chuyển đến các sự kiện",
@@ -40,7 +40,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
 
   return (
     <div
-      className={`relative w-full rounded-2xl ${config.bg} border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 overflow-hidden shadow-lg ${className}`}
+      className={`relative w-full rounded-2xl ${config.bg} border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 overflow-hidden shadow-sm ${className}`}
     >
       <div className="z-10 max-w-2xl text-center md:text-left">
         {/* Crisp Subtitle */}
@@ -59,7 +59,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
 
       <button
         type="button"
-        className="z-10 px-6 py-2.5 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md transition-all shrink-0 active:scale-95 cursor-pointer"
+        className="z-10 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-extrabold text-xs md:text-sm rounded-xl shadow-sm transition-all shrink-0 active:scale-95 cursor-pointer"
       >
         {config.cta}
       </button>

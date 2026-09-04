@@ -1,88 +1,205 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaFire } from "react-icons/fa";
-import { FiChevronRight } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { TRENDING_EVENTS, WEEKEND_EVENTS } from "@/mock/eventData";
 import { EventCard } from "@/components/common/EventCard";
-import { TRENDING_EVENTS, WEEKEND_EVENTS, type EventItem } from "@/mock/eventData";
+import { SectionHeader } from "@/components/common/SectionHeader";
+import { eventApi } from "@/services/eventApi";
 
-interface TrendingEventsProps {
-  trendingEvents?: EventItem[];
-  weekendEvents?: EventItem[];
-  monthEvents?: EventItem[];
-}
-
-export const TrendingEvents: React.FC<TrendingEventsProps> = ({
-  trendingEvents = TRENDING_EVENTS,
-  weekendEvents = WEEKEND_EVENTS,
-  monthEvents = WEEKEND_EVENTS
-}) => {
+export const TrendingEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
-  const filteredEvents = activeTab === "weekend" ? weekendEvents : monthEvents;
+  const rankScrollRef = useRef<HTMLDivElement>(null);
+  const eventsScrollRef = useRef<HTMLDivElement>(null);
+
+  const [showRankLeft, setShowRankLeft] = useState(false);
+  const [showRankRight, setShowRankRight] = useState(true);
+
+  const [showEventsLeft, setShowEventsLeft] = useState(false);
+  const [showEventsRight, setShowEventsRight] = useState(true);
+
+  const [trendingList, setTrendingList] = useState<any[]>(TRENDING_EVENTS);
+  const [tabEvents, setTabEvents] = useState<any[]>(WEEKEND_EVENTS);
+
+  // fetch trending events
+  useEffect(() => {
+    eventApi.getAllEvents().then((data) => {
+      if (data && data.length > 0) {
+        // build ranked list 1..N
+        const ranked = data.map((ev, index) => ({
+          id: ev.id,
+          rank: index + 1,
+          title: ev.title,
+          image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
+        }));
+        setTrendingList(ranked);
+        setTabEvents(data);
+      }
+    });
+  }, []);
+
+  const filterTabs = [
+    { id: "weekend", label: "Cuối tuần này" },
+    { id: "month", label: "Tháng này" }
+  ];
+
+  const checkRankScroll = () => {
+    if (rankScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = rankScrollRef.current;
+      setShowRankLeft(scrollLeft > 10);
+      setShowRankRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  const checkEventsScroll = () => {
+    if (eventsScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = eventsScrollRef.current;
+      setShowEventsLeft(scrollLeft > 10);
+      setShowEventsRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkRankScroll();
+    checkEventsScroll();
+  }, [trendingList, tabEvents]);
+
+  const scrollRankLeft = () => {
+    if (rankScrollRef.current) {
+      rankScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
+    }
+  };
+
+  const scrollRankRight = () => {
+    if (rankScrollRef.current) {
+      rankScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
+    }
+  };
+
+  const scrollEventsLeft = () => {
+    if (eventsScrollRef.current) {
+      eventsScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
+    }
+  };
+
+  const scrollEventsRight = () => {
+    if (eventsScrollRef.current) {
+      eventsScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
+    }
+  };
 
   return (
-    <>
-      <section className="mb-8 py-2">
-        <h2 className="mb-5 flex items-center gap-2 text-xl font-extrabold tracking-tight app-text-main md:text-2xl">
-          <FaFire className="h-5 w-5 text-red-500" />
+    <div className="mb-12">
+      {/* Section Title Header */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
+          <FaFire className="w-6 h-6 text-rose-500 animate-pulse" />
           <span>Sự kiện xu hướng</span>
         </h2>
+      </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {trendingEvents.slice(0, 4).map((event, index) => (
+      {/* Top Ranked Cards Carousel */}
+      <div className="relative group mb-10">
+        {/* Navigation Arrow Left */}
+        {showRankLeft && (
+          <button
+            type="button"
+            onClick={scrollRankLeft}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang trái"
+          >
+            <FiChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Scrollable Ranked Cards Container */}
+        <div
+          ref={rankScrollRef}
+          onScroll={checkRankScroll}
+          className="flex items-center gap-5 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
+        >
+          {trendingList.map((event) => (
             <Link
               key={event.id}
               to={`/events/${event.id}`}
-              className="group relative aspect-video cursor-pointer overflow-hidden rounded-xl bg-slate-100 shadow-sm dark:bg-slate-900"
+              className="group/rank flex items-center shrink-0 cursor-pointer"
             >
-              <img
-                src={event.image}
-                alt={event.title}
-                className="h-full w-full object-cover opacity-90 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100"
-                loading="lazy"
-              />
-              <div className="absolute bottom-0 left-2 font-sans text-[80px] font-black leading-none text-white/35 [text-shadow:0_0_1px_rgba(255,255,255,0.7)]">
-                {event.rank ?? index + 1}
+              <div className="rank-number-glow font-black text-6xl md:text-7xl mr-2 italic select-none">
+                {event.rank}
+              </div>
+
+              <div className="w-[280px] md:w-[340px] aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 border app-border hover:border-blue-500 transition-all duration-300 group-hover/rank:scale-105 shadow-xl">
+                <img
+                  src={event.image}
+                  alt={event.title}
+                  className="w-full h-full object-cover group-hover/rank:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
               </div>
             </Link>
           ))}
         </div>
-      </section>
 
-      <section className="mb-8 py-4">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => setActiveTab("weekend")}
-              className={`pb-1 text-lg font-extrabold transition-colors md:text-xl ${activeTab === "weekend" ? "border-b-2 border-brand-primary app-text-main" : "app-text-muted hover:app-text-main"}`}
-            >
-              Cuối tuần này
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("month")}
-              className={`pb-1 text-lg font-extrabold transition-colors md:text-xl ${activeTab === "month" ? "border-b-2 border-brand-primary app-text-main" : "app-text-muted hover:app-text-main"}`}
-            >
-              Tháng này
-            </button>
-          </div>
-
-          <Link
-            to="/events"
-            className="inline-flex items-center gap-1 text-sm font-semibold transition-colors app-text-muted app-hover-text-brand"
+        {/* Navigation Arrow Right */}
+        {showRankRight && (
+          <button
+            type="button"
+            onClick={scrollRankRight}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang phải"
           >
-            <span>Xem thêm</span>
-            <FiChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
+            <FiChevronRight className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {filteredEvents.slice(0, 4).map((event) => (
-            <EventCard key={event.id} event={event} />
+      {/* Filter Tabs Sub-header with Smooth Button Transition Animation */}
+      <SectionHeader
+        title=""
+        tabs={filterTabs}
+        activeTab={activeTab}
+        onTabChange={(tabId) => setActiveTab(tabId as "weekend" | "month")}
+      />
+
+      {/* Carousel of Weekend / Month Event Cards */}
+      <div className="relative group">
+        {/* Navigation Arrow Left */}
+        {showEventsLeft && (
+          <button
+            type="button"
+            onClick={scrollEventsLeft}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang trái"
+          >
+            <FiChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        <div
+          ref={eventsScrollRef}
+          onScroll={checkEventsScroll}
+          className="flex items-center gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
+        >
+          {tabEvents.map((event) => (
+            <div key={event.id} className="w-[260px] md:w-[285px] shrink-0">
+              <EventCard event={event} />
+            </div>
           ))}
         </div>
-      </section>
-    </>
+
+        {/* Navigation Arrow Right */}
+        {showEventsRight && (
+          <button
+            type="button"
+            onClick={scrollEventsRight}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
+            aria-label="Cuộn sang phải"
+          >
+            <FiChevronRight className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
 

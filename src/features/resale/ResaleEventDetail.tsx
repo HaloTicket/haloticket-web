@@ -154,7 +154,7 @@ export const ResaleEventDetail: React.FC = () => {
                     <span
                       className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase ${ticket.isRetail
                           ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                          : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                          : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                         }`}
                     >
                       {ticket.isRetail ? "Bán lẻ" : "Không bán lẻ"}
