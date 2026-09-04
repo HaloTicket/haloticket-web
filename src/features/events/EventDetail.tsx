@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { MOCK_EVENT_DETAIL, SPECIAL_EVENTS, WEEKEND_EVENTS } from "@/mock/eventData";
 import EventHero from "./components/detail/EventHero";
 import EventDescription from "./components/detail/EventDescription";
 import EventSchedule from "./components/detail/EventSchedule";
@@ -13,18 +12,24 @@ import { FiGrid } from "react-icons/fi";
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const [isStickyVisible, setIsStickyVisible] = useState(false);
-  const [eventData, setEventData] = useState<any>(MOCK_EVENT_DETAIL);
+  const [eventData, setEventData] = useState<any>(null);
+  const [recommendedEvents, setRecommendedEvents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // always scroll to top when opening event detail page & fetch event data from API
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (id) {
+      setIsLoading(true);
       eventApi.getEventById(id).then((data) => {
-        if (data) {
-          setEventData(data);
-        }
+        setEventData(data);
+        setIsLoading(false);
       });
     }
+
+    eventApi.getAllEvents().then((events) => {
+      setRecommendedEvents(events.slice(0, 8));
+    });
   }, [id]);
 
   // scroll listener for sticky header bar on scroll
@@ -48,8 +53,27 @@ export default function EventDetail() {
     }
   };
 
-  // recommended events list
-  const recommendedEvents = [...SPECIAL_EVENTS, ...WEEKEND_EVENTS].slice(0, 8);
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-[400px] flex items-center justify-center p-12">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-extrabold app-text-muted">Đang tải thông tin sự kiện...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!eventData) {
+    return (
+      <div className="w-full min-h-[400px] flex items-center justify-center p-12 text-center">
+        <div className="space-y-3">
+          <h3 className="text-lg font-bold app-text-main">Không tìm thấy sự kiện</h3>
+          <p className="text-xs app-text-muted">Sự kiện này không tồn tại hoặc đã bị xóa.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full transition-colors duration-300">
@@ -84,7 +108,7 @@ export default function EventDetail() {
             />
 
             {/* Organizer Section */}
-            <EventOrganizer organizer={eventData.organizer || MOCK_EVENT_DETAIL.organizer} />
+            {eventData.organizer && <EventOrganizer organizer={eventData.organizer} />}
           </div>
         </div>
 

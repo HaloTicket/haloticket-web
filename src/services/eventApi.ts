@@ -24,20 +24,20 @@ export const eventApi = {
   getAllEvents: async (): Promise<EventApiData[]> => {
     try {
       const response: any = await axiosClient.get("/events");
-      if (Array.isArray(response) && response.length > 0) {
+      if (Array.isArray(response)) {
         return response
           .filter((item: any) => item != null && typeof item === "object")
           .map((item: any) => ({
             ...item,
-            image: item.bannerUrl || item.thumbnailUrl || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
-            price: item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : "250.000đ",
-            date: item.startTime ? new Date(item.startTime).toLocaleDateString("vi-VN") : "25 tháng 09, 2026"
+            image: item.bannerUrl || item.thumbnailUrl || item.posterImage || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
+            price: item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : "Miễn phí",
+            date: item.datesSummary || (item.startTime ? new Date(item.startTime).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra")
           }));
       }
-      return SPECIAL_EVENTS as any;
+      return [];
     } catch (err) {
-      console.warn("Backend API unavailable, using fallback mock events data:", err);
-      return SPECIAL_EVENTS as any;
+      console.warn("Failed to fetch events from backend API:", err);
+      return [];
     }
   },
 
@@ -49,25 +49,25 @@ export const eventApi = {
         return {
           id: response.id,
           title: response.title,
-          locationName: response.locationName || MOCK_EVENT_DETAIL.locationName,
-          address: response.address || MOCK_EVENT_DETAIL.address,
-          minPrice: response.minPrice ? `${response.minPrice.toLocaleString("vi-VN")} đ` : MOCK_EVENT_DETAIL.minPrice,
-          posterImage: response.posterImage || response.bannerUrl || response.thumbnailUrl || MOCK_EVENT_DETAIL.posterImage,
-          datesSummary: response.datesSummary || MOCK_EVENT_DETAIL.datesSummary,
-          extraDaysCount: response.extraDaysCount ?? MOCK_EVENT_DETAIL.extraDaysCount,
-          author: response.author || MOCK_EVENT_DETAIL.author,
-          director: response.director || MOCK_EVENT_DETAIL.director,
-          cast: (response.cast && response.cast.length > 0) ? response.cast : MOCK_EVENT_DETAIL.cast,
-          descriptionText: response.descriptionText || response.description || MOCK_EVENT_DETAIL.descriptionText,
-          galleryImages: (response.galleryImages && response.galleryImages.length > 0) ? response.galleryImages : MOCK_EVENT_DETAIL.galleryImages,
-          organizer: response.organizer || MOCK_EVENT_DETAIL.organizer,
-          showtimes: MOCK_EVENT_DETAIL.showtimes
+          locationName: response.locationName || "Địa điểm chưa cập nhật",
+          address: response.address || "",
+          minPrice: response.minPrice ? `${response.minPrice.toLocaleString("vi-VN")} đ` : "Miễn phí",
+          posterImage: response.posterImage || response.bannerUrl || response.thumbnailUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80",
+          datesSummary: response.datesSummary || (response.startTime ? new Date(response.startTime).toLocaleString("vi-VN") : "Sắp diễn ra"),
+          extraDaysCount: response.extraDaysCount ?? 0,
+          author: response.author || "",
+          director: response.director || "",
+          cast: response.cast || [],
+          descriptionText: response.descriptionText || response.description || "Chưa có mô tả.",
+          galleryImages: response.galleryImages || [],
+          organizer: response.organizer || null,
+          showtimes: response.showtimes || []
         };
       }
-      return MOCK_EVENT_DETAIL;
+      return null;
     } catch (err) {
-      console.warn("Backend API unavailable, using fallback mock event detail:", err);
-      return MOCK_EVENT_DETAIL;
+      console.warn("Failed to fetch event detail from backend API:", err);
+      return null;
     }
   },
 

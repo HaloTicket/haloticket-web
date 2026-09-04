@@ -20,6 +20,7 @@ interface Step5PaymentInfoProps {
   taxCode: string;
   setTaxCode: (v: string) => void;
   errors: Step5Errors;
+  isSubmitting?: boolean;
   onSaveDraft?: () => void;
   onBack: () => void;
   onSubmit: () => void;
@@ -43,6 +44,7 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
   taxCode,
   setTaxCode,
   errors,
+  isSubmitting = false,
   onSaveDraft,
   onBack,
   onSubmit
@@ -235,11 +237,23 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
 
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={onSubmit}
-            className="px-10 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm md:text-base rounded-xl shadow-xl flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className={`px-10 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm md:text-base rounded-xl shadow-xl flex items-center gap-2 transition-all active:scale-95 ${
+              isSubmitting ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
+            }`}
           >
-            <FiCheckCircle className="w-5 h-5" />
-            <span>Gửi yêu cầu duyệt sự kiện</span>
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Đang xử lý & gửi yêu cầu...</span>
+              </>
+            ) : (
+              <>
+                <FiCheckCircle className="w-5 h-5" />
+                <span>Gửi yêu cầu duyệt sự kiện</span>
+              </>
+            )}
           </button>
         </div>
       </div>

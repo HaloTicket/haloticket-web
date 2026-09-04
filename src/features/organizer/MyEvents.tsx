@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   FiSearch,
@@ -13,14 +13,18 @@ import {
   FiEdit3,
   FiChevronLeft,
   FiChevronRight,
-  FiAlertTriangle
+  FiAlertTriangle,
+  FiLoader
 } from "react-icons/fi";
 import PendingApprovalModal from "./components/PendingApprovalModal";
+import { eventApi } from "@/services/eventApi";
 
 export const MyEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "pending" | "draft">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [eventsList, setEventsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const tabs = [
     { id: "upcoming", label: "Sắp tới" },
@@ -29,29 +33,36 @@ export const MyEvents: React.FC = () => {
     { id: "draft", label: "Nháp" }
   ];
 
-  // Mock events list matching user's layout
-  const mockEvents = [
-    {
-      id: "ev1",
-      title: "Concert Test",
-      date: "00:00, Thứ 7, 05 tháng 09 2026",
-      location: "Online Event",
-      status: "pending",
-      image: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80"
-    },
-    {
-      id: "ev2",
-      title: "Concert Test",
-      date: "18:00, Thứ 5, 20 tháng 08 2026",
-      location: "IUH, Phường An Nhơn, Thành phố Hồ Chí Minh",
-      status: "pending",
-      image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80"
-    }
-  ];
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setIsLoading(true);
+      try {
+        const data = await eventApi.getAllEvents();
+        if (Array.isArray(data)) {
+          setEventsList(data);
+        }
+      } catch (err) {
+        console.error("Failed to load events from backend:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
 
-  const filteredEvents = mockEvents.filter((ev) => {
-    const matchesTab = ev.status === activeTab;
-    const matchesQuery = ev.title.toLowerCase().includes(searchQuery.toLowerCase());
+  const getEventTabStatus = (ev: any): string => {
+    const status = (ev.eventApprovalStatus || ev.eventStatus || "").toUpperCase();
+    if (status === "PENDING") return "pending";
+    if (status === "DRAFT") return "draft";
+    if (status === "ENDED" || status === "PASSED" || status === "COMPLETED") return "past";
+    if (status === "APPROVED" || status === "UPCOMING" || status === "ACTIVE" || status === "ONGOING") return "upcoming";
+    return "pending"; // Default newly created events to pending
+  };
+
+  const filteredEvents = eventsList.filter((ev) => {
+    const evTabStatus = getEventTabStatus(ev);
+    const matchesTab = evTabStatus === activeTab;
+    const matchesQuery = (ev.title || "").toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesQuery;
   });
 
@@ -119,7 +130,12 @@ export const MyEvents: React.FC = () => {
 
       {/* Main Full Width Content List */}
       <div className="w-full space-y-6">
-        {filteredEvents.length === 0 ? (
+        {isLoading ? (
+          <div className="w-full app-bg-card border app-border rounded-2xl p-12 flex flex-col items-center justify-center space-y-3 min-h-[300px]">
+            <FiLoader className="w-8 h-8 text-blue-600 animate-spin" />
+            <p className="text-xs font-bold app-text-muted">Đang tải danh sách sự kiện...</p>
+          </div>
+        ) : filteredEvents.length === 0 ? (
           /* Empty State Illustration */
           <div className="w-full app-bg-card border app-border rounded-2xl p-12 md:p-16 flex flex-col items-center justify-center text-center space-y-4 shadow-sm min-h-[380px]">
             <div className="w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
@@ -146,36 +162,42 @@ export const MyEvents: React.FC = () => {
         ) : (
           /* List of Events Cards (Horizontal Layout with Royal Blue Theme) */
           <div className="space-y-4">
-            {filteredEvents.map((ev) => (
-              <div
-                key={ev.id}
-                className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
-              >
-                {/* Main Card Top Section */}
-                <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
-                  {/* Poster Image 16:9 */}
-                  <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-slate-800 shrink-0">
-                    <img src={ev.image} alt={ev.title} className="w-full h-full object-cover" />
-                  </div>
+            {filteredEvents.map((ev) => {
+              const eventImg = ev.bannerUrl || ev.thumbnailUrl || ev.posterImage || ev.image || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80";
+              const eventDate = ev.date || ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra");
+              const locationParts = [ev.locationName, ev.address, ev.ward, ev.city].filter(Boolean);
+              const eventLocation = locationParts.length > 0 ? locationParts.join(", ") : (ev.location || "Online Event");
 
-                  {/* Event Information */}
-                  <div className="space-y-2 flex-1 min-w-0">
-                    <h3 className="text-base md:text-lg font-extrabold app-text-main">
-                      {ev.title}
-                    </h3>
+              return (
+                <div
+                  key={ev.id || ev._id || Math.random()}
+                  className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
+                >
+                  {/* Main Card Top Section */}
+                  <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
+                    {/* Poster Image 16:9 */}
+                    <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-slate-800 shrink-0">
+                      <img src={eventImg} alt={ev.title} className="w-full h-full object-cover" />
+                    </div>
 
-                    <div className="space-y-1 text-xs app-text-muted">
-                      <div className="flex items-center gap-2">
-                        <FiCalendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                        <span>{ev.date}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FiMapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                        <span className="truncate">{ev.location}</span>
+                    {/* Event Information */}
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <h3 className="text-base md:text-lg font-extrabold app-text-main">
+                        {ev.title}
+                      </h3>
+
+                      <div className="space-y-1 text-xs app-text-muted">
+                        <div className="flex items-center gap-2">
+                          <FiCalendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span>{eventDate}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <FiMapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="truncate">{eventLocation}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
                 {/* Bottom Action Bar with 5 icons (Royal Blue Theme) */}
                 <div className="border-t app-border bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-5 text-center divide-x app-border">
@@ -225,7 +247,8 @@ export const MyEvents: React.FC = () => {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
 

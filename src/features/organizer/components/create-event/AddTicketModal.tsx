@@ -15,8 +15,8 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onSave 
   const [newTicketTotalQuantity, setNewTicketTotalQuantity] = useState(100);
   const [newTicketMinOrder, setNewTicketMinOrder] = useState(1);
   const [newTicketMaxOrder, setNewTicketMaxOrder] = useState(5);
-  const [newTicketStartSale, setNewTicketStartSale] = useState("2026-09-10T08:00");
-  const [newTicketEndSale, setNewTicketEndSale] = useState("2026-10-15T12:00");
+  const [newTicketStartSale, setNewTicketStartSale] = useState("");
+  const [newTicketEndSale, setNewTicketEndSale] = useState("");
   const [newTicketDescription, setNewTicketDescription] = useState("");
 
   const handleSave = () => {

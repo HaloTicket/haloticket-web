@@ -9,6 +9,8 @@ import Step5PaymentInfo from "./components/create-event/Step5PaymentInfo";
 import NoticeModal from "./components/create-event/NoticeModal";
 import AddTicketModal from "./components/create-event/AddTicketModal";
 import SuccessSubmittedModal from "./components/create-event/SuccessSubmittedModal";
+import { eventApi } from "@/services/eventApi";
+import { mediaApi } from "@/services/mediaApi";
 
 export const CreateEvent: React.FC = () => {
   // scroll to top on mount
@@ -20,6 +22,7 @@ export const CreateEvent: React.FC = () => {
   const [showNoticeModal, setShowNoticeModal] = useState(true);
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // active stepper step (1 to 5)
   const [currentStep, setCurrentStep] = useState(1);
@@ -42,9 +45,7 @@ export const CreateEvent: React.FC = () => {
   const [address, setAddress] = useState("");
   const [posterImage, setPosterImage] = useState<string | null>(null);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
-  const [description, setDescription] = useState(
-    "Giới thiệu sự kiện:\n[Tóm tắt ngắn gọn về sự kiện: Nội dung chính của sự kiện, điểm đặc sắc nhất và lý do khiến người tham gia không nên bỏ lỡ]\n\nChi tiết sự kiện:\n• Chương trình chính: [Liệt kê các tiết mục biểu diễn nổi bật]\n• Khách mời: [Thông tin về các nghệ sĩ, diễn giả nổi tiếng]\n• Trải nghiệm đặc biệt: [Khu vực check-in, photo booth, quà tặng]\n\nĐiều khoản và điều kiện:\n- Không mang chất cấm, vũ khí vào khu vực sự kiện.\n- Vé đã mua không đổi trả trừ trường hợp sự kiện hủy."
-  );
+  const [description, setDescription] = useState("");
   const [organizerName, setOrganizerName] = useState("");
   const [organizerInfo, setOrganizerInfo] = useState("");
   const [organizerLogo, setOrganizerLogo] = useState<string | null>(null);
@@ -135,36 +136,9 @@ export const CreateEvent: React.FC = () => {
   };
 
   // step 2: time & ticket
-  const [startDate, setStartDate] = useState("2026-10-15T18:00");
-  const [endDate, setEndDate] = useState("2026-10-15T22:00");
-  const [tickets, setTickets] = useState<TicketItem[]>([
-    {
-      id: "1",
-      name: "Vé VVIP (Hàng đầu)",
-      price: 1500000,
-      isFree: false,
-      totalQuantity: 100,
-      minPerOrder: 1,
-      maxPerOrder: 4,
-      startSaleDate: "2026-09-10T08:00",
-      endSaleDate: "2026-10-15T12:00",
-      description: "Bao gồm lối đi riêng, quà lưu niệm độc quyền & vị trí sát sân khấu.",
-      image: null
-    },
-    {
-      id: "2",
-      name: "Vé Phổ Thông (GA)",
-      price: 450000,
-      isFree: false,
-      totalQuantity: 500,
-      minPerOrder: 1,
-      maxPerOrder: 10,
-      startSaleDate: "2026-09-10T08:00",
-      endSaleDate: "2026-10-15T12:00",
-      description: "Khu vực đứng/ngồi tự do trải nghiệm không khí âm nhạc bùng nổ.",
-      image: null
-    }
-  ]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
 
   // step 3: settings
   const [isPrivate, setIsPrivate] = useState(false);
@@ -173,22 +147,7 @@ export const CreateEvent: React.FC = () => {
 
   // step 4: questions (only if enableCustomQuestions = true)
   const [questionScope, setQuestionScope] = useState<"order" | "ticket">("order");
-  const [questions, setQuestions] = useState<CustomQuestionItem[]>([
-    {
-      id: "q1",
-      title: "Họ và tên người tham dự",
-      description: "Điền đúng tên trên giấy tờ tùy thân để check-in tại cổng",
-      type: "text",
-      isRequired: true
-    },
-    {
-      id: "q2",
-      title: "Số CCCD / CMND / Hộ chiếu",
-      description: "Dùng để đối soát danh tính người nhận vé",
-      type: "text",
-      isRequired: true
-    }
-  ]);
+  const [questions, setQuestions] = useState<CustomQuestionItem[]>([]);
 
   // step 5: payment info & VAT invoice
   const [accountHolder, setAccountHolder] = useState("");
@@ -281,7 +240,7 @@ export const CreateEvent: React.FC = () => {
   };
 
   // final submit event request
-  const handleSubmitApprovalRequest = () => {
+  const handleSubmitApprovalRequest = async () => {
     const errs: Step5Errors = {};
     if (!accountHolder.trim()) errs.accountHolder = "Vui lòng nhập tên chủ tài khoản!";
     if (!accountNumber.trim()) errs.accountNumber = "Vui lòng nhập số tài khoản ngân hàng!";
@@ -290,20 +249,83 @@ export const CreateEvent: React.FC = () => {
     setStep5Errors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    // Save organizer profile to local storage for future auto pre-fill
-    localStorage.setItem(
-      "halo_organizer_profile",
-      JSON.stringify({
-        name: organizerName,
-        info: organizerInfo,
-        logo: organizerLogo
-      })
-    );
+    setIsSubmitting(true);
 
-    // Clear draft after successful submission
-    localStorage.removeItem("halo_draft_event");
+    try {
+      // 1. Upload images to S3 via media-service if they are Base64 strings
+      let uploadedPoster = posterImage;
+      if (posterImage && posterImage.startsWith("data:image/")) {
+        const res = await mediaApi.uploadBase64Image(posterImage, "posters");
+        if (res?.imageUrl) uploadedPoster = res.imageUrl;
+      }
 
-    setIsSubmitted(true);
+      let uploadedBanner = bannerImage;
+      if (bannerImage && bannerImage.startsWith("data:image/")) {
+        const res = await mediaApi.uploadBase64Image(bannerImage, "banners");
+        if (res?.imageUrl) uploadedBanner = res.imageUrl;
+      }
+
+      let uploadedLogo = organizerLogo;
+      if (organizerLogo && organizerLogo.startsWith("data:image/")) {
+        const res = await mediaApi.uploadBase64Image(organizerLogo, "logos");
+        if (res?.imageUrl) uploadedLogo = res.imageUrl;
+      }
+
+      // 2. Build Event Creation Request Payload
+      const payload = {
+        title,
+        categoryName: category,
+        locationType,
+        locationName,
+        city,
+        ward,
+        address,
+        thumbnailUrl: uploadedPoster,
+        bannerUrl: uploadedBanner,
+        description,
+        organizerName,
+        organizerInfo,
+        organizerLogo: uploadedLogo,
+        startTime: startDate,
+        endTime: endDate,
+        tickets,
+        isPrivate,
+        confirmationMessage,
+        enableCustomQuestions,
+        questionScope,
+        customQuestions: questions,
+        accountHolder,
+        accountNumber,
+        bankName,
+        bankBranch,
+        businessType,
+        taxName,
+        taxCode,
+        taxAddress
+      };
+
+      // 3. Send API POST /api/events via api-gateway
+      await eventApi.createEventApprovalRequest(payload);
+
+      // Save organizer profile to local storage for future auto pre-fill
+      localStorage.setItem(
+        "halo_organizer_profile",
+        JSON.stringify({
+          name: organizerName,
+          info: organizerInfo,
+          logo: uploadedLogo
+        })
+      );
+
+      // Clear draft after successful submission
+      localStorage.removeItem("halo_draft_event");
+
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error("Failed to submit event approval request", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -425,6 +447,7 @@ export const CreateEvent: React.FC = () => {
             taxCode={taxCode}
             setTaxCode={setTaxCode}
             errors={step5Errors}
+            isSubmitting={isSubmitting}
             onSaveDraft={handleSaveDraft}
             onBack={() => setCurrentStep(enableCustomQuestions ? 4 : 3)}
             onSubmit={handleSubmitApprovalRequest}
