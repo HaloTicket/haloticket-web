@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import type { TicketItem, CustomQuestionItem } from "@/types/organizer";
+import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors } from "@/types/organizer";
 import CreateEventStepper from "./components/create-event/CreateEventStepper";
 import Step1EventInfo from "./components/create-event/Step1EventInfo";
 import Step2TicketsAndTime from "./components/create-event/Step2TicketsAndTime";
@@ -24,6 +24,13 @@ export const CreateEvent: React.FC = () => {
   // active stepper step (1 to 5)
   const [currentStep, setCurrentStep] = useState(1);
 
+  // FORM ERRORS & DRAFT STATE
+  const [step1Errors, setStep1Errors] = useState<Step1Errors>({});
+  const [step2Errors, setStep2Errors] = useState<Step2Errors>({});
+  const [step5Errors, setStep5Errors] = useState<Step5Errors>({});
+  const [isOrganizerPreFilled, setIsOrganizerPreFilled] = useState(false);
+  const [draftSavedToast, setDraftSavedToast] = useState<string | null>(null);
+
   // FORM STATE
   // step 1: event info
   const [title, setTitle] = useState("");
@@ -41,6 +48,91 @@ export const CreateEvent: React.FC = () => {
   const [organizerName, setOrganizerName] = useState("");
   const [organizerInfo, setOrganizerInfo] = useState("");
   const [organizerLogo, setOrganizerLogo] = useState<string | null>(null);
+
+  // Auto pre-fill organizer info and restore draft if present
+  useEffect(() => {
+    const savedProfileStr = localStorage.getItem("halo_organizer_profile");
+    if (savedProfileStr) {
+      try {
+        const profile = JSON.parse(savedProfileStr);
+        if (profile.name) {
+          setOrganizerName(profile.name);
+          setOrganizerInfo(profile.info || "");
+          setOrganizerLogo(profile.logo || null);
+          setIsOrganizerPreFilled(true);
+        }
+      } catch (e) {
+        console.error("Failed to parse organizer profile", e);
+      }
+    }
+
+    const savedDraftStr = localStorage.getItem("halo_draft_event");
+    if (savedDraftStr) {
+      try {
+        const draft = JSON.parse(savedDraftStr);
+        if (draft.title) setTitle(draft.title);
+        if (draft.category) setCategory(draft.category);
+        if (draft.locationType) setLocationType(draft.locationType);
+        if (draft.locationName) setLocationName(draft.locationName);
+        if (draft.city) setCity(draft.city);
+        if (draft.ward) setWard(draft.ward);
+        if (draft.address) setAddress(draft.address);
+        if (draft.posterImage) setPosterImage(draft.posterImage);
+        if (draft.bannerImage) setBannerImage(draft.bannerImage);
+        if (draft.description) setDescription(draft.description);
+        if (draft.startDate) setStartDate(draft.startDate);
+        if (draft.endDate) setEndDate(draft.endDate);
+        if (draft.tickets && draft.tickets.length > 0) setTickets(draft.tickets);
+        if (draft.accountHolder) setAccountHolder(draft.accountHolder);
+        if (draft.accountNumber) setAccountNumber(draft.accountNumber);
+        if (draft.bankName) setBankName(draft.bankName);
+        if (draft.bankBranch) setBankBranch(draft.bankBranch);
+        if (draft.taxName) setTaxName(draft.taxName);
+        if (draft.taxCode) setTaxCode(draft.taxCode);
+        if (draft.taxAddress) setTaxAddress(draft.taxAddress);
+      } catch (e) {
+        console.error("Failed to restore draft", e);
+      }
+    }
+  }, []);
+
+  // Save Event Draft function
+  const handleSaveDraft = () => {
+    const draftPayload = {
+      title,
+      category,
+      locationType,
+      locationName,
+      city,
+      ward,
+      address,
+      posterImage,
+      bannerImage,
+      description,
+      organizerName,
+      organizerInfo,
+      organizerLogo,
+      startDate,
+      endDate,
+      tickets,
+      isPrivate,
+      confirmationMessage,
+      accountHolder,
+      accountNumber,
+      bankName,
+      bankBranch,
+      businessType,
+      taxName,
+      taxAddress,
+      taxCode,
+      status: "DRAFT",
+      savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem("halo_draft_event", JSON.stringify(draftPayload));
+    setDraftSavedToast("Đã lưu bản nháp sự kiện (DRAFT) thành công!");
+    setTimeout(() => setDraftSavedToast(null), 4000);
+  };
 
   // step 2: time & ticket
   const [startDate, setStartDate] = useState("2026-10-15T18:00");
@@ -124,6 +216,42 @@ export const CreateEvent: React.FC = () => {
       "4. Thông tin thanh toán"
     ];
 
+  // STEP VALIDATIONS
+  const handleStep1Next = () => {
+    const errs: Step1Errors = {};
+    if (!title.trim()) errs.title = "Vui lòng nhập tên sự kiện!";
+    if (locationType === "offline") {
+      if (!locationName.trim()) errs.locationName = "Vui lòng nhập tên địa điểm tổ chức!";
+      if (!address.trim()) errs.address = "Vui lòng nhập địa điểm (số nhà, tên đường)!";
+    }
+    if (!description.trim()) errs.description = "Vui lòng nhập mô tả chi tiết sự kiện!";
+    if (!organizerName.trim()) errs.organizerName = "Vui lòng nhập tên ban tổ chức!";
+
+    setStep1Errors(errs);
+    if (Object.keys(errs).length === 0) {
+      setCurrentStep(2);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleStep2Next = () => {
+    const errs: Step2Errors = {};
+    if (!startDate) errs.startDate = "Vui lòng chọn thời gian bắt đầu!";
+    if (!endDate) errs.endDate = "Vui lòng chọn thời gian kết thúc!";
+    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+      errs.endDate = "Thời gian kết thúc phải sau thời gian bắt đầu!";
+    }
+    if (tickets.length === 0) {
+      errs.tickets = "Vui lòng tạo ít nhất một hạng vé!";
+    }
+
+    setStep2Errors(errs);
+    if (Object.keys(errs).length === 0) {
+      setCurrentStep(3);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   // handle add ticket
   const handleSaveTicket = (newTicket: TicketItem) => {
     setTickets([...tickets, newTicket]);
@@ -154,15 +282,39 @@ export const CreateEvent: React.FC = () => {
 
   // final submit event request
   const handleSubmitApprovalRequest = () => {
-    if (!accountHolder.trim() || !accountNumber.trim()) {
-      alert("Vui lòng hoàn tất Thông tin ngân hàng nhận tiền bán vé!");
-      return;
-    }
+    const errs: Step5Errors = {};
+    if (!accountHolder.trim()) errs.accountHolder = "Vui lòng nhập tên chủ tài khoản!";
+    if (!accountNumber.trim()) errs.accountNumber = "Vui lòng nhập số tài khoản ngân hàng!";
+    if (!bankName.trim()) errs.bankName = "Vui lòng chọn ngân hàng!";
+
+    setStep5Errors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    // Save organizer profile to local storage for future auto pre-fill
+    localStorage.setItem(
+      "halo_organizer_profile",
+      JSON.stringify({
+        name: organizerName,
+        info: organizerInfo,
+        logo: organizerLogo
+      })
+    );
+
+    // Clear draft after successful submission
+    localStorage.removeItem("halo_draft_event");
+
     setIsSubmitted(true);
   };
 
   return (
     <div className="w-full min-h-screen app-bg-page transition-colors duration-300 pb-20">
+      {/* Toast Notification Banner for Draft Save */}
+      {draftSavedToast && (
+        <div className="fixed top-20 right-6 z-50 bg-blue-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top duration-300">
+          <span>✓ {draftSavedToast}</span>
+        </div>
+      )}
+
       {/* Main Container */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 pt-6">
         {/* Stepper Navigation Bar */}
@@ -201,7 +353,10 @@ export const CreateEvent: React.FC = () => {
             setOrganizerInfo={setOrganizerInfo}
             organizerLogo={organizerLogo}
             setOrganizerLogo={setOrganizerLogo}
-            onNext={() => setCurrentStep(2)}
+            errors={step1Errors}
+            isOrganizerPreFilled={isOrganizerPreFilled}
+            onSaveDraft={handleSaveDraft}
+            onNext={handleStep1Next}
           />
         )}
 
@@ -213,10 +368,12 @@ export const CreateEvent: React.FC = () => {
             endDate={endDate}
             setEndDate={setEndDate}
             tickets={tickets}
+            errors={step2Errors}
             onOpenAddTicketModal={() => setShowAddTicketModal(true)}
             onDeleteTicket={handleDeleteTicket}
+            onSaveDraft={handleSaveDraft}
             onBack={() => setCurrentStep(1)}
-            onNext={() => setCurrentStep(3)}
+            onNext={handleStep2Next}
           />
         )}
 
@@ -267,6 +424,8 @@ export const CreateEvent: React.FC = () => {
             setTaxAddress={setTaxAddress}
             taxCode={taxCode}
             setTaxCode={setTaxCode}
+            errors={step5Errors}
+            onSaveDraft={handleSaveDraft}
             onBack={() => setCurrentStep(enableCustomQuestions ? 4 : 3)}
             onSubmit={handleSubmitApprovalRequest}
           />
@@ -291,3 +450,4 @@ export const CreateEvent: React.FC = () => {
 };
 
 export default CreateEvent;
+

@@ -29,7 +29,7 @@ export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
                 isActive
                   ? "text-blue-600 dark:text-blue-400 font-extrabold"
                   : isCompleted
-                  ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                  ? "text-blue-600 dark:text-blue-400 font-bold opacity-90"
                   : "app-text-muted hover:app-text-main font-medium"
               }`}
             >
@@ -38,7 +38,7 @@ export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
                   isActive
                     ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md scale-110"
                     : isCompleted
-                    ? "bg-emerald-500 text-white"
+                    ? "bg-blue-600 dark:bg-blue-500 text-white"
                     : "app-bg-subnav app-text-muted border app-border"
                 }`}
               >

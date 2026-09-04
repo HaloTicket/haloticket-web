@@ -1,7 +1,7 @@
 import React from "react";
-import { FiClock, FiCalendar, FiPlus, FiTrash2, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiClock, FiCalendar, FiPlus, FiTrash2, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
-import type { TicketItem } from "@/types/organizer";
+import type { TicketItem, Step2Errors } from "@/types/organizer";
 
 interface Step2TicketsAndTimeProps {
   startDate: string;
@@ -9,8 +9,10 @@ interface Step2TicketsAndTimeProps {
   endDate: string;
   setEndDate: (v: string) => void;
   tickets: TicketItem[];
+  errors: Step2Errors;
   onOpenAddTicketModal: () => void;
   onDeleteTicket: (id: string) => void;
+  onSaveDraft?: () => void;
   onBack: () => void;
   onNext: () => void;
 }
@@ -21,8 +23,10 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   endDate,
   setEndDate,
   tickets,
+  errors,
   onOpenAddTicketModal,
   onDeleteTicket,
+  onSaveDraft,
   onBack,
   onNext
 }) => {
@@ -45,8 +49,16 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
               type="datetime-local"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border font-bold cursor-pointer"
+              className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${
+                errors.startDate ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+              } font-bold cursor-pointer`}
             />
+            {errors.startDate && (
+              <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errors.startDate}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -58,8 +70,16 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
               type="datetime-local"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border font-bold cursor-pointer"
+              className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${
+                errors.endDate ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+              } font-bold cursor-pointer`}
             />
+            {errors.endDate && (
+              <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errors.endDate}</span>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -84,6 +104,13 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
             <span>Tạo loại vé mới</span>
           </button>
         </div>
+
+        {errors.tickets && (
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2">
+            <FiAlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errors.tickets}</span>
+          </div>
+        )}
 
         {tickets.length === 0 ? (
           <div className="text-center py-10 app-bg-subnav rounded-2xl border app-border space-y-3">
@@ -140,14 +167,27 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
           <span>Quay lại</span>
         </button>
 
-        <button
-          type="button"
-          onClick={onNext}
-          className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95"
-        >
-          <span>Tiếp tục: Cài đặt</span>
-          <FiChevronRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          {onSaveDraft && (
+            <button
+              type="button"
+              onClick={onSaveDraft}
+              className="px-6 py-3 app-bg-subnav app-text-main font-bold text-sm rounded-xl border app-border hover:border-blue-500 flex items-center gap-2 cursor-pointer transition-all"
+            >
+              <FiBookmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Lưu bản nháp</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onNext}
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+          >
+            <span>Tiếp tục: Cài đặt</span>
+            <FiChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

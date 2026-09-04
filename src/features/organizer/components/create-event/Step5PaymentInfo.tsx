@@ -1,5 +1,6 @@
 import React from "react";
-import { FiDollarSign, FiChevronLeft, FiCheckCircle } from "react-icons/fi";
+import { FiDollarSign, FiChevronLeft, FiCheckCircle, FiAlertCircle, FiBookmark } from "react-icons/fi";
+import type { Step5Errors } from "@/types/organizer";
 
 interface Step5PaymentInfoProps {
   accountHolder: string;
@@ -18,6 +19,8 @@ interface Step5PaymentInfoProps {
   setTaxAddress: (v: string) => void;
   taxCode: string;
   setTaxCode: (v: string) => void;
+  errors: Step5Errors;
+  onSaveDraft?: () => void;
   onBack: () => void;
   onSubmit: () => void;
 }
@@ -39,6 +42,8 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
   setTaxAddress,
   taxCode,
   setTaxCode,
+  errors,
+  onSaveDraft,
   onBack,
   onSubmit
 }) => {
@@ -68,8 +73,16 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
               value={accountHolder}
               onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
               placeholder="NGUYEN VAN A"
-              className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border font-bold uppercase"
+              className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${
+                errors.accountHolder ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+              } font-bold uppercase`}
             />
+            {errors.accountHolder && (
+              <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errors.accountHolder}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -79,8 +92,16 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
               value={accountNumber}
               onChange={(e) => setAccountNumber(e.target.value)}
               placeholder="1900xxxxxxxxx"
-              className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border font-mono font-bold"
+              className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${
+                errors.accountNumber ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+              } font-mono font-bold`}
             />
+            {errors.accountNumber && (
+              <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errors.accountNumber}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -88,7 +109,9 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
             <select
               value={bankName}
               onChange={(e) => setBankName(e.target.value)}
-              className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border font-semibold cursor-pointer"
+              className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${
+                errors.bankName ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+              } font-semibold cursor-pointer`}
             >
               <option value="Vietcombank">Vietcombank (VCB)</option>
               <option value="Techcombank">Techcombank (TCB)</option>
@@ -98,6 +121,12 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
               <option value="ACB">ACB</option>
               <option value="VPBank">VPBank</option>
             </select>
+            {errors.bankName && (
+              <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errors.bankName}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -181,7 +210,7 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
         </div>
       </div>
 
-      {/* Final Submit & Back Buttons */}
+      {/* Final Submit & Back & Save Draft Buttons */}
       <div className="flex items-center justify-between pt-4">
         <button
           type="button"
@@ -192,14 +221,27 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
           <span>Quay lại</span>
         </button>
 
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="px-10 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm md:text-base rounded-xl shadow-xl flex items-center gap-2 cursor-pointer transition-all active:scale-95"
-        >
-          <FiCheckCircle className="w-5 h-5" />
-          <span>Gửi yêu cầu duyệt sự kiện</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {onSaveDraft && (
+            <button
+              type="button"
+              onClick={onSaveDraft}
+              className="px-6 py-3 app-bg-subnav app-text-main font-bold text-sm rounded-xl border app-border hover:border-blue-500 flex items-center gap-2 cursor-pointer transition-all"
+            >
+              <FiBookmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Lưu bản nháp</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onSubmit}
+            className="px-10 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm md:text-base rounded-xl shadow-xl flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+          >
+            <FiCheckCircle className="w-5 h-5" />
+            <span>Gửi yêu cầu duyệt sự kiện</span>
+          </button>
+        </div>
       </div>
     </div>
   );

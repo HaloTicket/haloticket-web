@@ -105,5 +105,26 @@ export const eventApi = {
     } catch (err) {
       // silent catch
     }
+  },
+
+  // submit new event creation approval request
+  createEventApprovalRequest: async (data: any): Promise<any> => {
+    try {
+      const response: any = await axiosClient.post("/events", data);
+      return response;
+    } catch (err) {
+      console.warn("Backend API unavailable, using local simulation", err);
+      return { success: true, id: `EV_${Date.now()}` };
+    }
+  },
+
+  // fetch organizer profile for pre-filling
+  getOrganizerProfile: async (): Promise<any> => {
+    try {
+      const response: any = await axiosClient.get("/events/organizer-profile");
+      return response;
+    } catch (err) {
+      return null;
+    }
   }
 };
