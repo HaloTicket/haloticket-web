@@ -22,13 +22,92 @@ import ForgotPassword from "@/features/auth/ForgotPassword";
 import ResetPassword from "@/features/auth/ResetPassword";
 import { authApi, createIdempotencyKey } from "@/services/authApi";
 import { getKeycloakSession } from "@/services/keycloakSession";
+import { getCachedUserProfile, parseJwt, userApi } from "@/services/userApi";
 import type { LoginCredentials } from "@/features/auth/Login";
 import type { RegistrationData, RegistrationOtpData } from "@/features/auth/Register";
 import type { PasswordRecoveryRequest } from "@/features/auth/ForgotPassword";
 import type { PasswordResetData } from "@/features/auth/ResetPassword";
 
+function checkIsAdmin(): boolean {
+  const authed = getKeycloakSession().isAuthenticated();
+  if (!authed) return false;
+  const profile = getCachedUserProfile();
+  if (
+    profile?.roles?.some(
+      (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
+    )
+  ) {
+    return true;
+  }
+  const token = getKeycloakSession().getCurrentToken();
+  if (token) {
+    const payload = parseJwt(token);
+    const roles = payload?.realm_access?.roles || [];
+    return roles.some(
+      (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
+    );
+  }
+  return false;
+}
+
+function CustomerRouteGuard({ children }: { children: React.ReactNode }) {
+  if (checkIsAdmin()) {
+    return <Navigate to={PATHS.ADMIN_DASHBOARD} replace />;
+  }
+  return <>{children}</>;
+}
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const authed = getKeycloakSession().isAuthenticated();
+  if (!authed) {
+    return <Navigate to={PATHS.LOGIN} replace />;
+  }
+  if (checkIsAdmin()) {
+    return <Navigate to={PATHS.ADMIN_DASHBOARD} replace />;
+  }
+  return <>{children}</>;
+}
+
+function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  const authed = getKeycloakSession().isAuthenticated();
+  if (!authed) {
+    return <Navigate to={PATHS.LOGIN} replace />;
+  }
+  if (!checkIsAdmin()) {
+    return <Navigate to={PATHS.HOME} replace />;
+  }
+  return <>{children}</>;
+}
+
 function AuthHandlers() {
   const navigate = useNavigate();
+
+  const redirectAfterLogin = async (token?: string) => {
+    let isAdmin = false;
+    try {
+      const profile = await userApi.syncCurrentUser();
+      isAdmin =
+        profile?.roles?.some(
+          (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
+        ) ?? false;
+    } catch {
+      const rawToken = token || getKeycloakSession().getCurrentToken();
+      if (rawToken) {
+        const payload = parseJwt(rawToken);
+        const roles = payload?.realm_access?.roles || [];
+        isAdmin = roles.some(
+          (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
+        );
+      }
+    }
+
+    if (isAdmin) {
+      navigate(PATHS.ADMIN_DASHBOARD, { replace: true });
+    } else {
+      navigate(PATHS.HOME, { replace: true });
+    }
+  };
+
   const login = async ({ email, password }: LoginCredentials) => {
     const result = await authApi.login(email, password);
     localStorage.setItem("access_token", result.accessToken);
@@ -45,8 +124,9 @@ function AuthHandlers() {
     } catch {
       // ignore
     }
-    navigate(PATHS.HOME, { replace: true });
+    await redirectAfterLogin(result.accessToken);
   };
+
   const registerStart = (data: RegistrationData) => authApi.registerStart(data.email, data.password, createIdempotencyKey("register"));
   const registerVerify = ({ challengeId, email, password, otp }: RegistrationOtpData) => authApi.registerVerify(challengeId, email, password, otp);
   const registerResend = (challengeId: string) => authApi.registerResend(challengeId);
@@ -54,10 +134,12 @@ function AuthHandlers() {
   const forgotVerify = (challengeId: string, otp: string) => authApi.forgotVerify(challengeId, otp);
   const forgotResend = (challengeId: string) => authApi.forgotResend(challengeId);
   const resetPassword = (data: PasswordResetData) => authApi.resetPassword(data.resetToken, data.password);
+
   const googleLogin = async () => {
     await getKeycloakSession().loginWithGoogle();
-    navigate(PATHS.HOME, { replace: true });
+    await redirectAfterLogin();
   };
+
   return { login, googleLogin, registerStart, registerVerify, registerResend, forgotStart, forgotVerify, forgotResend, resetPassword };
 }
 function AuthLoginRoute() { const handlers = AuthHandlers(); return <Login onSubmit={handlers.login} onGoogleLogin={handlers.googleLogin} />; }
@@ -109,7 +191,11 @@ export const router = createBrowserRouter([
   // Main App Routes (with Main Header & Footer)
   {
     path: PATHS.HOME,
-    element: <MainLayout />,
+    element: (
+      <CustomerRouteGuard>
+        <MainLayout />
+      </CustomerRouteGuard>
+    ),
     children: [
       {
         index: true,
@@ -149,23 +235,43 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.CHECKOUT,
-        element: <Checkout />,
+        element: (
+          <ProtectedRoute>
+            <Checkout />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.BOOKING_SUCCESS,
-        element: <BookingSuccess />,
+        element: (
+          <ProtectedRoute>
+            <BookingSuccess />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.MY_TICKETS,
-        element: <MyTickets />,
+        element: (
+          <ProtectedRoute>
+            <MyTickets />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/my-tickets/:id",
-        element: <TicketDetail />,
+        element: (
+          <ProtectedRoute>
+            <TicketDetail />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.PROFILE,
-        element: <Profile />,
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.NOT_FOUND,
@@ -199,7 +305,11 @@ export const router = createBrowserRouter([
 
   // Organizer Center Routes (Separate Layout WITHOUT Main Header & Footer)
   {
-    element: <OrganizerLayout />,
+    element: (
+      <ProtectedRoute>
+        <OrganizerLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: PATHS.ORGANIZER,
@@ -226,7 +336,11 @@ export const router = createBrowserRouter([
 
   // Admin Portal Routes (Separate Admin Layout)
   {
-    element: <AdminLayout />,
+    element: (
+      <AdminProtectedRoute>
+        <AdminLayout />
+      </AdminProtectedRoute>
+    ),
     children: [
       {
         path: PATHS.ADMIN,

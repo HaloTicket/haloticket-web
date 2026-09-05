@@ -17,6 +17,7 @@ import {
   FiMenu,
   FiX,
   FiChevronDown,
+  FiShield,
 } from "react-icons/fi";
 import {
   LuTicket,
@@ -244,6 +245,12 @@ export const Header: React.FC = () => {
           {/* Button Create Event (Desktop) */}
           <Link
             to="/organizer/create-event"
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault();
+                navigate(PATHS.LOGIN);
+              }
+            }}
             className="group hidden lg:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
           >
             <FiPlusCircle className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
@@ -253,6 +260,12 @@ export const Header: React.FC = () => {
           {/* My Tickets (Desktop) */}
           <Link
             to={PATHS.MY_TICKETS}
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault();
+                navigate(PATHS.LOGIN);
+              }
+            }}
             className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold app-text-main hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-all active:scale-95"
           >
             <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
