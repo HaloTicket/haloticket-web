@@ -5,55 +5,58 @@
 @layer base {
   :root {
     /* LIGHT MODE THEME VARIABLES (Soft non-glare slate off-white)   */
-    --bg-page: #ffffff;
+    --bg-page: #f0f2f5;
+    /* Soothing soft light gray page background */
     --bg-header: rgba(240, 242, 245, 0.92);
-    --bg-subnav: #f1f5f9;
+    --bg-subnav: #e2e8f0;
     --bg-card: #ffffff;
     /* Clean white card for subtle contrast */
     --bg-card-hover: #f8fafc;
     --bg-footer: #e2e8f0;
 
-    --text-main: #0f172a;
+    --text-main: #1e293b;
+    /* Rich slate black (softer than harsh black) */
     --text-muted: #64748b;
     /* Softer muted text */
-    --border-color: #e2e8f0;
+    --border-color: #cbd5e1;
+    /* Soft defined border */
 
     /* Brand Accent Colors (Royal Blue) */
     --color-brand-primary: #2563EB;
     /* Royal Blue */
     --color-brand-hover: #1D4ED8;
-    --color-brand-accent: #f59e0b;
-    --color-brand-rose: #ef4444;
-    --color-success: #16a34a;
-    --color-danger: #ef4444;
-    --color-canvas-dark: #020817;
-    --color-surface-white: #ffffff;
-    --color-ink-dark: #f8fafc;
+    --color-brand-accent: #0284C7;
+    /* Sky Blue */
+    --color-brand-rose: #E11D48;
+    /* Soft Rose */
   }
 
   .dark {
-    --bg-page: #020817;
-    --bg-header: rgba(2, 8, 23, 0.95);
-    --bg-subnav: #0f172a;
-    --bg-card: #0f172a;
-    --bg-card-hover: #1e293b;
-    --bg-footer: #0f172a;
+    /* DARK MODE THEME VARIABLES (#27272a standard dark background)   */
+    --bg-page: #27272a;
+    /* Standard dark background #27272a */
+    --bg-header: rgba(39, 39, 42, 0.95);
+    --bg-subnav: #18181b;
+    --bg-card: #18181b;
+    /* Slightly darker card background */
+    --bg-card-hover: #27272a;
+    --bg-footer: #18181b;
 
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --border-color: #1e293b;
+    --text-main: #f4f4f5;
+    /* Primary dark text */
+    --text-muted: #a1a1aa;
+    /* Muted dark text */
+    --border-color: #3f3f46;
+    /* Dark border */
 
     /* Brand Accent Colors (Dark Mode Royal Blue) */
     --color-brand-primary: #3B82F6;
     /* Electric Royal Blue */
     --color-brand-hover: #2563EB;
-    --color-brand-accent: #f59e0b;
-    --color-brand-rose: #ef4444;
-    --color-success: #16a34a;
-    --color-danger: #ef4444;
-    --color-canvas-dark: #020817;
-    --color-surface-white: #ffffff;
-    --color-ink-dark: #f8fafc;
+    --color-brand-accent: #38BDF8;
+    /* Bright Sky Blue */
+    --color-brand-rose: #FB7185;
+    /* Bright Rose */
   }
 }
 
@@ -168,30 +171,6 @@
   border-color: var(--color-brand-primary) !important;
 }
 
-.app-text-success {
-  color: var(--color-success) !important;
-}
-
-.app-text-danger {
-  color: var(--color-danger) !important;
-}
-
-.app-bg-success-soft {
-  background-color: color-mix(in srgb, var(--color-success) 10%, var(--bg-card)) !important;
-}
-
-.app-bg-danger-soft {
-  background-color: color-mix(in srgb, var(--color-danger) 10%, var(--bg-card)) !important;
-}
-
-.app-border-success {
-  border-color: color-mix(in srgb, var(--color-success) 45%, transparent) !important;
-}
-
-.app-border-danger {
-  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent) !important;
-}
-
 /* Universal Cursor Pointer for Interactive Elements */
 button,
 a,
@@ -295,6 +274,8 @@ input[type="submit"],
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
+
+
 
 /* Auth surfaces mirror the calm, centered reference while keeping HaloTicket tokens. */
 .auth-shell {
@@ -1055,6 +1036,7 @@ input[type="submit"],
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .auth-brand-link,
   .auth-panel,
   .auth-password-toggle,
