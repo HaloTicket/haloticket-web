@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiFileText, FiInbox, FiDownloadCloud, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { FiFileText, FiInbox, FiDownloadCloud, FiPlus } from "react-icons/fi";
 
 export const OrganizerReports: React.FC = () => {
   const [reports, setReports] = useState<any[]>([]);

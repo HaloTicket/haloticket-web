@@ -1,5 +1,6 @@
 import axios from "axios";
 import { CONFIG } from "@/config";
+import { getKeycloakSession } from "@/services/keycloakSession";
 
 const axiosClient = axios.create({
   baseURL: CONFIG.API_BASE_URL,
@@ -11,8 +12,8 @@ const axiosClient = axios.create({
 
 // request interceptor: automatically attach the token before sending the API request.
 axiosClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("access_token");
+  async (config) => {
+    const token = await getKeycloakSession().getAccessToken();
     if (token && token !== "null" && token !== "undefined" && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

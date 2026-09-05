@@ -1,7 +1,118 @@
-export default function Login() {
+import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { FiMail } from "react-icons/fi";
+import { GoogleAuthButton, PasswordField } from "@/features/auth/components";
+import { PATHS } from "@/routes/paths";
+import { getAuthErrorMessage } from "@/services/authApi";
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface LoginProps {
+  onSubmit: (credentials: LoginCredentials) => Promise<void>;
+  onGoogleLogin: () => Promise<void>;
+}
+
+export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(undefined);
+    setIsSubmitting(true);
+    try {
+      await onSubmit({ email: email.trim(), password });
+    } catch (submitError) {
+      setError(getAuthErrorMessage(submitError, "Không thể đăng nhập. Vui lòng thử lại."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-center">Trang Đăng Nhập</h1>
-    </div>
+    <section className="auth-panel auth-panel--login">
+      <div className="auth-heading">
+        <h1 className="auth-title">Đăng nhập</h1>
+        <p className="auth-subtitle">Chào mừng bạn quay trở lại!</p>
+      </div>
+
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div>
+          <label className="auth-label" htmlFor="login-email">
+            Email
+          </label>
+          <div className="auth-input-shell">
+            <div className="auth-input-icon">
+              <FiMail aria-hidden="true" />
+            </div>
+            <input
+              autoComplete="email"
+              className="auth-input auth-input--icon"
+              id="login-email"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Nhập email của bạn"
+              required
+              type="email"
+              value={email}
+            />
+          </div>
+        </div>
+
+        {/* Password Field */}
+        <PasswordField
+          autoComplete="current-password"
+          id="login-password"
+          label="Mật khẩu"
+          onChange={setPassword}
+          placeholder="Nhập mật khẩu của bạn"
+          value={password}
+        />
+
+        {/* Error Alert */}
+        {error && (
+          <div className="auth-error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <button
+          className="auth-button"
+          disabled={isSubmitting}
+          type="submit"
+        >
+          {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+        </button>
+
+        <div className="auth-link-row">
+          <Link
+            className="auth-link"
+            to={PATHS.FORGOT_PASSWORD}
+          >
+            Quên mật khẩu?
+          </Link>
+        </div>
+
+        <div className="auth-divider" aria-hidden="true">
+          <span>HOẶC</span>
+        </div>
+
+        <GoogleAuthButton onClick={onGoogleLogin} />
+
+        <div className="auth-switch">
+          Chưa có tài khoản?{" "}
+          <Link
+            className="auth-link"
+            to={PATHS.REGISTER}
+          >
+            Đăng ký ngay
+          </Link>
+        </div>
+      </form>
+    </section>
   );
 }

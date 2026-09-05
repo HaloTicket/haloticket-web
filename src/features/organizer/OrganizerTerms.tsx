@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiChevronRight, FiChevronDown, FiShield, FiFileText, FiCheckCircle } from "react-icons/fi";
+import { FiChevronRight, FiChevronDown, FiShield, FiCheckCircle } from "react-icons/fi";
 
 export const OrganizerTerms: React.FC = () => {
   const [openSection, setOpenSection] = useState<number | null>(null);

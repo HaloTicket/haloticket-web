@@ -6,6 +6,8 @@ export const PATHS = {
   SELECT_TICKET: (id: string | number) => `/events/${id}/select-ticket`,
   LOGIN: "/login",
   REGISTER: "/register",
+  FORGOT_PASSWORD: "/forgot-password",
+  RESET_PASSWORD: "/reset-password",
   CHECKOUT: "/checkout",
   BOOKING_SUCCESS: "/booking-success",
   MY_TICKETS: "/my-tickets",

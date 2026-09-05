@@ -21,7 +21,7 @@ export default function EventSearch() {
   // active filter values
   const [selectedDatePreset, setSelectedDatePreset] = useState<string>("Tất cả các ngày");
   const [selectedLocation, setSelectedLocation] = useState<string>(cityParam || "Toàn quốc");
-  const [isFree, setIsFree] = useState<boolean>(false);
+  const [, setIsFree] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("Tất cả");
 
   const dateFilterRef = useRef<HTMLDivElement>(null);
