@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/context/ThemeContext";
+import { getKeycloakSession } from "@/services/keycloakSession";
+import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
 import {
   FiGrid,
   FiCheckSquare,
@@ -51,11 +53,60 @@ export const AdminLayout: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
+    getCachedUserProfile()
+  );
+
   // Live time clock state
   const [currentTime, setCurrentTime] = useState("");
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const authed = getKeycloakSession().isAuthenticated();
+      if (authed) {
+        setUserProfile(getCachedUserProfile());
+        userApi
+          .getProfile()
+          .then((data) => {
+            if (data) setUserProfile(data);
+          })
+          .catch(() => {});
+      } else {
+        setUserProfile(null);
+      }
+    };
+
+    const handleProfileUpdate = () => {
+      setUserProfile(getCachedUserProfile());
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("auth-changed", checkAuth);
+    window.addEventListener("user-updated", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("auth-changed", checkAuth);
+      window.removeEventListener("user-updated", handleProfileUpdate);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    setShowProfileMenu(false);
+    await getKeycloakSession().logout();
+    window.dispatchEvent(new Event("user-updated"));
+    window.dispatchEvent(new Event("auth-changed"));
+    navigate(PATHS.LOGIN, { replace: true });
+  };
+
+  const userInitial = (
+    userProfile?.fullName?.[0] ||
+    userProfile?.email?.[0] ||
+    "A"
+  ).toUpperCase();
 
   useEffect(() => {
     const updateClock = () => {
@@ -494,11 +545,11 @@ export const AdminLayout: React.FC = () => {
                 className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer text-left"
               >
                 <div className="w-8 h-8 rounded-md bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                  AD
+                  {userInitial}
                 </div>
                 <div className="hidden sm:block">
-                  <span className="text-xs font-bold app-text-main block leading-tight">
-                    Trần Long Vũ
+                  <span className="text-xs font-bold app-text-main block leading-tight truncate max-w-32">
+                    {userProfile?.fullName || "Admin System"}
                   </span>
                   <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 block leading-tight">
                     Super Administrator
@@ -508,10 +559,14 @@ export const AdminLayout: React.FC = () => {
 
               {/* Profile Dropdown Panel */}
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-52 app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-1.5 space-y-1 z-50">
+                <div className="absolute right-0 mt-2 w-56 app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-1.5 space-y-1 z-50">
                   <div className="p-2 border-b border-slate-200 dark:border-slate-800 space-y-0.5">
-                    <p className="text-xs font-bold app-text-main">Trần Long Vũ</p>
-                    <p className="text-[11px] app-text-muted">admin@haloticket.com</p>
+                    <p className="text-xs font-bold app-text-main truncate">
+                      {userProfile?.fullName || "Admin System"}
+                    </p>
+                    <p className="text-[11px] app-text-muted truncate">
+                      {userProfile?.email || "admin@haloticket.com"}
+                    </p>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] font-semibold border border-blue-200 dark:border-blue-800">
                       Toàn quyền quản trị
                     </span>
@@ -538,10 +593,7 @@ export const AdminLayout: React.FC = () => {
                   <div className="pt-1 border-t border-slate-200 dark:border-slate-800">
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        navigate(PATHS.HOME);
-                      }}
+                      onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                     >
                       <FiLogOut className="w-3.5 h-3.5" />
