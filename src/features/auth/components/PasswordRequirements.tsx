@@ -1,6 +1,6 @@
 import { FiCheckCircle, FiXCircle } from "react-icons/fi";
 
-import { getPasswordRules } from "@/features/auth/passwordRules";
+import { getPasswordRules } from "@/validation/passwordRules";
 
 interface PasswordRequirementsProps { password: string; }
 
@@ -20,7 +20,7 @@ export function PasswordRequirements({ password }: PasswordRequirementsProps) {
         {isValid ? <FiCheckCircle aria-hidden="true" /> : <FiXCircle aria-hidden="true" />}
         {isValid ? "Mật khẩu hợp lệ" : "Mật khẩu chưa hợp lệ"}
       </p>
-      <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs app-text-main">
+      <ul className="mt-2 grid grid-cols-1 gap-y-1.5 text-xs app-text-main">
         {requirements.map((requirement) => {
           const isMet = rules[requirement.key];
           return <li className="flex items-center gap-1.5" key={requirement.key}>

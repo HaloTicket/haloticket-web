@@ -1,12 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { FiMail, FiCheckCircle } from "react-icons/fi";
-import { PasswordField } from "@/features/auth/PasswordField";
-import { PasswordRequirements } from "@/features/auth/PasswordRequirements";
-import { isPasswordValid } from "@/features/auth/passwordRules";
-import { getAuthErrorMessage, secondsUntil } from "@/features/auth/authApi";
+import {
+  GoogleAuthButton,
+  PasswordField,
+  PasswordRequirements,
+  TermsNotice,
+} from "@/features/auth/components";
+import { isPasswordValid } from "@/validation/passwordRules";
+import { getAuthErrorMessage, secondsUntil } from "@/services/authApi";
 import { PATHS } from "@/routes/paths";
-import TermsNotice from "@/features/auth/TermsNotice";
 
 export interface RegistrationData {
   email: string;
@@ -28,9 +31,10 @@ interface RegisterProps {
   onSubmit: (data: RegistrationData) => Promise<AuthChallenge>;
   onVerifyOtp: (data: RegistrationOtpData) => Promise<void>;
   onResendOtp: (challengeId: string) => Promise<AuthChallenge>;
+  onGoogleLogin: () => Promise<void>;
 }
 
-export default function Register({ onSubmit, onVerifyOtp, onResendOtp }: RegisterProps) {
+export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleLogin }: RegisterProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -270,6 +274,8 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp }: Registe
           <div className="auth-divider" aria-hidden="true">
             <span>HOẶC</span>
           </div>
+
+          <GoogleAuthButton onClick={onGoogleLogin} />
 
           <div className="auth-switch">
             Đã có tài khoản?{" "}

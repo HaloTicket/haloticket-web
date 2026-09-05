@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { FiMail } from "react-icons/fi";
-import { PasswordField } from "@/features/auth/PasswordField";
+import { GoogleAuthButton, PasswordField } from "@/features/auth/components";
 import { PATHS } from "@/routes/paths";
-import { getAuthErrorMessage } from "@/features/auth/authApi";
+import { getAuthErrorMessage } from "@/services/authApi";
 
 export interface LoginCredentials {
   email: string;
@@ -12,9 +12,10 @@ export interface LoginCredentials {
 
 interface LoginProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
+  onGoogleLogin: () => Promise<void>;
 }
 
-export default function Login({ onSubmit }: LoginProps) {
+export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
@@ -34,7 +35,7 @@ export default function Login({ onSubmit }: LoginProps) {
   }
 
   return (
-    <section className="auth-panel">
+    <section className="auth-panel auth-panel--login">
       <div className="auth-heading">
         <h1 className="auth-title">Đăng nhập</h1>
         <p className="auth-subtitle">Chào mừng bạn quay trở lại!</p>
@@ -99,6 +100,8 @@ export default function Login({ onSubmit }: LoginProps) {
         <div className="auth-divider" aria-hidden="true">
           <span>HOẶC</span>
         </div>
+
+        <GoogleAuthButton onClick={onGoogleLogin} />
 
         <div className="auth-switch">
           Chưa có tài khoản?{" "}

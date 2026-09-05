@@ -1,5 +1,12 @@
 # React + TypeScript + Vite
 
+## Authentication configuration
+
+Copy `.env.example` to `.env.local` before starting the app. Google login and
+quick registration use the `haloticket-web` public Keycloak client with the
+Authorization Code flow and PKCE. The Google client secret belongs only in the
+backend `.env`; never expose it through a `VITE_` variable.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

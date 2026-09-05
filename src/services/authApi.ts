@@ -21,6 +21,7 @@ export interface AuthChallengeResponse {
 export interface LoginResponse {
   accessToken: string;
   refreshToken?: string;
+  idToken?: string;
   expiresIn?: number;
 }
 
@@ -99,6 +100,7 @@ export function getAuthErrorMessage(error: unknown, fallback: string): string {
   }
   if (apiError.status === 410 || apiError.code === "OTP_EXPIRED") return "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.";
   if (apiError.status === 423 || apiError.code === "OTP_LOCKED") return "Mã OTP đã bị khóa do nhập sai quá nhiều lần.";
+  if (apiError.status === 409 || apiError.code === "USER_ALREADY_EXISTS") return "Email này đã được đăng ký. Vui lòng đăng nhập.";
   return error instanceof Error ? error.message : fallback;
 }
 

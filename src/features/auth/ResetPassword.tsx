@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FiCheckCircle } from "react-icons/fi";
-import { PasswordField } from "@/features/auth/PasswordField";
-import { PasswordRequirements } from "@/features/auth/PasswordRequirements";
-import { isPasswordValid } from "@/features/auth/passwordRules";
-import { getAuthErrorMessage, secondsUntil } from "@/features/auth/authApi";
+import { PasswordField, PasswordRequirements } from "@/features/auth/components";
+import { isPasswordValid } from "@/validation/passwordRules";
+import { getAuthErrorMessage, secondsUntil } from "@/services/authApi";
 import { PATHS } from "@/routes/paths";
 
 export interface PasswordResetData {

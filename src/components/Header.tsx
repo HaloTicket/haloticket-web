@@ -7,6 +7,7 @@ import SearchOverlayModal from "./SearchOverlayModal";
 import { addSearchHistory } from "@/utils/searchHistory";
 import { eventApi } from "@/services/eventApi";
 import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
+import { getKeycloakSession } from "@/services/keycloakSession";
 import { VietnamFlag, UKFlag } from "./common/FlagIcons";
 import {
   FiSearch,
@@ -46,7 +47,7 @@ export const Header: React.FC = () => {
     return saved === "en" ? "en" : "vi";
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
-    Boolean(localStorage.getItem("access_token"))
+    getKeycloakSession().isAuthenticated()
   );
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
     getCachedUserProfile()
@@ -74,8 +75,7 @@ export const Header: React.FC = () => {
   // Check auth and user info on mount & sync across storage/profile events
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem("access_token");
-      const authed = Boolean(token);
+      const authed = getKeycloakSession().isAuthenticated();
       setIsAuthenticated(authed);
       if (authed) {
         setUserProfile(getCachedUserProfile());
@@ -93,9 +93,11 @@ export const Header: React.FC = () => {
 
     checkAuth();
     window.addEventListener("storage", checkAuth);
+    window.addEventListener("auth-changed", checkAuth);
     window.addEventListener("user-updated", handleProfileUpdate);
     return () => {
       window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("auth-changed", checkAuth);
       window.removeEventListener("user-updated", handleProfileUpdate);
     };
   }, []);
@@ -139,15 +141,14 @@ export const Header: React.FC = () => {
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("haloticket_user_profile");
+  const handleLogout = async () => {
+    await getKeycloakSession().logout();
     setIsAuthenticated(false);
     setUserProfile(null);
     setIsAccountOpen(false);
     setIsMobileMenuOpen(false);
     window.dispatchEvent(new Event("user-updated"));
+    window.dispatchEvent(new Event("auth-changed"));
     navigate(PATHS.HOME, { replace: true });
   };
 

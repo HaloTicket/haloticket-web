@@ -16,9 +16,11 @@ import EventDetail from "@/features/events/EventDetail";
 // Auth Feature
 import Login from "@/features/auth/Login";
 import Register from "@/features/auth/Register";
+import GoogleAuthPopupCallback from "@/features/auth/components/GoogleAuthPopupCallback";
 import ForgotPassword from "@/features/auth/ForgotPassword";
 import ResetPassword from "@/features/auth/ResetPassword";
-import { authApi, createIdempotencyKey } from "@/features/auth/authApi";
+import { authApi, createIdempotencyKey } from "@/services/authApi";
+import { getKeycloakSession } from "@/services/keycloakSession";
 import type { LoginCredentials } from "@/features/auth/Login";
 import type { RegistrationData, RegistrationOtpData } from "@/features/auth/Register";
 import type { PasswordRecoveryRequest } from "@/features/auth/ForgotPassword";
@@ -30,6 +32,18 @@ function AuthHandlers() {
     const result = await authApi.login(email, password);
     localStorage.setItem("access_token", result.accessToken);
     if (result.refreshToken) localStorage.setItem("refresh_token", result.refreshToken);
+    if (result.idToken) localStorage.setItem("id_token", result.idToken);
+    try {
+      const cleanName = email.split("@")[0];
+      const accountToSave = {
+        name: cleanName,
+        email,
+      };
+      localStorage.setItem("haloticket_last_google_account", JSON.stringify(accountToSave));
+      window.dispatchEvent(new CustomEvent("google-account-updated", { detail: accountToSave }));
+    } catch {
+      // ignore
+    }
     navigate(PATHS.HOME, { replace: true });
   };
   const registerStart = (data: RegistrationData) => authApi.registerStart(data.email, data.password, createIdempotencyKey("register"));
@@ -39,10 +53,14 @@ function AuthHandlers() {
   const forgotVerify = (challengeId: string, otp: string) => authApi.forgotVerify(challengeId, otp);
   const forgotResend = (challengeId: string) => authApi.forgotResend(challengeId);
   const resetPassword = (data: PasswordResetData) => authApi.resetPassword(data.resetToken, data.password);
-  return { login, registerStart, registerVerify, registerResend, forgotStart, forgotVerify, forgotResend, resetPassword };
+  const googleLogin = async () => {
+    await getKeycloakSession().loginWithGoogle();
+    navigate(PATHS.HOME, { replace: true });
+  };
+  return { login, googleLogin, registerStart, registerVerify, registerResend, forgotStart, forgotVerify, forgotResend, resetPassword };
 }
-function AuthLoginRoute() { return <Login onSubmit={AuthHandlers().login} />; }
-function AuthRegisterRoute() { const handlers = AuthHandlers(); return <Register onSubmit={handlers.registerStart} onVerifyOtp={handlers.registerVerify} onResendOtp={handlers.registerResend} />; }
+function AuthLoginRoute() { const handlers = AuthHandlers(); return <Login onSubmit={handlers.login} onGoogleLogin={handlers.googleLogin} />; }
+function AuthRegisterRoute() { const handlers = AuthHandlers(); return <Register onSubmit={handlers.registerStart} onVerifyOtp={handlers.registerVerify} onResendOtp={handlers.registerResend} onGoogleLogin={handlers.googleLogin} />; }
 function AuthForgotRoute() { const handlers = AuthHandlers(); return <ForgotPassword onSubmit={handlers.forgotStart} onVerifyOtp={handlers.forgotVerify} onResendOtp={handlers.forgotResend} />; }
 function AuthResetRoute() { return <ResetPassword onSubmit={AuthHandlers().resetPassword} />; }
 
@@ -71,6 +89,11 @@ import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
 import NotFound from "@/features/common/NotFound";
 
 export const router = createBrowserRouter([
+  {
+    path: "/auth/popup-callback",
+    element: <GoogleAuthPopupCallback />,
+  },
+
   // Main App Routes (with Main Header & Footer)
   {
     path: PATHS.HOME,

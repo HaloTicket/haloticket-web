@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import { getKeycloakSession } from "@/services/keycloakSession";
 
 export interface UserProfile {
   id?: string;
@@ -60,7 +61,7 @@ export function getCachedUserProfile(): UserProfile | null {
   }
 
   // Fallback: derive from access_token if possible
-  const token = localStorage.getItem("access_token");
+  const token = getKeycloakSession().getCurrentToken();
   if (token) {
     const payload = parseJwt(token);
     if (payload) {
@@ -79,6 +80,30 @@ export function getCachedUserProfile(): UserProfile | null {
 export function setCachedUserProfile(profile: UserProfile, notify = false): void {
   try {
     localStorage.setItem(USER_CACHE_KEY, JSON.stringify(profile));
+    if (profile.email) {
+      let existingPic: string | undefined = profile.avatarUrl;
+      const existing = localStorage.getItem("haloticket_last_google_account");
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing);
+          if (parsed.email === profile.email && !existingPic) {
+            existingPic = parsed.picture || parsed.avatarUrl;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      let cleanName = (profile.fullName || profile.email.split("@")[0]).trim();
+      cleanName = cleanName.replace(/\s+HaloTicket$/i, "").trim();
+      const accountToSave = {
+        name: cleanName || profile.email.split("@")[0],
+        email: profile.email,
+        picture: existingPic,
+        avatarUrl: existingPic,
+      };
+      localStorage.setItem("haloticket_last_google_account", JSON.stringify(accountToSave));
+      window.dispatchEvent(new CustomEvent("google-account-updated", { detail: accountToSave }));
+    }
     if (notify) {
       window.dispatchEvent(new Event("user-updated"));
     }
@@ -88,6 +113,12 @@ export function setCachedUserProfile(profile: UserProfile, notify = false): void
 }
 
 export const userApi = {
+  syncCurrentUser: async (): Promise<UserProfile> => {
+    const response = await axiosClient.get<unknown, UserProfile>("/users/me");
+    setCachedUserProfile(response, true);
+    return response;
+  },
+
   getProfile: async (): Promise<UserProfile> => {
     // Return existing in-flight request if one is already pending
     if (inFlightProfilePromise) {

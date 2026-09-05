@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { userApi, type UserProfile, type UserProfileUpdateRequest } from "@/services/userApi";
+import { getKeycloakSession } from "@/services/keycloakSession";
 import {
   FiUser,
   FiMail,
@@ -63,8 +64,7 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
+    if (!getKeycloakSession().isAuthenticated()) {
       navigate(PATHS.LOGIN, { replace: true });
       return;
     }
@@ -171,12 +171,10 @@ export default function Profile() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("haloticket_user_profile");
+  const handleLogout = async () => {
+    await getKeycloakSession().logout();
+    window.dispatchEvent(new Event("auth-changed"));
     navigate(PATHS.HOME, { replace: true });
-    window.location.reload();
   };
 
   const userInitial = (profile.fullName?.[0] || profile.email?.[0] || "M").toUpperCase();

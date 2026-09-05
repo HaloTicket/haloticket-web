@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiUser } from "react-icons/fi";
 import { PATHS } from "@/routes/paths";
-import { getAuthErrorMessage, secondsUntil } from "@/features/auth/authApi";
+import { getAuthErrorMessage, secondsUntil } from "@/services/authApi";
 
 export interface PasswordRecoveryRequest {
   identifier: string;
