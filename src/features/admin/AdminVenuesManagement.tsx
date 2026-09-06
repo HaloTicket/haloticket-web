@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { FiMapPin, FiPlus, FiRefreshCw, FiAlertCircle, FiCheckCircle, FiFilter } from "react-icons/fi";
-import { eventApi } from "@/services/eventApi";
+import { eventApi, type VenueApiData } from "@/services/eventApi";
 import { PRESET_VENUES, type SystemVenue } from "@/utils/venueUtils";
 
 import { AdminSearchFilterBar } from "@/components/admin/AdminSearchFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { AdminSelect } from "@/components/admin/AdminSelect";
 import { VenueStatCards } from "./components/venues/VenueStatCards";
 import { VenueTable } from "./components/venues/VenueTable";
 import { VenueModal, type VenueFormData } from "./components/venues/VenueModal";
@@ -36,84 +37,33 @@ export const AdminVenuesManagement: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Load venue data from backend events & localStorage
+  // Load venue data directly from MySQL DB via event-service API
   const loadVenuesData = async () => {
     setIsLoading(true);
     try {
-      const realEvents = await eventApi.getAllEvents();
-      const venueMap = new Map<string, SystemVenue>();
+      const dbVenues: VenueApiData[] = await eventApi.getVenues();
 
-      // Load saved admin venues overrides from localStorage
-      const savedAdminVenuesRaw = localStorage.getItem("halo_admin_venues");
-      let savedAdminVenues: SystemVenue[] = [];
-      if (savedAdminVenuesRaw) {
-        try {
-          savedAdminVenues = JSON.parse(savedAdminVenuesRaw);
-        } catch {}
+      if (Array.isArray(dbVenues) && dbVenues.length > 0) {
+        const mappedVenues: SystemVenue[] = dbVenues.map((v) => ({
+          id: String(v.id),
+          name: v.name,
+          city: v.city || "TP. Hồ Chí Minh",
+          ward: v.ward || "",
+          address: v.address || v.name,
+          capacity: v.capacity || 1000,
+          verified: v.verified,
+          eventsHosted: v.eventsHosted || 0,
+          bookings: [],
+        }));
+        setVenues(mappedVenues);
+      } else {
+        // Baseline fallback if backend initializing
+        const fallbackVenues: SystemVenue[] = PRESET_VENUES.map((pv) => ({ ...pv }));
+        setVenues(fallbackVenues);
       }
-
-      savedAdminVenues.forEach((sv) => {
-        venueMap.set(sv.name.toLowerCase().trim(), { ...sv });
-      });
-
-      if (Array.isArray(realEvents)) {
-        realEvents.forEach((ev: any) => {
-          if (!ev.locationName || !ev.locationName.trim()) return;
-
-          const key = ev.locationName.toLowerCase().trim();
-          const existing = venueMap.get(key);
-
-          const status = (ev.eventStatus || ev.status || "").toUpperCase();
-          const approval = (ev.eventApprovalStatus || ev.approvalStatus || "").toUpperCase();
-          const isCompletedOrPublished = status === "COMPLETED" || status === "PUBLISHED" || approval === "APPROVED";
-
-          const bookingItem = {
-            eventName: ev.title || "Sự kiện",
-            organizer: ev.organizer?.name || ev.author || "Ban Tổ Chức",
-            date: ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : "Đã đặt chỗ"),
-            timeSlot: ev.startTime
-              ? `${new Date(ev.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${
-                  ev.endTime ? new Date(ev.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "23:00"
-                }`
-              : "08:00 - 22:00",
-            status: "CONFIRMED" as const,
-          };
-
-          if (existing) {
-            const exists = existing.bookings.some((b) => b.eventName === bookingItem.eventName);
-            if (!exists) {
-              existing.bookings.push(bookingItem);
-              existing.eventsHosted += 1;
-            }
-            if (isCompletedOrPublished) {
-              existing.verified = true;
-            }
-          } else {
-            venueMap.set(key, {
-              id: `v-db-${ev.id}`,
-              name: ev.locationName,
-              city: ev.city || "TP. Hồ Chí Minh",
-              ward: ev.ward || "",
-              address: ev.address || ev.locationName,
-              capacity: 3000,
-              verified: isCompletedOrPublished,
-              eventsHosted: 1,
-              bookings: [bookingItem],
-            });
-          }
-        });
-      }
-
-      if (venueMap.size === 0) {
-        PRESET_VENUES.forEach((pv) => {
-          venueMap.set(pv.name.toLowerCase().trim(), { ...pv });
-        });
-      }
-
-      setVenues(Array.from(venueMap.values()));
     } catch (err) {
-      console.error("Failed to load venues", err);
-      showToast("Không thể tải dữ liệu địa điểm từ hệ thống", "error");
+      console.error("Failed to load venues from DB", err);
+      showToast("Không thể tải dữ liệu địa điểm từ CSDL backend", "error");
     } finally {
       setIsLoading(false);
     }
@@ -123,64 +73,113 @@ export const AdminVenuesManagement: React.FC = () => {
     loadVenuesData();
   }, []);
 
-  const saveVenuesToStorage = (updatedList: SystemVenue[]) => {
-    setVenues(updatedList);
-    localStorage.setItem("halo_admin_venues", JSON.stringify(updatedList));
-  };
-
-  // Toggle verification status
-  const handleToggleVerification = (venue: SystemVenue) => {
+  // Toggle verification status in DB
+  const handleToggleVerification = async (venue: SystemVenue) => {
+    const numericId = Number(venue.id.replace(/\D/g, ""));
     const newStatus = !venue.verified;
-    const updated = venues.map((v) => (v.id === venue.id ? { ...v, verified: newStatus } : v));
-    saveVenuesToStorage(updated);
+
+    // Optimistic UI update
+    setVenues((prev) =>
+      prev.map((v) => (v.id === venue.id ? { ...v, verified: newStatus } : v))
+    );
+
+    if (!isNaN(numericId) && numericId > 0) {
+      const updated = await eventApi.toggleVerifyVenue(numericId);
+      if (updated) {
+        showToast(
+          updated.verified
+            ? `Đã XÁC MINH địa điểm "${venue.name}" thành công vào CSDL!`
+            : `Đã hủy xác minh địa điểm "${venue.name}" trong CSDL.`,
+          updated.verified ? "success" : "info"
+        );
+        loadVenuesData();
+        return;
+      }
+    }
+
     showToast(
       newStatus ? `Đã XÁC MINH địa điểm "${venue.name}" thành công!` : `Đã hủy xác minh địa điểm "${venue.name}".`,
       newStatus ? "success" : "info"
     );
   };
 
-  // Handle Create / Edit submission from VenueModal
-  const handleModalSubmit = (formData: VenueFormData) => {
+  // Handle Create / Edit submission directly in DB
+  const handleModalSubmit = async (formData: VenueFormData) => {
     if (editingVenue && editingVenue.id) {
-      const updated = venues.map((v) =>
-        v.id === editingVenue.id
-          ? {
-              ...v,
-              name: formData.name.trim(),
-              address: formData.address.trim(),
-              city: formData.city,
-              ward: formData.ward || v.ward || "",
-              capacity: formData.capacity,
-              verified: formData.verified,
-            }
-          : v
-      );
-      saveVenuesToStorage(updated);
-      showToast(`Đã cập nhật thông tin địa điểm "${formData.name}" thành công!`);
-    } else {
-      const created: SystemVenue = {
-        id: `v-admin-${Date.now()}`,
+      const numericId = Number(editingVenue.id.replace(/\D/g, ""));
+      const payload = {
         name: formData.name.trim(),
+        address: formData.address.trim(),
         city: formData.city,
         ward: formData.ward || "",
-        address: formData.address.trim(),
         capacity: formData.capacity,
+        type: formData.type || "indoor",
         verified: formData.verified,
+      };
+
+      if (!isNaN(numericId) && numericId > 0) {
+        const res = await eventApi.updateVenue(numericId, payload);
+        if (res) {
+          showToast(`Đã cập nhật thông tin địa điểm "${formData.name}" trong CSDL!`);
+          setEditingVenue(null);
+          loadVenuesData();
+          return;
+        }
+      }
+
+      setVenues((prev) =>
+        prev.map((v) =>
+          v.id === editingVenue.id ? { ...v, ...payload } : v
+        )
+      );
+      showToast(`Đã cập nhật thông tin địa điểm "${formData.name}"!`);
+    } else {
+      const payload = {
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        city: formData.city,
+        ward: formData.ward || "",
+        capacity: formData.capacity,
+        type: formData.type || "indoor",
+        verified: formData.verified,
+      };
+
+      const res = await eventApi.createVenue(payload);
+      if (res) {
+        showToast(`Đã lưu địa điểm mới "${res.name}" vào CSDL thành công!`);
+        loadVenuesData();
+        return;
+      }
+
+      const created: SystemVenue = {
+        id: `v-admin-${Date.now()}`,
+        ...payload,
         eventsHosted: 0,
         bookings: [],
       };
-      saveVenuesToStorage([created, ...venues]);
-      showToast(`Đã thêm địa điểm mới "${created.name}" thành công!`);
+      setVenues((prev) => [created, ...prev]);
+      showToast(`Đã thêm địa điểm mới "${created.name}"!`);
     }
     setEditingVenue(null);
   };
 
-  // Handle Delete Confirmation
-  const handleConfirmDelete = () => {
+  // Handle Delete Confirmation in DB
+  const handleConfirmDelete = async () => {
     if (!deletingVenue) return;
-    const updated = venues.filter((v) => v.id !== deletingVenue.id);
-    saveVenuesToStorage(updated);
-    showToast(`Đã xóa địa điểm "${deletingVenue.name}" khỏi hệ thống!`, "info");
+    const numericId = Number(deletingVenue.id.replace(/\D/g, ""));
+
+    if (!isNaN(numericId) && numericId > 0) {
+      const success = await eventApi.deleteVenue(numericId);
+      if (success) {
+        showToast(`Đã xóa địa điểm "${deletingVenue.name}" khỏi CSDL thành công!`, "info");
+        setDeletingVenue(null);
+        loadVenuesData();
+        return;
+      }
+    }
+
+    setVenues((prev) => prev.filter((v) => v.id !== deletingVenue.id));
+    showToast(`Đã xóa địa điểm "${deletingVenue.name}" khỏi danh sách!`, "info");
     setDeletingVenue(null);
   };
 
@@ -231,17 +230,17 @@ export const AdminVenuesManagement: React.FC = () => {
       {/* Metric Statistics Cards */}
       <VenueStatCards venues={venues} />
 
-      {/* Main Filter & Data Table Card (matching UserManagement / CategoryConfig style) */}
+      {/* Main Filter & Data Table Card */}
       <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-4">
         {/* Header Title & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
           <div>
             <h2 className="text-base font-bold app-text-main flex items-center gap-2">
               <FiMapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Quản Lý Địa Điểm Tổ Chức Sự Kiện</span>
+              <span>Quản Lý Địa Điểm Tổ Chức Sự Kiện (CSDL)</span>
             </h2>
             <p className="text-xs app-text-muted mt-0.5">
-              Xác minh địa điểm chính thức, duyệt thông tin và dọn dẹp địa điểm không hợp lệ trong hệ thống.
+              Xác minh địa điểm chính thức, duyệt thông tin và lưu trực tiếp vào cơ sở dữ liệu hệ thống.
             </p>
           </div>
 
@@ -250,7 +249,7 @@ export const AdminVenuesManagement: React.FC = () => {
               type="button"
               onClick={loadVenuesData}
               className="p-2 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95"
-              title="Tải lại dữ liệu"
+              title="Tải lại dữ liệu từ CSDL"
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
             </button>
@@ -268,7 +267,7 @@ export const AdminVenuesManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Search & Filter Bar Component */}
+        {/* Search & Filter Bar Component using Custom AdminSelect */}
         <AdminSearchFilterBar
           searchQuery={searchQuery}
           onSearchChange={(val) => {
@@ -277,39 +276,33 @@ export const AdminVenuesManagement: React.FC = () => {
           }}
           searchPlaceholder="Tìm theo tên địa điểm, địa chỉ, thành phố..."
         >
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-xs font-semibold">
-            <FiFilter className="w-3.5 h-3.5 app-text-muted shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as any);
-                setCurrentPage(1);
-              }}
-              className="bg-transparent app-text-main text-xs font-semibold focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="VERIFIED">🟢 Đã xác minh</option>
-              <option value="UNVERIFIED">🟠 Chưa xác minh</option>
-            </select>
-          </div>
+          {/* Status Filter */}
+          <AdminSelect
+            value={statusFilter}
+            onChange={(val) => {
+              setStatusFilter(val as any);
+              setCurrentPage(1);
+            }}
+            icon={<FiFilter className="w-3.5 h-3.5" />}
+            options={[
+              { label: "Tất cả trạng thái", value: "ALL" },
+              { label: "🟢 Đã xác minh", value: "VERIFIED" },
+              { label: "🟠 Chưa xác minh", value: "UNVERIFIED" },
+            ]}
+          />
 
-          <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-xs font-semibold">
-            <select
-              value={cityFilter}
-              onChange={(e) => {
-                setCityFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="bg-transparent app-text-main text-xs font-semibold focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">Tất cả thành phố</option>
-              {uniqueCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* City Filter */}
+          <AdminSelect
+            value={cityFilter}
+            onChange={(val) => {
+              setCityFilter(val);
+              setCurrentPage(1);
+            }}
+            options={[
+              { label: "Tất cả thành phố", value: "ALL" },
+              ...uniqueCities.map((city) => ({ label: city, value: city })),
+            ]}
+          />
         </AdminSearchFilterBar>
 
         {/* Venues Table Component */}

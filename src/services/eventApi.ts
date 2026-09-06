@@ -18,6 +18,20 @@ export interface EventApiData {
   date?: string;
 }
 
+export interface VenueApiData {
+  id: number | string;
+  name: string;
+  address: string;
+  city: string;
+  ward?: string;
+  capacity: number;
+  type?: 'indoor' | 'outdoor' | 'hybrid';
+  verified: boolean;
+  eventsHosted: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const eventApi = {
   // fetch all events safely
   getAllEvents: async (): Promise<EventApiData[]> => {
@@ -58,29 +72,12 @@ export const eventApi = {
           author: response.author || "",
           director: response.director || "",
           cast: response.cast || [],
-          descriptionText: response.descriptionText || response.description || "Chưa có mô tả.",
-          galleryImages: response.galleryImages || [],
-          organizer: response.organizer || null,
-          showtimes: response.showtimes || []
         };
       }
       return null;
     } catch (err) {
-      console.warn("Failed to fetch event detail from backend API:", err);
+      console.warn("Failed to fetch event details by id:", err);
       return null;
-    }
-  },
-
-  // fetch categories safely
-  getCategories: async (): Promise<any[]> => {
-    try {
-      const response: any = await axiosClient.get("/events/categories");
-      if (Array.isArray(response) && response.length > 0) {
-        return response.filter((cat: any) => cat != null && typeof cat === "object");
-      }
-      return [];
-    } catch (err) {
-      return [];
     }
   },
 
@@ -126,6 +123,60 @@ export const eventApi = {
       return response;
     } catch (err) {
       return null;
+    }
+  },
+
+  // CRUD venues API
+  getVenues: async (): Promise<VenueApiData[]> => {
+    try {
+      const response: any = await axiosClient.get("/events/venues");
+      if (Array.isArray(response)) {
+        return response;
+      }
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch venues from DB API:", err);
+      return [];
+    }
+  },
+
+  createVenue: async (data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
+    try {
+      const response: any = await axiosClient.post("/events/venues", data);
+      return response;
+    } catch (err) {
+      console.error("Failed to create venue in DB:", err);
+      return null;
+    }
+  },
+
+  updateVenue: async (id: number | string, data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
+    try {
+      const response: any = await axiosClient.put(`/events/venues/${id}`, data);
+      return response;
+    } catch (err) {
+      console.error("Failed to update venue in DB:", err);
+      return null;
+    }
+  },
+
+  toggleVerifyVenue: async (id: number | string): Promise<VenueApiData | null> => {
+    try {
+      const response: any = await axiosClient.patch(`/events/venues/${id}/verify`);
+      return response;
+    } catch (err) {
+      console.error("Failed to toggle venue verification in DB:", err);
+      return null;
+    }
+  },
+
+  deleteVenue: async (id: number | string): Promise<boolean> => {
+    try {
+      await axiosClient.delete(`/events/venues/${id}`);
+      return true;
+    } catch (err) {
+      console.error("Failed to delete venue from DB:", err);
+      return false;
     }
   }
 };

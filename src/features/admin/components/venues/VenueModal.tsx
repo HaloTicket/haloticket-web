@@ -151,9 +151,9 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
               className="w-full px-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium cursor-pointer"
             >
-              <option value="indoor">Trong nhà (Indoor)</option>
-              <option value="outdoor">Ngoài trời (Outdoor)</option>
-              <option value="hybrid">Phức hợp (Hybrid)</option>
+              <option value="indoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">Trong nhà (Indoor)</option>
+              <option value="outdoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">Ngoài trời (Outdoor)</option>
+              <option value="hybrid" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">Phức hợp (Hybrid)</option>
             </select>
           </div>
 
@@ -166,8 +166,8 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               onChange={(e) => setFormData({ ...formData, verified: e.target.value === 'true' })}
               className="w-full px-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium cursor-pointer"
             >
-              <option value="true">Đã xác minh (Official)</option>
-              <option value="false">Chờ xác minh (Unverified)</option>
+              <option value="true" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">Đã xác minh (Official)</option>
+              <option value="false" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">Chờ xác minh (Unverified)</option>
             </select>
           </div>
         </div>
