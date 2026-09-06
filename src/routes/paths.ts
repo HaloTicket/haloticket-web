@@ -28,5 +28,6 @@ export const PATHS = {
   ADMIN_PAYMENTS_MONITORING: "/admin/payments-monitoring",
   ADMIN_SYSTEM_HEALTH: "/admin/system-health",
   ADMIN_HOMEPAGE_CONFIG: "/admin/homepage-config",
+  ADMIN_VENUES_MANAGEMENT: "/admin/venues",
   NOT_FOUND: "*",
 };

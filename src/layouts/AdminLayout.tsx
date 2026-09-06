@@ -26,7 +26,8 @@ import {
   FiSettings,
   FiUserCheck,
   FiAlertCircle,
-  FiLayout
+  FiLayout,
+  FiMapPin
 } from "react-icons/fi";
 
 interface NavItem {
@@ -56,7 +57,7 @@ export const AdminLayout: React.FC = () => {
     getCachedUserProfile()
   );
 
-  // Live time clock state
+  // live time clock state
   const [currentTime, setCurrentTime] = useState("");
 
   const notifRef = useRef<HTMLDivElement>(null);
@@ -72,7 +73,7 @@ export const AdminLayout: React.FC = () => {
           .then((data) => {
             if (data) setUserProfile(data);
           })
-          .catch(() => {});
+          .catch(() => { });
       } else {
         setUserProfile(null);
       }
@@ -123,7 +124,7 @@ export const AdminLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Close dropdowns on click outside
+  // close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -179,6 +180,11 @@ export const AdminLayout: React.FC = () => {
           label: "Cấu hình Trang chủ & Ads",
           path: PATHS.ADMIN_HOMEPAGE_CONFIG,
           icon: <FiLayout className="w-4 h-4 shrink-0" />
+        },
+        {
+          label: "Quản lý Địa điểm",
+          path: PATHS.ADMIN_VENUES_MANAGEMENT,
+          icon: <FiMapPin className="w-4 h-4 shrink-0" />
         }
       ]
     },
@@ -228,6 +234,8 @@ export const AdminLayout: React.FC = () => {
         return { title: "Quản lý Bán vé lại & Giá trần", category: "Kiểm soát giá bán lại & Chống vé cơ hội" };
       case PATHS.ADMIN_HOMEPAGE_CONFIG:
         return { title: "Cấu hình Giao diện Trang chủ & Quảng cáo", category: "Homepage CMS & Ad Placement Manager" };
+      case PATHS.ADMIN_VENUES_MANAGEMENT:
+        return { title: "Quản lý Địa điểm Tổ chức Sự kiện", category: "Xác minh & Quản lý địa điểm hệ thống" };
       case PATHS.ADMIN_USERS_PERMISSIONS:
         return { title: "Quản lý Người dùng & Phân quyền", category: "Phân quyền vai trò hệ thống (RBAC)" };
       case PATHS.ADMIN_CATEGORIES_CONFIG:
@@ -271,9 +279,8 @@ export const AdminLayout: React.FC = () => {
     <div className="min-h-screen flex app-bg-page transition-colors duration-200 font-sans antialiased">
       {/* Sidebar for Desktop & Mobile Drawer */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen app-bg-card border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between p-3 transition-all duration-300 ${
-          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } ${isCollapsed ? "lg:w-16" : "lg:w-60"} w-60`}
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen app-bg-card border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between p-3 transition-all duration-300 ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          } ${isCollapsed ? "lg:w-16" : "lg:w-60"} w-60`}
       >
         <div className="space-y-4 flex-1 flex flex-col min-h-0">
           {/* Logo Branding */}
@@ -328,11 +335,10 @@ export const AdminLayout: React.FC = () => {
                       <Link
                         to={item.path}
                         onClick={() => setIsMobileOpen(false)}
-                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer relative ${
-                          isActive
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer relative ${isActive
                             ? "bg-blue-600 text-white shadow-xs font-semibold"
                             : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/80"
-                        } ${isCollapsed ? "justify-center px-0" : ""}`}
+                          } ${isCollapsed ? "justify-center px-0" : ""}`}
                       >
                         <span className={`shrink-0 ${isActive ? "text-white" : "text-blue-600 dark:text-blue-400"}`}>
                           {item.icon}
@@ -345,9 +351,8 @@ export const AdminLayout: React.FC = () => {
                           <>
                             {!isCollapsed ? (
                               <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                                  item.badgeColor || "bg-rose-500 text-white"
-                                }`}
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${item.badgeColor || "bg-rose-500 text-white"
+                                  }`}
                               >
                                 {item.badge}
                               </span>
@@ -386,9 +391,8 @@ export const AdminLayout: React.FC = () => {
             <div className="relative group">
               <Link
                 to={PATHS.HOME}
-                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all ${
-                  isCollapsed ? "justify-center px-0" : ""
-                }`}
+                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all ${isCollapsed ? "justify-center px-0" : ""
+                  }`}
               >
                 <FiHome className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
                 {!isCollapsed && <span className="truncate">Về HaloTicket Client</span>}

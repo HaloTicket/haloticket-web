@@ -178,6 +178,7 @@ import CategoryConfig from "@/features/admin/CategoryConfig";
 import PaymentMonitoring from "@/features/admin/PaymentMonitoring";
 import SystemHealth from "@/features/admin/SystemHealth";
 import HomepageConfig from "@/features/admin/HomepageConfig";
+import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
 
 // Common / Error
 import NotFound from "@/features/common/NotFound";
@@ -381,6 +382,10 @@ export const router = createBrowserRouter([
       {
         path: PATHS.ADMIN_HOMEPAGE_CONFIG,
         element: <HomepageConfig />,
+      },
+      {
+        path: PATHS.ADMIN_VENUES_MANAGEMENT,
+        element: <AdminVenuesManagement />,
       },
     ],
   },
