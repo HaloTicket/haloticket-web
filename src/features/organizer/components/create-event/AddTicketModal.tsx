@@ -1,31 +1,79 @@
 import React, { useState } from "react";
-import { FiX } from "react-icons/fi";
+import { FiX, FiAlertCircle } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem } from "@/types/organizer";
 
 interface AddTicketModalProps {
+  initialTicket?: TicketItem | null;
+  eventStartDate?: string;
+  eventEndDate?: string;
   onClose: () => void;
   onSave: (ticket: TicketItem) => void;
 }
 
-export const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onSave }) => {
-  const [newTicketName, setNewTicketName] = useState("");
-  const [newTicketPrice, setNewTicketPrice] = useState(0);
-  const [newTicketIsFree, setNewTicketIsFree] = useState(false);
-  const [newTicketTotalQuantity, setNewTicketTotalQuantity] = useState(100);
-  const [newTicketMinOrder, setNewTicketMinOrder] = useState(1);
-  const [newTicketMaxOrder, setNewTicketMaxOrder] = useState(5);
-  const [newTicketStartSale, setNewTicketStartSale] = useState("");
-  const [newTicketEndSale, setNewTicketEndSale] = useState("");
-  const [newTicketDescription, setNewTicketDescription] = useState("");
+const formatDatetimeLocal = (dateStr?: string | null) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr.slice(0, 16).replace(" ", "T");
+    const pad = (n: number) => (n < 10 ? "0" + n : n);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return dateStr.slice(0, 16).replace(" ", "T");
+  }
+};
+
+export const AddTicketModal: React.FC<AddTicketModalProps> = ({
+  initialTicket,
+  eventStartDate,
+  eventEndDate,
+  onClose,
+  onSave
+}) => {
+  const [newTicketName, setNewTicketName] = useState(initialTicket?.name || "");
+  const [newTicketPrice, setNewTicketPrice] = useState(initialTicket?.price ?? 0);
+  const [newTicketIsFree, setNewTicketIsFree] = useState(initialTicket?.isFree ?? false);
+  const [newTicketTotalQuantity, setNewTicketTotalQuantity] = useState(initialTicket?.totalQuantity ?? 100);
+  const [newTicketMinOrder, setNewTicketMinOrder] = useState(initialTicket?.minPerOrder ?? 1);
+  const [newTicketMaxOrder, setNewTicketMaxOrder] = useState(initialTicket?.maxPerOrder ?? 5);
+  const [newTicketStartSale, setNewTicketStartSale] = useState(formatDatetimeLocal(initialTicket?.startSaleDate) || "");
+  const [newTicketEndSale, setNewTicketEndSale] = useState(formatDatetimeLocal(initialTicket?.endSaleDate) || "");
+  const [newTicketDescription, setNewTicketDescription] = useState(initialTicket?.description || "");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSave = () => {
+    setErrorMsg(null);
     if (!newTicketName.trim()) {
-      alert("Vui lòng nhập tên loại vé!");
+      setErrorMsg("Vui lòng nhập tên loại vé!");
       return;
     }
+
+    // conten start sale must be before end sale
+    if (newTicketStartSale && newTicketEndSale) {
+      if (new Date(newTicketEndSale) <= new Date(newTicketStartSale)) {
+        setErrorMsg("Thời gian kết thúc bán vé phải diễn ra sau thời gian bắt đầu bán vé!");
+        return;
+      }
+    }
+
+    // conten start sale must be before event start date
+    if (newTicketStartSale && eventStartDate) {
+      if (new Date(newTicketStartSale) >= new Date(eventStartDate)) {
+        setErrorMsg("Thời gian bắt đầu bán vé phải diễn ra trước thời gian bắt đầu sự kiện!");
+        return;
+      }
+    }
+
+    // conten end sale must be before event end date
+    if (newTicketEndSale && eventEndDate) {
+      if (new Date(newTicketEndSale) > new Date(eventEndDate)) {
+        setErrorMsg("Thời gian kết thúc bán vé không thể diễn ra sau thời gian kết thúc sự kiện!");
+        return;
+      }
+    }
+
     const created: TicketItem = {
-      id: Date.now().toString(),
+      id: initialTicket?.id || Date.now().toString(),
       name: newTicketName.trim(),
       price: newTicketIsFree ? 0 : Number(newTicketPrice),
       isFree: newTicketIsFree,
@@ -35,7 +83,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onSave 
       startSaleDate: newTicketStartSale,
       endSaleDate: newTicketEndSale,
       description: newTicketDescription,
-      image: null
+      image: initialTicket?.image || null
     };
     onSave(created);
   };
@@ -46,7 +94,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onSave 
         <div className="flex items-center justify-between border-b app-border pb-4">
           <h3 className="text-lg font-extrabold app-text-main flex items-center gap-2">
             <FaTicketAlt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <span>Tạo loại vé mới</span>
+            <span>{initialTicket ? "Chỉnh sửa loại vé" : "Tạo loại vé mới"}</span>
           </h3>
           <button
             type="button"
@@ -58,6 +106,12 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({ onClose, onSave 
         </div>
 
         <div className="space-y-4">
+          {errorMsg && (
+            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2 animate-in fade-in">
+              <FiAlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
           {/* Name */}
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold app-text-main">

@@ -84,6 +84,25 @@ function browserLocation(): Pick<Location, "origin"> {
     : window.location;
 }
 
+export function isTokenExpired(token: string): boolean {
+  if (!token || typeof token !== "string") return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return false;
+    }
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = JSON.parse(atob(base64));
+    if (jsonPayload && typeof jsonPayload.exp === "number") {
+      return Date.now() >= jsonPayload.exp * 1000 - 5000;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 export function createKeycloakSession(
   options: KeycloakSessionOptions = {},
 ): KeycloakSession {
@@ -266,19 +285,42 @@ export function createKeycloakSession(
 
     getAccessToken: async () => {
       if (keycloak.authenticated && keycloak.token) {
-        await keycloak.updateToken(refreshLeeway);
-        return keycloak.token ?? null;
+        try {
+          await keycloak.updateToken(refreshLeeway);
+          if (keycloak.token && !isTokenExpired(keycloak.token)) {
+            return keycloak.token;
+          }
+        } catch {
+          // Token refresh failed
+        }
       }
-      return storage?.getItem(legacyTokenKey) ?? null;
+      const raw = storage?.getItem(legacyTokenKey);
+      if (raw) {
+        if (!isTokenExpired(raw)) {
+          return raw;
+        } else {
+          storage?.removeItem?.(legacyTokenKey);
+          storage?.removeItem?.("id_token");
+          storage?.removeItem?.("refresh_token");
+        }
+      }
+      return null;
     },
 
-    getCurrentToken: () => keycloak.token ?? storage?.getItem(legacyTokenKey) ?? null,
+    getCurrentToken: () => {
+      if (keycloak.token && !isTokenExpired(keycloak.token)) return keycloak.token;
+      const legacy = storage?.getItem(legacyTokenKey);
+      if (legacy && !isTokenExpired(legacy)) return legacy;
+      return null;
+    },
 
     getCurrentIdToken: () => keycloak.idToken ?? storage?.getItem("id_token") ?? null,
 
-    isAuthenticated: () =>
-      Boolean(keycloak.authenticated && keycloak.token) ||
-      Boolean(storage?.getItem(legacyTokenKey)),
+    isAuthenticated: () => {
+      if (keycloak.authenticated && keycloak.token && !isTokenExpired(keycloak.token)) return true;
+      const legacy = storage?.getItem(legacyTokenKey);
+      return Boolean(legacy && !isTokenExpired(legacy));
+    },
 
     logout: async () => {
       const idToken = keycloak.idToken ?? storage?.getItem("id_token");

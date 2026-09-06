@@ -146,7 +146,7 @@ export const HomepageConfig: React.FC = () => {
   ]);
 
   // ad placements state
-  const [ads, setAds] = useState<AdPlacement[]>([
+  const [ads] = useState<AdPlacement[]>([
     {
       id: "AD-101",
       name: "Header Banner Leaderboard",

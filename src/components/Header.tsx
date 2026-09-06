@@ -16,8 +16,7 @@ import {
   FiMoon,
   FiMenu,
   FiX,
-  FiChevronDown,
-  FiShield,
+  FiChevronDown
 } from "react-icons/fi";
 import {
   LuTicket,

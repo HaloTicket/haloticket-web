@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   FiUploadCloud,
   FiMapPin,
@@ -8,13 +8,34 @@ import {
   FiUnderline,
   FiList,
   FiImage,
+  FiVideo,
+  FiLock,
+  FiUnlock,
+  FiAlignLeft,
+  FiAlignCenter,
+  FiAlignRight,
+  FiAlignJustify,
   FiChevronRight,
   FiCheckCircle,
   FiAlertCircle,
   FiTrash2,
-  FiBookmark
+  FiBookmark,
+  FiSearch,
+  FiPlus,
+  FiX,
+  FiUsers,
+  FiCalendar
 } from "react-icons/fi";
 import type { Step1Errors } from "@/types/organizer";
+import { eventApi } from "@/services/eventApi";
+import { mediaApi } from "@/services/mediaApi";
+import { type SystemVenue } from "@/utils/venueUtils";
+import {
+  DEFAULT_DESCRIPTION_TEMPLATE,
+  buildImageMarkup,
+  buildMediaEmbedMarkup,
+  applyTextFormatToTextarea
+} from "@/utils/editorUtils";
 
 interface Step1EventInfoProps {
   title: string;
@@ -37,6 +58,8 @@ interface Step1EventInfoProps {
   setBannerImage: (v: string | null) => void;
   description: string;
   setDescription: (v: string) => void;
+  galleryImages?: string[];
+  setGalleryImages?: React.Dispatch<React.SetStateAction<string[]>>;
   organizerName: string;
   setOrganizerName: (v: string) => void;
   organizerInfo: string;
@@ -70,6 +93,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   setBannerImage,
   description,
   setDescription,
+  galleryImages = [],
+  setGalleryImages,
   organizerName,
   setOrganizerName,
   organizerInfo,
@@ -84,23 +109,328 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const posterInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const modalUploadInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (
+  const [selectedFormat, setSelectedFormat] = useState<string>("Paragraph");
+  const [selectedColor, setSelectedColor] = useState<string>("#ffffff");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Insert/Edit Image Modal State (Matching Screenshots 3 & 4)
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageTab, setImageTab] = useState<"general" | "upload">("general");
+  const [imageSource, setImageSource] = useState("");
+  const [imageAlt, setImageAlt] = useState("");
+  const [imageWidth, setImageWidth] = useState("");
+  const [imageHeight, setImageHeight] = useState("");
+  const [imageLockRatio, setImageLockRatio] = useState(true);
+  const [imageRatio, setImageRatio] = useState<number | null>(null);
+
+  // Insert/Edit Media Modal State (Matching Screenshots 5 & 6)
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [mediaTab, setMediaTab] = useState<"general" | "advanced">("general");
+  const [mediaSource, setMediaSource] = useState("");
+  const [mediaWidth, setMediaWidth] = useState("");
+  const [mediaHeight, setMediaHeight] = useState("");
+  const [mediaLockRatio, setMediaLockRatio] = useState(true);
+  const [mediaRatio, setMediaRatio] = useState<number>(16 / 9);
+  const [mediaAltSource, setMediaAltSource] = useState("");
+  const [mediaPoster, setMediaPoster] = useState("");
+
+  const [systemVenues, setSystemVenues] = useState<SystemVenue[]>([]);
+  const [selectedVenue, setSelectedVenue] = useState<SystemVenue | null>(null);
+  const [venueSearchQuery, setVenueSearchQuery] = useState("");
+  const [isVenueDropdownOpen, setIsVenueDropdownOpen] = useState(false);
+
+  const [showNewVenueModal, setShowNewVenueModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [newVenueForm, setNewVenueForm] = useState({
+    name: "",
+    city: "TP. Hồ Chí Minh",
+    ward: "",
+    address: "",
+    capacity: 1000
+  });
+
+  // load real db events and extract real venues & booking collisions dynamically
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRealData = async () => {
+      try {
+        const realEvents = await eventApi.getAllEvents();
+        if (!isMounted) return;
+
+        if (Array.isArray(realEvents)) {
+          const venueMap = new Map<string, SystemVenue>();
+
+          // iterate real DB events to extract & group venue details
+          realEvents.forEach((ev: any) => {
+            if (!ev.locationName || !ev.locationName.trim()) return;
+
+            const key = ev.locationName.toLowerCase().trim();
+            const existing = venueMap.get(key);
+
+            const status = (ev.eventStatus || ev.status || "").toUpperCase();
+            const approval = (ev.eventApprovalStatus || ev.approvalStatus || "").toUpperCase();
+            const isCompletedOrPublished = status === "COMPLETED" || status === "PUBLISHED" || approval === "APPROVED";
+
+            const bookingItem = {
+              eventName: ev.title || "Sự kiện",
+              organizer: ev.organizer?.name || ev.author || "Ban Tổ Chức",
+              date: ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : "Đã đặt chỗ"),
+              timeSlot: ev.startTime
+                ? `${new Date(ev.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${ev.endTime ? new Date(ev.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "23:00"
+                }`
+                : "08:00 - 22:00",
+              status: "CONFIRMED" as const
+            };
+
+            if (existing) {
+              const exists = existing.bookings.some((b) => b.eventName === bookingItem.eventName);
+              if (!exists) {
+                existing.bookings.push(bookingItem);
+                existing.eventsHosted += 1;
+              }
+              if (isCompletedOrPublished) {
+                existing.verified = true;
+              }
+            } else {
+              venueMap.set(key, {
+                id: `v-db-${ev.id}`,
+                name: ev.locationName,
+                city: ev.city || "TP. Hồ Chí Minh",
+                ward: ev.ward || "",
+                address: ev.address || ev.locationName,
+                capacity: 3000,
+                verified: isCompletedOrPublished,
+                eventsHosted: 1,
+                bookings: [bookingItem]
+              });
+            }
+          });
+
+          setSystemVenues(Array.from(venueMap.values()));
+        }
+      } catch (err) {
+        console.error("Failed to load real venues from DB", err);
+      }
+    };
+
+    loadRealData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // pre-fill sample description template if empty on mount
+  useEffect(() => {
+    if (!description || !description.trim()) {
+      setDescription(DEFAULT_DESCRIPTION_TEMPLATE);
+    }
+  }, []);
+
+  const filteredVenues = systemVenues.filter(
+    (v) =>
+      v.name.toLowerCase().includes((venueSearchQuery || locationName).toLowerCase()) ||
+      v.address.toLowerCase().includes((venueSearchQuery || locationName).toLowerCase()) ||
+      v.city.toLowerCase().includes((venueSearchQuery || locationName).toLowerCase())
+  );
+
+  const handleSelectVenue = (venue: SystemVenue) => {
+    setSelectedVenue(venue);
+    setLocationName(venue.name);
+    setCity(venue.city);
+    setWard(venue.ward);
+    setAddress(venue.address);
+    setVenueSearchQuery(venue.name);
+    setIsVenueDropdownOpen(false);
+  };
+
+  const handleCreateNewVenue = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVenueForm.name.trim() || !newVenueForm.address.trim()) return;
+
+    const created: SystemVenue = {
+      id: `v-custom-${Date.now()}`,
+      name: newVenueForm.name,
+      city: newVenueForm.city,
+      ward: newVenueForm.ward,
+      address: newVenueForm.address,
+      capacity: Number(newVenueForm.capacity) || 500,
+      verified: false,
+      eventsHosted: 0,
+      bookings: []
+    };
+
+    setSystemVenues((prev) => [created, ...prev]);
+    handleSelectVenue(created);
+    setNewVenueForm({ name: "", city: "TP. Hồ Chí Minh", ward: "", address: "", capacity: 1000 });
+    setShowNewVenueModal(false);
+  };
+
+  // media service upload handler with instant local preview & async s3 persistence
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (v: string | null) => void
+    setter: (v: string | null) => void,
+    folder: string = "events"
   ) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setter(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const tempUrl = URL.createObjectURL(file);
+    setter(tempUrl);
+    setIsUploadingImage(true);
+
+    try {
+      const res = await mediaApi.uploadImage(file, folder);
+      if (res && res.imageUrl) {
+        setter(res.imageUrl);
+      }
+    } catch (err) {
+      console.warn("S3 upload error, keeping temporary blob preview", err);
     }
-    // reset input value so selecting the same file again triggers onChange
+    setIsUploadingImage(false);
     e.target.value = "";
+  };
+
+  // Handlers for Insert/Edit Image Modal
+  const handleImageWidthChange = (val: string) => {
+    setImageWidth(val);
+    if (imageLockRatio && imageRatio && val && !isNaN(Number(val))) {
+      setImageHeight(String(Math.round(Number(val) / imageRatio)));
+    }
+  };
+
+  const handleImageHeightChange = (val: string) => {
+    setImageHeight(val);
+    if (imageLockRatio && imageRatio && val && !isNaN(Number(val))) {
+      setImageWidth(String(Math.round(Number(val) * imageRatio)));
+    }
+  };
+
+  const handleModalImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const tempUrl = URL.createObjectURL(file);
+    setImageSource(tempUrl);
+
+    const img = new Image();
+    img.onload = () => {
+      setImageWidth(String(img.naturalWidth));
+      setImageHeight(String(img.naturalHeight));
+      if (img.naturalHeight > 0) {
+        setImageRatio(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.src = tempUrl;
+    setImageTab("general");
+
+    setIsUploadingImage(true);
+    try {
+      const res = await mediaApi.uploadImage(file, "gallery");
+      if (res && res.imageUrl) {
+        setImageSource(res.imageUrl);
+      }
+    } catch (err) {
+      console.warn("Upload image in modal failed, using blob preview", err);
+    }
+    setIsUploadingImage(false);
+    e.target.value = "";
+  };
+
+  // upload and insert multiple direct images into gallery images list with instant preview
+  const handleInsertGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const tempMappings = files.map((file) => ({
+      file,
+      tempUrl: URL.createObjectURL(file)
+    }));
+
+    if (setGalleryImages) {
+      setGalleryImages((prev) => [...prev, ...tempMappings.map((m) => m.tempUrl)]);
+    }
+
+    setIsUploadingImage(true);
+
+    await Promise.all(
+      tempMappings.map(async ({ file, tempUrl }) => {
+        try {
+          const res = await mediaApi.uploadImage(file, "gallery");
+          if (res?.imageUrl && setGalleryImages) {
+            setGalleryImages((prev) =>
+              prev.map((url) => (url === tempUrl ? res.imageUrl : url))
+            );
+          }
+        } catch (err) {
+          console.warn("Upload image to gallery failed", err);
+        }
+      })
+    );
+
+    setIsUploadingImage(false);
+    e.target.value = "";
+  };
+
+  const handleSaveImageModal = () => {
+    if (!imageSource || !imageSource.trim()) {
+      setShowImageModal(false);
+      return;
+    }
+    const markup = buildImageMarkup({
+      source: imageSource,
+      alt: imageAlt,
+      width: imageWidth,
+      height: imageHeight
+    });
+    setDescription(description ? `${description}\n${markup}` : markup);
+    if (setGalleryImages) {
+      setGalleryImages((prev) => (prev.includes(imageSource.trim()) ? prev : [...prev, imageSource.trim()]));
+    }
+    setShowImageModal(false);
+  };
+
+  // handlers for Insert/Edit Media Modal
+  const handleMediaWidthChange = (val: string) => {
+    setMediaWidth(val);
+    if (mediaLockRatio && mediaRatio && val && !isNaN(Number(val))) {
+      setMediaHeight(String(Math.round(Number(val) / mediaRatio)));
+    }
+  };
+
+  const handleMediaHeightChange = (val: string) => {
+    setMediaHeight(val);
+    if (mediaLockRatio && mediaRatio && val && !isNaN(Number(val))) {
+      setMediaWidth(String(Math.round(Number(val) * mediaRatio)));
+    } else if (val && !isNaN(Number(val)) && Number(val) > 0 && mediaWidth && !isNaN(Number(mediaWidth))) {
+      setMediaRatio(Number(mediaWidth) / Number(val));
+    }
+  };
+
+  const handleSaveMediaModal = () => {
+    if (!mediaSource || !mediaSource.trim()) {
+      setShowMediaModal(false);
+      return;
+    }
+    const markup = buildMediaEmbedMarkup({
+      source: mediaSource,
+      width: mediaWidth,
+      height: mediaHeight,
+      altSource: mediaAltSource,
+      poster: mediaPoster
+    });
+    setDescription(description ? `${description}\n${markup}` : markup);
+    setShowMediaModal(false);
+  };
+
+  // textarea formatting helper
+  const applyTextFormat = (prefix: string, suffix: string = prefix) => {
+    const updated = applyTextFormatToTextarea("event-description-textarea", description, prefix, suffix);
+    setDescription(updated);
   };
 
   return (
@@ -112,7 +442,14 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <span className="text-blue-600 dark:text-blue-400 font-black">*</span>
             <span>Upload hình ảnh sự kiện</span>
           </h3>
-          <span className="text-xs app-text-muted">Định dạng JPG, PNG (Tối đa 5MB)</span>
+          <div className="flex items-center gap-3">
+            {isUploadingImage && (
+              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 animate-pulse flex items-center gap-1">
+                <FiUploadCloud className="w-4 h-4 animate-bounce" /> Đang tải lên S3...
+              </span>
+            )}
+            <span className="text-xs app-text-muted">Định dạng JPG, PNG (Tối đa 5MB)</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -303,8 +640,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => setLocationType("offline")}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${locationType === "offline"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "app-text-muted hover:app-text-main"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "app-text-muted hover:app-text-main"
                 }`}
             >
               <FiMapPin className="w-4 h-4" />
@@ -314,8 +651,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => setLocationType("online")}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${locationType === "online"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "app-text-muted hover:app-text-main"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "app-text-muted hover:app-text-main"
                 }`}
             >
               <FiGlobe className="w-4 h-4" />
@@ -324,21 +661,120 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           </div>
 
           {locationType === "offline" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="space-y-1 md:col-span-2">
-                <div className="flex justify-between text-xs font-bold app-text-main">
-                  <span><span className="text-rose-500">*</span> Tên địa điểm</span>
-                  <span className="text-[11px] app-text-muted">{locationName.length} / 80</span>
+            <div className="space-y-4 pt-2">
+              {/* Smart System Venue Selector & Search */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                    <span className="text-rose-500">*</span> Chọn Địa điểm tổ chức có sẵn (Đã từng sử dụng):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewVenueModal(true)}
+                    className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <FiPlus className="w-3.5 h-3.5" />
+                    <span>Tạo địa điểm mới</span>
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  maxLength={80}
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  placeholder="Ví dụ: Nhà hát Hòa Bình, Sân vận động Mỹ Đình..."
-                  className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.locationName ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-                    } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                />
+
+                {/* Search & Select Input with Dropdown */}
+                <div className="relative">
+                  <div className="flex items-center gap-2 app-bg-subnav border app-border rounded-xl px-4 py-3 shadow-xs">
+                    <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      value={venueSearchQuery || locationName}
+                      onFocus={() => setIsVenueDropdownOpen(true)}
+                      onChange={(e) => {
+                        setVenueSearchQuery(e.target.value);
+                        setLocationName(e.target.value);
+                        setIsVenueDropdownOpen(true);
+                      }}
+                      placeholder="Tìm địa điểm có sẵn (Ví dụ: Mỹ Đình, Hòa Bình, Phú Thọ...)"
+                      className="w-full bg-transparent app-text-main text-sm focus:outline-none placeholder-slate-400 font-medium"
+                    />
+                    {locationName && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocationName("");
+                          setSelectedVenue(null);
+                          setVenueSearchQuery("");
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      >
+                        <FiX className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown Menu of System Venues */}
+                  {isVenueDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 z-50 app-bg-card border app-border rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto no-scrollbar space-y-1 animate-in fade-in zoom-in-95">
+                      <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider flex items-center justify-between border-b app-border pb-2">
+                        <span>Địa điểm tổ chức có sẵn ({filteredVenues.length})</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsVenueDropdownOpen(false)}
+                          className="text-xs text-blue-600 hover:underline cursor-pointer"
+                        >
+                          Đóng
+                        </button>
+                      </div>
+
+                      {filteredVenues.length === 0 ? (
+                        <div className="p-4 text-center space-y-2">
+                          <p className="text-xs app-text-muted">Không tìm thấy địa điểm phù hợp</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsVenueDropdownOpen(false);
+                              setShowNewVenueModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 cursor-pointer"
+                          >
+                            + Khai báo địa điểm mới ngay
+                          </button>
+                        </div>
+                      ) : (
+                        filteredVenues.map((v) => (
+                          <div
+                            key={v.id}
+                            onClick={() => handleSelectVenue(v)}
+                            className="p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                                <FiMapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span>{v.name}</span>
+                              </span>
+                              {v.verified ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                                  <FiCheckCircle className="w-3 h-3" /> Đã xác minh
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                                  <FiAlertCircle className="w-3 h-3 text-amber-500" /> Chưa xác minh
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] app-text-muted">{v.address}, {v.city}</p>
+                            <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 pt-0.5">
+                              <span className="flex items-center gap-1">
+                                <FiUsers className="w-3 h-3 text-indigo-500" /> Sức chứa: {v.capacity.toLocaleString()} khán giả
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <FiCalendar className="w-3 h-3 text-amber-500" /> {v.eventsHosted} sự kiện đã tổ chức
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {errors.locationName && (
                   <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
                     <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -347,59 +783,140 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 )}
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> Tỉnh/Thành phố</label>
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.city ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-                    } cursor-pointer`}
-                >
-                  <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="Cần Thơ">Cần Thơ</option>
-                  <option value="Hải Phòng">Hải Phòng</option>
-                </select>
-                {errors.city && (
-                  <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
-                    <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{errors.city}</span>
-                  </p>
-                )}
-              </div>
+              {/* Venue Info & Schedule Collision Indicator Box */}
+              {selectedVenue && (
+                <div className="p-4 rounded-2xl app-bg-subnav border app-border space-y-3 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b app-border pb-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                          <FiBookmark className="w-4 h-4 text-blue-600" />
+                          <span>{selectedVenue.name}</span>
+                        </h4>
+                        {selectedVenue.verified ? (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                            Đã xác thực
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
+                            Địa điểm do BTC khai báo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] app-text-muted">
+                        {selectedVenue.address}, {selectedVenue.ward}, {selectedVenue.city}
+                      </p>
+                    </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold app-text-main">Phường/Xã</label>
-                <input
-                  type="text"
-                  value={ward}
-                  onChange={(e) => setWard(e.target.value)}
-                  placeholder="Nhập Phường/Xã..."
-                  className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border"
-                />
-              </div>
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      <span className="px-2.5 py-1 rounded-lg app-bg-card border app-border text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <FiUsers className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Sức chứa: {selectedVenue.capacity.toLocaleString()} ghế</span>
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="space-y-1 md:col-span-2">
-                <div className="flex justify-between text-xs font-bold app-text-main">
-                  <span><span className="text-rose-500">*</span> Số nhà, tên đường</span>
-                  <span className="text-[11px] app-text-muted">{address.length} / 80</span>
+                  {/* Real-time Schedule Collision Check Badge */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl app-bg-card border app-border">
+                    <div className="flex items-start gap-2.5">
+                      {selectedVenue.bookings.length > 0 ? (
+                        <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 shrink-0">
+                          <FiAlertCircle className="w-4 h-4" />
+                        </div>
+                      ) : (
+                        <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 shrink-0">
+                          <FiCheckCircle className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div>
+                        <h5 className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                          <span>Trạng thái Lịch tổ chức tại Địa điểm:</span>
+                          {selectedVenue.bookings.length > 0 ? (
+                            <span className="text-amber-600 dark:text-amber-400">Đã có {selectedVenue.bookings.length} sự kiện đăng ký giữ chỗ</span>
+                          ) : (
+                            <span className="text-emerald-600 dark:text-emerald-400">Sẵn sàng (Chưa có lịch trùng)</span>
+                          )}
+                        </h5>
+                        <p className="text-[11px] app-text-muted mt-0.5">
+                          {selectedVenue.bookings.length > 0
+                            ? "Hệ thống khuyến nghị đối soát lịch để tránh trùng thời gian tổ chức với BTC khác."
+                            : "Địa điểm chưa bị giữ chỗ. Sự kiện của bạn đủ điều kiện duyệt tự động nhanh."}
+                        </p>
+                      </div>
+                    </div>
+
+                    {selectedVenue.bookings.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowScheduleModal(true)}
+                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+                      >
+                        <FiCalendar className="w-3.5 h-3.5" />
+                        <span>Xem lịch đăng ký</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  maxLength={80}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Ví dụ: 240 Đường 3/2, Phường 12..."
-                  className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.address ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-                    }`}
-                />
-                {errors.address && (
-                  <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
-                    <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{errors.address}</span>
-                  </p>
-                )}
+              )}
+
+              {/* Detailed Address Inputs Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold app-text-main">
+                    <span className="text-rose-500">*</span> Tỉnh/Thành phố
+                  </label>
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.city ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+                      } cursor-pointer`}
+                  >
+                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                    <option value="Hà Nội">Hà Nội</option>
+                    <option value="Đà Nẵng">Đà Nẵng</option>
+                    <option value="Cần Thơ">Cần Thơ</option>
+                    <option value="Hải Phòng">Hải Phòng</option>
+                  </select>
+                  {errors.city && (
+                    <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{errors.city}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold app-text-main">Phường/Xã</label>
+                  <input
+                    type="text"
+                    value={ward}
+                    onChange={(e) => setWard(e.target.value)}
+                    placeholder="Nhập Phường/Xã..."
+                    className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <div className="flex justify-between text-xs font-bold app-text-main">
+                    <span><span className="text-rose-500">*</span> Số nhà, tên đường</span>
+                    <span className="text-[11px] app-text-muted">{address.length} / 80</span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={80}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Ví dụ: 240 Đường 3/2, Phường 12..."
+                    className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.address ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+                      }`}
+                  />
+                  {errors.address && (
+                    <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{errors.address}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -408,36 +925,224 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
       {/* Event Description Rich Text Section */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
-        <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-3">
-          <span className="text-rose-500 font-bold">*</span> Mô tả chi tiết nội dung sự kiện
-        </h3>
-
-        {/* Rich Text Formatting Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 p-2 app-bg-subnav border app-border rounded-xl">
-          <button type="button" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer" title="Bold">
-            <FiBold className="w-4 h-4" />
-          </button>
-          <button type="button" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer" title="Italic">
-            <FiItalic className="w-4 h-4" />
-          </button>
-          <button type="button" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer" title="Underline">
-            <FiUnderline className="w-4 h-4" />
-          </button>
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1" />
-          <button type="button" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer" title="List">
-            <FiList className="w-4 h-4" />
-          </button>
-          <button type="button" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer" title="Image">
-            <FiImage className="w-4 h-4" />
+        <div className="flex items-center justify-between border-b app-border pb-3">
+          <h3 className="text-lg font-extrabold app-text-main">
+            <span className="text-rose-500 font-bold">*</span> Mô tả chi tiết nội dung sự kiện
+          </h3>
+          <button
+            type="button"
+            onClick={() => setDescription(DEFAULT_DESCRIPTION_TEMPLATE)}
+            className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+          >
+            <FiBookmark className="w-3.5 h-3.5" />
+            <span>Tải văn bản mẫu</span>
           </button>
         </div>
 
+        {/* Rich Text Formatting Toolbar */}
+        <div className="flex flex-wrap items-center gap-2 p-2 app-bg-subnav border app-border rounded-xl">
+          {/* Paragraph Format Selector */}
+          <select
+            value={selectedFormat}
+            onChange={(e) => {
+              setSelectedFormat(e.target.value);
+              const val = e.target.value;
+              if (val === "Heading 1") applyTextFormat("# ", "");
+              else if (val === "Heading 2") applyTextFormat("## ", "");
+              else if (val === "Heading 3") applyTextFormat("### ", "");
+            }}
+            className="app-bg-card app-text-main text-xs font-bold px-3 py-1.5 rounded-lg border app-border focus:outline-none cursor-pointer"
+          >
+            <option value="Paragraph">Paragraph</option>
+            <option value="Heading 1">Heading 1</option>
+            <option value="Heading 2">Heading 2</option>
+            <option value="Heading 3">Heading 3</option>
+          </select>
+
+          {/* Color Palette */}
+          <div className="flex items-center gap-1.5 px-2 border-r app-border">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedColor("#ffffff");
+                applyTextFormat('<span style="color: #ffffff">', '</span>');
+              }}
+              className={`w-5 h-5 rounded-md bg-white border border-slate-400 hover:scale-110 transition-transform ${selectedColor === "#ffffff" ? "ring-2 ring-blue-500" : ""}`}
+              title="Màu Trắng"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedColor("#22c55e");
+                applyTextFormat('<span style="color: #22c55e">', '</span>');
+              }}
+              className={`w-5 h-5 rounded-md bg-emerald-500 hover:scale-110 transition-transform ${selectedColor === "#22c55e" ? "ring-2 ring-blue-500" : ""}`}
+              title="Màu Xanh Lá"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedColor("#ef4444");
+                applyTextFormat('<span style="color: #ef4444">', '</span>');
+              }}
+              className={`w-5 h-5 rounded-md bg-rose-500 hover:scale-110 transition-transform ${selectedColor === "#ef4444" ? "ring-2 ring-blue-500" : ""}`}
+              title="Màu Đỏ"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedColor("#eab308");
+                applyTextFormat('<span style="color: #eab308">', '</span>');
+              }}
+              className={`w-5 h-5 rounded-md bg-amber-400 hover:scale-110 transition-transform ${selectedColor === "#eab308" ? "ring-2 ring-blue-500" : ""}`}
+              title="Màu Vàng"
+            />
+          </div>
+
+          {/* Formatting: Bold, Italic, Underline */}
+          <div className="flex items-center gap-1 px-2 border-r app-border">
+            <button
+              type="button"
+              onClick={() => applyTextFormat("**", "**")}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-black app-text-main cursor-pointer"
+              title="In đậm (Bold)"
+            >
+              <FiBold className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTextFormat("*", "*")}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-black app-text-main cursor-pointer"
+              title="In nghiêng (Italic)"
+            >
+              <FiItalic className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTextFormat("<u>", "</u>")}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-black app-text-main cursor-pointer"
+              title="Gạch chân (Underline)"
+            >
+              <FiUnderline className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Alignments */}
+          <div className="flex items-center gap-1 px-2 border-r app-border">
+            <button
+              type="button"
+              onClick={() => applyTextFormat('<div align="left">\n', '\n</div>')}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
+              title="Căn trái"
+            >
+              <FiAlignLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTextFormat('<div align="center">\n', '\n</div>')}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
+              title="Căn giữa"
+            >
+              <FiAlignCenter className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTextFormat('<div align="right">\n', '\n</div>')}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
+              title="Căn phải"
+            >
+              <FiAlignRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTextFormat('<div align="justify">\n', '\n</div>')}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
+              title="Căn đều"
+            >
+              <FiAlignJustify className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Lists */}
+          <div className="flex items-center gap-1 px-2 border-r app-border">
+            <button
+              type="button"
+              onClick={() => applyTextFormat("\n• ", "")}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
+              title="Danh sách dấu đầu dòng"
+            >
+              <FiList className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTextFormat("\n1. ", "")}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-extrabold app-text-main cursor-pointer"
+              title="Danh sách có đánh số"
+            >
+              <span className="text-xs font-bold font-mono">1.</span>
+            </button>
+          </div>
+
+          {/* Media Attachments: Image & Video (Matching Screenshots 1 & 2) */}
+          <div className="flex items-center gap-1.5 pl-1">
+            {/* Image Button with Tooltip */}
+            <div className="relative group">
+              <button
+                type="button"
+                onClick={() => {
+                  setImageSource("");
+                  setImageAlt("");
+                  setImageWidth("");
+                  setImageHeight("");
+                  setImageTab("general");
+                  setShowImageModal(true);
+                }}
+                className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-700 dark:text-slate-200 cursor-pointer transition-colors"
+                aria-label="Insert/edit image"
+              >
+                <FiImage className="w-4 h-4" />
+              </button>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none">
+                <div className="bg-[#1e293b] text-white text-[11px] font-medium px-2.5 py-1 rounded-md shadow-xl border border-slate-700 whitespace-nowrap">
+                  Insert/edit image
+                </div>
+              </div>
+            </div>
+
+            {/* Media/Video Button with Tooltip */}
+            <div className="relative group">
+              <button
+                type="button"
+                onClick={() => {
+                  setMediaSource("");
+                  setMediaWidth("");
+                  setMediaHeight("");
+                  setMediaAltSource("");
+                  setMediaPoster("");
+                  setMediaTab("general");
+                  setShowMediaModal(true);
+                }}
+                className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-700 dark:text-slate-200 cursor-pointer transition-colors"
+                aria-label="Insert/edit media"
+              >
+                <FiVideo className="w-4 h-4" />
+              </button>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none">
+                <div className="bg-[#1e293b] text-white text-[11px] font-medium px-2.5 py-1 rounded-md shadow-xl border border-slate-700 whitespace-nowrap">
+                  Insert/edit media
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <textarea
-          rows={10}
+          id="event-description-textarea"
+          rows={12}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className={`w-full app-bg-subnav app-text-main text-sm rounded-xl p-4 border ${errors.description ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-            } focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono leading-relaxed`}
+            } focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed`}
         />
         {errors.description && (
           <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
@@ -445,6 +1150,60 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <span>{errors.description}</span>
           </p>
         )}
+
+        {/* Gallery Images Visual Preview & Management Section */}
+        <div className="pt-4 border-t app-border space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold app-text-main flex items-center gap-2">
+              <FiImage className="w-4 h-4 text-blue-600" />
+              <span>Bộ sưu tập ảnh sự kiện ({galleryImages.length} ảnh)</span>
+            </label>
+            <input
+              type="file"
+              ref={galleryInputRef}
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleInsertGalleryImage}
+            />
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <FiPlus className="w-3.5 h-3.5" />
+              <span>Thêm ảnh vào Gallery</span>
+            </button>
+          </div>
+
+          {galleryImages.length === 0 ? (
+            <div className="p-4 rounded-xl app-bg-subnav border app-border text-center">
+              <p className="text-xs app-text-muted">Chưa có ảnh gallery nào. Hãy bấm "Thêm ảnh" hoặc chèn hình trong mô tả để tự động bổ sung vào gallery.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {galleryImages.map((imgUrl, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border app-border app-bg-subnav shadow-xs">
+                  <img src={imgUrl} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setGalleryImages) {
+                          setGalleryImages((prev) => prev.filter((_, i) => i !== idx));
+                        }
+                      }}
+                      className="p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors shadow-md"
+                      title="Xóa khỏi Gallery"
+                    >
+                      <FiTrash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Organizer Info Section */}
@@ -548,9 +1307,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 value={organizerInfo}
                 onChange={(e) => setOrganizerInfo(e.target.value)}
                 placeholder="Giới thiệu uy tín & kinh nghiệm của Ban tổ chức..."
-                className={`w-full app-bg-subnav app-text-main text-sm rounded-xl p-4 border ${
-                  errors.organizerInfo ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-                }`}
+                className={`w-full app-bg-subnav app-text-main text-sm rounded-xl p-4 border ${errors.organizerInfo ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
+                  }`}
               />
               {errors.organizerInfo && (
                 <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
@@ -562,6 +1320,450 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal 1: Khai báo địa điểm mới */}
+      {showNewVenueModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="app-bg-card border app-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b app-border pb-3">
+              <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
+                <FiPlus className="w-4 h-4 text-blue-600" />
+                <span>Khai báo Địa điểm Tổ chức Mới</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowNewVenueModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewVenue} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold app-text-main">
+                  <span className="text-rose-500">*</span> Tên địa điểm mới
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newVenueForm.name}
+                  onChange={(e) => setNewVenueForm({ ...newVenueForm, name: e.target.value })}
+                  placeholder="Ví dụ: Phim trường CityLand, Sân khấu Outdoor ABC..."
+                  className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3.5 py-2.5 border app-border"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold app-text-main">Tỉnh/Thành phố</label>
+                  <select
+                    value={newVenueForm.city}
+                    onChange={(e) => setNewVenueForm({ ...newVenueForm, city: e.target.value })}
+                    className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border"
+                  >
+                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                    <option value="Hà Nội">Hà Nội</option>
+                    <option value="Đà Nẵng">Đà Nẵng</option>
+                    <option value="Cần Thơ">Cần Thơ</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold app-text-main">Phường/Xã</label>
+                  <input
+                    type="text"
+                    value={newVenueForm.ward}
+                    onChange={(e) => setNewVenueForm({ ...newVenueForm, ward: e.target.value })}
+                    placeholder="Phường/Xã..."
+                    className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold app-text-main">
+                  <span className="text-rose-500">*</span> Số nhà, tên đường
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newVenueForm.address}
+                  onChange={(e) => setNewVenueForm({ ...newVenueForm, address: e.target.value })}
+                  placeholder="Số nhà, tên đường chi tiết..."
+                  className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3.5 py-2.5 border app-border"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold app-text-main">Sức chứa ước tính (khán giả)</label>
+                <input
+                  type="number"
+                  min={50}
+                  value={newVenueForm.capacity}
+                  onChange={(e) => setNewVenueForm({ ...newVenueForm, capacity: Number(e.target.value) })}
+                  className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3.5 py-2.5 border app-border"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewVenueModal(false)}
+                  className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Lưu & Chọn địa điểm
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Lịch đặt sự kiện tại địa điểm */}
+      {showScheduleModal && selectedVenue && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="app-bg-card border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b app-border pb-3">
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
+                  <FiCalendar className="w-4 h-4 text-amber-500" />
+                  <span>Lịch Sự kiện đã giữ chỗ tại địa điểm</span>
+                </h3>
+                <p className="text-[11px] app-text-muted">{selectedVenue.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 max-h-72 overflow-y-auto no-scrollbar">
+              {selectedVenue.bookings.map((b, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl app-bg-subnav border app-border space-y-1 text-xs"
+                >
+                  <div className="flex items-center justify-between font-bold app-text-main">
+                    <span>{b.eventName}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px]">
+                      {b.status === "CONFIRMED" ? "Đã giữ chỗ" : "Đang chờ duyệt"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-[11px] app-text-muted">
+                    <span className="flex items-center gap-1 font-mono font-medium">
+                      <FiCalendar className="w-3 h-3 text-blue-500" /> {b.date} ({b.timeSlot})
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FiUsers className="w-3 h-3 text-purple-500" /> BTC: {b.organizer}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="px-5 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-xs"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Insert/Edit Image (Screenshots 3 & 4) */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#1e293b] text-slate-100 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <h3 className="text-base font-semibold text-slate-100">
+                Insert/Edit Image
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer text-lg"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="grid grid-cols-12 gap-5 min-h-[220px]">
+              {/* Left Tabs */}
+              <div className="col-span-3 border-r border-slate-700/70 pr-3 space-y-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setImageTab("general")}
+                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${imageTab === "general" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  General
+                  {imageTab === "general" && (
+                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageTab("upload")}
+                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${imageTab === "upload" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  Upload
+                  {imageTab === "upload" && (
+                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
+                  )}
+                </button>
+              </div>
+
+              {/* Right Form Fields */}
+              <div className="col-span-9 space-y-4">
+                {imageTab === "general" ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-300 font-medium block">Source</label>
+                      <input
+                        type="text"
+                        value={imageSource}
+                        onChange={(e) => setImageSource(e.target.value)}
+                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-300 font-medium block">Alternative description</label>
+                      <input
+                        type="text"
+                        value={imageAlt}
+                        onChange={(e) => setImageAlt(e.target.value)}
+                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-12 gap-3 items-end">
+                      <div className="col-span-5 space-y-1">
+                        <label className="text-xs text-slate-300 font-medium block">Width</label>
+                        <input
+                          type="text"
+                          value={imageWidth}
+                          onChange={(e) => handleImageWidthChange(e.target.value)}
+                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="col-span-5 space-y-1">
+                        <label className="text-xs text-slate-300 font-medium block">Height</label>
+                        <input
+                          type="text"
+                          value={imageHeight}
+                          onChange={(e) => handleImageHeightChange(e.target.value)}
+                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="col-span-2 pb-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setImageLockRatio(!imageLockRatio)}
+                          className={`w-full py-2 bg-[#0f172a] border ${imageLockRatio ? "border-blue-500 text-blue-400" : "border-slate-700 text-slate-400"
+                            } hover:border-slate-500 rounded-lg flex items-center justify-center cursor-pointer transition-colors`}
+                          title={imageLockRatio ? "Lock aspect ratio" : "Unlock aspect ratio"}
+                        >
+                          {imageLockRatio ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-44 border-2 border-dashed border-slate-600 rounded-xl bg-[#0f172a]/40 flex flex-col items-center justify-center p-6 text-center">
+                    <input
+                      type="file"
+                      ref={modalUploadInputRef}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleModalImageUpload}
+                    />
+                    <button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => modalUploadInputRef.current?.click()}
+                      className="px-4 py-2 bg-[#2d3a4e] hover:bg-[#37475f] text-slate-100 font-medium text-xs rounded-lg border border-slate-600 cursor-pointer shadow-xs active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isUploadingImage ? "Uploading..." : "Browse for an image"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="pt-3 border-t border-slate-700 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="px-4 py-2 bg-[#2d3a4e] hover:bg-[#37475f] text-slate-200 font-medium text-xs rounded-lg border border-slate-600 cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveImageModal}
+                className="px-5 py-2 bg-[#0070f3] hover:bg-[#0060d8] text-white font-medium text-xs rounded-lg shadow-md cursor-pointer transition-all active:scale-95"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Insert/Edit Media (Screenshots 5 & 6) */}
+      {showMediaModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#1e293b] text-slate-100 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <h3 className="text-base font-semibold text-slate-100">
+                Insert/Edit Media
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowMediaModal(false)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer text-lg"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="grid grid-cols-12 gap-5 min-h-[220px]">
+              {/* Left Tabs */}
+              <div className="col-span-3 border-r border-slate-700/70 pr-3 space-y-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setMediaTab("general")}
+                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${mediaTab === "general" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  General
+                  {mediaTab === "general" && (
+                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaTab("advanced")}
+                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${mediaTab === "advanced" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  Advanced
+                  {mediaTab === "advanced" && (
+                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
+                  )}
+                </button>
+              </div>
+
+              {/* Right Form Fields */}
+              <div className="col-span-9 space-y-4">
+                {mediaTab === "general" ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-300 font-medium block">Source</label>
+                      <input
+                        type="text"
+                        value={mediaSource}
+                        onChange={(e) => setMediaSource(e.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-12 gap-3 items-end">
+                      <div className="col-span-5 space-y-1">
+                        <label className="text-xs text-slate-300 font-medium block">Width</label>
+                        <input
+                          type="text"
+                          value={mediaWidth}
+                          onChange={(e) => handleMediaWidthChange(e.target.value)}
+                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="col-span-5 space-y-1">
+                        <label className="text-xs text-slate-300 font-medium block">Height</label>
+                        <input
+                          type="text"
+                          value={mediaHeight}
+                          onChange={(e) => handleMediaHeightChange(e.target.value)}
+                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="col-span-2 pb-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setMediaLockRatio(!mediaLockRatio)}
+                          className={`w-full py-2 bg-[#0f172a] border ${mediaLockRatio ? "border-blue-500 text-blue-400" : "border-slate-700 text-slate-400"
+                            } hover:border-slate-500 rounded-lg flex items-center justify-center cursor-pointer transition-colors`}
+                          title={mediaLockRatio ? "Lock aspect ratio" : "Unlock aspect ratio"}
+                        >
+                          {mediaLockRatio ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-300 font-medium block">Alternative source URL</label>
+                      <input
+                        type="text"
+                        value={mediaAltSource}
+                        onChange={(e) => setMediaAltSource(e.target.value)}
+                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-300 font-medium block">Media poster (Image URL)</label>
+                      <input
+                        type="text"
+                        value={mediaPoster}
+                        onChange={(e) => setMediaPoster(e.target.value)}
+                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-blue-500 ring-1 ring-blue-500 outline-none"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="pt-3 border-t border-slate-700 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowMediaModal(false)}
+                className="px-4 py-2 bg-[#2d3a4e] hover:bg-[#37475f] text-slate-200 font-medium text-xs rounded-lg border border-slate-600 cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveMediaModal}
+                className="px-5 py-2 bg-[#0070f3] hover:bg-[#0060d8] text-white font-medium text-xs rounded-lg shadow-md cursor-pointer transition-all active:scale-95"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Next Step Action Button & Save Draft */}
       <div className="flex items-center justify-between pt-4">

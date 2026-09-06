@@ -18,12 +18,15 @@ import {
 } from "react-icons/fi";
 import PendingApprovalModal from "./components/PendingApprovalModal";
 import { eventApi } from "@/services/eventApi";
+import { userApi, getCachedUserProfile } from "@/services/userApi";
 
 export const MyEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "pending" | "draft">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [eventsList, setEventsList] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [myOrganizerProfile, setMyOrganizerProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const tabs = [
@@ -37,6 +40,15 @@ export const MyEvents: React.FC = () => {
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
+        const user = await userApi.getProfile();
+        setCurrentUser(user);
+
+        let orgProf = null;
+        if (user && user.id) {
+          orgProf = await eventApi.getOrganizerProfile(user.id);
+          setMyOrganizerProfile(orgProf);
+        }
+
         const data = await eventApi.getAllEvents();
         if (Array.isArray(data)) {
           setEventsList(data);
@@ -50,6 +62,33 @@ export const MyEvents: React.FC = () => {
     fetchEvents();
   }, []);
 
+  const isMyEvent = (ev: any): boolean => {
+    const user = currentUser || getCachedUserProfile();
+    if (!user) return false;
+
+    const currentUserId = user.id || user.keycloakId;
+    const currentEmail = user.email;
+
+    const orgUserId = ev.organizer?.userId;
+    const orgId = ev.organizer?.id;
+    const orgName = (ev.organizer?.name || "").toLowerCase();
+
+    // 1. Direct match on organizer userId
+    if (orgUserId && currentUserId && orgUserId === currentUserId) return true;
+
+    // 2. Match on organizer profile id or name
+    if (myOrganizerProfile) {
+      if (orgId && myOrganizerProfile.id && orgId === myOrganizerProfile.id) return true;
+      if (orgName && myOrganizerProfile.name && orgName === myOrganizerProfile.name.toLowerCase()) return true;
+    }
+
+    // 3. Match on full name or email of user
+    if (user.fullName && orgName && orgName === user.fullName.toLowerCase()) return true;
+    if (currentEmail && orgName && orgName === currentEmail.toLowerCase()) return true;
+
+    return false;
+  };
+
   const getEventTabStatus = (ev: any): string => {
     const status = (ev.eventApprovalStatus || ev.eventStatus || "").toUpperCase();
     if (status === "PENDING") return "pending";
@@ -60,10 +99,11 @@ export const MyEvents: React.FC = () => {
   };
 
   const filteredEvents = eventsList.filter((ev) => {
+    const isOwner = isMyEvent(ev);
     const evTabStatus = getEventTabStatus(ev);
     const matchesTab = evTabStatus === activeTab;
     const matchesQuery = (ev.title || "").toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesQuery;
+    return isOwner && matchesTab && matchesQuery;
   });
 
   const handleActionClick = () => {
@@ -237,14 +277,13 @@ export const MyEvents: React.FC = () => {
                     <span>Sơ đồ ghế</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleActionClick}
-                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                  <Link
+                    to={`/organizer/create-event?id=${ev.id}`}
+                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
                   >
                     <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Chỉnh sửa</span>
-                  </button>
+                    <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? "Tiếp tục tạo nháp" : "Chỉnh sửa"}</span>
+                  </Link>
                 </div>
               </div>
             );

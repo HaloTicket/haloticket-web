@@ -14,8 +14,7 @@ import {
   FiMenu,
   FiX,
   FiHome,
-  FiChevronDown,
-  FiShield,
+  FiChevronDown
 } from "react-icons/fi";
 import {
   LuTicket,
@@ -360,6 +359,17 @@ export const OrganizerLayout: React.FC = () => {
                       <LuBuilding2 className="w-4 h-4 text-purple-500 shrink-0" />
                       <span>Hồ sơ Ban tổ chức</span>
                     </Link>
+
+                    {isAdmin && (
+                      <Link
+                        to={PATHS.ADMIN_DASHBOARD}
+                        onClick={() => setIsAccountOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-xs font-bold transition-colors"
+                      >
+                        <LuBuilding2 className="w-4 h-4 text-purple-600 shrink-0" />
+                        <span>Trang Quản trị Admin</span>
+                      </Link>
+                    )}
 
                     <div className="my-1 border-t app-border" />
 

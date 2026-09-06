@@ -1,5 +1,5 @@
 import React from "react";
-import { FiClock, FiCalendar, FiPlus, FiTrash2, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark } from "react-icons/fi";
+import { FiClock, FiCalendar, FiPlus, FiTrash2, FiEdit3, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem, Step2Errors } from "@/types/organizer";
 
@@ -11,6 +11,7 @@ interface Step2TicketsAndTimeProps {
   tickets: TicketItem[];
   errors: Step2Errors;
   onOpenAddTicketModal: () => void;
+  onEditTicket?: (ticket: TicketItem) => void;
   onDeleteTicket: (id: string) => void;
   onSaveDraft?: () => void;
   onBack: () => void;
@@ -25,6 +26,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   tickets,
   errors,
   onOpenAddTicketModal,
+  onEditTicket,
   onDeleteTicket,
   onSaveDraft,
   onBack,
@@ -137,10 +139,28 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
                       <span>•</span>
                       <span>Số lượng: {t.totalQuantity} vé</span>
                     </div>
+                    {(t.startSaleDate || t.endSaleDate) && (
+                      <div className="text-[11px] app-text-muted flex items-center gap-1 mt-1 font-medium">
+                        <FiClock className="w-3 h-3 text-blue-500 shrink-0" />
+                        <span>
+                          Mở bán: {t.startSaleDate ? t.startSaleDate.replace("T", " ") : "Chưa đặt"} - {t.endSaleDate ? t.endSaleDate.replace("T", " ") : "Chưa đặt"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className="flex items-center gap-1 self-end sm:self-auto">
+                  {onEditTicket && (
+                    <button
+                      type="button"
+                      onClick={() => onEditTicket(t)}
+                      className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer transition-colors"
+                      title="Chỉnh sửa hạng vé"
+                    >
+                      <FiEdit3 className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onDeleteTicket(t.id)}

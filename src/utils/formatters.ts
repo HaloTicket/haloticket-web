@@ -17,3 +17,21 @@ export const formatDate = (dateString: string): string => {
     minute: "2-digit",
   }).format(date);
 };
+
+// Formats date string for HTML <input type="datetime-local">
+export const formatDatetimeLocal = (dateStr?: string): string => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr.slice(0, 16);
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return dateStr.slice(0, 16);
+  }
+};

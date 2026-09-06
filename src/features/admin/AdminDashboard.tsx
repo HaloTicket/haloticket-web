@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React from "react";
+import { Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
   FiCheckSquare,
@@ -12,8 +12,6 @@ import {
 } from "react-icons/fi";
 
 export const AdminDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [filterPeriod, setFilterPeriod] = useState<"today" | "week" | "month">("week");
 
   const statCards = [
     {

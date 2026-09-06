@@ -169,11 +169,31 @@ describe("createKeycloakSession", () => {
     const keycloak = makeKeycloak();
     const storage = {
       getItem: vi.fn().mockReturnValue("password-token"),
+      removeItem: vi.fn(),
     };
     const session = createKeycloakSession({ keycloak, storage });
 
     await expect(session.getAccessToken()).resolves.toBe("password-token");
     expect(keycloak.updateToken).not.toHaveBeenCalled();
+  });
+
+  it("automatically purges expired JWT tokens in storage and returns null", async () => {
+    const keycloak = makeKeycloak();
+    // Create an expired JWT token (exp: 1000000000 -> year 2001)
+    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+    const payload = btoa(JSON.stringify({ exp: 1000000000, sub: "user-123" }));
+    const expiredJwt = `${header}.${payload}.signature`;
+
+    const storage = {
+      getItem: vi.fn().mockReturnValue(expiredJwt),
+      removeItem: vi.fn(),
+    };
+    const session = createKeycloakSession({ keycloak, storage });
+
+    const token = await session.getAccessToken();
+    expect(token).toBeNull();
+    expect(storage.removeItem).toHaveBeenCalledWith("access_token");
+    expect(storage.removeItem).toHaveBeenCalledWith("id_token");
   });
 
   it("reports either a Keycloak or legacy session as authenticated", () => {

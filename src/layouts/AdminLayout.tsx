@@ -28,7 +28,6 @@ import {
   FiAlertCircle,
   FiLayout
 } from "react-icons/fi";
-import { FaShieldAlt } from "react-icons/fa";
 
 interface NavItem {
   label: string;

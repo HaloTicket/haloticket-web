@@ -1,5 +1,4 @@
 import axiosClient from "./axiosClient";
-import { SPECIAL_EVENTS, MOCK_EVENT_DETAIL } from "@/mock/eventData";
 
 export interface EventApiData {
   id: string;
@@ -47,6 +46,7 @@ export const eventApi = {
       const response: any = await axiosClient.get(`/events/${id}`);
       if (response && response.id) {
         return {
+          ...response,
           id: response.id,
           title: response.title,
           locationName: response.locationName || "Địa điểm chưa cập nhật",
@@ -119,9 +119,10 @@ export const eventApi = {
   },
 
   // fetch organizer profile for pre-filling
-  getOrganizerProfile: async (): Promise<any> => {
+  getOrganizerProfile: async (userId?: string): Promise<any> => {
     try {
-      const response: any = await axiosClient.get("/events/organizer-profile");
+      const url = userId ? `/events/organizer-profile?userId=${encodeURIComponent(userId)}` : "/events/organizer-profile";
+      const response: any = await axiosClient.get(url);
       return response;
     } catch (err) {
       return null;
