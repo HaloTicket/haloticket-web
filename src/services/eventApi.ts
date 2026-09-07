@@ -1,5 +1,6 @@
 import axiosClient from "./axiosClient";
 import type { EventApiData } from "@/types";
+export type { EventApiData };
 
 export const eventApi = {
   // fetch all events safely

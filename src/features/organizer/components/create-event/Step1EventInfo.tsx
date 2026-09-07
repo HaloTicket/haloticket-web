@@ -187,7 +187,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             };
 
             if (existing) {
-              const exists = existing.bookings.some((b) => b.eventName === bookingItem.eventName);
+              const exists = existing.bookings.some((b: any) => b.eventName === bookingItem.eventName);
               if (!exists) {
                 existing.bookings.push(bookingItem);
                 existing.eventsHosted += 1;
@@ -1448,7 +1448,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
 
             <div className="space-y-2.5 max-h-72 overflow-y-auto no-scrollbar">
-              {selectedVenue.bookings.map((b, idx) => (
+              {selectedVenue.bookings.map((b: any, idx: number) => (
                 <div
                   key={idx}
                   className="p-3 rounded-xl app-bg-subnav border app-border space-y-1 text-xs"

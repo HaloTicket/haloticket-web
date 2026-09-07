@@ -163,6 +163,16 @@ import MyEvents from "@/features/organizer/MyEvents";
 import OrganizerReports from "@/features/organizer/OrganizerReports";
 import OrganizerTerms from "@/features/organizer/OrganizerTerms";
 
+// Event Management Portal Feature
+import EventManageLayout from "@/layouts/EventManageLayout";
+import { EventOverview } from "@/features/organizer/event-manage/EventOverview";
+import { EventOrderList } from "@/features/organizer/event-manage/EventOrderList";
+import { EventCheckin } from "@/features/organizer/event-manage/EventCheckin";
+import { EventMembers } from "@/features/organizer/event-manage/EventMembers";
+import { EventVouchers } from "@/features/organizer/event-manage/EventVouchers";
+import { EventSeatingMap } from "@/features/organizer/event-manage/EventSeatingMap";
+import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
+
 // Resale Feature
 import ResaleList from "@/features/resale/ResaleList";
 import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
@@ -331,6 +341,50 @@ export const router = createBrowserRouter([
       {
         path: PATHS.CREATE_EVENT,
         element: <CreateEvent />,
+      },
+    ],
+  },
+
+  // Standalone Event Management Portal Routes
+  {
+    path: "/organizer/events/:eventId/manage",
+    element: (
+      <ProtectedRoute>
+        <EventManageLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="overview" replace />,
+      },
+      {
+        path: "overview",
+        element: <EventOverview />,
+      },
+      {
+        path: "orders",
+        element: <EventOrderList />,
+      },
+      {
+        path: "checkin",
+        element: <EventCheckin />,
+      },
+      {
+        path: "members",
+        element: <EventMembers />,
+      },
+      {
+        path: "vouchers",
+        element: <EventVouchers />,
+      },
+      {
+        path: "seating",
+        element: <EventSeatingMap />,
+      },
+      {
+        path: "edit",
+        element: <EventEditInfo />,
       },
     ],
   },

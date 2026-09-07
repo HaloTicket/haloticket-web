@@ -11,8 +11,6 @@ import {
   FiFileText,
   FiGrid,
   FiEdit3,
-  FiChevronLeft,
-  FiChevronRight,
   FiAlertTriangle,
   FiLoader
 } from "react-icons/fi";
@@ -20,6 +18,7 @@ import PendingApprovalModal from "./components/PendingApprovalModal";
 import { eventApi } from "@/services/eventApi";
 import { organizerApi } from "@/services/organizerApi";
 import { userApi, getCachedUserProfile } from "@/services/userApi";
+import { TablePagination } from "@/components/common/TablePagination";
 
 export const MyEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "pending" | "draft">("pending");
@@ -29,6 +28,8 @@ export const MyEvents: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [myOrganizerProfile, setMyOrganizerProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   const tabs = [
     { id: "upcoming", label: "Sắp tới" },
@@ -107,6 +108,9 @@ export const MyEvents: React.FC = () => {
     return isOwner && matchesTab && matchesQuery;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
+  const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const handleActionClick = () => {
     if (activeTab === "pending") {
       setShowPendingModal(true);
@@ -124,7 +128,10 @@ export const MyEvents: React.FC = () => {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Tìm kiếm sự kiện"
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
             />
@@ -145,7 +152,10 @@ export const MyEvents: React.FC = () => {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  setCurrentPage(1);
+                }}
                 className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${isActive
                     ? "bg-blue-600 dark:bg-blue-500 text-white shadow-xs"
                     : "app-text-muted hover:app-text-main"
@@ -202,7 +212,7 @@ export const MyEvents: React.FC = () => {
         ) : (
           /* List of Events Cards (Horizontal Layout with Royal Blue Theme) */
           <div className="space-y-4">
-            {filteredEvents.map((ev) => {
+            {paginatedEvents.map((ev) => {
               const eventImg = ev.bannerUrl || ev.thumbnailUrl || ev.posterImage || ev.image || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80";
               const eventDate = ev.date || ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra");
               const locationParts = [ev.locationName, ev.address, ev.ward, ev.city].filter(Boolean);
@@ -222,9 +232,20 @@ export const MyEvents: React.FC = () => {
 
                     {/* Event Information */}
                     <div className="space-y-2 flex-1 min-w-0">
-                      <h3 className="text-base md:text-lg font-extrabold app-text-main">
-                        {ev.title}
-                      </h3>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h3 className="text-base md:text-lg font-extrabold app-text-main">
+                          {ev.title}
+                        </h3>
+                        {activeTab === "upcoming" && (
+                          <Link
+                            to={`/organizer/events/${ev.id || 'event-demo'}/manage`}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all shrink-0"
+                          >
+                            <FiGrid className="w-3.5 h-3.5" />
+                            Quản trị sự kiện
+                          </Link>
+                        )}
+                      </div>
 
                       <div className="space-y-1 text-xs app-text-muted">
                         <div className="flex items-center gap-2">
@@ -241,74 +262,110 @@ export const MyEvents: React.FC = () => {
 
                   {/* Bottom Action Bar with 5 icons (Royal Blue Theme) */}
                   <div className="border-t app-border bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-5 text-center divide-x app-border">
-                    <button
-                      type="button"
-                      onClick={handleActionClick}
-                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                    >
-                      <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>Tổng quan</span>
-                    </button>
+                    {activeTab === "upcoming" ? (
+                      <>
+                        <Link
+                          to={`/organizer/events/${ev.id || 'event-demo'}/manage/overview`}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors"
+                        >
+                          <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Tổng quan</span>
+                        </Link>
 
-                    <button
-                      type="button"
-                      onClick={handleActionClick}
-                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                    >
-                      <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>Thành viên</span>
-                    </button>
+                        <Link
+                          to={`/organizer/events/${ev.id || 'event-demo'}/manage/members`}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors"
+                        >
+                          <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Thành viên</span>
+                        </Link>
 
-                    <button
-                      type="button"
-                      onClick={handleActionClick}
-                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                    >
-                      <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>Đơn hàng</span>
-                    </button>
+                        <Link
+                          to={`/organizer/events/${ev.id || 'event-demo'}/manage/orders`}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors"
+                        >
+                          <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Đơn hàng</span>
+                        </Link>
 
-                    <button
-                      type="button"
-                      onClick={handleActionClick}
-                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
-                    >
-                      <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>Sơ đồ ghế</span>
-                    </button>
+                        <Link
+                          to={`/organizer/events/${ev.id || 'event-demo'}/manage/seating`}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                        >
+                          <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Sơ đồ ghế</span>
+                        </Link>
 
-                    <Link
-                      to={`/organizer/create-event?id=${ev.id}`}
-                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
-                    >
-                      <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? "Tiếp tục tạo nháp" : "Chỉnh sửa"}</span>
-                    </Link>
+                        <Link
+                          to={`/organizer/events/${ev.id || 'event-demo'}/manage/edit`}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+                        >
+                          <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Chỉnh sửa</span>
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleActionClick}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                        >
+                          <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Tổng quan</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleActionClick}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                        >
+                          <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Thành viên</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleActionClick}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                        >
+                          <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Đơn hàng</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleActionClick}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                        >
+                          <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Sơ đồ ghế</span>
+                        </button>
+
+                        <Link
+                          to={`/organizer/create-event?id=${ev.id}`}
+                          className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
+                        >
+                          <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? "Tiếp tục tạo nháp" : "Chỉnh sửa"}</span>
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               );
             })}
+
+            {/* Table Pagination */}
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredEvents.length}
+              pageSize={pageSize}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
           </div>
         )}
-
-        {/* Bottom Pagination Controls */}
-        <div className="flex items-center justify-end gap-2 pt-4">
-          <button
-            type="button"
-            className="w-8 h-8 rounded-lg app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main cursor-pointer"
-          >
-            <FiChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="w-8 h-8 rounded-lg bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-            1
-          </span>
-          <button
-            type="button"
-            className="w-8 h-8 rounded-lg app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main cursor-pointer"
-          >
-            <FiChevronRight className="w-4 h-4" />
-          </button>
-        </div>
       </div>
 
       {/* Modal Popup: Sự Kiện Đang Chờ Duyệt */}

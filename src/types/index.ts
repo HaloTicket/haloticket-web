@@ -4,3 +4,7 @@ export * from "./venue";
 export * from "./notification";
 export * from "./organizer";
 export * from "./user";
+export * from "./booking";
+export * from "./voucher";
+export * from "./seating";
+export * from "./member";

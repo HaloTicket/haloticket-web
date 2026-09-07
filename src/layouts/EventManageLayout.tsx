@@ -1,0 +1,49 @@
+import React, { useState, useEffect } from "react";
+import { Outlet, useParams } from "react-router-dom";
+import { eventApi } from "@/services/eventApi";
+import { EventManageSidebar } from "@/features/organizer/event-manage/components/EventManageSidebar";
+import { EventManageHeader } from "@/features/organizer/event-manage/components/EventManageHeader";
+
+export const EventManageLayout: React.FC = () => {
+  const { eventId } = useParams<{ eventId: string }>();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [eventData, setEventData] = useState<any>(null);
+
+  useEffect(() => {
+    if (eventId) {
+      eventApi.getEventById(eventId).then((data) => {
+        if (data) setEventData(data);
+      });
+    }
+  }, [eventId]);
+
+  return (
+    <div className="min-h-screen flex app-bg-page transition-colors duration-300 font-sans antialiased">
+      {/* Left Sidebar Navigation */}
+      <EventManageSidebar
+        eventData={eventData}
+        isSidebarOpen={isSidebarOpen}
+        isCollapsed={isCollapsed}
+        onCloseSidebar={() => setIsSidebarOpen(false)}
+        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+      />
+
+      {/* Main Right Content Section */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top Header Bar */}
+        <EventManageHeader
+          eventData={eventData}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+        />
+
+        {/* Dynamic Page Content View */}
+        <main className="flex-1 px-4 py-2 md:px-8 md:py-6 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default EventManageLayout;

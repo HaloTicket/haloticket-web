@@ -1,6 +1,7 @@
 import axiosClient from "./axiosClient";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import type { UserProfile, UserProfileUpdateRequest, JwtPayload } from "@/types";
+export type { UserProfile, UserProfileUpdateRequest, JwtPayload };
 
 const USER_CACHE_KEY = "haloticket_user_profile";
 let inFlightProfilePromise: Promise<UserProfile> | null = null;

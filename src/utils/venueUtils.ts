@@ -1,4 +1,5 @@
 import type { SystemVenue } from "@/types";
+export type { SystemVenue };
 
 export const PRESET_VENUES: SystemVenue[] = [
   {
