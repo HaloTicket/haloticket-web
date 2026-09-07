@@ -22,6 +22,40 @@ import {
 import { eventApi } from "@/services/eventApi";
 import type { ApprovalEventItem } from "@/types";
 
+interface ApprovalTicket {
+  name?: string;
+  price?: number;
+  totalQuantity?: number;
+  quantity?: number;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface ApprovalEventRaw {
+  id?: string;
+  title?: string;
+  categoryName?: string;
+  organizer?: { name?: string };
+  author?: string;
+  locationName?: string;
+  address?: string;
+  datesSummary?: string;
+  startTime?: string;
+  posterImage?: string;
+  bannerUrl?: string;
+  thumbnailUrl?: string;
+  eventApprovalStatus?: string;
+  submittedAt?: string;
+  createdAt?: string;
+  minPrice?: number;
+  descriptionText?: string;
+  description?: string;
+  tickets?: ApprovalTicket[];
+  customQuestions?: Record<string, unknown>[];
+  galleryImages?: string[];
+  [key: string]: unknown;
+}
+
 export const EventApproval: React.FC = () => {
   const [searchParams] = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
@@ -87,7 +121,7 @@ export const EventApproval: React.FC = () => {
           return "Thời gian dự kiến";
         };
 
-        const formattedList: ApprovalEventItem[] = data.map((item: any) => ({
+        const formattedList: ApprovalEventItem[] = (data as ApprovalEventRaw[]).map((item) => ({
           ...item,
           id: item.id || `EV_${Date.now()}`,
           title: item.title || "Sự kiện chưa đặt tên",
@@ -98,7 +132,7 @@ export const EventApproval: React.FC = () => {
           datesSummary: formatDatesSummary(item.datesSummary, item.startTime),
           posterImage: item.posterImage || item.bannerUrl || item.thumbnailUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80",
           bannerUrl: item.bannerUrl || item.posterImage || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80",
-          eventApprovalStatus: (item.eventApprovalStatus || "PENDING").toUpperCase() as any,
+          eventApprovalStatus: ((item.eventApprovalStatus || "PENDING").toUpperCase() as "PENDING" | "APPROVED" | "REJECTED"),
           submittedAt: formatTimestamp(item.submittedAt || item.createdAt),
           minPrice: item.minPrice || 0,
           descriptionText: item.descriptionText || item.description || "Nội dung mô tả chưa cập nhật.",
@@ -128,9 +162,14 @@ export const EventApproval: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    loadApprovalEvents();
+    const timer = setTimeout(() => {
+      loadApprovalEvents();
+    }, 0);
     window.addEventListener("approval-events-updated", loadApprovalEvents);
-    return () => window.removeEventListener("approval-events-updated", loadApprovalEvents);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("approval-events-updated", loadApprovalEvents);
+    };
   }, [loadApprovalEvents]);
 
   // auto-open modal if eventId is passed via URL search parameters
@@ -138,7 +177,10 @@ export const EventApproval: React.FC = () => {
     if (eventIdParam && eventsList.length > 0) {
       const match = eventsList.find((e) => e.id === eventIdParam || String(e.id) === String(eventIdParam));
       if (match) {
-        setSelectedEvent(match);
+        const timer = setTimeout(() => {
+          setSelectedEvent(match);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [eventIdParam, eventsList]);
@@ -524,7 +566,7 @@ export const EventApproval: React.FC = () => {
                   <span>Cấu hình các loại vé đăng ký ({selectedEvent.tickets.length} hạng vé)</span>
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {selectedEvent.tickets.map((t: any, i: number) => (
+                  {selectedEvent.tickets.map((t: ApprovalTicket, i: number) => (
                     <div key={i} className="p-3 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800 text-xs space-y-1">
                       <span className="font-extrabold app-text-main block truncate">{t.name}</span>
                       <span className="text-blue-600 dark:text-blue-400 font-extrabold text-sm block">

@@ -1,9 +1,12 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MOCK_RESALE_EVENTS } from "@/mock/resaleData";
 import { FiSearch, FiCalendar, FiTag } from "react-icons/fi";
 
 export const ResaleList: React.FC = () => {
+  useTranslation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,14 +21,11 @@ export const ResaleList: React.FC = () => {
 
         <div className="container mx-auto relative z-10 max-w-4xl">
           <span className="px-4 py-1.5 rounded-full bg-white/20 text-white font-black text-xs md:text-sm uppercase tracking-widest backdrop-blur-md mb-3 inline-block border border-white/30">
-            Sàn Nhượng Vé Chính Thức
-          </span>
+            {translate("Sàn Nhượng Vé Chính Thức")}</span>
           <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-md mb-3">
-            Resale Ticket • VÉ BÁN LẠI
-          </h1>
+            {translate("Resale Ticket • VÉ BÁN LẠI")}</h1>
           <p className="text-white/90 text-sm md:text-base max-w-xl mx-auto font-medium">
-            Mua lại vé chính chủ an toàn, nhanh chóng và bảo mật 100% qua nền tảng HaloTicket
-          </p>
+            {translate("Mua lại vé chính chủ an toàn, nhanh chóng và bảo mật 100% qua nền tảng HaloTicket")}</p>
         </div>
       </div>
 
@@ -37,13 +37,13 @@ export const ResaleList: React.FC = () => {
             <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 app-text-muted" />
             <input
               type="text"
-              placeholder="Nhập tên sự kiện bán lại..."
+              placeholder={translate("Nhập tên sự kiện bán lại...")}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border app-border text-sm app-text-main focus:outline-none focus:border-brand-primary"
             />
           </div>
 
           <div className="flex items-center gap-3 text-xs md:text-sm font-bold app-text-muted">
-            <span>Tổng cộng: <strong className="app-text-brand">{MOCK_RESALE_EVENTS.length}</strong> sự kiện</span>
+            <span>{translate("Tổng cộng:")}<strong className="app-text-brand">{MOCK_RESALE_EVENTS.length}</strong> {translate("sự kiện")}</span>
           </div>
         </div>
 
@@ -66,13 +66,11 @@ export const ResaleList: React.FC = () => {
                 {/* Status Badge */}
                 {ev.isEnded ? (
                   <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[10px] font-black bg-amber-500 text-slate-950 shadow-md">
-                    Đã diễn ra
-                  </span>
+                    {translate("Đã diễn ra")}</span>
                 ) : (
                   <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[10px] font-black gradient-btn text-white shadow-md flex items-center gap-1">
                     <FiTag className="w-3 h-3" />
-                    {ev.availableListingsCount} vé bán lại
-                  </span>
+                    {ev.availableListingsCount} {translate("vé bán lại")}</span>
                 )}
               </div>
 
@@ -80,7 +78,7 @@ export const ResaleList: React.FC = () => {
               <div className="p-4 flex flex-col justify-between flex-1">
                 <div>
                   <h3 className="font-extrabold text-sm md:text-base app-text-main line-clamp-2 leading-snug mb-3 group-hover:app-text-brand transition-colors">
-                    {ev.title}
+                    {translate(ev.title)}
                   </h3>
                 </div>
 

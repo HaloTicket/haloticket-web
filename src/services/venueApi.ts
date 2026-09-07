@@ -5,9 +5,9 @@ export const venueApi = {
   // fetch all venues from backend DB
   getVenues: async (): Promise<VenueApiData[]> => {
     try {
-      const response: any = await axiosClient.get("/events/venues");
+      const response: unknown = await axiosClient.get("/events/venues");
       if (Array.isArray(response)) {
-        return response;
+        return response as VenueApiData[];
       }
       return [];
     } catch (err) {
@@ -19,8 +19,8 @@ export const venueApi = {
   // create new venue
   createVenue: async (data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
     try {
-      const response: any = await axiosClient.post("/events/venues", data);
-      return response;
+      const response: unknown = await axiosClient.post("/events/venues", data);
+      return response as VenueApiData;
     } catch (err) {
       console.error("Failed to create venue in DB:", err);
       return null;
@@ -30,8 +30,8 @@ export const venueApi = {
   // update existing venue
   updateVenue: async (id: number | string, data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
     try {
-      const response: any = await axiosClient.put(`/events/venues/${id}`, data);
-      return response;
+      const response: unknown = await axiosClient.put(`/events/venues/${id}`, data);
+      return response as VenueApiData;
     } catch (err) {
       console.error("Failed to update venue in DB:", err);
       return null;
@@ -41,8 +41,8 @@ export const venueApi = {
   // toggle venue verification status
   toggleVerifyVenue: async (id: number | string): Promise<VenueApiData | null> => {
     try {
-      const response: any = await axiosClient.patch(`/events/venues/${id}/verify`);
-      return response;
+      const response: unknown = await axiosClient.patch(`/events/venues/${id}/verify`);
+      return response as VenueApiData;
     } catch (err) {
       console.error("Failed to toggle venue verification in DB:", err);
       return null;

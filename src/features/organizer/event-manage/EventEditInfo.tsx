@@ -97,32 +97,34 @@ export const EventEditInfo: React.FC = () => {
     if (!eventId) return;
     eventApi.getEventById(eventId).then((ev) => {
       if (!ev) return;
-      if (ev.title) setTitle(ev.title);
-      if (ev.category) setCategory(ev.category);
-      if (ev.locationName) setLocationName(ev.locationName);
-      if (ev.city) setCity(ev.city);
-      if (ev.ward) setWard(ev.ward);
-      if (ev.address) setAddress(ev.address);
-      if (ev.posterImage || ev.thumbnailUrl) setPosterImage(ev.posterImage || ev.thumbnailUrl);
-      if (ev.bannerUrl || ev.image) setBannerImage(ev.bannerUrl || ev.image);
-      if (ev.description) setDescription(ev.description);
+      if (typeof ev.title === "string") setTitle(ev.title);
+      if (typeof ev.category === "string") setCategory(ev.category);
+      if (typeof ev.locationName === "string") setLocationName(ev.locationName);
+      if (typeof ev.city === "string") setCity(ev.city);
+      if (typeof ev.ward === "string") setWard(ev.ward);
+      if (typeof ev.address === "string") setAddress(ev.address);
+      const poster = ev.posterImage || ev.thumbnailUrl;
+      if (typeof poster === "string") setPosterImage(poster);
+      const banner = ev.bannerUrl || ev.image;
+      if (typeof banner === "string") setBannerImage(banner);
+      if (typeof ev.description === "string") setDescription(ev.description);
 
-      if (ev.startTime) setStartDate(formatDatetimeLocal(ev.startTime));
-      if (ev.endTime) setEndDate(formatDatetimeLocal(ev.endTime));
+      if (typeof ev.startTime === "string") setStartDate(formatDatetimeLocal(ev.startTime));
+      if (typeof ev.endTime === "string") setEndDate(formatDatetimeLocal(ev.endTime));
 
       if (Array.isArray(ev.ticketCategories)) {
         setTickets(
-          ev.ticketCategories.map((tc: any) => ({
-            id: tc.id || `tc-${Date.now()}`,
-            name: tc.name || "Hạng vé",
-            price: tc.price || 0,
+          (ev.ticketCategories as Record<string, unknown>[]).map((tc) => ({
+            id: (tc.id as string) || `tc-${Date.now()}`,
+            name: (tc.name as string) || "Hạng vé",
+            price: (tc.price as number) || 0,
             isFree: tc.price === 0,
-            totalQuantity: tc.totalQuantity || tc.quantity || 100,
-            minPerOrder: tc.minPerOrder || 1,
-            maxPerOrder: tc.maxPerOrder || 10,
-            startSaleDate: tc.startSaleDate || "",
-            endSaleDate: tc.endSaleDate || "",
-            description: tc.description || ""
+            totalQuantity: (tc.totalQuantity as number) || (tc.quantity as number) || 100,
+            minPerOrder: (tc.minPerOrder as number) || 1,
+            maxPerOrder: (tc.maxPerOrder as number) || 10,
+            startSaleDate: (tc.startSaleDate as string) || "",
+            endSaleDate: (tc.endSaleDate as string) || "",
+            description: (tc.description as string) || ""
           }))
         );
       }
@@ -202,7 +204,7 @@ export const EventEditInfo: React.FC = () => {
       const uploadedBanner = await ensureS3Url(bannerImage, "events/banners");
       const uploadedLogo = await ensureS3Url(organizerLogo, "organizers/logos");
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title,
         category,
         locationType,
@@ -228,8 +230,9 @@ export const EventEditInfo: React.FC = () => {
         organizerLogo: uploadedLogo
       };
 
-      if (eventId && typeof (eventApi as any).updateEvent === "function") {
-        await (eventApi as any).updateEvent(eventId, payload);
+      const eventApiWithUpdate = eventApi as unknown as { updateEvent?: (id: string, p: unknown) => Promise<unknown> };
+      if (eventId && typeof eventApiWithUpdate.updateEvent === "function") {
+        await eventApiWithUpdate.updateEvent(eventId, payload);
       }
       setIsSubmitted(true);
     } catch (err) {

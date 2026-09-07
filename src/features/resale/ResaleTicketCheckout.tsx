@@ -1,9 +1,13 @@
+import { formatCurrency } from "@/utils/formatters";
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MOCK_RESALE_EVENTS } from "@/mock/resaleData";
 import { FiChevronRight, FiCheckSquare, FiSquare, FiInfo, FiLayers } from "react-icons/fi";
 
 export const ResaleTicketCheckout: React.FC = () => {
+  useTranslation();
   const { eventId, ticketId } = useParams<{ eventId: string; ticketId: string }>();
 
   useEffect(() => {
@@ -39,7 +43,7 @@ export const ResaleTicketCheckout: React.FC = () => {
 
   // Calculate total price
   const totalPriceNumber = selectedSeatIds.length * (listing.priceValue || 2499000);
-  const totalPriceFormatted = new Intl.NumberFormat("vi-VN").format(totalPriceNumber) + "đ";
+  const totalPriceFormatted = formatCurrency(totalPriceNumber);
 
   return (
     <div className="w-full transition-colors duration-300 pb-20">
@@ -47,43 +51,40 @@ export const ResaleTicketCheckout: React.FC = () => {
         {/* Breadcrumb Navigation */}
         <div className="flex items-center gap-2 text-xs md:text-sm app-text-muted mb-6 font-medium">
           <Link to="/" className="hover:app-text-main transition-colors">
-            Trang chủ
-          </Link>
+            {translate("Trang chủ")}</Link>
           <FiChevronRight className="w-3.5 h-3.5" />
           <Link to="/resale-ticket" className="hover:app-text-main transition-colors">
-            Vé bán lại
-          </Link>
+            {translate("Vé bán lại")}</Link>
           <FiChevronRight className="w-3.5 h-3.5" />
-          <span className="app-text-main font-bold">Chi tiết vé</span>
+          <span className="app-text-main font-bold">{translate("Chi tiết vé")}</span>
         </div>
 
         {/* Page Main Title */}
         <h1 className="text-2xl md:text-3xl font-extrabold app-text-main tracking-tight mb-6">
-          Danh sách vé bán lại
-        </h1>
+          {translate("Danh sách vé bán lại")}</h1>
 
         {/* Event Summary Card */}
         <div className="app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-lg mb-8 space-y-3">
           <div className="text-sm md:text-base font-extrabold app-text-main flex items-center justify-between">
             <div>
-              <span className="app-text-muted mr-2 font-normal">Sự kiện:</span>
-              <span>{resaleEvent.title}</span>
+              <span className="app-text-muted mr-2 font-normal">{translate("Sự kiện:")}</span>
+              <span>{translate(resaleEvent.title)}</span>
             </div>
           </div>
 
           <div>
             <button
               type="button"
-              onClick={() => alert("Chính sách & Quy định tham gia sự kiện Bán lại vé")}
+              onClick={() => alert(translate("Chính sách & Quy định tham gia sự kiện Bán lại vé"))}
               className="text-xs md:text-sm font-bold app-text-brand hover:underline flex items-center gap-1 cursor-pointer"
             >
               <FiInfo className="w-4 h-4" />
-              <span>Xem quy định tham gia sự kiện</span>
+              <span>{translate("Xem quy định tham gia sự kiện")}</span>
             </button>
           </div>
 
           <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 text-xs md:text-sm app-text-main font-semibold">
-            <span className="app-text-muted mr-2 font-normal">Suất diễn:</span>
+            <span className="app-text-muted mr-2 font-normal">{translate("Suất diễn:")}</span>
             <span>{listing.showtimeStr}</span>
           </div>
         </div>
@@ -92,11 +93,11 @@ export const ResaleTicketCheckout: React.FC = () => {
         <div className="mb-8 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg md:text-xl font-extrabold app-text-main flex items-center gap-2">
-              <span>Chọn vé</span>
+              <span>{translate("Chọn vé")}</span>
             </h2>
 
             <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 uppercase">
-              {listing.isRetail ? "Bán lẻ" : "Không bán lẻ"}
+              {listing.isRetail ? translate("Bán lẻ") : translate("Không bán lẻ")}
             </span>
           </div>
 
@@ -108,14 +109,14 @@ export const ResaleTicketCheckout: React.FC = () => {
 
           {/* Select All Bar */}
           <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/90 border app-border flex items-center justify-between text-xs md:text-sm font-bold app-text-main">
-            <span>Đã chọn {selectedSeatIds.length}/{listing.seats.length}</span>
+            <span>{translate("Đã chọn")}{" "}{selectedSeatIds.length}/{listing.seats.length}</span>
 
             <button
               type="button"
               onClick={handleSelectAll}
               className="flex items-center gap-2 cursor-pointer hover:app-text-brand transition-colors"
             >
-              <span>Chọn tất cả</span>
+              <span>{translate("Chọn tất cả")}</span>
               {selectedSeatIds.length === listing.seats.length ? (
                 <FiCheckSquare className="w-5 h-5 app-text-brand" />
               ) : (
@@ -139,17 +140,17 @@ export const ResaleTicketCheckout: React.FC = () => {
                 >
                   <div className="space-y-1 text-xs md:text-sm">
                     <div className="font-extrabold app-text-main">
-                      <span className="app-text-muted font-normal mr-2">Khu vực:</span>
+                      <span className="app-text-muted font-normal mr-2">{translate("Khu vực:")}</span>
                       <span>{seat.section}</span>
                     </div>
 
                     <div className="font-extrabold app-text-main">
-                      <span className="app-text-muted font-normal mr-2">Hàng ghế:</span>
+                      <span className="app-text-muted font-normal mr-2">{translate("Hàng ghế:")}</span>
                       <span>{seat.seatRow}</span>
                     </div>
 
                     <div className="font-black app-text-brand">
-                      <span className="app-text-muted font-normal mr-2">Giá bán mỗi vé:</span>
+                      <span className="app-text-muted font-normal mr-2">{translate("Giá bán mỗi vé:")}</span>
                       <span>{seat.price}</span>
                     </div>
                   </div>
@@ -180,12 +181,10 @@ export const ResaleTicketCheckout: React.FC = () => {
               className="mt-0.5 w-4 h-4 rounded accent-blue-600 cursor-pointer"
             />
             <span className="leading-relaxed">
-              Tôi đã đọc, hiểu, đồng ý và cam kết tuân thủ các{" "}
+              {translate("Tôi đã đọc, hiểu, đồng ý và cam kết tuân thủ các")}{" "}{" "}
               <span className="app-text-brand font-extrabold hover:underline">
-                Quy định sử dụng tính năng Bán lại vé
-              </span>{" "}
-              trên HaloTicket.
-            </span>
+                {translate("Quy định sử dụng tính năng Bán lại vé")}</span>{" "}
+              {translate("trên HaloTicket.")}</span>
           </label>
         </div>
 
@@ -194,14 +193,14 @@ export const ResaleTicketCheckout: React.FC = () => {
           type="button"
           disabled={selectedSeatIds.length === 0 || !isAgreed}
           onClick={() => {
-            alert(`Xác nhận thanh toán mua vé bán lại: Tổng cộng ${totalPriceFormatted}`);
+            alert(translate("Xác nhận thanh toán mua vé bán lại: Tổng cộng {{total}}", { total: totalPriceFormatted }));
           }}
           className={`w-full py-4 font-black text-base md:text-lg rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${selectedSeatIds.length > 0 && isAgreed
               ? "gradient-btn text-white hover:scale-[1.01] active:scale-98 cursor-pointer"
               : "bg-zinc-700 text-zinc-400 cursor-not-allowed opacity-60"
             }`}
         >
-          <span>Tiếp tục - {totalPriceFormatted}</span>
+          <span>{translate("Tiếp tục -")}{totalPriceFormatted}</span>
           <span className="text-xl">»</span>
         </button>
       </div>

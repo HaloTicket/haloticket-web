@@ -5,15 +5,18 @@ export interface EventApiData {
   bannerUrl?: string;
   thumbnailUrl?: string;
   locationName?: string;
+  location?: string;
   address?: string;
   eventStatus?: string;
   startTime?: string;
   endTime?: string;
   categoryName?: string;
+  categoryId?: string;
   minPrice?: string;
   price?: string;
   image?: string;
   date?: string;
+  [key: string]: unknown;
 }
 
 export interface ApprovalEventItem {
@@ -37,8 +40,8 @@ export interface ApprovalEventItem {
   minPrice?: number;
   descriptionText?: string;
   description?: string;
-  tickets?: any[];
-  customQuestions?: any[];
+  tickets?: Record<string, unknown>[];
+  customQuestions?: Record<string, unknown>[];
   enableCustomQuestions?: boolean;
   accountHolder?: string;
   accountNumber?: string;

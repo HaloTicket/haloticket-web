@@ -91,7 +91,7 @@ export const EventMembers: React.FC = () => {
     }
   };
 
-  const handleAddMemberSave = (newMember: any) => {
+  const handleAddMemberSave = (newMember: MemberItem) => {
     setMembers([newMember, ...members]);
   };
 

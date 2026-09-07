@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { FiX, FiPlus } from "react-icons/fi";
+import type { VoucherItem } from "@/types";
 
 interface CreateVoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (newVoucherData: any) => void;
+  onSave: (newVoucherData: VoucherItem) => void;
 }
 
 export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
@@ -235,7 +236,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 <div className="sm:col-span-2 flex items-center gap-3">
                   <select
                     value={discountType}
-                    onChange={(e: any) => setDiscountType(e.target.value)}
+                    onChange={(e) => setDiscountType(e.target.value as "PERCENTAGE" | "FIXED_AMOUNT")}
                     className="px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none"
                   >
                     <option value="PERCENTAGE">Theo phần trăm (%)</option>

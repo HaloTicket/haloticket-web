@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useId, useState, type ReactNode } from "react";
 import { FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 
@@ -22,13 +24,14 @@ export function PasswordField({
   value,
   leftIcon = <FiLock aria-hidden="true" />,
 }: PasswordFieldProps) {
+  useTranslation();
   const [isVisible, setIsVisible] = useState(false);
   const errorId = useId();
 
   return (
     <div>
       <label className="auth-label" htmlFor={id}>
-        {label}
+        {translate(label)}
       </label>
       <div className="auth-input-shell">
         {leftIcon && (
@@ -51,7 +54,7 @@ export function PasswordField({
           value={value}
         />
         <button
-          aria-label={isVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+          aria-label={isVisible ? translate("Ẩn mật khẩu") : translate("Hiện mật khẩu")}
           aria-pressed={isVisible}
           className="auth-password-toggle"
           onClick={() => setIsVisible((current) => !current)}
@@ -62,7 +65,7 @@ export function PasswordField({
       </div>
       {error && (
         <p className="auth-field-error" id={errorId} role="alert">
-          {error}
+          {translate(error)}
         </p>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiPlus, FiTrash2, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { CustomQuestionItem } from "@/types/organizer";
@@ -27,20 +28,21 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
   onBack,
   onNext
 }) => {
+  const { t: translate } = useTranslation();
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4">
-          Tạo bảng câu hỏi cho người mua vé
+          {translate("Tạo bảng câu hỏi cho người mua vé")}
         </h3>
 
         {!enableCustomQuestions ? (
           <div className="p-8 rounded-xl border app-border app-bg-subnav text-center space-y-4">
             <h4 className="text-base font-extrabold app-text-main">
-              Tính năng khảo sát thông tin đăng ký hiện đang TẮT
+              {translate("Tính năng khảo sát thông tin đăng ký hiện đang TẮT")}
             </h4>
             <p className="text-xs app-text-muted max-w-md mx-auto leading-relaxed">
-              Bạn có thể bật tính năng này nếu cần thu thập thêm thông tin người mua vé (như số CCCD, tên công ty, kích cỡ áo...).
+              {translate("Bạn có thể bật tính năng này nếu cần thu thập thêm thông tin người mua vé (như số CCCD, tên công ty, kích cỡ áo...).")}
             </p>
             {setEnableCustomQuestions && (
               <button
@@ -48,7 +50,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                 onClick={() => setEnableCustomQuestions(true)}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm transition-all"
               >
-                Bật thu thập thông tin đăng ký
+                {translate("Bật thu thập thông tin đăng ký")}
               </button>
             )}
           </div>
@@ -56,7 +58,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
           <div className="space-y-6">
             {/* Question scope */}
             <div className="space-y-2">
-              <label className="text-xs font-bold app-text-main">Phạm vi áp dụng câu hỏi</label>
+              <label className="text-xs font-bold app-text-main">{translate("Phạm vi áp dụng câu hỏi")}</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label
                   onClick={() => setQuestionScope("order")}
@@ -67,10 +69,10 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                   }`}
                 >
                   <span className="text-sm font-extrabold app-text-main block mb-1">
-                    Cho cả đơn hàng
+                    {translate("Cho cả đơn hàng")}
                   </span>
                   <span className="text-xs app-text-muted">
-                    Người mua vé chỉ trả lời danh sách câu hỏi 1 lần duy nhất trên mỗi đơn.
+                    {translate("Người mua vé chỉ trả lời danh sách câu hỏi 1 lần duy nhất trên mỗi đơn.")}
                   </span>
                 </label>
 
@@ -83,10 +85,10 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                   }`}
                 >
                   <span className="text-sm font-extrabold app-text-main block mb-1">
-                    Cho từng vé mua
+                    {translate("Cho từng vé mua")}
                   </span>
                   <span className="text-xs app-text-muted">
-                    Người mua vé sẽ điền thông tin tương ứng với số lượng vé họ mua.
+                    {translate("Người mua vé sẽ điền thông tin tương ứng với số lượng vé họ mua.")}
                   </span>
                 </label>
               </div>
@@ -95,14 +97,14 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
             {/* Questions List */}
             <div className="space-y-4 pt-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-extrabold app-text-main">Danh sách câu hỏi thu thập</h4>
+                <h4 className="text-sm font-extrabold app-text-main">{translate("Danh sách câu hỏi thu thập")}</h4>
                 <button
                   type="button"
                   onClick={onAddQuestion}
                   className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <FiPlus className="w-4 h-4" />
-                  <span>Tạo câu hỏi</span>
+                  <span>{translate("Tạo câu hỏi")}</span>
                 </button>
               </div>
 
@@ -111,7 +113,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                   <div key={q.id || `q-key-${idx}`} className="p-4 rounded-xl app-bg-subnav border app-border space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold app-text-brand uppercase">
-                        Câu {idx + 1}: Câu hỏi dạng văn bản
+                        {translate("Câu")} {idx + 1}: {translate("Câu hỏi dạng văn bản")}
                       </span>
                       <button
                         type="button"
@@ -131,7 +133,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                         setQuestions(updated);
                       }}
                       className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-2.5 border app-border font-bold"
-                      placeholder="Nhập tiêu đề câu hỏi..."
+                      placeholder={translate("Nhập tiêu đề câu hỏi...")}
                     />
 
                     <input
@@ -143,7 +145,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                         setQuestions(updated);
                       }}
                       className="w-full app-bg-card app-text-main text-xs rounded-xl px-4 py-2 border app-border"
-                      placeholder="Nhập ghi chú hướng dẫn trả lời..."
+                      placeholder={translate("Nhập ghi chú hướng dẫn trả lời...")}
                     />
 
                     <label className="flex items-center gap-2 text-xs font-bold app-text-main cursor-pointer pt-1">
@@ -157,7 +159,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
                         }}
                         className="w-3.5 h-3.5 rounded accent-blue-600"
                       />
-                      <span>Bắt buộc người tham gia phải trả lời</span>
+                      <span>{translate("Bắt buộc người tham gia phải trả lời")}</span>
                     </label>
                   </div>
                 ))}
@@ -175,7 +177,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
           className="px-6 py-3 app-bg-subnav app-text-main font-extrabold text-sm rounded-xl border app-border flex items-center gap-2 cursor-pointer"
         >
           <FiChevronLeft className="w-4 h-4" />
-          <span>Quay lại</span>
+          <span>{translate("Quay lại")}</span>
         </button>
 
         <button
@@ -183,7 +185,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
           onClick={onNext}
           className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95"
         >
-          <span>Tiếp tục: Thông tin thanh toán</span>
+          <span>{translate("Tiếp tục: Thông tin thanh toán")}</span>
           <FiChevronRight className="w-4 h-4" />
         </button>
       </div>

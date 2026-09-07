@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import EventHero from "./components/detail/EventHero";
@@ -9,27 +11,39 @@ import EventCard from "@/components/common/EventCard";
 import { eventApi } from "@/services/eventApi";
 import { FiGrid } from "react-icons/fi";
 
+import type { EventDetailData } from "@/mock/eventData";
+import type { EventApiData } from "@/services/eventApi";
+
 export default function EventDetail() {
+  useTranslation();
   const { id } = useParams<{ id: string }>();
   const [isStickyVisible, setIsStickyVisible] = useState(false);
-  const [eventData, setEventData] = useState<any>(null);
-  const [recommendedEvents, setRecommendedEvents] = useState<any[]>([]);
+  const [eventData, setEventData] = useState<EventDetailData | null>(null);
+  const [recommendedEvents, setRecommendedEvents] = useState<EventApiData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // always scroll to top when opening event detail page & fetch event data from API
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    if (id) {
-      setIsLoading(true);
-      eventApi.getEventById(id).then((data) => {
-        setEventData(data);
+    if (!id) return;
+    let isMounted = true;
+
+    eventApi.getEventById(id).then((data) => {
+      if (isMounted) {
+        setEventData(data as unknown as EventDetailData);
         setIsLoading(false);
-      });
-    }
+      }
+    });
 
     eventApi.getAllEvents().then((events) => {
-      setRecommendedEvents(events.slice(0, 8));
+      if (isMounted && events) {
+        setRecommendedEvents(events.slice(0, 8));
+      }
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   // scroll listener for sticky header bar on scroll
@@ -58,7 +72,7 @@ export default function EventDetail() {
       <div className="w-full min-h-[400px] flex items-center justify-center p-12">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-xs font-extrabold app-text-muted">Đang tải thông tin sự kiện...</p>
+          <p className="text-xs font-extrabold app-text-muted">{translate("Đang tải thông tin sự kiện...")}</p>
         </div>
       </div>
     );
@@ -68,8 +82,8 @@ export default function EventDetail() {
     return (
       <div className="w-full min-h-[400px] flex items-center justify-center p-12 text-center">
         <div className="space-y-3">
-          <h3 className="text-lg font-bold app-text-main">Không tìm thấy sự kiện</h3>
-          <p className="text-xs app-text-muted">Sự kiện này không tồn tại hoặc đã bị xóa.</p>
+          <h3 className="text-lg font-bold app-text-main">{translate("Không tìm thấy sự kiện")}</h3>
+          <p className="text-xs app-text-muted">{translate("Sự kiện này không tồn tại hoặc đã bị xóa.")}</p>
         </div>
       </div>
     );
@@ -103,7 +117,7 @@ export default function EventDetail() {
             <EventSchedule
               event={eventData}
               onSelectTicket={(st, t) => {
-                alert(`Đã chọn suất diễn ${st.timeStr} (${st.dateStr}) - Vé ${t.name} - Giá: ${t.price}`);
+                alert(translate("Đã chọn suất diễn {{time}} ({{date}}) - Vé {{ticket}} - Giá: {{price}}", { time: st.timeStr, date: st.dateStr, ticket: t.name, price: t.price }));
               }}
             />
 
@@ -116,7 +130,7 @@ export default function EventDetail() {
         <div className="mt-8 mb-8 pt-8 border-t border-slate-200/60 dark:border-slate-800/60">
           <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 mb-6 tracking-tight">
             <FiGrid className="w-5 h-5 app-text-brand" />
-            <span>Có thể bạn cũng thích</span>
+            <span>{translate("Có thể bạn cũng thích")}</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -130,8 +144,7 @@ export default function EventDetail() {
               type="button"
               className="px-8 py-3 gradient-btn text-white font-extrabold text-sm rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
-              Xem thêm sự kiện
-            </button>
+              {translate("Xem thêm sự kiện")}</button>
           </div>
         </div>
       </div>

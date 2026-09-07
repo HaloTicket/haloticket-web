@@ -1,10 +1,12 @@
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
-import type { UserProfile } from "@/types";
+import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
@@ -33,11 +35,11 @@ import {
 import { FaTicketAlt } from "react-icons/fa";
 
 export const OrganizerLayout: React.FC = () => {
+  const { t: translate } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [lang, setLang] = useState<"vi" | "en">("vi");
   const [isAccountOpen, setIsAccountOpen] = useState(false);
 
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
@@ -89,9 +91,10 @@ export const OrganizerLayout: React.FC = () => {
   }, [navigate]);
 
   const organizerTargetId = userProfile?.id || userProfile?.keycloakId || "ORGANIZER";
+  const isAdmin = Boolean(userProfile?.roles?.includes("ADMIN"));
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(organizerTargetId);
 
-  const handleNotificationClick = async (n: any) => {
+  const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
     navigate(PATHS.MY_EVENTS);
@@ -127,10 +130,6 @@ export const OrganizerLayout: React.FC = () => {
     "M"
   ).toUpperCase();
 
-  const isAdmin =
-    userProfile?.roles?.some(
-      (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
-    ) || false;
 
   const sidebarItems = [
     {
@@ -174,11 +173,9 @@ export const OrganizerLayout: React.FC = () => {
               </div>
               <div>
                 <span className="text-base font-extrabold tracking-tight text-blue-600 dark:text-blue-400 block leading-none">
-                  Organizer Center
-                </span>
+                  {translate("Organizer Center")} </span>
                 <span className="text-[10px] app-text-muted font-semibold">
-                  HaloTicket Platform
-                </span>
+                  {translate("HaloTicket Platform")} </span>
               </div>
             </Link>
 
@@ -206,7 +203,7 @@ export const OrganizerLayout: React.FC = () => {
                     }`}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  <span>{translate(item.label)}</span>
                 </Link>
               );
             })}
@@ -216,22 +213,15 @@ export const OrganizerLayout: React.FC = () => {
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer mt-4 border-t app-border pt-3"
             >
               <FiHome className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-              <span>Quay lại HaloTicket</span>
+              <span>{translate("Quay lại HaloTicket")}</span>
             </Link>
           </nav>
         </div>
 
         {/* Bottom Language Switcher */}
         <div className="pt-4 border-t app-border flex items-center justify-between">
-          <span className="text-xs font-bold app-text-muted">Ngôn ngữ</span>
-          <button
-            type="button"
-            onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl app-bg-subnav border app-border text-xs font-bold app-text-main cursor-pointer shadow-xs"
-          >
-            <span className="text-sm">{lang === "vi" ? "🇻🇳" : "🇬🇧"}</span>
-            <span>{lang === "vi" ? "Vie" : "Eng"}</span>
-          </button>
+          <span className="text-xs font-bold app-text-muted">{translate("Ngôn ngữ")}</span>
+          <LanguageSwitcher />
         </div>
       </aside>
 
@@ -256,7 +246,7 @@ export const OrganizerLayout: React.FC = () => {
               <FiMenu className="w-5 h-5" />
             </button>
             <h1 className="text-base md:text-lg font-black app-text-main tracking-tight">
-              {getHeaderTitle()}
+              {translate(getHeaderTitle())}
             </h1>
           </div>
 
@@ -267,14 +257,14 @@ export const OrganizerLayout: React.FC = () => {
               className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all cursor-pointer"
             >
               <FiPlusCircle className="w-4 h-4" />
-              <span>Tạo sự kiện</span>
+              <span>{translate("Tạo sự kiện")}</span>
             </Link>
             {/* Dark Mode Switcher */}
             <button
               type="button"
               onClick={toggleTheme}
               className="p-2 rounded-xl app-bg-card app-text-main border app-border hover:opacity-80 transition-all cursor-pointer"
-              title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
+              title={isDark ? translate("Chuyển sang Chế độ Sáng") : translate("Chuyển sang Chế độ Tối")}
             >
               {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
             </button>
@@ -304,7 +294,7 @@ export const OrganizerLayout: React.FC = () => {
                     {userInitial}
                   </span>
                   <span className="hidden sm:inline">
-                    {userProfile?.fullName || "Tài khoản"}
+                    {userProfile?.fullName || translate("Tài khoản")}
                   </span>
                   <FiChevronDown
                     className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
@@ -323,8 +313,7 @@ export const OrganizerLayout: React.FC = () => {
                   <div className="app-bg-card border app-border rounded-2xl p-2 shadow-2xl space-y-1 app-text-main animate-in zoom-in-95">
                     {/* Customer section */}
                     <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                      Cá nhân
-                    </div>
+                      {translate("Cá nhân")} </div>
 
                     <Link
                       to={PATHS.MY_TICKETS}
@@ -332,7 +321,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuTicket className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Vé của tôi</span>
+                      <span>{translate("Vé của tôi")}</span>
                     </Link>
 
                     <Link
@@ -341,7 +330,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuUser className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span>Thông tin cá nhân</span>
+                      <span>{translate("Thông tin cá nhân")}</span>
                     </Link>
 
                     <Link
@@ -350,15 +339,14 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors w-full text-left cursor-pointer"
                     >
                       <LuGem className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span>Thẻ thành viên</span>
+                      <span>{translate("Thẻ thành viên")}</span>
                     </Link>
 
                     <div className="my-1 border-t app-border" />
 
                     {/* Organizer section */}
                     <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                      Ban Tổ Chức
-                    </div>
+                      {translate("Ban Tổ Chức")} </div>
 
                     <Link
                       to={PATHS.MY_EVENTS}
@@ -366,7 +354,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuCalendarDays className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span>Quản lý sự kiện</span>
+                      <span>{translate("Quản lý sự kiện")}</span>
                     </Link>
 
                     <Link
@@ -375,7 +363,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                      <span>Báo cáo doanh thu</span>
+                      <span>{translate("Báo cáo doanh thu")}</span>
                     </Link>
 
                     <Link
@@ -384,7 +372,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuBuilding2 className="w-4 h-4 text-purple-500 shrink-0" />
-                      <span>Hồ sơ Ban tổ chức</span>
+                      <span>{translate("Hồ sơ Ban tổ chức")}</span>
                     </Link>
 
                     {isAdmin && (
@@ -406,7 +394,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 text-xs font-medium transition-colors w-full text-left cursor-pointer"
                     >
                       <LuLogOut className="w-4 h-4 shrink-0" />
-                      <span>Đăng xuất</span>
+                      <span>{translate("Đăng xuất")}</span>
                     </button>
                   </div>
                 </div>
@@ -416,8 +404,7 @@ export const OrganizerLayout: React.FC = () => {
                 to={PATHS.LOGIN}
                 className="text-xs font-bold text-blue-600 hover:underline px-2 py-1"
               >
-                Đăng nhập
-              </Link>
+                {translate("Đăng nhập")} </Link>
             )}
           </div>
         </header>

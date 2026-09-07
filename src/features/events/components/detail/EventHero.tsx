@@ -1,7 +1,10 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React from "react";
 import { FiCalendar, FiMapPin, FiChevronRight } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { EventDetailData } from "@/mock/eventData";
+import { formatCurrency, formatDate, parseVndAmount } from "@/utils/formatters";
 
 interface EventHeroProps {
   event: EventDetailData;
@@ -10,6 +13,16 @@ interface EventHeroProps {
 }
 
 export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, isResaleTag = false }) => {
+  useTranslation();
+  const rawPrice = event.minPrice ?? "";
+  const priceValue = parseVndAmount(rawPrice);
+  const displayPrice = priceValue !== undefined
+    ? formatCurrency(priceValue)
+    : rawPrice || translate("Miễn phí");
+  const displayDate = event.startTime ? formatDate(event.startTime) : event.datesSummary || translate("Sắp diễn ra");
+  const locationName = event.locationName || translate("Địa điểm chưa cập nhật");
+  const posterImage = event.posterImage || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80";
+
   return (
     <div className="relative w-full rounded-2xl md:rounded-3xl overflow-hidden shadow-xl app-bg-card border-0 mb-8 transition-colors duration-300">
       {/* Top Large Semi-Circular Ticket Stub Notch */}
@@ -33,8 +46,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             {isResaleTag && (
               <div className="mb-2">
                 <span className="px-3 py-1 rounded-full text-xs font-black gradient-btn text-white shadow-md inline-block">
-                  Bán lại vé
-                </span>
+                  {translate("Bán lại vé")}</span>
               </div>
             )}
 
@@ -48,7 +60,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
               <FiCalendar className="w-3.5 h-3.5 app-text-brand shrink-0 mt-0.5" />
               <div>
                 <div className="font-extrabold app-text-brand leading-tight">
-                  {event.datesSummary}
+                  {displayDate}
                 </div>
                 {event.extraDaysCount > 0 && (
                   <button
@@ -56,8 +68,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
                     onClick={onBuyTicketsClick}
                     className="mt-1 inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-brand-primary/10 app-text-brand border border-brand-primary/20 hover:bg-brand-primary hover:text-white transition-colors cursor-pointer"
                   >
-                    +{event.extraDaysCount} ngày khác
-                  </button>
+                    +{event.extraDaysCount} {translate("ngày khác")}</button>
                 )}
               </div>
             </div>
@@ -67,7 +78,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
               <FiMapPin className="w-3.5 h-3.5 app-text-brand shrink-0 mt-0.5" />
               <div>
                 <div className="font-extrabold app-text-brand leading-tight">
-                  {event.locationName}
+                  {locationName}
                 </div>
                 <div className="app-text-muted text-[11px] mt-0.5 leading-snug line-clamp-2">
                   {event.address}
@@ -80,10 +91,9 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
           <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-2.5 mt-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold app-text-muted">
-                Giá từ
-              </span>
+                {translate("Giá từ")}</span>
               <span className="text-sm md:text-base font-black app-text-brand flex items-center gap-0.5">
-                {event.minPrice}
+                {displayPrice}
                 <FiChevronRight className="w-4 h-4" />
               </span>
             </div>
@@ -95,7 +105,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
               className="w-full py-2.5 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
             >
               <FaTicketAlt className="w-3.5 h-3.5" />
-              <span>Mua vé ngay</span>
+              <span>{translate("Mua vé ngay")}</span>
             </button>
           </div>
         </div>
@@ -103,7 +113,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
         {/* Right side - Event Image */}
         <div className="w-full md:w-[65%] relative overflow-hidden bg-slate-950 min-h-[200px] md:min-h-[300px]">
           <img
-            src={event.posterImage}
+            src={posterImage}
             alt={event.title}
             className="w-full h-full object-cover"
           />

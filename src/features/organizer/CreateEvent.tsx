@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect, useRef } from "react";
 import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors } from "@/types/organizer";
 import CreateEventStepper from "./components/create-event/CreateEventStepper";
@@ -9,11 +10,44 @@ import Step5PaymentInfo from "./components/create-event/Step5PaymentInfo";
 import NoticeModal from "./components/create-event/NoticeModal";
 import AddTicketModal from "./components/create-event/AddTicketModal";
 import SuccessSubmittedModal from "./components/create-event/SuccessSubmittedModal";
-import { eventApi } from "@/services/eventApi";
+import { eventApi, type EventApiData } from "@/services/eventApi";
 import { organizerApi } from "@/services/organizerApi";
 import { mediaApi } from "@/services/mediaApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { formatDatetimeLocal } from "@/utils/formatters";
+
+interface DraftEventItem extends Partial<EventApiData> {
+  id: string;
+  category?: string;
+  locationType?: "offline" | "online";
+  city?: string;
+  ward?: string;
+  posterImage?: string;
+  descriptionText?: string;
+  galleryImages?: string[] | string;
+  startDate?: string;
+  endDate?: string;
+  tickets?: TicketItem[] | string;
+  isPrivate?: boolean;
+  confirmationMessage?: string;
+  enableCustomQuestions?: boolean;
+  questionScope?: "order" | "ticket";
+  customQuestions?: CustomQuestionItem[] | string;
+  questions?: CustomQuestionItem[] | string;
+  organizerName?: string;
+  organizerInfo?: string;
+  organizerLogo?: string;
+  organizer?: { name?: string; description?: string; avatar?: string; id?: string };
+  accountHolder?: string;
+  accountNumber?: string;
+  bankName?: string;
+  bankBranch?: string;
+  businessType?: "individual" | "company";
+  taxName?: string;
+  taxAddress?: string;
+  taxCode?: string;
+  eventApprovalStatus?: string;
+}
 
 async function ensureS3Url(urlOrData: string | null | undefined, folder: string): Promise<string | null> {
   if (!urlOrData) return null;
@@ -42,6 +76,7 @@ async function ensureS3Url(urlOrData: string | null | undefined, folder: string)
 }
 
 export const CreateEvent: React.FC = () => {
+  const { t: translate } = useTranslation();
   // scroll to top on mount
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -104,7 +139,7 @@ export const CreateEvent: React.FC = () => {
   const [taxAddress, setTaxAddress] = useState("");
   const [taxCode, setTaxCode] = useState("");
 
-  const [_currentEventId, setCurrentEventId] = useState<string | null>(null);
+  const [, setCurrentEventId] = useState<string | null>(null);
   const currentEventIdRef = useRef<string | null>(null);
   const isInitialLoadingRef = useRef<boolean>(true);
 
@@ -145,18 +180,18 @@ export const CreateEvent: React.FC = () => {
           updateCurrentEventId(draftIdParam);
         }
 
-        let draftEventData: any = null;
+        let draftEventData: DraftEventItem | null = null;
         if (draftIdParam) {
-          draftEventData = await eventApi.getEventById(draftIdParam);
+          draftEventData = (await eventApi.getEventById(draftIdParam)) as unknown as DraftEventItem;
         } else {
           // find existing DRAFT status event
           const allEvents = await eventApi.getAllEvents();
           if (Array.isArray(allEvents)) {
-            draftEventData = allEvents.find(
-              (ev: any) =>
+            draftEventData = (allEvents.find(
+              (ev: EventApiData & { eventApprovalStatus?: string; organizer?: { id?: string } }) =>
                 (ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT") &&
                 (!ev.organizer?.id || ev.organizer?.id === currentUserId)
-            );
+            ) as unknown as DraftEventItem) || null;
           }
         }
 
@@ -170,7 +205,8 @@ export const CreateEvent: React.FC = () => {
           }
 
           if (draftEventData.title) setTitle(draftEventData.title);
-          if (draftEventData.categoryName || draftEventData.category) setCategory(draftEventData.categoryName || draftEventData.category);
+          const cat = draftEventData.categoryName || draftEventData.category;
+          if (cat) setCategory(cat);
           if (draftEventData.locationType) setLocationType(draftEventData.locationType);
           if (draftEventData.locationName) setLocationName(draftEventData.locationName);
           if (draftEventData.city) setCity(draftEventData.city);
@@ -189,7 +225,11 @@ export const CreateEvent: React.FC = () => {
           if (Array.isArray(draftEventData.galleryImages)) {
             galleryList = draftEventData.galleryImages;
           } else if (typeof draftEventData.galleryImages === "string") {
-            try { galleryList = JSON.parse(draftEventData.galleryImages); } catch (e) { }
+            try {
+              galleryList = JSON.parse(draftEventData.galleryImages);
+            } catch {
+              // ignore JSON parse failure
+            }
           }
           if (galleryList.length === 0 && desc) {
             const imgMatches = desc.match(/src=["']([^"']+)["']/g);
@@ -201,17 +241,22 @@ export const CreateEvent: React.FC = () => {
           setGalleryImages(galleryList);
 
           const start = draftEventData.startTime || draftEventData.startDate;
-          if (start) setStartDate(formatDatetimeLocal(start));
+          if (start) setStartDate(formatDatetimeLocal(start as string));
           const end = draftEventData.endTime || draftEventData.endDate;
-          if (end) setEndDate(formatDatetimeLocal(end));
+          if (end) setEndDate(formatDatetimeLocal(end as string));
 
           if (draftEventData.tickets) {
             let parsedTickets = draftEventData.tickets;
             if (typeof parsedTickets === "string") {
-              try { parsedTickets = JSON.parse(parsedTickets); } catch (e) { }
+              try {
+                parsedTickets = JSON.parse(parsedTickets);
+              } catch {
+                // ignore JSON parse failure
+              }
             }
             if (Array.isArray(parsedTickets)) {
-              const mappedTickets: TicketItem[] = parsedTickets.map((t: any, idx: number) => ({
+              type RawTicket = Partial<TicketItem> & { start_sale_date?: string; end_sale_date?: string };
+              const mappedTickets: TicketItem[] = (parsedTickets as RawTicket[]).map((t, idx: number) => ({
                 id: String(t.id || `ticket_${idx}_${Date.now()}`),
                 name: t.name || "",
                 price: t.price ?? 0,
@@ -229,28 +274,29 @@ export const CreateEvent: React.FC = () => {
           }
 
           if (typeof draftEventData.isPrivate === "boolean") setIsPrivate(draftEventData.isPrivate);
-          if (draftEventData.confirmationMessage) setConfirmationMessage(draftEventData.confirmationMessage);
+          if (draftEventData.confirmationMessage) setConfirmationMessage(draftEventData.confirmationMessage as string);
           if (typeof draftEventData.enableCustomQuestions === "boolean") setEnableCustomQuestions(draftEventData.enableCustomQuestions);
-          if (draftEventData.questionScope) setQuestionScope(draftEventData.questionScope);
+          if (draftEventData.questionScope) setQuestionScope(draftEventData.questionScope as "order" | "ticket");
 
           const rawQList = draftEventData.customQuestions || draftEventData.questions;
           if (rawQList) {
             let parsedQList = rawQList;
             if (typeof parsedQList === "string") {
-              try { parsedQList = JSON.parse(parsedQList); } catch (e) { }
+              try {
+                parsedQList = JSON.parse(parsedQList);
+              } catch {
+                // ignore JSON parse failure
+              }
             }
-            if (Array.isArray(parsedQList)) setQuestions(parsedQList);
+            if (Array.isArray(parsedQList)) setQuestions(parsedQList as CustomQuestionItem[]);
           }
 
-          if (draftEventData.organizerName || draftEventData.organizer?.name) {
-            setOrganizerName(draftEventData.organizerName || draftEventData.organizer?.name);
-          }
-          if (draftEventData.organizerInfo || draftEventData.organizer?.description) {
-            setOrganizerInfo(draftEventData.organizerInfo || draftEventData.organizer?.description);
-          }
-          if (draftEventData.organizerLogo || draftEventData.organizer?.avatar) {
-            setOrganizerLogo(draftEventData.organizerLogo || draftEventData.organizer?.avatar);
-          }
+          const orgName = draftEventData.organizerName || draftEventData.organizer?.name;
+          if (orgName) setOrganizerName(orgName);
+          const orgInfo = draftEventData.organizerInfo || draftEventData.organizer?.description;
+          if (orgInfo) setOrganizerInfo(orgInfo);
+          const orgLogo = draftEventData.organizerLogo || draftEventData.organizer?.avatar;
+          if (orgLogo) setOrganizerLogo(orgLogo);
 
           if (draftEventData.accountHolder) setAccountHolder(draftEventData.accountHolder);
           if (draftEventData.accountNumber) setAccountNumber(draftEventData.accountNumber);
@@ -354,9 +400,8 @@ export const CreateEvent: React.FC = () => {
 
     if (!hasContent) return;
 
-    setAutoSaveStatus("saving");
-
     const timer = setTimeout(async () => {
+      setAutoSaveStatus("saving");
       try {
         const cachedUser = getCachedUserProfile();
         const currentUserId = cachedUser?.id || cachedUser?.keycloakId || "user_default_id";
@@ -402,8 +447,8 @@ export const CreateEvent: React.FC = () => {
           status: eventStatus === "PENDING" ? "PENDING" : "DRAFT"
         };
 
-        const res = await eventApi.createEventApprovalRequest(draftPayload);
-        if (res && res.id) {
+        const res = (await eventApi.createEventApprovalRequest(draftPayload)) as Record<string, unknown> | null;
+        if (res && typeof res.id === "string") {
           updateCurrentEventId(res.id);
         }
 
@@ -431,6 +476,7 @@ export const CreateEvent: React.FC = () => {
     posterImage,
     bannerImage,
     description,
+    galleryImages,
     organizerName,
     organizerInfo,
     organizerLogo,
@@ -502,8 +548,8 @@ export const CreateEvent: React.FC = () => {
         status: eventStatus === "PENDING" ? "PENDING" : "DRAFT"
       };
 
-      const res = await eventApi.createEventApprovalRequest(draftPayload);
-      if (res && res.id) {
+      const res = (await eventApi.createEventApprovalRequest(draftPayload)) as Record<string, unknown> | null;
+      if (res && typeof res.id === "string") {
         updateCurrentEventId(res.id);
       }
 
@@ -700,8 +746,8 @@ export const CreateEvent: React.FC = () => {
       };
 
       // send event approval request via api-gateway
-      const res = await eventApi.createEventApprovalRequest(payload);
-      if (res && res.id) {
+      const res = (await eventApi.createEventApprovalRequest(payload)) as Record<string, unknown> | null;
+      if (res && typeof res.id === "string") {
         updateCurrentEventId(res.id);
       }
       setEventStatus("PENDING");
@@ -732,7 +778,7 @@ export const CreateEvent: React.FC = () => {
       {/* Toast Notification Banner for Draft Save */}
       {draftSavedToast && (
         <div className="fixed top-20 right-6 z-50 bg-blue-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top duration-300">
-          <span>✓ {draftSavedToast}</span>
+          <span>✓ {translate(draftSavedToast)}</span>
         </div>
       )}
 

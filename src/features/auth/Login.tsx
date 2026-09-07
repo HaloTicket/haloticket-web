@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FiMail, FiAlertCircle } from "react-icons/fi";
 import { GoogleAuthButton, PasswordField } from "@/features/auth/components";
 import { PATHS } from "@/routes/paths";
-import { getAuthErrorMessage } from "@/services/authApi";
+import { getAuthErrorMessage, type LocalizedError } from "@/services/authApi";
 
 export interface LoginCredentials {
   email: string;
@@ -16,12 +18,12 @@ interface LoginProps {
 }
 
 export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
+  useTranslation();
   const [searchParams] = useSearchParams();
   const isSessionExpired = searchParams.get("session_expired") === "true";
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<LocalizedError>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -40,8 +42,8 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   return (
     <section className="auth-panel auth-panel--login">
       <div className="auth-heading">
-        <h1 className="auth-title">Đăng nhập</h1>
-        <p className="auth-subtitle">Chào mừng bạn quay trở lại!</p>
+        <h1 className="auth-title">{translate("Đăng nhập")}</h1>
+        <p className="auth-subtitle">{translate("Chào mừng bạn quay trở lại!")}</p>
       </div>
 
       {isSessionExpired && (
@@ -66,7 +68,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
               className="auth-input auth-input--icon"
               id="login-email"
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="Nhập email của bạn"
+              placeholder={translate("Nhập email của bạn")}
               required
               type="email"
               value={email}
@@ -78,16 +80,16 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
         <PasswordField
           autoComplete="current-password"
           id="login-password"
-          label="Mật khẩu"
+          label={translate("Mật khẩu")}
           onChange={setPassword}
-          placeholder="Nhập mật khẩu của bạn"
+          placeholder={translate("Nhập mật khẩu của bạn")}
           value={password}
         />
 
         {/* Error Alert */}
         {error && (
           <div className="auth-error" role="alert">
-            {error}
+            {translate(error.key, error.values)}
           </div>
         )}
 
@@ -96,7 +98,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
           disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+          {isSubmitting ? translate("Đang đăng nhập...") : translate("Đăng nhập")}
         </button>
 
         <div className="auth-link-row">
@@ -104,24 +106,22 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
             className="auth-link"
             to={PATHS.FORGOT_PASSWORD}
           >
-            Quên mật khẩu?
-          </Link>
+            {translate("Quên mật khẩu?")}</Link>
         </div>
 
         <div className="auth-divider" aria-hidden="true">
-          <span>HOẶC</span>
+          <span>{translate("HOẶC")}</span>
         </div>
 
         <GoogleAuthButton onClick={onGoogleLogin} />
 
         <div className="auth-switch">
-          Chưa có tài khoản?{" "}
+          {translate("Chưa có tài khoản?")}{" "}
           <Link
             className="auth-link"
             to={PATHS.REGISTER}
           >
-            Đăng ký ngay
-          </Link>
+            {translate("Đăng ký ngay")}</Link>
         </div>
       </form>
     </section>

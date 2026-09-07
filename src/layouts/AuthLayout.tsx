@@ -1,20 +1,21 @@
+import { useTranslation } from "react-i18next";
+import { t as translate, i18n, setLanguage } from "@/i18n";
 import { useState, useRef, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import { PATHS } from "@/routes/paths";
 import { VietnamFlag, UKFlag } from "@/components/common/FlagIcons";
 import { FiSun, FiMoon, FiChevronDown } from "react-icons/fi";
 
 function AuthLayoutContent() {
+  useTranslation();
   const location = useLocation();
   const isLongForm = location.pathname === PATHS.REGISTER;
   const { isDark, toggleTheme } = useTheme();
 
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [lang, setLang] = useState<"vi" | "en">(() => {
-    const saved = localStorage.getItem("app_lang");
-    return saved === "en" ? "en" : "vi";
-  });
+  const lang = i18n.resolvedLanguage;
 
   const langDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +42,7 @@ function AuthLayoutContent() {
         <Link
           to={PATHS.HOME}
           className="auth-brand-link"
-          aria-label="Về trang chủ HaloTicket"
+          aria-label={translate("Về trang chủ HaloTicket")}
         >
           <div className="auth-mark" aria-hidden="true">
             H
@@ -56,8 +57,8 @@ function AuthLayoutContent() {
               type="button"
               onClick={() => setIsLangOpen((prev) => !prev)}
               className="flex items-center gap-1.5 text-sm font-medium hover:opacity-90 transition-all bg-secondary/60 hover:bg-secondary app-bg-subnav px-2.5 py-1.5 rounded-xl active:scale-95 cursor-pointer border app-border"
-              title="Ngôn ngữ"
-              aria-label="Chọn ngôn ngữ"
+              title={translate("Ngôn ngữ")}
+              aria-label={translate("Chọn ngôn ngữ")}
             >
               {lang === "vi" ? (
                 <VietnamFlag className="w-5 h-5" />
@@ -83,8 +84,7 @@ function AuthLayoutContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    setLang("vi");
-                    localStorage.setItem("app_lang", "vi");
+                    void setLanguage("vi");
                     setIsLangOpen(false);
                   }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${
@@ -100,8 +100,7 @@ function AuthLayoutContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    setLang("en");
-                    localStorage.setItem("app_lang", "en");
+                    void setLanguage("en");
                     setIsLangOpen(false);
                   }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${
@@ -122,8 +121,8 @@ function AuthLayoutContent() {
             type="button"
             onClick={toggleTheme}
             className="px-2 py-[6px] rounded-xl app-bg-card app-text-main hover:opacity-80 transition-all duration-200 focus:outline-none border app-border cursor-pointer shadow-xs"
-            aria-label="Tắt/Mở Chế độ Tối"
-            title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
+            aria-label={translate("Tắt/Mở Chế độ Tối")}
+            title={isDark ? translate("Chuyển sang Chế độ Sáng") : translate("Chuyển sang Chế độ Tối")}
           >
             {isDark ? (
               <FiSun className="w-5 h-5 text-amber-400 transform hover:rotate-90 transition-transform duration-500" />
@@ -146,6 +145,7 @@ function AuthLayoutContent() {
 }
 
 export default function AuthLayout() {
+  useTranslation();
   return (
     <ThemeProvider>
       <AuthLayoutContent />

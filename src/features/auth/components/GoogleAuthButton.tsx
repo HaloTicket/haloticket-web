@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useState, useMemo, useSyncExternalStore, type ButtonHTMLAttributes } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { FiChevronDown } from "react-icons/fi";
@@ -27,6 +29,7 @@ export function GoogleAuthButton({
   suggestedAccount,
   ...buttonProps
 }: GoogleAuthButtonProps) {
+  useTranslation();
   const [isPending, setIsPending] = useState(false);
   const [requestError, setRequestError] = useState<string>();
   const [imgError, setImgError] = useState(false);
@@ -74,7 +77,7 @@ export function GoogleAuthButton({
     const initial = (account.name || account.email || "G").trim().charAt(0).toUpperCase();
     const buttonLabel = isPending
       ? "Đang chuyển đến Google..."
-      : `Đăng nhập với tên ${account.name}`;
+      : translate("Đăng nhập với tên {{name}}", { name: account.name });
     const avatarUrl = account.picture || account.avatarUrl;
 
     return (
@@ -83,8 +86,8 @@ export function GoogleAuthButton({
           {...buttonProps}
           aria-label={
             isPending
-              ? "Đang chuyển đến Google..."
-              : `Đăng nhập với tên ${account.name} (${account.email})`
+              ? translate("Đang chuyển đến Google...")
+              : translate("Đăng nhập với tên {{name}} ({{email}})", { name: account.name, email: account.email })
           }
           aria-busy={isPending}
           className={`auth-google-suggested-button ${className}`.trim()}

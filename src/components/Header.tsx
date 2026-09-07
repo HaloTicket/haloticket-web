@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
+import { t as translate, i18n, setLanguage } from "@/i18n";
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import SearchOverlayModal from "./SearchOverlayModal";
 import { addSearchHistory } from "@/utils/searchHistory";
 import { eventApi } from "@/services/eventApi";
@@ -16,7 +18,7 @@ import {
   FiMoon,
   FiMenu,
   FiX,
-  FiChevronDown
+  FiChevronDown,
 } from "react-icons/fi";
 import {
   LuTicket,
@@ -30,6 +32,7 @@ import {
 import { FaTicketAlt } from "react-icons/fa";
 
 export const Header: React.FC = () => {
+  useTranslation();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -42,10 +45,7 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [lang, setLang] = useState<"vi" | "en">(() => {
-    const saved = localStorage.getItem("app_lang");
-    return saved === "en" ? "en" : "vi";
-  });
+  const lang = i18n.resolvedLanguage;
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
     getKeycloakSession().isAuthenticated()
   );
@@ -81,7 +81,7 @@ export const Header: React.FC = () => {
         setUserProfile(getCachedUserProfile());
         userApi.getProfile().then((data) => {
           if (data) setUserProfile(data);
-        }).catch(() => {});
+        }).catch(() => { });
       } else {
         setUserProfile(null);
       }
@@ -213,7 +213,7 @@ export const Header: React.FC = () => {
                   handleSearchSubmit(e);
                 }
               }}
-              placeholder="Bạn tìm gì hôm nay?"
+              placeholder={translate("Bạn tìm gì hôm nay?")}
               className="w-full app-bg-card app-text-main placeholder-zinc-400 text-sm rounded-xl pl-4 pr-24 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
             />
             <button
@@ -221,7 +221,7 @@ export const Header: React.FC = () => {
               className="absolute right-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <FiSearch className="w-3.5 h-3.5" />
-              <span>Tìm kiếm</span>
+              <span>{translate("Tìm kiếm")}</span>
             </button>
           </form>
 
@@ -253,7 +253,7 @@ export const Header: React.FC = () => {
             className="group hidden lg:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
           >
             <FiPlusCircle className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
-            <span>Tạo sự kiện</span>
+            <span>{translate("Tạo sự kiện")}</span>
           </Link>
 
           {/* My Tickets (Desktop) */}
@@ -268,7 +268,7 @@ export const Header: React.FC = () => {
             className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold app-text-main hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-all active:scale-95"
           >
             <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Vé của tôi</span>
+            <span>{translate("Vé của tôi")}</span>
           </Link>
 
           <div className="h-6 w-px app-border hidden lg:block" />
@@ -286,28 +286,25 @@ export const Header: React.FC = () => {
                 <span className="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-[10px]">
                   {userInitial}
                 </span>
-                <span>Tài khoản</span>
+                <span>{translate("Tài khoản")}</span>
                 <FiChevronDown
-                  className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${
-                    isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
-                  }`}
+                  className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
+                    }`}
                 />
               </button>
 
               {/* Account Hover Dropdown Menu (Ảnh 1) */}
               <div
-                className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${
-                  isAccountOpen
+                className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${isAccountOpen
                     ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
                     : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
-                }`}
+                  }`}
                 role="menu"
               >
                 <div className="app-bg-card border app-border rounded-2xl p-2 shadow-2xl space-y-1 app-text-main animate-in zoom-in-95">
                   {/* Customer section */}
                   <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                    Cá nhân
-                  </div>
+                    {translate("Cá nhân")}</div>
 
                   <Link
                     to={PATHS.MY_TICKETS}
@@ -315,7 +312,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuTicket className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Vé của tôi</span>
+                    <span>{translate("Vé của tôi")}</span>
                   </Link>
 
                   <Link
@@ -324,7 +321,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuUser className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>Thông tin cá nhân</span>
+                    <span>{translate("Thông tin cá nhân")}</span>
                   </Link>
 
                   <Link
@@ -333,15 +330,14 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors w-full text-left cursor-pointer"
                   >
                     <LuGem className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>Thẻ thành viên</span>
+                    <span>{translate("Thẻ thành viên")}</span>
                   </Link>
 
                   <div className="my-1 border-t app-border" />
 
                   {/* Organizer section */}
                   <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                    Ban Tổ Chức
-                  </div>
+                    {translate("Ban Tổ Chức")}</div>
 
                   <Link
                     to={PATHS.MY_EVENTS}
@@ -349,7 +345,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuCalendarDays className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>Quản lý sự kiện</span>
+                    <span>{translate("Quản lý sự kiện")}</span>
                   </Link>
 
                   <Link
@@ -358,7 +354,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span>Báo cáo doanh thu</span>
+                    <span>{translate("Báo cáo doanh thu")}</span>
                   </Link>
 
                   <Link
@@ -367,7 +363,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuBuilding2 className="w-4 h-4 text-purple-500 shrink-0" />
-                    <span>Hồ sơ Ban tổ chức</span>
+                    <span>{translate("Hồ sơ Ban tổ chức")}</span>
                   </Link>
 
                   <div className="my-1 border-t app-border" />
@@ -378,7 +374,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 text-xs font-medium transition-colors w-full text-left cursor-pointer"
                   >
                     <LuLogOut className="w-4 h-4 shrink-0" />
-                    <span>Đăng xuất</span>
+                    <span>{translate("Đăng xuất")}</span>
                   </button>
                 </div>
               </div>
@@ -388,8 +384,7 @@ export const Header: React.FC = () => {
               to={PATHS.LOGIN}
               className="hidden sm:flex text-sm font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer app-text-main"
             >
-              Đăng nhập <span className="app-text-muted font-normal mx-1">|</span> Đăng ký
-            </Link>
+              {translate("Đăng nhập")}<span className="app-text-muted font-normal mx-1">|</span> {translate("Đăng ký")}</Link>
           )}
 
           {/* Language Flag Dropdown (Ảnh 2) */}
@@ -398,8 +393,8 @@ export const Header: React.FC = () => {
               type="button"
               onClick={() => setIsLangOpen((prev) => !prev)}
               className="flex items-center gap-1.5 text-sm font-medium hover:opacity-90 transition-all bg-secondary/60 hover:bg-secondary app-bg-subnav px-2.5 py-1.5 rounded-xl active:scale-95 cursor-pointer border app-border"
-              title="Ngôn ngữ"
-              aria-label="Chọn ngôn ngữ"
+              title={translate("Ngôn ngữ")}
+              aria-label={translate("Chọn ngôn ngữ")}
             >
               {lang === "vi" ? (
                 <VietnamFlag className="w-5 h-5" />
@@ -407,33 +402,29 @@ export const Header: React.FC = () => {
                 <UKFlag className="w-5 h-5" />
               )}
               <FiChevronDown
-                className={`w-3 h-3 text-muted-foreground app-text-muted transition-transform duration-200 ${
-                  isLangOpen ? "rotate-180" : "group-hover:rotate-180"
-                }`}
+                className={`w-3 h-3 text-muted-foreground app-text-muted transition-transform duration-200 ${isLangOpen ? "rotate-180" : "group-hover:rotate-180"
+                  }`}
               />
             </button>
 
             {/* Flag Hover Menu (Ảnh 2) */}
             <div
-              className={`absolute right-0 top-full pt-2 w-40 transition-all duration-200 z-50 origin-top-right ${
-                isLangOpen
+              className={`absolute right-0 top-full pt-2 w-40 transition-all duration-200 z-50 origin-top-right ${isLangOpen
                   ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
                   : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
-              }`}
+                }`}
             >
               <div className="app-bg-card border app-border rounded-2xl p-1.5 shadow-2xl space-y-1 animate-in zoom-in-95">
                 <button
                   type="button"
                   onClick={() => {
-                    setLang("vi");
-                    localStorage.setItem("app_lang", "vi");
+                    void setLanguage("vi");
                     setIsLangOpen(false);
                   }}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${
-                    lang === "vi"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${lang === "vi"
                       ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
                       : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
+                    }`}
                 >
                   <VietnamFlag className="w-5 h-5" />
                   <span>Tiếng Việt</span>
@@ -442,15 +433,13 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setLang("en");
-                    localStorage.setItem("app_lang", "en");
+                    void setLanguage("en");
                     setIsLangOpen(false);
                   }}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${
-                    lang === "en"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${lang === "en"
                       ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
                       : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
+                    }`}
                 >
                   <UKFlag className="w-5 h-5" />
                   <span>English</span>
@@ -464,8 +453,8 @@ export const Header: React.FC = () => {
             type="button"
             onClick={toggleTheme}
             className="px-2 py-[6px] rounded-xl app-bg-card app-text-main hover:opacity-80 transition-all duration-200 focus:outline-none border app-border cursor-pointer shadow-xs"
-            aria-label="Tắt/Mở Chế độ Tối"
-            title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
+            aria-label={translate("Tắt/Mở Chế độ Tối")}
+            title={isDark ? translate("Chuyển sang Chế độ Sáng") : translate("Chuyển sang Chế độ Tối")}
           >
             {isDark ? (
               <FiSun className="w-5 h-5 text-amber-400 transform hover:rotate-90 transition-transform duration-500" />
@@ -479,7 +468,7 @@ export const Header: React.FC = () => {
             type="button"
             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             className="lg:hidden p-2 rounded-xl app-bg-card app-text-main border app-border hover:border-blue-500/50 transition-all cursor-pointer shadow-xs"
-            aria-label="Mở menu"
+            aria-label={translate("Mở menu")}
           >
             {isMobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
           </button>
@@ -495,16 +484,15 @@ export const Header: React.FC = () => {
               <Link
                 key={cat.label}
                 to={cat.path}
-                className={`transition-colors py-0.5 relative cursor-pointer ${
-                  cat.isResale
+                className={`transition-colors py-0.5 relative cursor-pointer ${cat.isResale
                     ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
                     : isActive
-                    ? "text-blue-600 dark:text-blue-400 font-bold"
-                    : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
-                }`}
+                      ? "text-blue-600 dark:text-blue-400 font-bold"
+                      : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
+                  }`}
               >
                 {cat.isResale && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
-                {cat.label}
+                {translate(cat.label)}
               </Link>
             );
           })}
@@ -530,7 +518,7 @@ export const Header: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Bạn tìm gì hôm nay?"
+                  placeholder={translate("Bạn tìm gì hôm nay?")}
                   className="w-full app-bg-subnav app-text-main placeholder-zinc-400 text-xs sm:text-sm rounded-xl pl-4 pr-24 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <button
@@ -538,7 +526,7 @@ export const Header: React.FC = () => {
                   className="absolute right-1 px-3.5 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <FiSearch className="w-3.5 h-3.5" />
-                  <span>Tìm kiếm</span>
+                  <span>{translate("Tìm kiếm")}</span>
                 </button>
               </form>
 
@@ -549,63 +537,55 @@ export const Header: React.FC = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
                 >
-                  <FiPlusCircle className="h-4 w-4" /> Tạo sự kiện mới
-                </Link>
+                  <FiPlusCircle className="h-4 w-4" /> {translate("Tạo sự kiện mới")}</Link>
 
                 {isAuthenticated ? (
                   <div className="space-y-1 pt-2 border-t app-border">
                     <div className="px-2 py-1 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                      Tài khoản của bạn ({userProfile?.fullName || "Khách hàng"})
+                      {translate("Tài khoản của bạn (")}{userProfile?.fullName || translate("Khách hàng")})
                     </div>
                     <Link
                       to={PATHS.MY_TICKETS}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuTicket className="h-4 w-4 text-emerald-600" /> Vé của tôi
-                    </Link>
+                      <LuTicket className="h-4 w-4 text-emerald-600" /> {translate("Vé của tôi")}</Link>
                     <Link
                       to={PATHS.PROFILE}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuUser className="h-4 w-4 text-blue-500" /> Thông tin cá nhân
-                    </Link>
+                      <LuUser className="h-4 w-4 text-blue-500" /> {translate("Thông tin cá nhân")}</Link>
                     <Link
                       to="/profile?tab=membership"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuGem className="h-4 w-4 text-amber-500" /> Thẻ thành viên
-                    </Link>
+                      <LuGem className="h-4 w-4 text-amber-500" /> {translate("Thẻ thành viên")}</Link>
                     <Link
                       to={PATHS.MY_EVENTS}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuCalendarDays className="h-4 w-4 text-blue-500" /> Quản lý sự kiện
-                    </Link>
+                      <LuCalendarDays className="h-4 w-4 text-blue-500" /> {translate("Quản lý sự kiện")}</Link>
                     <Link
                       to={PATHS.REPORTS}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuChartColumn className="h-4 w-4 text-indigo-500" /> Báo cáo doanh thu
-                    </Link>
+                      <LuChartColumn className="h-4 w-4 text-indigo-500" /> {translate("Báo cáo doanh thu")}</Link>
                     <Link
                       to={PATHS.TERMS}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuBuilding2 className="h-4 w-4 text-purple-500" /> Hồ sơ Ban tổ chức
-                    </Link>
+                      <LuBuilding2 className="h-4 w-4 text-purple-500" /> {translate("Hồ sơ Ban tổ chức")}</Link>
                     <button
                       type="button"
                       onClick={handleLogout}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors text-left w-full cursor-pointer mt-1"
                     >
-                      <LuLogOut className="h-4 w-4" /> Đăng xuất
-                    </button>
+                      <LuLogOut className="h-4 w-4" /> {translate("Đăng xuất")}</button>
                   </div>
                 ) : (
                   <Link
@@ -613,28 +593,24 @@ export const Header: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
                   >
-                    <LuUser className="h-4 w-4" /> Đăng nhập | Đăng ký
-                  </Link>
+                    <LuUser className="h-4 w-4" /> {translate("Đăng nhập | Đăng ký")}</Link>
                 )}
               </div>
 
               {/* Language Selector in Mobile Drawer */}
               <div className="pt-3 border-t app-border">
                 <div className="text-[11px] font-extrabold app-text-muted uppercase tracking-wider mb-2">
-                  Ngôn ngữ
-                </div>
+                  {translate("Ngôn ngữ")}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      setLang("vi");
-                      localStorage.setItem("app_lang", "vi");
+                      void setLanguage("vi");
                     }}
-                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${
-                      lang === "vi"
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${lang === "vi"
                         ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
                         : "app-bg-subnav app-text-main app-border"
-                    }`}
+                      }`}
                   >
                     <VietnamFlag className="w-4 h-4" />
                     <span>Tiếng Việt</span>
@@ -642,14 +618,12 @@ export const Header: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setLang("en");
-                      localStorage.setItem("app_lang", "en");
+                      void setLanguage("en");
                     }}
-                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${
-                      lang === "en"
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${lang === "en"
                         ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
                         : "app-bg-subnav app-text-main app-border"
-                    }`}
+                      }`}
                   >
                     <UKFlag className="w-4 h-4" />
                     <span>English</span>
@@ -660,23 +634,21 @@ export const Header: React.FC = () => {
               {/* Mobile Category Links Grid */}
               <div className="pt-3 border-t app-border space-y-2">
                 <div className="text-[11px] font-extrabold app-text-muted uppercase tracking-wider">
-                  Danh mục sự kiện
-                </div>
+                  {translate("Danh mục sự kiện")}</div>
                 <div className="grid grid-cols-2 gap-2">
                   {categories.map((cat) => (
                     <Link
                       key={cat.label}
                       to={cat.path}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${
-                        cat.isResale
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${cat.isResale
                           ? "text-rose-500 font-extrabold bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50"
                           : location.pathname === cat.path
-                          ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-blue-200 dark:border-blue-800/50"
-                          : "app-bg-subnav app-text-main hover:bg-slate-200 dark:hover:bg-slate-800 app-border"
-                      }`}
+                            ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-blue-200 dark:border-blue-800/50"
+                            : "app-bg-subnav app-text-main hover:bg-slate-200 dark:hover:bg-slate-800 app-border"
+                        }`}
                     >
-                      <span className="truncate">{cat.label}</span>
+                      <span className="truncate">{translate(cat.label)}</span>
                       {cat.isResale && (
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0 ml-1" />
                       )}

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React from "react";
 import { FiMapPin } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
@@ -14,6 +16,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
   isVisible,
   onBuyTicketsClick
 }) => {
+  useTranslation();
   return (
     <div
       className={`fixed top-0 inset-x-0 z-[100] h-18 app-bg-header backdrop-blur-xl border-b app-border shadow-2xl transition-all duration-300 flex items-center justify-between px-4 md:px-12 lg:px-16 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
@@ -37,7 +40,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
         className="px-8 py-3 gradient-btn text-white font-black text-sm md:text-base rounded-2xl shadow-xl shrink-0 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all cursor-pointer min-w-[170px] justify-center"
       >
         <FaTicketAlt className="w-4 h-4 md:w-5 md:h-5" />
-        <span>Mua vé ngay</span>
+        <span>{translate("Mua vé ngay")}</span>
       </button>
     </div>
   );

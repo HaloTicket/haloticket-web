@@ -1,3 +1,5 @@
+import { getLocale } from "@/i18n";
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import {
   FiTrendingUp,
@@ -22,6 +24,7 @@ interface ResaleTicketItem {
 }
 
 export const ResaleManagement: React.FC = () => {
+  const { t: translate } = useTranslation();
   const [priceCapPercent, setPriceCapPercent] = useState<number>(20); // max +20% (120% of face value)
   const [allowResaleSystem, setAllowResaleSystem] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,7 +81,7 @@ export const ResaleManagement: React.FC = () => {
   ]);
 
   const handleUpdatePriceCap = () => {
-    alert(`Đã cập nhật giá trần bán vé lại thành Max +${priceCapPercent}% (Tối đa ${100 + priceCapPercent}% giá gốc).`);
+    alert(translate("Đã cập nhật giá trần bán vé lại thành Max +{{value1}}% (Tối đa {{value2}}% giá gốc).", { value1: priceCapPercent, value2: 100 + priceCapPercent }));
   };
 
   const handleToggleLockListing = (id: string) => {
@@ -112,14 +115,12 @@ export const ResaleManagement: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800 mb-1">
               <FiTrendingUp className="w-3.5 h-3.5" />
-              <span>Chính sách Bảo vệ Người mua vé</span>
+              <span>{translate("Chính sách Bảo vệ Người mua vé")}</span>
             </div>
             <h2 className="text-base font-bold app-text-main">
-              Cấu hình Giá trần Niêm yết Bán vé lại (Resale Price Cap)
-            </h2>
+              {translate("Cấu hình Giá trần Niêm yết Bán vé lại (Resale Price Cap)")} </h2>
             <p className="text-xs app-text-muted mt-0.5">
-              Kiểm soát mức chênh lệch giá tối đa so với giá gốc vé ban đầu nhằm ngăn chặn phe vé & đầu cơ.
-            </p>
+              {translate("Kiểm soát mức chênh lệch giá tối đa so với giá gốc vé ban đầu nhằm ngăn chặn phe vé & đầu cơ.")} </p>
           </div>
 
           <button
@@ -128,7 +129,7 @@ export const ResaleManagement: React.FC = () => {
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
           >
             <FiSliders className="w-3.5 h-3.5" />
-            <span>Lưu cấu hình giá trần</span>
+            <span>{translate("Lưu cấu hình giá trần")}</span>
           </button>
         </div>
 
@@ -137,11 +138,9 @@ export const ResaleManagement: React.FC = () => {
           <div className="md:col-span-7 p-4 rounded-md app-bg-subnav border border-slate-200 dark:border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold app-text-main">
-                Tỷ lệ giá trần bán lại tối đa (% chênh lệch)
-              </label>
+                {translate("Tỷ lệ giá trần bán lại tối đa (% chênh lệch)")} </label>
               <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
-                Tối đa +{priceCapPercent}% (Bằng {100 + priceCapPercent}% giá gốc)
-              </span>
+                {translate("Tối đa +")}{priceCapPercent}{translate("% (Bằng")} {100 + priceCapPercent}{translate("% giá gốc)")} </span>
             </div>
 
             <input
@@ -155,17 +154,17 @@ export const ResaleManagement: React.FC = () => {
             />
 
             <div className="flex justify-between text-[10px] font-medium app-text-muted">
-              <span>0% (Hòa vốn)</span>
-              <span>+20% (Khuyên dùng)</span>
-              <span>+50% (Tối đa)</span>
+              <span>{translate("0% (Hòa vốn)")}</span>
+              <span>{translate("+20% (Khuyên dùng)")}</span>
+              <span>{translate("+50% (Tối đa)")}</span>
             </div>
           </div>
 
           {/* Toggle System Resale Feature */}
           <div className="md:col-span-5 p-4 rounded-md app-bg-subnav border border-slate-200 dark:border-slate-800 space-y-2 flex items-center justify-between">
             <div className="space-y-0.5 pr-2">
-              <span className="text-xs font-semibold app-text-main block">Thị trường Bán lại</span>
-              <p className="text-[11px] app-text-muted">Tạm ngắt toàn bộ tính năng vé Resale khi cần bảo trì.</p>
+              <span className="text-xs font-semibold app-text-main block">{translate("Thị trường Bán lại")}</span>
+              <p className="text-[11px] app-text-muted">{translate("Tạm ngắt toàn bộ tính năng vé Resale khi cần bảo trì.")}</p>
             </div>
             <button
               type="button"
@@ -175,7 +174,7 @@ export const ResaleManagement: React.FC = () => {
                   : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
                 }`}
             >
-              {allowResaleSystem ? "ĐANG MỞ" : "ĐÃ KHÓA"}
+              {allowResaleSystem ? translate("ĐANG MỞ") : translate("ĐÃ KHÓA")}
             </button>
           </div>
         </div>
@@ -185,8 +184,7 @@ export const ResaleManagement: React.FC = () => {
       <div className="p-3 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs font-medium flex items-center gap-2.5">
         <FiAlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
         <span>
-          Cảnh báo thuật toán: Hệ thống phát hiện <span className="font-bold">1 niêm yết vé</span> nghi vấn phe vé (vượt giá trần +20%). Đã tự động giữ giao dịch.
-        </span>
+          {translate("Cảnh báo thuật toán: Hệ thống phát hiện")} <span className="font-bold">{translate("1 niêm yết vé")}</span> {translate("nghi vấn phe vé (vượt giá trần +20%). Đã tự động giữ giao dịch.")} </span>
       </div>
 
       {/* Search & Listing Table */}
@@ -194,7 +192,7 @@ export const ResaleManagement: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
           <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
             <FiTag className="w-4 h-4 text-blue-600" />
-            <span>Danh sách Vé đang niêm yết Resale ({filteredListings.length})</span>
+            <span>{translate("Danh sách Vé đang niêm yết Resale (")}{filteredListings.length})</span>
           </h3>
 
           <div className="flex items-center gap-2 app-bg-subnav border border-slate-200 dark:border-slate-800 rounded-md px-3 py-1.5 max-w-xs w-full">
@@ -206,7 +204,7 @@ export const ResaleManagement: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Tìm theo Mã vé, Người bán hoặc Sự kiện..."
+              placeholder={translate("Tìm theo Mã vé, Người bán hoặc Sự kiện...")}
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-slate-400 font-medium"
             />
           </div>
@@ -217,14 +215,14 @@ export const ResaleManagement: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 app-text-muted font-bold text-[11px] uppercase tracking-wider">
-                <th className="py-2.5 px-3">Mã Vé</th>
-                <th className="py-2.5 px-3">Tên Sự Kiện</th>
-                <th className="py-2.5 px-3">Người Bán</th>
-                <th className="py-2.5 px-3 text-right">Giá Gốc</th>
-                <th className="py-2.5 px-3 text-right">Giá Niêm Yết</th>
-                <th className="py-2.5 px-3 text-center">% Chênh Lệch</th>
-                <th className="py-2.5 px-3 text-center">Trạng Thái</th>
-                <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                <th className="py-2.5 px-3">{translate("Mã Vé")}</th>
+                <th className="py-2.5 px-3">{translate("Tên Sự Kiện")}</th>
+                <th className="py-2.5 px-3">{translate("Người Bán")}</th>
+                <th className="py-2.5 px-3 text-right">{translate("Giá Gốc")}</th>
+                <th className="py-2.5 px-3 text-right">{translate("Giá Niêm Yết")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("% Chênh Lệch")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("Trạng Thái")}</th>
+                <th className="py-2.5 px-3 text-right">{translate("Thao Tác")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -236,15 +234,13 @@ export const ResaleManagement: React.FC = () => {
                       {item.ticketCode}
                     </td>
                     <td className="py-3 px-3 font-bold app-text-main max-w-xs truncate">
-                      {item.eventName}
+                      {translate(item.eventName)}
                     </td>
-                    <td className="py-3 px-3 app-text-main">{item.sellerName}</td>
+                    <td className="py-3 px-3 app-text-main">{translate(item.sellerName)}</td>
                     <td className="py-3 px-3 text-right app-text-muted">
-                      {item.originalPrice.toLocaleString("vi-VN")} đ
-                    </td>
+                      {item.originalPrice.toLocaleString(getLocale())} {translate("đ")} </td>
                     <td className="py-3 px-3 text-right font-bold text-blue-600 dark:text-blue-400">
-                      {item.resalePrice.toLocaleString("vi-VN")} đ
-                    </td>
+                      {item.resalePrice.toLocaleString(getLocale())} {translate("đ")} </td>
                     <td className="py-3 px-3 text-center font-bold">
                       <span
                         className={`px-2 py-0.5 rounded-md text-[11px] ${isOverCap
@@ -267,12 +263,12 @@ export const ResaleManagement: React.FC = () => {
                           }`}
                       >
                         {item.status === "ACTIVE"
-                          ? "Đang rao bán"
+                          ? translate("Đang rao bán")
                           : item.status === "FLAGGED"
-                            ? "Nghi vấn vi phạm"
+                            ? translate("Nghi vấn vi phạm")
                             : item.status === "LOCKED"
-                              ? "Đã khóa vé"
-                              : "Đã bán"}
+                              ? translate("Đã khóa vé")
+                              : translate("Đã bán")}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right">
@@ -284,7 +280,7 @@ export const ResaleManagement: React.FC = () => {
                             : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900 hover:bg-rose-600 hover:text-white"
                           }`}
                       >
-                        {item.status === "LOCKED" ? "Mở khóa vé" : "Khóa niêm yết"}
+                        {item.status === "LOCKED" ? translate("Mở khóa vé") : translate("Khóa niêm yết")}
                       </button>
                     </td>
                   </tr>
@@ -298,8 +294,7 @@ export const ResaleManagement: React.FC = () => {
         {filteredListings.length > 0 && (
           <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500">
             <span>
-              Hiển thị <span className="font-bold text-slate-900 dark:text-slate-100">{paginatedListings.length}</span> trên tổng số <span className="font-bold text-slate-900 dark:text-slate-100">{filteredListings.length}</span> niêm yết
-            </span>
+              {translate("Hiển thị")} <span className="font-bold text-slate-900 dark:text-slate-100">{paginatedListings.length}</span> {translate("trên tổng số")} <span className="font-bold text-slate-900 dark:text-slate-100">{filteredListings.length}</span> {translate("niêm yết")} </span>
 
             <div className="flex items-center gap-1.5">
               <button
@@ -311,7 +306,7 @@ export const ResaleManagement: React.FC = () => {
                 <FiChevronLeft className="w-4 h-4" />
               </button>
               <span className="px-3 font-semibold text-slate-700 dark:text-slate-300">
-                Trang {currentPage} / {totalPages}
+                {translate("Trang")} {currentPage} / {totalPages}
               </span>
               <button
                 type="button"

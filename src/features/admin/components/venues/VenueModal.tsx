@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AdminModal } from '../../../../components/admin/AdminModal';
 import { FiMapPin, FiUsers, FiCheckCircle, FiAlertTriangle, FiHome } from 'react-icons/fi';
 
@@ -26,7 +26,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
   onSubmit,
   editingVenue,
 }) => {
-  const [formData, setFormData] = useState<VenueFormData>({
+  const defaultFormData: VenueFormData = {
     name: '',
     address: '',
     city: 'TP. Hồ Chí Minh',
@@ -34,23 +34,17 @@ export const VenueModal: React.FC<VenueModalProps> = ({
     capacity: 1000,
     type: 'indoor',
     verified: true,
-  });
+  };
 
-  useEffect(() => {
-    if (editingVenue) {
-      setFormData(editingVenue);
-    } else {
-      setFormData({
-        name: '',
-        address: '',
-        city: 'TP. Hồ Chí Minh',
-        ward: '',
-        capacity: 1000,
-        type: 'indoor',
-        verified: true,
-      });
-    }
-  }, [editingVenue, isOpen]);
+  const [formData, setFormData] = useState<VenueFormData>(editingVenue || defaultFormData);
+  const [prevEditingVenue, setPrevEditingVenue] = useState(editingVenue);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  if (editingVenue !== prevEditingVenue || isOpen !== prevIsOpen) {
+    setPrevEditingVenue(editingVenue);
+    setPrevIsOpen(isOpen);
+    setFormData(editingVenue || defaultFormData);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +142,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
             </label>
             <select
               value={formData.type || 'indoor'}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'indoor' | 'outdoor' | 'hybrid' })}
               className="w-full px-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium cursor-pointer"
             >
               <option value="indoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">Trong nhà (Indoor)</option>

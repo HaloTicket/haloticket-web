@@ -1,3 +1,5 @@
+import { formatCurrency } from "@/utils/formatters";
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiClock, FiCalendar, FiPlus, FiTrash2, FiEdit3, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
@@ -32,20 +34,21 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   onBack,
   onNext
 }) => {
+  const { t: translate } = useTranslation();
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Event Time Schedule */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4 flex items-center gap-2">
           <FiClock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <span>Thời gian diễn ra sự kiện</span>
+          <span>{translate("Thời gian diễn ra sự kiện")}</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold app-text-main flex items-center gap-1.5">
               <FiCalendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span><span className="text-rose-500">*</span> Thời gian bắt đầu sự kiện</span>
+              <span><span className="text-rose-500">*</span> {translate("Thời gian bắt đầu sự kiện")}</span>
             </label>
             <input
               type="datetime-local"
@@ -58,7 +61,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
             {errors.startDate && (
               <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
                 <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>{errors.startDate}</span>
+                <span>{translate(errors.startDate)}</span>
               </p>
             )}
           </div>
@@ -66,7 +69,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
           <div className="space-y-2">
             <label className="text-xs font-bold app-text-main flex items-center gap-1.5">
               <FiCalendar className="w-4 h-4 text-rose-500" />
-              <span><span className="text-rose-500">*</span> Thời gian kết thúc sự kiện</span>
+              <span><span className="text-rose-500">*</span> {translate("Thời gian kết thúc sự kiện")}</span>
             </label>
             <input
               type="datetime-local"
@@ -79,7 +82,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
             {errors.endDate && (
               <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
                 <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>{errors.endDate}</span>
+                <span>{translate(errors.endDate)}</span>
               </p>
             )}
           </div>
@@ -92,9 +95,9 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
           <div>
             <h3 className="text-lg font-extrabold app-text-main flex items-center gap-2">
               <FaTicketAlt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span>Danh sách Loại vé mở bán</span>
+              <span>{translate("Danh sách Loại vé mở bán")}</span>
             </h3>
-            <p className="text-xs app-text-muted mt-0.5">Tạo các hạng vé khác nhau (VIP, GA, Early Bird, Vé miễn phí...)</p>
+            <p className="text-xs app-text-muted mt-0.5">{translate("Tạo các hạng vé khác nhau (VIP, GA, Early Bird, Vé miễn phí...)")}</p>
           </div>
 
           <button
@@ -103,21 +106,21 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95 shrink-0"
           >
             <FiPlus className="w-4 h-4" />
-            <span>Tạo loại vé mới</span>
+            <span>{translate("Tạo loại vé mới")}</span>
           </button>
         </div>
 
         {errors.tickets && (
           <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2">
             <FiAlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errors.tickets}</span>
+            <span>{translate(errors.tickets)}</span>
           </div>
         )}
 
         {tickets.length === 0 ? (
           <div className="text-center py-10 app-bg-subnav rounded-2xl border app-border space-y-3">
             <FaTicketAlt className="w-10 h-10 text-zinc-400 mx-auto" />
-            <p className="text-xs font-bold app-text-muted">Chưa có loại vé nào được tạo.</p>
+            <p className="text-xs font-bold app-text-muted">{translate("Chưa có loại vé nào được tạo.")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -134,10 +137,10 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
                     <h4 className="text-sm font-extrabold app-text-main">{t.name}</h4>
                     <div className="flex items-center gap-3 text-xs app-text-muted mt-0.5">
                       <span className="font-extrabold text-blue-600 dark:text-blue-400">
-                        {t.isFree ? "MIỄN PHÍ" : `${t.price.toLocaleString("vi-VN")} đ`}
+                        {t.isFree ? translate("MIỄN PHÍ") : formatCurrency(t.price)}
                       </span>
                       <span>•</span>
-                      <span>Số lượng: {t.totalQuantity} vé</span>
+                      <span>{translate("Số lượng:")} {t.totalQuantity} {translate("vé")}</span>
                     </div>
                     {(t.startSaleDate || t.endSaleDate) && (
                       <div className="text-[11px] app-text-muted flex items-center gap-1 mt-1 font-medium">
@@ -165,7 +168,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
                     type="button"
                     onClick={() => onDeleteTicket(t.id)}
                     className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors"
-                    title="Xóa vé"
+                    title={translate("Xóa vé")}
                   >
                     <FiTrash2 className="w-4 h-4" />
                   </button>
@@ -184,7 +187,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
           className="px-6 py-3 app-bg-subnav app-text-main font-extrabold text-sm rounded-xl border app-border flex items-center gap-2 cursor-pointer"
         >
           <FiChevronLeft className="w-4 h-4" />
-          <span>Quay lại</span>
+          <span>{translate("Quay lại")}</span>
         </button>
 
         <div className="flex items-center gap-3">
@@ -195,7 +198,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
               className="px-6 py-3 app-bg-subnav app-text-main font-bold text-sm rounded-xl border app-border hover:border-blue-500 flex items-center gap-2 cursor-pointer transition-all"
             >
               <FiBookmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Lưu bản nháp</span>
+              <span>{translate("Lưu bản nháp")}</span>
             </button>
           )}
 
@@ -204,7 +207,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
             onClick={onNext}
             className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95"
           >
-            <span>Tiếp tục: Cài đặt</span>
+            <span>{translate("Tiếp tục: Cài đặt")}</span>
             <FiChevronRight className="w-4 h-4" />
           </button>
         </div>

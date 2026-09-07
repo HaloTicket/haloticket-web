@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
@@ -14,6 +16,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
   onApply,
   currentPreset = "Tất cả các ngày"
 }) => {
+  useTranslation();
   const [selectedPreset, setSelectedPreset] = useState<string>(currentPreset);
   const [selectedDay, setSelectedDay] = useState<number | null>(3);
 
@@ -46,7 +49,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
       <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-200/60 dark:border-slate-800/60">
         {presetOptions.map((preset) => (
           <button
-            key={preset}
+            key={translate(preset)}
             type="button"
             onClick={() => setSelectedPreset(preset)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
@@ -55,7 +58,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
                 : "border app-border app-text-muted hover:app-text-main"
             }`}
           >
-            {preset}
+            {translate(preset)}
           </button>
         ))}
       </div>
@@ -66,8 +69,8 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
           <button type="button" className="p-1 hover:app-text-brand cursor-pointer">
             <FiChevronLeft className="w-4 h-4" />
           </button>
-          <span>Tháng 09, 2026</span>
-          <span className="hidden sm:inline">Tháng 10, 2026</span>
+          <span>{translate("Tháng 09, 2026")}</span>
+          <span className="hidden sm:inline">{translate("Tháng 10, 2026")}</span>
           <button type="button" className="p-1 hover:app-text-brand cursor-pointer">
             <FiChevronRight className="w-4 h-4" />
           </button>
@@ -134,15 +137,13 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
           onClick={handleReset}
           className="flex-1 py-2.5 rounded-xl border border-brand-primary/40 text-xs font-extrabold app-text-brand hover:bg-brand-primary/10 transition-colors cursor-pointer"
         >
-          Thiết lập lại
-        </button>
+          {translate("Thiết lập lại")}</button>
         <button
           type="button"
           onClick={handleApply}
           className="flex-1 py-2.5 rounded-xl gradient-btn text-white text-xs font-extrabold shadow-md hover:scale-102 active:scale-95 transition-transform cursor-pointer"
         >
-          Áp dụng
-        </button>
+          {translate("Áp dụng")}</button>
       </div>
     </div>
   );

@@ -15,12 +15,12 @@ export const mediaApi = {
       formData.append("file", file);
       formData.append("folder", folder);
 
-      const response: any = await axiosClient.post("/media/upload", formData, {
+      const response: unknown = await axiosClient.post("/media/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
-      return response;
+      return response as FileUploadResult;
     } catch (err) {
       console.warn("Failed to upload image file to media-service:", err);
       return null;
@@ -31,11 +31,11 @@ export const mediaApi = {
   uploadBase64Image: async (base64Data: string, folder = "media"): Promise<FileUploadResult | null> => {
     if (!base64Data || !base64Data.startsWith("data:image/")) return null;
     try {
-      const response: any = await axiosClient.post("/media/upload-base64", {
+      const response: unknown = await axiosClient.post("/media/upload-base64", {
         data: base64Data,
         folder,
       });
-      return response;
+      return response as FileUploadResult;
     } catch (err) {
       console.warn("Failed to upload Base64 image to media-service:", err);
       return null;

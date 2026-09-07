@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
-import type { UserProfile } from "@/types";
+import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { eventApi } from "@/services/eventApi";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
@@ -68,15 +68,15 @@ export const AdminLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchPendingCount();
+    const timer = setTimeout(() => {
+      void fetchPendingCount();
+    }, 0);
     window.addEventListener("approval-events-updated", fetchPendingCount);
-    return () => window.removeEventListener("approval-events-updated", fetchPendingCount);
-  }, [fetchPendingCount]);
-
-  // refetch pending count whenever notifications list changes
-  useEffect(() => {
-    fetchPendingCount();
-  }, [notifications.length, fetchPendingCount]);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("approval-events-updated", fetchPendingCount);
+    };
+  }, [fetchPendingCount, notifications.length]);
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -129,7 +129,7 @@ export const AdminLayout: React.FC = () => {
     };
   }, [navigate]);
 
-  const handleNotificationClick = async (n: any) => {
+  const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
     let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;

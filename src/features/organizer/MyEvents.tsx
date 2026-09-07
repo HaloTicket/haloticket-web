@@ -1,3 +1,5 @@
+import { getLocale } from "@/i18n";
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -20,18 +22,55 @@ import { organizerApi } from "@/services/organizerApi";
 import { userApi, getCachedUserProfile } from "@/services/userApi";
 import { TablePagination } from "@/components/common/TablePagination";
 
+import type { UserProfile } from "@/types";
+import type { OrganizerProfileData } from "@/types/organizer";
+
+type MyEventTab = "upcoming" | "past" | "pending" | "draft";
+
+interface OrganizerEventItem {
+  id?: string;
+  _id?: string;
+  title?: string;
+  bannerUrl?: string;
+  thumbnailUrl?: string;
+  posterImage?: string;
+  image?: string;
+  date?: string;
+  datesSummary?: string;
+  startTime?: string;
+  endTime?: string;
+  locationName?: string;
+  address?: string;
+  ward?: string;
+  city?: string;
+  location?: string;
+  eventApprovalStatus?: string;
+  eventStatus?: string;
+  organizer?: {
+    id?: string;
+    userId?: string;
+    name?: string;
+  };
+  tickets?: Array<{
+    price?: number;
+    totalQuantity?: number;
+    quantity?: number;
+  }>;
+}
+
 export const MyEvents: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "pending" | "draft">("pending");
+  const { t: translate } = useTranslation();
+  const [activeTab, setActiveTab] = useState<MyEventTab>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPendingModal, setShowPendingModal] = useState(false);
-  const [eventsList, setEventsList] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [myOrganizerProfile, setMyOrganizerProfile] = useState<any>(null);
+  const [eventsList, setEventsList] = useState<OrganizerEventItem[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [myOrganizerProfile, setMyOrganizerProfile] = useState<OrganizerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
-  const tabs = [
+  const tabs: Array<{ id: MyEventTab; label: string }> = [
     { id: "upcoming", label: "Sắp tới" },
     { id: "past", label: "Đã qua" },
     { id: "pending", label: "Chờ duyệt" },
@@ -64,7 +103,7 @@ export const MyEvents: React.FC = () => {
     fetchEvents();
   }, []);
 
-  const isMyEvent = (ev: any): boolean => {
+  const isMyEvent = (ev: OrganizerEventItem): boolean => {
     const user = currentUser || getCachedUserProfile();
     if (!user) return false;
 
@@ -91,7 +130,7 @@ export const MyEvents: React.FC = () => {
     return false;
   };
 
-  const getEventTabStatus = (ev: any): string => {
+  const getEventTabStatus = (ev: OrganizerEventItem): string => {
     const status = (ev.eventApprovalStatus || ev.eventStatus || "").toUpperCase();
     if (status === "PENDING") return "pending";
     if (status === "DRAFT") return "draft";
@@ -127,12 +166,11 @@ export const MyEvents: React.FC = () => {
             <FiSearch className="w-4 h-4 text-zinc-400" />
             <input
               type="text"
-              value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Tìm kiếm sự kiện"
+              placeholder={translate("Tìm kiếm sự kiện")}
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
             />
           </div>
@@ -140,8 +178,7 @@ export const MyEvents: React.FC = () => {
             type="button"
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
           >
-            Tìm kiếm
-          </button>
+            {translate("Tìm kiếm")} </button>
         </div>
 
         {/* Status Tabs Navigation */}
@@ -153,7 +190,7 @@ export const MyEvents: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => {
-                  setActiveTab(tab.id as any);
+                  setActiveTab(tab.id);
                   setCurrentPage(1);
                 }}
                 className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${isActive
@@ -161,7 +198,7 @@ export const MyEvents: React.FC = () => {
                     : "app-text-muted hover:app-text-main"
                   }`}
               >
-                {tab.label}
+                {translate(tab.label)}
               </button>
             );
           })}
@@ -173,8 +210,7 @@ export const MyEvents: React.FC = () => {
         <div className="w-full p-4 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs md:text-sm shadow-xs flex items-center gap-2.5">
           <FiAlertTriangle className="w-5 h-5 shrink-0 text-slate-900" />
           <span>
-            Lưu ý: Sự kiện đang chờ duyệt. Để đảm bảo tính bảo mật cho sự kiện của bạn, quyền truy cập vào trang chỉ dành cho chủ sở hữu và quản trị viên được ủy quyền
-          </span>
+            {translate("Lưu ý: Sự kiện đang chờ duyệt. Để đảm bảo tính bảo mật cho sự kiện của bạn, quyền truy cập vào trang chỉ dành cho chủ sở hữu và quản trị viên được ủy quyền")} </span>
         </div>
       )}
 
@@ -183,7 +219,7 @@ export const MyEvents: React.FC = () => {
         {isLoading ? (
           <div className="w-full app-bg-card border app-border rounded-2xl p-12 flex flex-col items-center justify-center space-y-3 min-h-[300px]">
             <FiLoader className="w-8 h-8 text-blue-600 animate-spin" />
-            <p className="text-xs font-bold app-text-muted">Đang tải danh sách sự kiện...</p>
+            <p className="text-xs font-bold app-text-muted">{translate("Đang tải danh sách sự kiện...")}</p>
           </div>
         ) : filteredEvents.length === 0 ? (
           /* Empty State Illustration */
@@ -194,10 +230,9 @@ export const MyEvents: React.FC = () => {
 
             <div className="space-y-1 max-w-sm">
               <h3 className="text-base font-extrabold app-text-main">
-                Không có sự kiện nào
-              </h3>
+                {translate("Không có sự kiện nào")} </h3>
               <p className="text-xs app-text-muted leading-relaxed">
-                Bạn chưa có sự kiện nào trong danh mục "{tabs.find((t) => t.id === activeTab)?.label}".
+                {translate("Bạn chưa có sự kiện nào trong danh mục \"")}{translate(tabs.find((t) => t.id === activeTab)?.label ?? "")}".
               </p>
             </div>
 
@@ -206,28 +241,28 @@ export const MyEvents: React.FC = () => {
               className="mt-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
             >
               <FiPlus className="w-4 h-4" />
-              <span>Bắt đầu tạo sự kiện</span>
+              <span>{translate("Bắt đầu tạo sự kiện")}</span>
             </Link>
           </div>
         ) : (
           /* List of Events Cards (Horizontal Layout with Royal Blue Theme) */
           <div className="space-y-4">
-            {paginatedEvents.map((ev) => {
+            {paginatedEvents.map((ev, idx) => {
               const eventImg = ev.bannerUrl || ev.thumbnailUrl || ev.posterImage || ev.image || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80";
-              const eventDate = ev.date || ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra");
+              const eventDate = ev.date || ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleString(getLocale(), { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra");
               const locationParts = [ev.locationName, ev.address, ev.ward, ev.city].filter(Boolean);
-              const eventLocation = locationParts.length > 0 ? locationParts.join(", ") : (ev.location || "Online Event");
+              const eventLocation = locationParts.length > 0 ? locationParts.join(", ") : (ev.location || translate("Sự kiện trực tuyến"));
 
               return (
                 <div
-                  key={ev.id || ev._id || Math.random()}
+                  key={ev.id || ev._id || `event-item-${idx}`}
                   className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
                 >
                   {/* Main Card Top Section */}
                   <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
                     {/* Poster Image 16:9 */}
                     <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-slate-800 shrink-0">
-                      <img src={eventImg} alt={ev.title} className="w-full h-full object-cover" />
+                      <img src={eventImg} alt={ev.title || translate("Sự kiện")} className="w-full h-full object-cover" />
                     </div>
 
                     {/* Event Information */}
@@ -250,7 +285,7 @@ export const MyEvents: React.FC = () => {
                       <div className="space-y-1 text-xs app-text-muted">
                         <div className="flex items-center gap-2">
                           <FiCalendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                          <span>{eventDate}</span>
+                          <span>{translate(eventDate)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <FiMapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -269,7 +304,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors"
                         >
                           <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Tổng quan</span>
+                          <span>{translate("Tổng quan")}</span>
                         </Link>
 
                         <Link
@@ -277,7 +312,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors"
                         >
                           <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Thành viên</span>
+                          <span>{translate("Thành viên")}</span>
                         </Link>
 
                         <Link
@@ -285,7 +320,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors"
                         >
                           <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Đơn hàng</span>
+                          <span>{translate("Đơn hàng")}</span>
                         </Link>
 
                         <Link
@@ -293,7 +328,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main hover:bg-blue-500/10 transition-colors bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
                         >
                           <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Sơ đồ ghế</span>
+                          <span>{translate("Sơ đồ ghế")}</span>
                         </Link>
 
                         <Link
@@ -301,7 +336,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors"
                         >
                           <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Chỉnh sửa</span>
+                          <span>{translate("Chỉnh sửa")}</span>
                         </Link>
                       </>
                     ) : (
@@ -312,7 +347,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
                         >
                           <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Tổng quan</span>
+                          <span>{translate("Tổng quan")}</span>
                         </button>
 
                         <button
@@ -321,7 +356,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
                         >
                           <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Thành viên</span>
+                          <span>{translate("Thành viên")}</span>
                         </button>
 
                         <button
@@ -330,7 +365,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
                         >
                           <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Đơn hàng</span>
+                          <span>{translate("Đơn hàng")}</span>
                         </button>
 
                         <button
@@ -339,7 +374,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
                         >
                           <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Sơ đồ ghế</span>
+                          <span>{translate("Sơ đồ ghế")}</span>
                         </button>
 
                         <Link
@@ -347,7 +382,7 @@ export const MyEvents: React.FC = () => {
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
                         >
                           <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? "Tiếp tục tạo nháp" : "Chỉnh sửa"}</span>
+                          <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? translate("Tiếp tục tạo nháp") : translate("Chỉnh sửa")}</span>
                         </Link>
                       </>
                     )}

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MOCK_RESALE_EVENTS } from "@/mock/resaleData";
@@ -7,6 +9,7 @@ import ResaleFilterModal, { type FilterState } from "./components/ResaleFilterMo
 import { FiFilter, FiCalendar, FiArrowLeft, FiChevronDown, FiChevronUp } from "react-icons/fi";
 
 export const ResaleEventDetail: React.FC = () => {
+  useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
 
@@ -81,7 +84,7 @@ export const ResaleEventDetail: React.FC = () => {
           className="mb-4 inline-flex items-center gap-2 text-xs md:text-sm font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
         >
           <FiArrowLeft className="w-4 h-4" />
-          <span>Quay lại Sàn vé bán lại</span>
+          <span>{translate("Quay lại Sàn vé bán lại")}</span>
         </button>
 
         {/* 1. Re-used EventHero Banner with Bán lại vé Badge */}
@@ -97,8 +100,7 @@ export const ResaleEventDetail: React.FC = () => {
         {/* 2. Section "Danh sách vé bán lại" Header with Filter Toggle */}
         <div id="resale-list-section" className="scroll-mt-20 mt-8 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-4 relative z-30">
           <h2 className="text-xl md:text-2xl font-extrabold app-text-main tracking-tight">
-            Danh sách vé bán lại
-          </h2>
+            {translate("Danh sách vé bán lại")}</h2>
 
           <div className="flex items-center gap-3 relative">
             <span className="px-3 py-1.5 rounded-xl bg-zinc-200/80 dark:bg-zinc-800 text-xs font-extrabold app-text-main flex items-center gap-1.5 border app-border">
@@ -113,7 +115,7 @@ export const ResaleEventDetail: React.FC = () => {
               className="px-4 py-1.5 rounded-xl gradient-btn text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md cursor-pointer hover:scale-105 transition-transform"
             >
               <FiFilter className="w-3.5 h-3.5" />
-              <span>Bộ lọc</span>
+              <span>{translate("Bộ lọc")}</span>
               {isFilterOpen ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
             </button>
 
@@ -157,7 +159,7 @@ export const ResaleEventDetail: React.FC = () => {
                           : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                         }`}
                     >
-                      {ticket.isRetail ? "Bán lẻ" : "Không bán lẻ"}
+                      {ticket.isRetail ? translate("Bán lẻ") : translate("Không bán lẻ")}
                     </span>
                     <span className="text-xs font-mono font-bold app-text-muted">
                       {ticket.resaleCode}
@@ -167,15 +169,15 @@ export const ResaleEventDetail: React.FC = () => {
                   {/* Info Lines */}
                   <div className="space-y-1.5 text-xs app-text-main mb-4">
                     <div className="flex justify-between">
-                      <span className="app-text-muted">Số lượng:</span>
+                      <span className="app-text-muted">{translate("Số lượng:")}</span>
                       <span className="font-extrabold">{ticket.quantity}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="app-text-muted">Suất diễn:</span>
+                      <span className="app-text-muted">{translate("Suất diễn:")}</span>
                       <span className="font-bold text-[11px]">{ticket.showtimeStr}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="app-text-muted">Khu vực:</span>
+                      <span className="app-text-muted">{translate("Khu vực:")}</span>
                       <span className="font-extrabold">{ticket.areaName}</span>
                     </div>
                   </div>
@@ -183,7 +185,7 @@ export const ResaleEventDetail: React.FC = () => {
 
                 {/* Price Line */}
                 <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-                  <span className="text-xs app-text-muted font-medium">Giá bán mỗi vé:</span>
+                  <span className="text-xs app-text-muted font-medium">{translate("Giá bán mỗi vé:")}</span>
                   <span className="text-sm font-black app-text-brand">
                     {ticket.pricePerTicket}
                   </span>
@@ -193,8 +195,7 @@ export const ResaleEventDetail: React.FC = () => {
           </div>
         ) : (
           <div className="app-bg-card border app-border rounded-3xl p-12 text-center text-sm app-text-muted">
-            Không tìm thấy vé bán lại nào phù hợp với bộ lọc đã chọn.
-          </div>
+            {translate("Không tìm thấy vé bán lại nào phù hợp với bộ lọc đã chọn.")}</div>
         )}
       </div>
     </div>

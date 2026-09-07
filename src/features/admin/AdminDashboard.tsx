@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
@@ -12,6 +13,7 @@ import {
 } from "react-icons/fi";
 
 export const AdminDashboard: React.FC = () => {
+  const { t: translate } = useTranslation();
 
   const statCards = [
     {
@@ -121,15 +123,13 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-2 z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold">
             <FiActivity className="w-3.5 h-3.5" />
-            <span>Hệ thống Quản trị HaloTicket Admin v2.5</span>
+            <span>{translate("Hệ thống Quản trị HaloTicket Admin v2.5")}</span>
           </div>
           <h2 className="text-xl md:text-2xl font-bold tracking-tight leading-tight">
-            Chào mừng trở lại, Trần Long Vũ! 👋
-          </h2>
+            {translate("Chào mừng trở lại, Trần Long Vũ! 👋")} </h2>
           <p className="text-xs md:text-sm text-blue-100/80 leading-relaxed">
-            Hệ thống hiện có <span className="font-bold text-amber-300">3 sự kiện chờ duyệt</span> và{" "}
-            <span className="font-bold text-blue-300">5 hồ sơ eKYC</span> đang chờ đối soát.
-          </p>
+            {translate("Hệ thống hiện có")} <span className="font-bold text-amber-300">{translate("3 sự kiện chờ duyệt")}</span> {translate("và")}{" "}
+            <span className="font-bold text-blue-300">{translate("5 hồ sơ eKYC")}</span> {translate("đang chờ đối soát.")} </p>
         </div>
 
         {/* Action button */}
@@ -139,7 +139,7 @@ export const AdminDashboard: React.FC = () => {
             className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-md shadow-xs transition-all flex items-center gap-2 cursor-pointer"
           >
             <FiCheckSquare className="w-4 h-4" />
-            <span>Kiểm duyệt Sự kiện ngay</span>
+            <span>{translate("Kiểm duyệt Sự kiện ngay")}</span>
           </Link>
         </div>
 
@@ -160,19 +160,19 @@ export const AdminDashboard: React.FC = () => {
                 {card.icon}
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                {card.badgeText}
+                {translate(card.badgeText)}
               </span>
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{card.title}</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{translate(card.title)}</span>
               <div className="text-xl font-extrabold app-text-main tracking-tight flex items-baseline gap-2">
-                <span>{card.value}</span>
+                <span>{translate(card.value)}</span>
               </div>
             </div>
 
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{card.change}</span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{translate(card.change)}</span>
               <FiArrowUpRight className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </div>
           </Link>
@@ -188,16 +188,16 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
                   <FiCheckSquare className="w-4 h-4 text-amber-500" />
-                  <span>Sự kiện đang chờ phê duyệt ({recentPendingEvents.length})</span>
+                  <span>{translate("Sự kiện đang chờ phê duyệt (")}{recentPendingEvents.length})</span>
                 </h3>
-                <p className="text-xs app-text-muted mt-0.5">Các yêu cầu tạo sự kiện mới gửi từ Ban Tổ Chức</p>
+                <p className="text-xs app-text-muted mt-0.5">{translate("Các yêu cầu tạo sự kiện mới gửi từ Ban Tổ Chức")}</p>
               </div>
 
               <Link
                 to={PATHS.ADMIN_EVENTS_APPROVAL}
                 className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
               >
-                <span>Xem tất cả</span>
+                <span>{translate("Xem tất cả")}</span>
                 <FiChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -212,20 +212,19 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex items-center gap-3.5 min-w-0">
                     <img
                       src={event.poster}
-                      alt={event.title}
+                      alt={translate(event.title)}
                       className="w-14 h-14 rounded-md object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs"
                     />
                     <div className="space-y-0.5 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
-                          Chờ duyệt
-                        </span>
+                          {translate("Chờ duyệt")} </span>
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate">
-                          {event.category}
+                          {translate(event.category)}
                         </span>
                       </div>
-                      <h4 className="text-xs font-bold app-text-main truncate">{event.title}</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">BTC: {event.organizer}</p>
+                      <h4 className="text-xs font-bold app-text-main truncate">{translate(event.title)}</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{translate("BTC:")} {translate(event.organizer)}</p>
                     </div>
                   </div>
 
@@ -235,7 +234,7 @@ export const AdminDashboard: React.FC = () => {
                       className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                     >
                       <FiEye className="w-3.5 h-3.5" />
-                      <span>Xem & Duyệt</span>
+                      <span>{translate("Xem & Duyệt")}</span>
                     </Link>
                   </div>
                 </div>
@@ -249,8 +248,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Quick Action Shortcuts */}
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
-              Tác vụ nhanh Admin
-            </h3>
+              {translate("Tác vụ nhanh Admin")} </h3>
 
             <div className="space-y-2">
               <Link
@@ -259,7 +257,7 @@ export const AdminDashboard: React.FC = () => {
               >
                 <div className="flex items-center gap-2">
                   <FiShield className="w-4 h-4 text-blue-500" />
-                  <span>Duyệt hồ sơ eKYC (5)</span>
+                  <span>{translate("Duyệt hồ sơ eKYC (5)")}</span>
                 </div>
                 <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -270,7 +268,7 @@ export const AdminDashboard: React.FC = () => {
               >
                 <div className="flex items-center gap-2">
                   <FiTrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span>Điều chỉnh Giá trần Vé Resale</span>
+                  <span>{translate("Điều chỉnh Giá trần Vé Resale")}</span>
                 </div>
                 <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -281,7 +279,7 @@ export const AdminDashboard: React.FC = () => {
               >
                 <div className="flex items-center gap-2">
                   <FiActivity className="w-4 h-4 text-indigo-500" />
-                  <span>Kiểm tra Microservices</span>
+                  <span>{translate("Kiểm tra Microservices")}</span>
                 </div>
                 <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -291,17 +289,16 @@ export const AdminDashboard: React.FC = () => {
           {/* Activity Log Feed */}
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
-              Nhật ký quản trị gần đây
-            </h3>
+              {translate("Nhật ký quản trị gần đây")} </h3>
 
             <div className="space-y-2">
               {recentActivityLogs.map((log) => (
                 <div key={log.id} className="text-xs space-y-1 p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between font-bold app-text-main">
-                    <span>{log.user}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">{log.time}</span>
+                    <span>{translate(log.user)}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">{translate(log.time)}</span>
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400 leading-snug">{log.action}</p>
+                  <p className="text-slate-500 dark:text-slate-400 leading-snug">{translate(log.action)}</p>
                 </div>
               ))}
             </div>

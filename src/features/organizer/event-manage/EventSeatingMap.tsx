@@ -148,10 +148,10 @@ export const EventSeatingMap: React.FC = () => {
                     <div className="flex items-center gap-2">
                       {rowSeats.map((seat) => {
                         const tier = tiers.find((t) => t.id === seat.tierId);
-                        let seatBg = tier?.color || 'bg-slate-700 text-white';
-                        let isBlocked = seat.status === 'BLOCKED';
-                        let isSold = seat.status === 'SOLD';
-                        let isReserved = seat.status === 'RESERVED';
+                        const seatBg = tier?.color || 'bg-slate-700 text-white';
+                        const isBlocked = seat.status === 'BLOCKED';
+                        const isSold = seat.status === 'SOLD';
+                        const isReserved = seat.status === 'RESERVED';
 
                         return (
                           <button

@@ -37,6 +37,6 @@ describe("axiosClient authentication", () => {
   it("shows an immediate duplicate-account message", async () => {
     const { getAuthErrorMessage } = await import("@/services/authApi");
     expect(getAuthErrorMessage({ code: "USER_ALREADY_EXISTS" }, "fallback"))
-      .toBe("Email này đã được đăng ký. Vui lòng đăng nhập.");
+      .toEqual({ key: "Email này đã được đăng ký. Vui lòng đăng nhập." });
   });
 });

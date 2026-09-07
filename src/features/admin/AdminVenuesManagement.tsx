@@ -72,7 +72,35 @@ export const AdminVenuesManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    loadVenuesData();
+    let isMounted = true;
+    venueApi.getVenues().then((dbVenues) => {
+      if (!isMounted) return;
+      if (Array.isArray(dbVenues) && dbVenues.length > 0) {
+        const mappedVenues: SystemVenue[] = dbVenues.map((v) => ({
+          id: String(v.id),
+          name: v.name,
+          city: v.city || "TP. Hồ Chí Minh",
+          ward: v.ward || "",
+          address: v.address || v.name,
+          capacity: v.capacity || 1000,
+          verified: v.verified,
+          eventsHosted: v.eventsHosted || 0,
+          bookings: [],
+        }));
+        setVenues(mappedVenues);
+      } else {
+        setVenues(PRESET_VENUES.map((pv) => ({ ...pv })));
+      }
+      setIsLoading(false);
+    }).catch((err) => {
+      if (!isMounted) return;
+      console.error("Failed to load venues from DB", err);
+      showToast("Không thể tải dữ liệu địa điểm từ CSDL backend", "error");
+      setIsLoading(false);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // toggle verification status in DB
@@ -281,7 +309,7 @@ export const AdminVenuesManagement: React.FC = () => {
           <AdminSelect
             value={statusFilter}
             onChange={(val) => {
-              setStatusFilter(val as any);
+              setStatusFilter(val as "ALL" | "VERIFIED" | "UNVERIFIED");
               setCurrentPage(1);
             }}
             icon={<FiFilter className="w-3.5 h-3.5" />}
