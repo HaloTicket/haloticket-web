@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FiUsers,
   FiSearch,
@@ -25,6 +26,7 @@ interface UserItem {
 }
 
 export const UserManagement: React.FC = () => {
+  const { t: translate } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
@@ -123,10 +125,10 @@ export const UserManagement: React.FC = () => {
       {/* Top Metric Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {[
-          { label: "Tổng Người dùng", val: "12,450", color: "text-blue-600 dark:text-blue-400" },
-          { label: "Ban Tổ Chức (BTC)", val: "142", color: "text-indigo-600 dark:text-indigo-400" },
-          { label: "Quản trị viên (Admin)", val: "8", color: "text-purple-600 dark:text-purple-400" },
-          { label: "Tài khoản bị khóa", val: "14", color: "text-rose-500" }
+          { label: translate("Tổng Người dùng"), val: "12,450", color: "text-blue-600 dark:text-blue-400" },
+          { label: translate("Ban Tổ Chức (BTC)"), val: "142", color: "text-indigo-600 dark:text-indigo-400" },
+          { label: translate("Quản trị viên (Admin)"), val: "8", color: "text-purple-600 dark:text-purple-400" },
+          { label: translate("Tài khoản bị khóa"), val: "14", color: "text-rose-500" }
         ].map((s, idx) => (
           <div key={idx} className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-1">
             <span className="text-[11px] font-medium app-text-muted block">{s.label}</span>
@@ -141,7 +143,7 @@ export const UserManagement: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <h3 className="text-sm font-bold app-text-main">
-              Quản lý Danh sách Người dùng & Vai trò
+              {translate("Quản lý Danh sách Người dùng & Vai trò")}
             </h3>
           </div>
 
@@ -156,7 +158,7 @@ export const UserManagement: React.FC = () => {
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Tìm tên, email, sđt..."
+                placeholder={translate("Tìm tên, email, sđt...")}
                 className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-slate-400 font-medium"
               />
             </div>
@@ -170,7 +172,7 @@ export const UserManagement: React.FC = () => {
               }}
               icon={<FiFilter className="w-3.5 h-3.5" />}
               options={[
-                { label: "Tất cả vai trò", value: "ALL" },
+                { label: translate("Tất cả vai trò"), value: "ALL" },
                 { label: "ADMIN", value: "ADMIN" },
                 { label: "ORGANIZER", value: "ORGANIZER" },
                 { label: "SUPPORT", value: "SUPPORT" },
@@ -185,13 +187,13 @@ export const UserManagement: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 app-text-muted font-bold text-[11px] uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="py-2.5 px-3">Mã ID</th>
-                <th className="py-2.5 px-3">Họ và Tên</th>
-                <th className="py-2.5 px-3">Email & SĐT</th>
-                <th className="py-2.5 px-3 text-center">Vai Trò</th>
-                <th className="py-2.5 px-3 text-center">Trạng Thái</th>
-                <th className="py-2.5 px-3 text-center">Ngày Tham Gia</th>
-                <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                <th className="py-2.5 px-3">{translate("Mã ID")}</th>
+                <th className="py-2.5 px-3">{translate("Họ và Tên")}</th>
+                <th className="py-2.5 px-3">{translate("Email & SĐT")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("Vai Trò")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("Trạng Thái")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("Ngày Tham Gia")}</th>
+                <th className="py-2.5 px-3 text-right">{translate("Thao Tác")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -232,7 +234,7 @@ export const UserManagement: React.FC = () => {
                           : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
                       }`}
                     >
-                      {user.status === "ACTIVE" ? "Hoạt động" : "Tạm khóa"}
+                      {user.status === "ACTIVE" ? translate("Hoạt động") : translate("Tạm khóa")}
                     </span>
                   </td>
 
@@ -244,7 +246,7 @@ export const UserManagement: React.FC = () => {
                         type="button"
                         onClick={() => setSelectedUser(user)}
                         className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 app-bg-card hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 cursor-pointer"
-                        title="Phân quyền vai trò"
+                        title={translate("Phân quyền vai trò")}
                       >
                         <FiEdit className="w-3.5 h-3.5" />
                       </button>
@@ -257,7 +259,7 @@ export const UserManagement: React.FC = () => {
                             ? "border-rose-200 dark:border-rose-900/40 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                             : "border-emerald-200 dark:border-emerald-900/40 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                         }`}
-                        title={user.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+                        title={user.status === "ACTIVE" ? translate("Khóa tài khoản") : translate("Mở khóa tài khoản")}
                       >
                         {user.status === "ACTIVE" ? (
                           <FiLock className="w-3.5 h-3.5" />
@@ -277,7 +279,7 @@ export const UserManagement: React.FC = () => {
         {totalPages > 1 && (
           <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
             <span className="app-text-muted font-medium">
-              Hiển thị {paginatedUsers.length} / {filteredUsers.length} người dùng
+              {translate("Hiển thị")} {paginatedUsers.length} / {filteredUsers.length} {translate("người dùng")}
             </span>
             <div className="flex items-center gap-1.5">
               <button
@@ -309,7 +311,7 @@ export const UserManagement: React.FC = () => {
         <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold app-text-main">Phân quyền Vai trò Người dùng</h3>
+              <h3 className="text-sm font-bold app-text-main">{translate("Phân quyền Vai trò Người dùng")}</h3>
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
@@ -321,7 +323,7 @@ export const UserManagement: React.FC = () => {
 
             <div className="space-y-2">
               <p className="text-xs app-text-muted">
-                Đang thay đổi vai trò cho tài khoản: <strong className="app-text-main">{selectedUser.fullName}</strong>
+                {translate("Đang thay đổi vai trò cho tài khoản:")} <strong className="app-text-main">{selectedUser.fullName}</strong>
               </p>
 
               <div className="space-y-1.5 pt-2">
@@ -349,7 +351,7 @@ export const UserManagement: React.FC = () => {
                 onClick={() => setSelectedUser(null)}
                 className="px-4 py-2 app-bg-subnav app-text-main text-xs font-bold rounded-md border border-slate-200 dark:border-slate-700 cursor-pointer"
               >
-                Hủy bỏ
+                {translate("Hủy bỏ")}
               </button>
             </div>
           </div>

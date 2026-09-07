@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { FiMapPin, FiPlus, FiRefreshCw, FiAlertCircle, FiCheckCircle, FiFilter } from "react-icons/fi";
 import { venueApi } from "@/services/venueApi";
 import type { VenueApiData } from "@/types";
@@ -14,6 +15,7 @@ import { VenueModal, type VenueFormData } from "./components/venues/VenueModal";
 import { VenueDeleteModal } from "./components/venues/VenueDeleteModal";
 
 export const AdminVenuesManagement: React.FC = () => {
+  const { t: translate } = useTranslation();
   const [venues, setVenues] = useState<SystemVenue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -266,10 +268,10 @@ export const AdminVenuesManagement: React.FC = () => {
           <div>
             <h2 className="text-base font-bold app-text-main flex items-center gap-2">
               <FiMapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Quản Lý Địa Điểm Tổ Chức Sự Kiện (CSDL)</span>
+              <span>{translate("Quản Lý Địa Điểm Tổ Chức Sự Kiện (CSDL)")}</span>
             </h2>
             <p className="text-xs app-text-muted mt-0.5">
-              Xác minh địa điểm chính thức, duyệt thông tin và lưu trực tiếp vào cơ sở dữ liệu hệ thống.
+              {translate("Xác minh địa điểm chính thức, duyệt thông tin và lưu trực tiếp vào cơ sở dữ liệu hệ thống.")}
             </p>
           </div>
 
@@ -278,7 +280,7 @@ export const AdminVenuesManagement: React.FC = () => {
               type="button"
               onClick={loadVenuesData}
               className="p-2 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95"
-              title="Tải lại dữ liệu từ CSDL"
+              title={translate("Tải lại dữ liệu từ CSDL")}
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
             </button>
@@ -291,7 +293,7 @@ export const AdminVenuesManagement: React.FC = () => {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-md shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shrink-0"
             >
               <FiPlus className="w-3.5 h-3.5" />
-              <span>Thêm địa điểm mới</span>
+              <span>{translate("Thêm địa điểm mới")}</span>
             </button>
           </div>
         </div>
@@ -303,7 +305,7 @@ export const AdminVenuesManagement: React.FC = () => {
             setSearchQuery(val);
             setCurrentPage(1);
           }}
-          searchPlaceholder="Tìm theo tên địa điểm, địa chỉ, thành phố..."
+          searchPlaceholder={translate("Tìm theo tên địa điểm, địa chỉ, thành phố...")}
         >
           {/* Status Filter */}
           <AdminSelect
@@ -314,9 +316,9 @@ export const AdminVenuesManagement: React.FC = () => {
             }}
             icon={<FiFilter className="w-3.5 h-3.5" />}
             options={[
-              { label: "Tất cả trạng thái", value: "ALL" },
-              { label: "Đã xác minh", value: "VERIFIED" },
-              { label: "Chưa xác minh", value: "UNVERIFIED" },
+              { label: translate("Tất cả trạng thái"), value: "ALL" },
+              { label: translate("Đã xác minh"), value: "VERIFIED" },
+              { label: translate("Chưa xác minh"), value: "UNVERIFIED" },
             ]}
           />
 
@@ -328,7 +330,7 @@ export const AdminVenuesManagement: React.FC = () => {
               setCurrentPage(1);
             }}
             options={[
-              { label: "Tất cả thành phố", value: "ALL" },
+              { label: translate("Tất cả thành phố"), value: "ALL" },
               ...uniqueCities.map((city) => ({ label: city, value: city })),
             ]}
           />
