@@ -46,7 +46,9 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   const handleSave = () => {
     setErrorMsg(null);
     if (!newTicketName.trim()) {
-      setErrorMsg(translate("Vui lòng nhập tên loại vé!"));
+      const msg = translate("Vui lòng nhập tên loại vé!");
+      setErrorMsg(msg);
+      alert(msg);
       return;
     }
 

@@ -678,5 +678,14 @@
   "Sự kiện của tôi": "My events",
   "Quản lý báo cáo": "Manage reports",
   "Điều khoản Ban tổ chức": "Organizer terms",
-  "Điều khoản cho Ban tổ chức": "Terms for organizers"
+  "Điều khoản cho Ban tổ chức": "Terms for organizers",
+  "Tiếp tục tạo nháp": "Continue draft",
+  "Thời gian kết thúc bán vé phải diễn ra sau thời gian bắt đầu bán vé!": "Ticket sale end time must be after ticket sale start time!",
+  "Thời gian bắt đầu bán vé phải diễn ra trước thời gian bắt đầu sự kiện!": "Ticket sale start time must be before event start time!",
+  "Thời gian kết thúc bán vé không thể diễn ra sau thời gian kết thúc sự kiện!": "Ticket sale end time cannot be after event end time!",
+  "Chỉnh sửa loại vé": "Edit ticket type",
+  "Tính năng khảo sát thông tin đăng ký hiện đang TẮT": "Registration details survey feature is currently OFF",
+  "Bạn có thể bật tính năng này nếu cần thu thập thêm thông tin người mua vé (như số CCCD, tên công ty, kích cỡ áo...).": "You can turn this on if you need to collect additional buyer details (such as ID number, company name, t-shirt size...).",
+  "Bật thu thập thông tin đăng ký": "Enable registration details collection",
+  "Câu hỏi dạng văn bản": "Text question"
 }
