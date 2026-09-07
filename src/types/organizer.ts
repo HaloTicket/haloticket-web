@@ -27,6 +27,26 @@ export interface OrganizerProfile {
   isExisting: boolean;
 }
 
+export interface OrganizerProfileData {
+  id?: string;
+  userId?: string;
+  name?: string;
+  description?: string;
+  avatar?: string;
+  organizerName?: string;
+  organizerPhone?: string;
+  organizerEmail?: string;
+  organizerLogo?: string;
+  taxCode?: string;
+  businessAddress?: string;
+  bankName?: string;
+  bankAccountHolder?: string;
+  bankAccountNumber?: string;
+  identityCardNumber?: string;
+  verified?: boolean;
+  [key: string]: any;
+}
+
 export interface Step1Errors {
   title?: string;
   category?: string;

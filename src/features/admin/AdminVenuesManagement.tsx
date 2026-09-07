@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { FiMapPin, FiPlus, FiRefreshCw, FiAlertCircle, FiCheckCircle, FiFilter } from "react-icons/fi";
-import { eventApi, type VenueApiData } from "@/services/eventApi";
-import { PRESET_VENUES, type SystemVenue } from "@/utils/venueUtils";
+import { venueApi } from "@/services/venueApi";
+import type { VenueApiData } from "@/types";
+import { PRESET_VENUES } from "@/utils/venueUtils";
+import type { SystemVenue } from "@/types";
 
 import { AdminSearchFilterBar } from "@/components/admin/AdminSearchFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
@@ -15,21 +17,21 @@ export const AdminVenuesManagement: React.FC = () => {
   const [venues, setVenues] = useState<SystemVenue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filter & Search state
+  // filter & search state
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "VERIFIED" | "UNVERIFIED">("ALL");
   const [cityFilter, setCityFilter] = useState("ALL");
 
-  // Pagination state
+  // pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
-  // Modal state
+  // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVenue, setEditingVenue] = useState<VenueFormData | null>(null);
   const [deletingVenue, setDeletingVenue] = useState<SystemVenue | null>(null);
 
-  // Toast state
+  // toast state
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -37,11 +39,11 @@ export const AdminVenuesManagement: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Load venue data directly from MySQL DB via event-service API
+  // load venue data directly from MySQL DB via event-service API
   const loadVenuesData = async () => {
     setIsLoading(true);
     try {
-      const dbVenues: VenueApiData[] = await eventApi.getVenues();
+      const dbVenues: VenueApiData[] = await venueApi.getVenues();
 
       if (Array.isArray(dbVenues) && dbVenues.length > 0) {
         const mappedVenues: SystemVenue[] = dbVenues.map((v) => ({
@@ -57,7 +59,7 @@ export const AdminVenuesManagement: React.FC = () => {
         }));
         setVenues(mappedVenues);
       } else {
-        // Baseline fallback if backend initializing
+        // baseline fallback if backend initializing
         const fallbackVenues: SystemVenue[] = PRESET_VENUES.map((pv) => ({ ...pv }));
         setVenues(fallbackVenues);
       }
@@ -73,18 +75,18 @@ export const AdminVenuesManagement: React.FC = () => {
     loadVenuesData();
   }, []);
 
-  // Toggle verification status in DB
+  // toggle verification status in DB
   const handleToggleVerification = async (venue: SystemVenue) => {
     const numericId = Number(venue.id.replace(/\D/g, ""));
     const newStatus = !venue.verified;
 
-    // Optimistic UI update
+    // optimistic UI update
     setVenues((prev) =>
       prev.map((v) => (v.id === venue.id ? { ...v, verified: newStatus } : v))
     );
 
     if (!isNaN(numericId) && numericId > 0) {
-      const updated = await eventApi.toggleVerifyVenue(numericId);
+      const updated = await venueApi.toggleVerifyVenue(numericId);
       if (updated) {
         showToast(
           updated.verified
@@ -103,7 +105,7 @@ export const AdminVenuesManagement: React.FC = () => {
     );
   };
 
-  // Handle Create / Edit submission directly in DB
+  // handle create / edit submission directly in DB
   const handleModalSubmit = async (formData: VenueFormData) => {
     if (editingVenue && editingVenue.id) {
       const numericId = Number(editingVenue.id.replace(/\D/g, ""));
@@ -118,7 +120,7 @@ export const AdminVenuesManagement: React.FC = () => {
       };
 
       if (!isNaN(numericId) && numericId > 0) {
-        const res = await eventApi.updateVenue(numericId, payload);
+        const res = await venueApi.updateVenue(numericId, payload);
         if (res) {
           showToast(`Đã cập nhật thông tin địa điểm "${formData.name}" trong CSDL!`);
           setEditingVenue(null);
@@ -144,7 +146,7 @@ export const AdminVenuesManagement: React.FC = () => {
         verified: formData.verified,
       };
 
-      const res = await eventApi.createVenue(payload);
+      const res = await venueApi.createVenue(payload);
       if (res) {
         showToast(`Đã lưu địa điểm mới "${res.name}" vào CSDL thành công!`);
         loadVenuesData();
@@ -163,13 +165,13 @@ export const AdminVenuesManagement: React.FC = () => {
     setEditingVenue(null);
   };
 
-  // Handle Delete Confirmation in DB
+  // handle delete confirmation in DB
   const handleConfirmDelete = async () => {
     if (!deletingVenue) return;
     const numericId = Number(deletingVenue.id.replace(/\D/g, ""));
 
     if (!isNaN(numericId) && numericId > 0) {
-      const success = await eventApi.deleteVenue(numericId);
+      const success = await venueApi.deleteVenue(numericId);
       if (success) {
         showToast(`Đã xóa địa điểm "${deletingVenue.name}" khỏi CSDL thành công!`, "info");
         setDeletingVenue(null);
@@ -183,7 +185,7 @@ export const AdminVenuesManagement: React.FC = () => {
     setDeletingVenue(null);
   };
 
-  // Filtering
+  // filtering
   const filteredVenues = venues.filter((v) => {
     const matchesSearch =
       v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,11 +200,11 @@ export const AdminVenuesManagement: React.FC = () => {
     return matchesSearch && matchesStatus && matchesCity;
   });
 
-  // Pagination calculations
+  // pagination calculations
   const totalPages = Math.ceil(filteredVenues.length / pageSize) || 1;
   const paginatedVenues = filteredVenues.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // Available unique cities for dropdown filter
+  // available unique cities for dropdown filter
   const uniqueCities = Array.from(new Set(venues.map((v) => v.city))).filter(Boolean);
 
   return (
@@ -210,13 +212,12 @@ export const AdminVenuesManagement: React.FC = () => {
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-xl shadow-xl border text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-200 ${
-            toast.type === "success"
-              ? "bg-emerald-600 text-white border-emerald-500"
-              : toast.type === "error"
+          className={`fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-xl shadow-xl border text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-200 ${toast.type === "success"
+            ? "bg-emerald-600 text-white border-emerald-500"
+            : toast.type === "error"
               ? "bg-rose-600 text-white border-rose-500"
               : "bg-blue-600 text-white border-blue-500"
-          }`}
+            }`}
         >
           {toast.type === "success" ? (
             <FiCheckCircle className="w-4 h-4 shrink-0" />
@@ -286,8 +287,8 @@ export const AdminVenuesManagement: React.FC = () => {
             icon={<FiFilter className="w-3.5 h-3.5" />}
             options={[
               { label: "Tất cả trạng thái", value: "ALL" },
-              { label: "🟢 Đã xác minh", value: "VERIFIED" },
-              { label: "🟠 Chưa xác minh", value: "UNVERIFIED" },
+              { label: "Đã xác minh", value: "VERIFIED" },
+              { label: "Chưa xác minh", value: "UNVERIFIED" },
             ]}
           />
 

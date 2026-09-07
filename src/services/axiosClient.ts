@@ -62,15 +62,23 @@ axiosClient.interceptors.response.use(
         return retryRes.data;
       } catch (retryErr) {
         console.warn("Unauthorized API call after retry:", originalRequest.url);
+        // if request requires authentication and failed with 401, dispatch session-expired
+        if (getKeycloakSession().isAuthenticated()) {
+          window.dispatchEvent(new CustomEvent("session-expired"));
+        }
         return Promise.reject(retryErr);
       }
     }
 
     if (error.response?.status === 401) {
       console.warn("Unauthorized API call:", error.config?.url);
+      if (getKeycloakSession().isAuthenticated()) {
+        window.dispatchEvent(new CustomEvent("session-expired"));
+      }
     }
     return Promise.reject(error);
   },
 );
+
 
 export default axiosClient;

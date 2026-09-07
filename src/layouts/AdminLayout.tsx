@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/context/ThemeContext";
 import { getKeycloakSession } from "@/services/keycloakSession";
-import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
+import { getCachedUserProfile, userApi } from "@/services/userApi";
+import type { UserProfile } from "@/types";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
+import { eventApi } from "@/services/eventApi";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import { NotificationToast } from "@/components/notifications/NotificationToast";
+
 import {
   FiGrid,
   FiCheckSquare,
@@ -17,7 +23,6 @@ import {
   FiMoon,
   FiMenu,
   FiX,
-  FiBell,
   FiChevronLeft,
   FiChevronRight,
   FiHome,
@@ -25,7 +30,6 @@ import {
   FiLogOut,
   FiSettings,
   FiUserCheck,
-  FiAlertCircle,
   FiLayout,
   FiMapPin
 } from "react-icons/fi";
@@ -48,9 +52,34 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket("ADMIN");
+
+  const [pendingEventsCount, setPendingEventsCount] = useState<number>(0);
+
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const data = await eventApi.getApprovalEvents("PENDING");
+      if (Array.isArray(data)) {
+        setPendingEventsCount(data.length);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch pending approval count", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingCount();
+    window.addEventListener("approval-events-updated", fetchPendingCount);
+    return () => window.removeEventListener("approval-events-updated", fetchPendingCount);
+  }, [fetchPendingCount]);
+
+  // refetch pending count whenever notifications list changes
+  useEffect(() => {
+    fetchPendingCount();
+  }, [notifications.length, fetchPendingCount]);
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
@@ -60,7 +89,6 @@ export const AdminLayout: React.FC = () => {
   // live time clock state
   const [currentTime, setCurrentTime] = useState("");
 
-  const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,16 +111,37 @@ export const AdminLayout: React.FC = () => {
       setUserProfile(getCachedUserProfile());
     };
 
+    const handleSessionExpired = () => {
+      getKeycloakSession().logout();
+      navigate(`${PATHS.LOGIN}?session_expired=true`, { replace: true });
+    };
+
     checkAuth();
     window.addEventListener("storage", checkAuth);
     window.addEventListener("auth-changed", checkAuth);
     window.addEventListener("user-updated", handleProfileUpdate);
+    window.addEventListener("session-expired", handleSessionExpired);
     return () => {
       window.removeEventListener("storage", checkAuth);
       window.removeEventListener("auth-changed", checkAuth);
       window.removeEventListener("user-updated", handleProfileUpdate);
+      window.removeEventListener("session-expired", handleSessionExpired);
     };
-  }, []);
+  }, [navigate]);
+
+  const handleNotificationClick = async (n: any) => {
+    await markAsRead(n.id);
+    clearToast();
+    let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;
+    if (n.message) {
+      const match = n.message.match(/EV_[a-zA-Z0-9_-]+/);
+      if (match) {
+        targetPath = `${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${match[0]}`;
+      }
+    }
+    navigate(targetPath);
+  };
+
 
   const handleLogout = async () => {
     setShowProfileMenu(false);
@@ -124,12 +173,9 @@ export const AdminLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // close dropdowns on click outside
+  // close profile dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setShowNotifications(false);
-      }
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setShowProfileMenu(false);
       }
@@ -156,7 +202,7 @@ export const AdminLayout: React.FC = () => {
           label: "Kiểm duyệt sự kiện",
           path: PATHS.ADMIN_EVENTS_APPROVAL,
           icon: <FiCheckSquare className="w-4 h-4 shrink-0" />,
-          badge: 3,
+          badge: pendingEventsCount > 0 ? pendingEventsCount : undefined,
           badgeColor: "bg-rose-500 text-white font-bold"
         },
         {
@@ -251,30 +297,6 @@ export const AdminLayout: React.FC = () => {
 
   const currentSection = getSectionTitle();
 
-  const mockNotifications = [
-    {
-      id: "1",
-      title: "Yêu cầu duyệt sự kiện mới",
-      desc: "BTC Halo Entertainment vừa gửi duyệt sự kiện 'Concert Mùa Thu 2026'",
-      time: "5 phút trước",
-      type: "warning"
-    },
-    {
-      id: "2",
-      title: "Cảnh báo giá trần Resale",
-      desc: "Vé #TK-99201 được rao bán vượt 125% giá gốc - Đã tự động giữ giao dịch",
-      time: "20 phút trước",
-      type: "alert"
-    },
-    {
-      id: "3",
-      title: "Xác thực eKYC thành công",
-      desc: "BTC Saigon Events đã cập nhật thành công giấy phép kinh doanh",
-      time: "1 giờ trước",
-      type: "info"
-    }
-  ];
-
   return (
     <div className="min-h-screen flex app-bg-page transition-colors duration-200 font-sans antialiased">
       {/* Sidebar for Desktop & Mobile Drawer */}
@@ -336,8 +358,8 @@ export const AdminLayout: React.FC = () => {
                         to={item.path}
                         onClick={() => setIsMobileOpen(false)}
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer relative ${isActive
-                            ? "bg-blue-600 text-white shadow-xs font-semibold"
-                            : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                          ? "bg-blue-600 text-white shadow-xs font-semibold"
+                          : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/80"
                           } ${isCollapsed ? "justify-center px-0" : ""}`}
                       >
                         <span className={`shrink-0 ${isActive ? "text-white" : "text-blue-600 dark:text-blue-400"}`}>
@@ -475,70 +497,15 @@ export const AdminLayout: React.FC = () => {
             </button>
 
             {/* Notifications Bell Dropdown */}
-            <div className="relative" ref={notifRef}>
-              <button
-                type="button"
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-md app-bg-card app-text-main border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                title="Thông báo hệ thống"
-              >
-                <FiBell className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
-                  3
-                </span>
-              </button>
-
-              {/* Notification Popover Box */}
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-90 app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-3.5 space-y-3 z-50">
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                    <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                      <FiBell className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Thông báo hệ thống (3 mới)</span>
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => setShowNotifications(false)}
-                      className="text-[11px] font-medium text-blue-600 hover:underline cursor-pointer"
-                    >
-                      Đánh dấu đã đọc
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-72 overflow-y-auto no-scrollbar">
-                    {mockNotifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className="p-2.5 rounded-md app-bg-subnav border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-colors space-y-1 cursor-pointer text-xs"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold app-text-main flex items-center gap-1.5">
-                            {n.type === "alert" ? (
-                              <FiAlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            ) : (
-                              <FiCheckSquare className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            )}
-                            <span>{n.title}</span>
-                          </span>
-                          <span className="text-[10px] app-text-muted">{n.time}</span>
-                        </div>
-                        <p className="text-[11px] app-text-muted leading-snug">{n.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 text-center">
-                    <Link
-                      to={PATHS.ADMIN_EVENTS_APPROVAL}
-                      onClick={() => setShowNotifications(false)}
-                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      Xem tất cả danh sách cần duyệt →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
+            <NotificationDropdown
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAllAsRead={markAllAsRead}
+              onNotificationClick={handleNotificationClick}
+              viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL}
+              viewAllText="Xem trang Kiểm duyệt Sự kiện →"
+              titleText="Thông báo hệ thống"
+            />
 
             {/* Admin Profile Dropdown Menu */}
             <div className="relative pl-2 border-l border-slate-200 dark:border-slate-800" ref={profileRef}>
@@ -614,8 +581,19 @@ export const AdminLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Realtime Toast Popup Banner for Admin - Root Level */}
+      <NotificationToast
+        toast={latestToast}
+        onToastClick={handleNotificationClick}
+        onClose={clearToast}
+        actionText="Nhấn để kiểm duyệt ngay →"
+        accentColor="blue"
+      />
     </div>
   );
 };
 
 export default AdminLayout;
+
+

@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 import PendingApprovalModal from "./components/PendingApprovalModal";
 import { eventApi } from "@/services/eventApi";
+import { organizerApi } from "@/services/organizerApi";
 import { userApi, getCachedUserProfile } from "@/services/userApi";
 
 export const MyEvents: React.FC = () => {
@@ -45,7 +46,7 @@ export const MyEvents: React.FC = () => {
 
         let orgProf = null;
         if (user && user.id) {
-          orgProf = await eventApi.getOrganizerProfile(user.id);
+          orgProf = await organizerApi.getOrganizerProfile(user.id);
           setMyOrganizerProfile(orgProf);
         }
 
@@ -73,16 +74,16 @@ export const MyEvents: React.FC = () => {
     const orgId = ev.organizer?.id;
     const orgName = (ev.organizer?.name || "").toLowerCase();
 
-    // 1. Direct match on organizer userId
+    // direct match on organizer userId
     if (orgUserId && currentUserId && orgUserId === currentUserId) return true;
 
-    // 2. Match on organizer profile id or name
+    // match on organizer profile id or name
     if (myOrganizerProfile) {
       if (orgId && myOrganizerProfile.id && orgId === myOrganizerProfile.id) return true;
       if (orgName && myOrganizerProfile.name && orgName === myOrganizerProfile.name.toLowerCase()) return true;
     }
 
-    // 3. Match on full name or email of user
+    // match on full name or email of user
     if (user.fullName && orgName && orgName === user.fullName.toLowerCase()) return true;
     if (currentEmail && orgName && orgName === currentEmail.toLowerCase()) return true;
 
@@ -95,7 +96,7 @@ export const MyEvents: React.FC = () => {
     if (status === "DRAFT") return "draft";
     if (status === "ENDED" || status === "PASSED" || status === "COMPLETED") return "past";
     if (status === "APPROVED" || status === "UPCOMING" || status === "ACTIVE" || status === "ONGOING") return "upcoming";
-    return "pending"; // Default newly created events to pending
+    return "pending"; // default newly created events to pending
   };
 
   const filteredEvents = eventsList.filter((ev) => {
@@ -145,11 +146,10 @@ export const MyEvents: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                  isActive
+                className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${isActive
                     ? "bg-blue-600 dark:bg-blue-500 text-white shadow-xs"
                     : "app-text-muted hover:app-text-main"
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -239,55 +239,55 @@ export const MyEvents: React.FC = () => {
                     </div>
                   </div>
 
-                {/* Bottom Action Bar with 5 icons (Royal Blue Theme) */}
-                <div className="border-t app-border bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-5 text-center divide-x app-border">
-                  <button
-                    type="button"
-                    onClick={handleActionClick}
-                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                  >
-                    <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Tổng quan</span>
-                  </button>
+                  {/* Bottom Action Bar with 5 icons (Royal Blue Theme) */}
+                  <div className="border-t app-border bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-5 text-center divide-x app-border">
+                    <button
+                      type="button"
+                      onClick={handleActionClick}
+                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                    >
+                      <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>Tổng quan</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handleActionClick}
-                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                  >
-                    <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Thành viên</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handleActionClick}
+                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                    >
+                      <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>Thành viên</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handleActionClick}
-                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                  >
-                    <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Đơn hàng</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handleActionClick}
+                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                    >
+                      <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>Đơn hàng</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handleActionClick}
-                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
-                  >
-                    <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Sơ đồ ghế</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handleActionClick}
+                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                    >
+                      <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>Sơ đồ ghế</span>
+                    </button>
 
-                  <Link
-                    to={`/organizer/create-event?id=${ev.id}`}
-                    className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
-                  >
-                    <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? "Tiếp tục tạo nháp" : "Chỉnh sửa"}</span>
-                  </Link>
+                    <Link
+                      to={`/organizer/create-event?id=${ev.id}`}
+                      className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
+                    >
+                      <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? "Tiếp tục tạo nháp" : "Chỉnh sửa"}</span>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         )}
 

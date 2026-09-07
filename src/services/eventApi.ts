@@ -1,36 +1,5 @@
 import axiosClient from "./axiosClient";
-
-export interface EventApiData {
-  id: string;
-  title: string;
-  description?: string;
-  bannerUrl?: string;
-  thumbnailUrl?: string;
-  locationName?: string;
-  address?: string;
-  eventStatus?: string;
-  startTime?: string;
-  endTime?: string;
-  categoryName?: string;
-  minPrice?: string;
-  price?: string;
-  image?: string;
-  date?: string;
-}
-
-export interface VenueApiData {
-  id: number | string;
-  name: string;
-  address: string;
-  city: string;
-  ward?: string;
-  capacity: number;
-  type?: 'indoor' | 'outdoor' | 'hybrid';
-  verified: boolean;
-  eventsHosted: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { EventApiData } from "@/types";
 
 export const eventApi = {
   // fetch all events safely
@@ -81,7 +50,7 @@ export const eventApi = {
     }
   },
 
-  // fetch top 3 searched keywords dynamically from backend DB query safely
+  // fetch top searched keywords dynamically from backend DB query safely
   getTrendingSearches: async (limit = 3): Promise<string[]> => {
     try {
       const response: any = await axiosClient.get(`/events/trending-searches?limit=${limit}`);
@@ -110,73 +79,43 @@ export const eventApi = {
       const response: any = await axiosClient.post("/events", data);
       return response;
     } catch (err) {
-      console.warn("Backend API unavailable, using local simulation", err);
-      return { success: true, id: `EV_${Date.now()}` };
-    }
-  },
-
-  // fetch organizer profile for pre-filling
-  getOrganizerProfile: async (userId?: string): Promise<any> => {
-    try {
-      const url = userId ? `/events/organizer-profile?userId=${encodeURIComponent(userId)}` : "/events/organizer-profile";
-      const response: any = await axiosClient.get(url);
-      return response;
-    } catch (err) {
+      console.error("Failed to create/submit event in DB:", err);
       return null;
     }
   },
 
-  // CRUD venues API
-  getVenues: async (): Promise<VenueApiData[]> => {
+  // get list approval events
+  getApprovalEvents: async (status: string = "ALL"): Promise<any[]> => {
     try {
-      const response: any = await axiosClient.get("/events/venues");
+      const url = status && status !== "ALL" ? `/events/approvals?status=${encodeURIComponent(status)}` : "/events/approvals";
+      const response: any = await axiosClient.get(url);
       if (Array.isArray(response)) {
         return response;
       }
       return [];
     } catch (err) {
-      console.warn("Failed to fetch venues from DB API:", err);
+      console.warn("Failed to fetch approval events from DB API:", err);
       return [];
     }
   },
 
-  createVenue: async (data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
+  approveEvent: async (id: string): Promise<any> => {
     try {
-      const response: any = await axiosClient.post("/events/venues", data);
+      const response: any = await axiosClient.patch(`/events/${id}/approve`);
       return response;
     } catch (err) {
-      console.error("Failed to create venue in DB:", err);
+      console.error("Failed to approve event in DB:", err);
       return null;
     }
   },
 
-  updateVenue: async (id: number | string, data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
+  rejectEvent: async (id: string, reason: string, notes?: string): Promise<any> => {
     try {
-      const response: any = await axiosClient.put(`/events/venues/${id}`, data);
+      const response: any = await axiosClient.patch(`/events/${id}/reject`, { reason, notes });
       return response;
     } catch (err) {
-      console.error("Failed to update venue in DB:", err);
+      console.error("Failed to reject event in DB:", err);
       return null;
     }
   },
-
-  toggleVerifyVenue: async (id: number | string): Promise<VenueApiData | null> => {
-    try {
-      const response: any = await axiosClient.patch(`/events/venues/${id}/verify`);
-      return response;
-    } catch (err) {
-      console.error("Failed to toggle venue verification in DB:", err);
-      return null;
-    }
-  },
-
-  deleteVenue: async (id: number | string): Promise<boolean> => {
-    try {
-      await axiosClient.delete(`/events/venues/${id}`);
-      return true;
-    } catch (err) {
-      console.error("Failed to delete venue from DB:", err);
-      return false;
-    }
-  }
 };

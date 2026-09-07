@@ -10,6 +10,7 @@ import NoticeModal from "./components/create-event/NoticeModal";
 import AddTicketModal from "./components/create-event/AddTicketModal";
 import SuccessSubmittedModal from "./components/create-event/SuccessSubmittedModal";
 import { eventApi } from "@/services/eventApi";
+import { organizerApi } from "@/services/organizerApi";
 import { mediaApi } from "@/services/mediaApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { formatDatetimeLocal } from "@/utils/formatters";
@@ -128,7 +129,7 @@ export const CreateEvent: React.FC = () => {
 
         // fetch organizer profile
         if (currentUserId) {
-          const orgProfile = await eventApi.getOrganizerProfile(currentUserId);
+          const orgProfile = await organizerApi.getOrganizerProfile(currentUserId);
           if (isMounted && orgProfile && orgProfile.name) {
             setOrganizerName(orgProfile.name);
             if (orgProfile.description) setOrganizerInfo(orgProfile.description);
@@ -140,6 +141,9 @@ export const CreateEvent: React.FC = () => {
         // check URL for event id or query DB for draft
         const urlParams = new URLSearchParams(window.location.search);
         const draftIdParam = urlParams.get("id");
+        if (draftIdParam) {
+          updateCurrentEventId(draftIdParam);
+        }
 
         let draftEventData: any = null;
         if (draftIdParam) {
@@ -379,8 +383,8 @@ export const CreateEvent: React.FC = () => {
           organizerName,
           organizerInfo,
           organizerLogo: uploadedLogo,
-          startTime: startDate,
-          endTime: endDate,
+          startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
+          endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
           tickets,
           isPrivate,
           confirmationMessage,
@@ -677,8 +681,8 @@ export const CreateEvent: React.FC = () => {
         organizerName,
         organizerInfo,
         organizerLogo: uploadedLogo,
-        startTime: startDate,
-        endTime: endDate,
+        startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
+        endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
         tickets,
         isPrivate,
         confirmationMessage,

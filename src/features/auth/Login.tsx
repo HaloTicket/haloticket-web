@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { FiMail } from "react-icons/fi";
+import { Link, useSearchParams } from "react-router-dom";
+import { FiMail, FiAlertCircle } from "react-icons/fi";
 import { GoogleAuthButton, PasswordField } from "@/features/auth/components";
 import { PATHS } from "@/routes/paths";
 import { getAuthErrorMessage } from "@/services/authApi";
@@ -16,6 +16,9 @@ interface LoginProps {
 }
 
 export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
+  const [searchParams] = useSearchParams();
+  const isSessionExpired = searchParams.get("session_expired") === "true";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
@@ -41,7 +44,15 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
         <p className="auth-subtitle">Chào mừng bạn quay trở lại!</p>
       </div>
 
+      {isSessionExpired && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-2">
+          <FiAlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+          <span>Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.</span>
+        </div>
+      )}
+
       <form className="auth-form" onSubmit={handleSubmit}>
+
         <div>
           <label className="auth-label" htmlFor="login-email">
             Email

@@ -1,7 +1,7 @@
 import React from "react";
 import { FiMapPin, FiCheckCircle, FiAlertCircle, FiCalendar } from "react-icons/fi";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
-import type { SystemVenue } from "@/utils/venueUtils";
+import type { SystemVenue } from "@/types"
 
 interface VenueStatCardsProps {
   venues: SystemVenue[];

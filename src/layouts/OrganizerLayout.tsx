@@ -3,7 +3,12 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/context/ThemeContext";
 import { getKeycloakSession } from "@/services/keycloakSession";
-import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
+import { getCachedUserProfile, userApi } from "@/services/userApi";
+import type { UserProfile } from "@/types";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import { NotificationToast } from "@/components/notifications/NotificationToast";
+
 import {
   FiStar,
   FiFolder,
@@ -14,7 +19,7 @@ import {
   FiMenu,
   FiX,
   FiHome,
-  FiChevronDown
+  FiChevronDown,
 } from "react-icons/fi";
 import {
   LuTicket,
@@ -55,7 +60,7 @@ export const OrganizerLayout: React.FC = () => {
           .then((data) => {
             if (data) setUserProfile(data);
           })
-          .catch(() => {});
+          .catch(() => { });
       } else {
         setUserProfile(null);
       }
@@ -65,16 +70,32 @@ export const OrganizerLayout: React.FC = () => {
       setUserProfile(getCachedUserProfile());
     };
 
+    const handleSessionExpired = () => {
+      getKeycloakSession().logout();
+      navigate(`${PATHS.LOGIN}?session_expired=true`, { replace: true });
+    };
+
     checkAuth();
     window.addEventListener("storage", checkAuth);
     window.addEventListener("auth-changed", checkAuth);
     window.addEventListener("user-updated", handleProfileUpdate);
+    window.addEventListener("session-expired", handleSessionExpired);
     return () => {
       window.removeEventListener("storage", checkAuth);
       window.removeEventListener("auth-changed", checkAuth);
       window.removeEventListener("user-updated", handleProfileUpdate);
+      window.removeEventListener("session-expired", handleSessionExpired);
     };
-  }, []);
+  }, [navigate]);
+
+  const organizerTargetId = userProfile?.id || userProfile?.keycloakId || "ORGANIZER";
+  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(organizerTargetId);
+
+  const handleNotificationClick = async (n: any) => {
+    await markAsRead(n.id);
+    clearToast();
+    navigate(PATHS.MY_EVENTS);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -141,9 +162,8 @@ export const OrganizerLayout: React.FC = () => {
     <div className="min-h-screen flex app-bg-page transition-colors duration-300 font-sans antialiased">
       {/* Left side bar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 app-bg-card border-r app-border flex flex-col justify-between p-4 transition-transform duration-300 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 app-bg-card border-r app-border flex flex-col justify-between p-4 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         <div className="space-y-6">
           {/* Brand Logo & Organizer Center Title */}
@@ -180,11 +200,10 @@ export const OrganizerLayout: React.FC = () => {
                   key={item.label}
                   to={item.path}
                   onClick={() => setIsSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
                 >
                   {item.icon}
                   <span>{item.label}</span>
@@ -250,7 +269,6 @@ export const OrganizerLayout: React.FC = () => {
               <FiPlusCircle className="w-4 h-4" />
               <span>Tạo sự kiện</span>
             </Link>
-
             {/* Dark Mode Switcher */}
             <button
               type="button"
@@ -260,6 +278,17 @@ export const OrganizerLayout: React.FC = () => {
             >
               {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
             </button>
+
+            {/* Notification Bell Dropdown */}
+            <NotificationDropdown
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAllAsRead={markAllAsRead}
+              onNotificationClick={handleNotificationClick}
+              viewAllLink="/organizer/my-events"
+              viewAllText="Xem danh sách Sự kiện →"
+              titleText="Thông báo Ban tổ chức"
+            />
 
             {/* User Profile Account Dropdown (Synchronized with MainLayout Header) */}
             {isAuthenticated ? (
@@ -278,19 +307,17 @@ export const OrganizerLayout: React.FC = () => {
                     {userProfile?.fullName || "Tài khoản"}
                   </span>
                   <FiChevronDown
-                    className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${
-                      isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
-                    }`}
+                    className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
+                      }`}
                   />
                 </button>
 
                 {/* Account Hover Dropdown Menu */}
                 <div
-                  className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${
-                    isAccountOpen
-                      ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
-                      : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
-                  }`}
+                  className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${isAccountOpen
+                    ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
+                    : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
+                    }`}
                   role="menu"
                 >
                   <div className="app-bg-card border app-border rounded-2xl p-2 shadow-2xl space-y-1 app-text-main animate-in zoom-in-95">
@@ -400,8 +427,18 @@ export const OrganizerLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Realtime Toast Popup Banner for Organizer - Root Level */}
+      <NotificationToast
+        toast={latestToast}
+        onToastClick={handleNotificationClick}
+        onClose={clearToast}
+        actionText="Nhấn để xem sự kiện của bạn →"
+        accentColor="emerald"
+      />
     </div>
   );
 };
 
 export default OrganizerLayout;
+
