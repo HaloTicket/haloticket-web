@@ -1,9 +1,12 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiStar, FiCheck, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { FEATURED_STARS } from "@/mock/eventData";
 
 export const FeaturedStars: React.FC = () => {
+  useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
@@ -112,13 +115,13 @@ export const FeaturedStars: React.FC = () => {
       <div className="relative z-10 flex items-center justify-between mb-5 px-1">
         <h2 className="text-xl md:text-2xl font-extrabold text-white flex items-center gap-2 tracking-tight">
           <FiStar className="w-5 h-5 text-amber-400 fill-amber-400" />
-          <span>Featured Stars</span>
+          <span>{translate("Nghệ sĩ nổi bật")}</span>
         </h2>
         <Link
           to="/artists"
           className="text-xs md:text-sm font-semibold text-slate-300 hover:text-cyan-400 flex items-center gap-1 transition-colors cursor-pointer"
         >
-          <span>Xem thêm</span>
+          <span>{translate("Xem thêm")}</span>
           <FiChevronRight className="w-4 h-4" />
         </Link>
       </div>
@@ -131,7 +134,7 @@ export const FeaturedStars: React.FC = () => {
             type="button"
             onClick={scrollLeft}
             className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-cyan-500 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang trái"
+            aria-label={translate("Cuộn sang trái")}
           >
             <FiChevronLeft className="w-5 h-5" />
           </button>
@@ -162,7 +165,7 @@ export const FeaturedStars: React.FC = () => {
 
               <div className="flex items-center justify-center gap-1.5 w-full pt-1">
                 <span className="text-xs md:text-sm font-extrabold text-white group-hover/card:text-cyan-300 transition-colors truncate text-center">
-                  {star.name}
+                  {translate(star.name)}
                 </span>
                 {star.verified && (
                   <span className="w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] shrink-0 font-black shadow-xs">
@@ -180,7 +183,7 @@ export const FeaturedStars: React.FC = () => {
             type="button"
             onClick={scrollRight}
             className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-cyan-500 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang phải"
+            aria-label={translate("Cuộn sang phải")}
           >
             <FiChevronRight className="w-5 h-5" />
           </button>

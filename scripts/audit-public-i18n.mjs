@@ -1,0 +1,2 @@
+import ts from 'typescript';import fs from 'node:fs';
+for(const f of fs.readdirSync('src',{recursive:true}).filter(f=>/\.tsx$/.test(f)&&!/features[\\/](admin|organizer)|layouts[\\/](Admin|Organizer)/.test(f))){const text=fs.readFileSync('src/'+f,'utf8'),sf=ts.createSourceFile(f,text,99,true,4);function walk(n){if((ts.isJsxText(n)||ts.isTemplateExpression(n))&&/[À-ỹđĐ]/.test(n.getText(sf)))process.stdout.write(f+': '+n.getText(sf).replace(/\s+/g,' ').trim()+'\n');ts.forEachChild(n,walk)}walk(sf)}

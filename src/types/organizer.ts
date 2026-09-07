@@ -42,9 +42,8 @@ export interface OrganizerProfileData {
   bankName?: string;
   bankAccountHolder?: string;
   bankAccountNumber?: string;
-  identityCardNumber?: string;
   verified?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface Step1Errors {

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { FiX, FiAlertCircle } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
@@ -30,6 +31,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   onClose,
   onSave
 }) => {
+  const { t: translate } = useTranslation();
   const [newTicketName, setNewTicketName] = useState(initialTicket?.name || "");
   const [newTicketPrice, setNewTicketPrice] = useState(initialTicket?.price ?? 0);
   const [newTicketIsFree, setNewTicketIsFree] = useState(initialTicket?.isFree ?? false);
@@ -44,30 +46,32 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   const handleSave = () => {
     setErrorMsg(null);
     if (!newTicketName.trim()) {
-      setErrorMsg("Vui lòng nhập tên loại vé!");
+      const msg = translate("Vui lòng nhập tên loại vé!");
+      setErrorMsg(msg);
+      alert(msg);
       return;
     }
 
-    // conten start sale must be before end sale
+    // start sale must be before end sale
     if (newTicketStartSale && newTicketEndSale) {
       if (new Date(newTicketEndSale) <= new Date(newTicketStartSale)) {
-        setErrorMsg("Thời gian kết thúc bán vé phải diễn ra sau thời gian bắt đầu bán vé!");
+        setErrorMsg(translate("Thời gian kết thúc bán vé phải diễn ra sau thời gian bắt đầu bán vé!"));
         return;
       }
     }
 
-    // conten start sale must be before event start date
+    // start sale must be before event start date
     if (newTicketStartSale && eventStartDate) {
       if (new Date(newTicketStartSale) >= new Date(eventStartDate)) {
-        setErrorMsg("Thời gian bắt đầu bán vé phải diễn ra trước thời gian bắt đầu sự kiện!");
+        setErrorMsg(translate("Thời gian bắt đầu bán vé phải diễn ra trước thời gian bắt đầu sự kiện!"));
         return;
       }
     }
 
-    // conten end sale must be before event end date
+    // end sale must be before event end date
     if (newTicketEndSale && eventEndDate) {
       if (new Date(newTicketEndSale) > new Date(eventEndDate)) {
-        setErrorMsg("Thời gian kết thúc bán vé không thể diễn ra sau thời gian kết thúc sự kiện!");
+        setErrorMsg(translate("Thời gian kết thúc bán vé không thể diễn ra sau thời gian kết thúc sự kiện!"));
         return;
       }
     }
@@ -94,7 +98,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
         <div className="flex items-center justify-between border-b app-border pb-4">
           <h3 className="text-lg font-extrabold app-text-main flex items-center gap-2">
             <FaTicketAlt className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <span>{initialTicket ? "Chỉnh sửa loại vé" : "Tạo loại vé mới"}</span>
+            <span>{initialTicket ? translate("Chỉnh sửa loại vé") : translate("Tạo loại vé mới")}</span>
           </h3>
           <button
             type="button"
@@ -115,7 +119,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
           {/* Name */}
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold app-text-main">
-              <span><span className="text-rose-500">*</span> Tên loại vé</span>
+              <span><span className="text-rose-500">*</span> {translate("Tên loại vé")}</span>
               <span className="text-[11px] app-text-muted">{newTicketName.length} / 50</span>
             </div>
             <input
@@ -123,7 +127,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
               maxLength={50}
               value={newTicketName}
               onChange={(e) => setNewTicketName(e.target.value)}
-              placeholder="Ví dụ: Vé VVIP, Vé GA, Early Bird..."
+              placeholder={translate("Ví dụ: Vé VVIP, Vé GA, Early Bird...")}
               className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-2.5 border app-border font-bold"
             />
           </div>
@@ -131,7 +135,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
           {/* Price & Free Toggle */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> Giá vé (VNĐ)</label>
+              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Giá vé (VNĐ)")}</label>
               <input
                 type="number"
                 disabled={newTicketIsFree}
@@ -150,14 +154,14 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
                 }}
                 className="w-4 h-4 rounded accent-blue-600"
               />
-              <span>Vé miễn phí (0đ)</span>
+              <span>{translate("Vé miễn phí (0đ)")}</span>
             </label>
           </div>
 
           {/* Quantities */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> Tổng số lượng vé</label>
+              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Tổng số lượng vé")}</label>
               <input
                 type="number"
                 value={newTicketTotalQuantity}
@@ -166,7 +170,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main">Số vé tối thiểu/đơn</label>
+              <label className="text-xs font-bold app-text-main">{translate("Số vé tối thiểu/đơn")}</label>
               <input
                 type="number"
                 value={newTicketMinOrder}
@@ -175,7 +179,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main">Số vé tối đa/đơn</label>
+              <label className="text-xs font-bold app-text-main">{translate("Số vé tối đa/đơn")}</label>
               <input
                 type="number"
                 value={newTicketMaxOrder}
@@ -188,7 +192,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
           {/* Sale Dates */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> Ngày bắt đầu bán vé</label>
+              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Ngày bắt đầu bán vé")}</label>
               <input
                 type="datetime-local"
                 value={newTicketStartSale}
@@ -197,7 +201,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> Ngày kết thúc bán vé</label>
+              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Ngày kết thúc bán vé")}</label>
               <input
                 type="datetime-local"
                 value={newTicketEndSale}
@@ -210,7 +214,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
           {/* Ticket Description */}
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold app-text-main">
-              <span>Thông tin quyền lợi vé</span>
+              <span>{translate("Thông tin quyền lợi vé")}</span>
               <span className="text-[11px] app-text-muted">{newTicketDescription.length} / 1000</span>
             </div>
             <textarea
@@ -218,7 +222,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
               maxLength={1000}
               value={newTicketDescription}
               onChange={(e) => setNewTicketDescription(e.target.value)}
-              placeholder="Quyền lợi đính kèm của hạng vé..."
+              placeholder={translate("Quyền lợi đính kèm của hạng vé...")}
               className="w-full app-bg-subnav app-text-main text-xs rounded-xl p-3 border app-border"
             />
           </div>
@@ -230,14 +234,14 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
             onClick={onClose}
             className="px-5 py-2.5 app-bg-subnav app-text-main text-xs font-bold rounded-xl border app-border cursor-pointer"
           >
-            Hủy bỏ
+            {translate("Hủy bỏ")}
           </button>
           <button
             type="button"
             onClick={handleSave}
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-md cursor-pointer"
           >
-            Lưu loại vé
+            {translate("Lưu loại vé")}
           </button>
         </div>
       </div>

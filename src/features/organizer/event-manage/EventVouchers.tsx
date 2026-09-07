@@ -81,7 +81,7 @@ export const EventVouchers: React.FC = () => {
     }
   };
 
-  const handleCreateSave = (newVoucher: any) => {
+  const handleCreateSave = (newVoucher: VoucherItem) => {
     setVouchers([newVoucher, ...vouchers]);
   };
 

@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { FiX } from "react-icons/fi";
+import type { MemberItem } from "@/types";
 
 interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (newMember: any) => void;
+  onAdd: (newMember: MemberItem) => void;
 }
 
 export const AddMemberModal: React.FC<AddMemberModalProps> = ({
@@ -21,7 +22,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     e.preventDefault();
     if (!email) return;
 
-    const newMember = {
+    const newMember: MemberItem = {
       id: `mem-${Date.now()}`,
       name: email.split("@")[0],
       email,
@@ -74,7 +75,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             </label>
             <select
               value={role}
-              onChange={(e: any) => setRole(e.target.value)}
+              onChange={(e) => setRole(e.target.value as "ADMIN" | "MANAGER" | "CHECKIN_STAFF")}
               className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs focus:outline-none focus:border-blue-500"
             >
               <option value="ADMIN">Quản trị viên</option>

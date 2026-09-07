@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FiCalendar, FiFilter, FiClock } from "react-icons/fi";
@@ -7,6 +9,7 @@ import DateFilterModal from "./components/DateFilterModal";
 import AdvancedFilterModal from "./components/AdvancedFilterModal";
 
 export default function EventSearch() {
+  useTranslation();
   const [searchParams] = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const cityParam = searchParams.get("city") || "";
@@ -43,15 +46,20 @@ export default function EventSearch() {
 
   // fetch all real events from Backend API
   useEffect(() => {
-    setLoading(true);
+    let isMounted = true;
     eventApi.getAllEvents().then((data) => {
-      setAllEvents(data || []);
-      setLoading(false);
+      if (isMounted) {
+        setAllEvents(data || []);
+        setLoading(false);
+      }
     });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // filter events based on active search parameters
-  const filteredEvents = allEvents.filter((ev: any) => {
+  const filteredEvents = allEvents.filter((ev: EventApiData) => {
     // text query filter
     if (queryParam) {
       const q = queryParam.toLowerCase();
@@ -78,8 +86,8 @@ export default function EventSearch() {
   });
 
   // split into upcoming vs past events
-  const upcomingEvents = filteredEvents.filter((ev: any) => !ev.isEnded);
-  const pastEvents = filteredEvents.filter((ev: any) => ev.isEnded);
+  const upcomingEvents = filteredEvents.filter((ev: EventApiData & { isEnded?: boolean }) => !ev.isEnded);
+  const pastEvents = filteredEvents.filter((ev: EventApiData & { isEnded?: boolean }) => ev.isEnded);
 
   return (
     <div className="min-h-screen bg-[#f4f4f5] dark:bg-[#27272a] text-zinc-900 dark:text-zinc-100 pb-16 transition-colors duration-300">
@@ -88,11 +96,11 @@ export default function EventSearch() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold app-text-main tracking-tight">
-              Sự kiện ({filteredEvents.length})
+              {translate("Sự kiện (")}{filteredEvents.length})
             </h1>
             {queryParam && (
               <p className="text-xs md:text-sm font-semibold app-text-muted mt-1">
-                Kết quả tìm kiếm cho từ khóa: <strong className="app-text-brand">"{queryParam}"</strong>
+                {translate("Kết quả tìm kiếm cho từ khóa:")}<strong className="app-text-brand">"{queryParam}"</strong>
               </p>
             )}
           </div>
@@ -113,13 +121,13 @@ export default function EventSearch() {
                   }`}
               >
                 <FiCalendar className="w-4 h-4" />
-                <span>{selectedDatePreset}</span>
+                <span>{translate(selectedDatePreset)}</span>
               </button>
 
               <DateFilterModal
                 isOpen={isDateModalOpen}
                 onClose={() => setIsDateModalOpen(false)}
-                currentPreset={selectedDatePreset}
+                currentPreset={translate(selectedDatePreset)}
                 onApply={(preset) => setSelectedDatePreset(preset)}
               />
             </div>
@@ -138,7 +146,7 @@ export default function EventSearch() {
                   }`}
               >
                 <FiFilter className="w-4 h-4" />
-                <span>Bộ lọc</span>
+                <span>{translate("Bộ lọc")}</span>
               </button>
 
               <AdvancedFilterModal
@@ -160,7 +168,7 @@ export default function EventSearch() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="font-extrabold text-sm app-text-muted">Đang tải danh sách sự kiện...</p>
+            <p className="font-extrabold text-sm app-text-muted">{translate("Đang tải danh sách sự kiện...")}</p>
           </div>
         ) : (
           <div className="space-y-12">
@@ -169,11 +177,9 @@ export default function EventSearch() {
               <div className="flex items-center gap-3 mb-6">
                 <span className="flex items-center gap-1.5 font-extrabold text-lg md:text-xl app-text-main">
                   <FiClock className="w-5 h-5 text-emerald-500" />
-                  Sắp diễn ra
-                </span>
+                  {translate("Sắp diễn ra")}</span>
                 <span className="px-3 py-1 rounded-md text-xs font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                  {upcomingEvents.length} đang mở bán
-                </span>
+                  {upcomingEvents.length} {translate("đang mở bán")}</span>
               </div>
 
               {upcomingEvents.length > 0 ? (
@@ -185,8 +191,7 @@ export default function EventSearch() {
               ) : (
                 <div className="app-bg-card p-8 rounded-2xl border app-border text-center">
                   <p className="font-extrabold text-sm app-text-muted">
-                    Không có sự kiện sắp diễn ra phù hợp với tìm kiếm của bạn.
-                  </p>
+                    {translate("Không có sự kiện sắp diễn ra phù hợp với tìm kiếm của bạn.")}</p>
                 </div>
               )}
             </div>
@@ -198,11 +203,9 @@ export default function EventSearch() {
               <div className="flex items-center gap-3 mb-6">
                 <span className="flex items-center gap-1.5 font-extrabold text-lg md:text-xl app-text-main">
                   <FiClock className="w-5 h-5 text-amber-500" />
-                  Đã diễn ra
-                </span>
+                  {translate("Đã diễn ra")}</span>
                 <span className="px-3 py-1 rounded-md text-xs font-black bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                  {pastEvents.length} đã kết thúc
-                </span>
+                  {pastEvents.length} {translate("đã kết thúc")}</span>
               </div>
 
               {pastEvents.length > 0 ? (
@@ -212,16 +215,14 @@ export default function EventSearch() {
                       <EventCard event={event} />
                       {/* Orange Ended Badge Overlay */}
                       <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md text-[10px] font-black bg-amber-500 text-slate-950 shadow-md">
-                        Đã diễn ra
-                      </span>
+                        {translate("Đã diễn ra")}</span>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="app-bg-card p-8 rounded-2xl border app-border text-center">
                   <p className="font-extrabold text-sm app-text-muted">
-                    Không có sự kiện đã diễn ra phù hợp.
-                  </p>
+                    {translate("Không có sự kiện đã diễn ra phù hợp.")}</p>
                 </div>
               )}
             </div>

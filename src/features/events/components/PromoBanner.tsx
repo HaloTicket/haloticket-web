@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React from "react";
 
 interface PromoBannerProps {
@@ -9,6 +11,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
   type = "vib",
   className = "my-10"
 }) => {
+  useTranslation();
   const bannerConfigs = {
     vib: {
       bg: "bg-slate-900 dark:bg-slate-900/90",
@@ -49,11 +52,11 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
         </div>
         {/* Title */}
         <h3 className="text-lg md:text-2xl font-black text-white leading-tight mb-2 tracking-tight">
-          {config.title}
+          {translate(config.title)}
         </h3>
         {/* Description */}
         <p className="text-xs md:text-sm text-slate-300 font-medium">
-          {config.subtitle}
+          {translate(config.subtitle)}
         </p>
       </div>
 
@@ -61,7 +64,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
         type="button"
         className="z-10 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-extrabold text-xs md:text-sm rounded-xl shadow-sm transition-all shrink-0 active:scale-95 cursor-pointer"
       >
-        {config.cta}
+        {translate(config.cta)}
       </button>
 
       {/* Decorative Glow Spheres */}

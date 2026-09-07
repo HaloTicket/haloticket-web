@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
-import type { UserProfile } from "@/types";
+import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { eventApi } from "@/services/eventApi";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
 
@@ -48,6 +50,7 @@ interface NavGroup {
 }
 
 export const AdminLayout: React.FC = () => {
+  const { t: translate } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -68,15 +71,15 @@ export const AdminLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchPendingCount();
+    const timer = setTimeout(() => {
+      void fetchPendingCount();
+    }, 0);
     window.addEventListener("approval-events-updated", fetchPendingCount);
-    return () => window.removeEventListener("approval-events-updated", fetchPendingCount);
-  }, [fetchPendingCount]);
-
-  // refetch pending count whenever notifications list changes
-  useEffect(() => {
-    fetchPendingCount();
-  }, [notifications.length, fetchPendingCount]);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("approval-events-updated", fetchPendingCount);
+    };
+  }, [fetchPendingCount, notifications.length]);
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -129,7 +132,7 @@ export const AdminLayout: React.FC = () => {
     };
   }, [navigate]);
 
-  const handleNotificationClick = async (n: any) => {
+  const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
     let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;
@@ -186,27 +189,27 @@ export const AdminLayout: React.FC = () => {
 
   const navGroups: NavGroup[] = [
     {
-      groupTitle: "TỔNG QUAN",
+      groupTitle: translate("TỔNG QUAN"),
       items: [
         {
-          label: "Bảng điều khiển",
+          label: translate("Bảng điều khiển"),
           path: PATHS.ADMIN_DASHBOARD,
           icon: <FiGrid className="w-4 h-4 shrink-0" />
         }
       ]
     },
     {
-      groupTitle: "KIỂM DUYỆT & BẢO MẬT",
+      groupTitle: translate("KIỂM DUYỆT & BẢO MẬT"),
       items: [
         {
-          label: "Kiểm duyệt sự kiện",
+          label: translate("Kiểm duyệt sự kiện"),
           path: PATHS.ADMIN_EVENTS_APPROVAL,
           icon: <FiCheckSquare className="w-4 h-4 shrink-0" />,
           badge: pendingEventsCount > 0 ? pendingEventsCount : undefined,
           badgeColor: "bg-rose-500 text-white font-bold"
         },
         {
-          label: "Kiểm duyệt eKYC",
+          label: translate("Kiểm duyệt eKYC"),
           path: PATHS.ADMIN_EKYC_APPROVAL,
           icon: <FiShield className="w-4 h-4 shrink-0" />,
           badge: 5,
@@ -215,50 +218,50 @@ export const AdminLayout: React.FC = () => {
       ]
     },
     {
-      groupTitle: "QUẢN LÝ THỊ TRƯỜNG",
+      groupTitle: translate("QUẢN LÝ THỊ TRƯỜNG"),
       items: [
         {
-          label: "Vé Resale & Giá trần",
+          label: translate("Vé Resale & Giá trần"),
           path: PATHS.ADMIN_RESALE_PRICE_CAP,
           icon: <FiTrendingUp className="w-4 h-4 shrink-0" />
         },
         {
-          label: "Cấu hình Trang chủ & Ads",
+          label: translate("Cấu hình Trang chủ & Ads"),
           path: PATHS.ADMIN_HOMEPAGE_CONFIG,
           icon: <FiLayout className="w-4 h-4 shrink-0" />
         },
         {
-          label: "Quản lý Địa điểm",
+          label: translate("Quản lý Địa điểm"),
           path: PATHS.ADMIN_VENUES_MANAGEMENT,
           icon: <FiMapPin className="w-4 h-4 shrink-0" />
         }
       ]
     },
     {
-      groupTitle: "QUẢN TRỊ NGUYÊN TẮC",
+      groupTitle: translate("QUẢN TRỊ NGUYÊN TẮC"),
       items: [
         {
-          label: "Người dùng & Phân quyền",
+          label: translate("Người dùng & Phân quyền"),
           path: PATHS.ADMIN_USERS_PERMISSIONS,
           icon: <FiUsers className="w-4 h-4 shrink-0" />
         },
         {
-          label: "Danh mục & Cấu hình",
+          label: translate("Danh mục & Cấu hình"),
           path: PATHS.ADMIN_CATEGORIES_CONFIG,
           icon: <FiSliders className="w-4 h-4 shrink-0" />
         }
       ]
     },
     {
-      groupTitle: "GIÁM SÁT VẬN HÀNH",
+      groupTitle: translate("GIÁM SÁT VẬN HÀNH"),
       items: [
         {
-          label: "Thanh toán & Escrow",
+          label: translate("Thanh toán & Escrow"),
           path: PATHS.ADMIN_PAYMENTS_MONITORING,
           icon: <FiDollarSign className="w-4 h-4 shrink-0" />
         },
         {
-          label: "Trạng thái Hệ thống",
+          label: translate("Trạng thái Hệ thống"),
           path: PATHS.ADMIN_SYSTEM_HEALTH,
           icon: <FiActivity className="w-4 h-4 shrink-0" />,
           badge: "99.9%",
@@ -271,27 +274,27 @@ export const AdminLayout: React.FC = () => {
   const getSectionTitle = () => {
     switch (location.pathname) {
       case PATHS.ADMIN_DASHBOARD:
-        return { title: "Tổng quan Hệ thống Admin", category: "Bảng điều khiển trung tâm" };
+        return { title: translate("Tổng quan Hệ thống Admin"), category: translate("Bảng điều khiển trung tâm") };
       case PATHS.ADMIN_EVENTS_APPROVAL:
-        return { title: "Kiểm duyệt Yêu cầu Sự kiện", category: "Phê duyệt nội dung & Giấy phép" };
+        return { title: translate("Kiểm duyệt Yêu cầu Sự kiện"), category: translate("Phê duyệt nội dung & Giấy phép") };
       case PATHS.ADMIN_EKYC_APPROVAL:
-        return { title: "Kiểm duyệt eKYC Ban tổ chức", category: "Xác thực danh tính & Đối soát hồ sơ" };
+        return { title: translate("Kiểm duyệt eKYC Ban tổ chức"), category: translate("Xác thực danh tính & Đối soát hồ sơ") };
       case PATHS.ADMIN_RESALE_PRICE_CAP:
-        return { title: "Quản lý Bán vé lại & Giá trần", category: "Kiểm soát giá bán lại & Chống vé cơ hội" };
+        return { title: translate("Quản lý Bán vé lại & Giá trần"), category: translate("Kiểm soát giá bán lại & Chống vé cơ hội") };
       case PATHS.ADMIN_HOMEPAGE_CONFIG:
-        return { title: "Cấu hình Giao diện Trang chủ & Quảng cáo", category: "Homepage CMS & Ad Placement Manager" };
+        return { title: translate("Cấu hình Giao diện Trang chủ & Quảng cáo"), category: translate("Homepage CMS & Ad Placement Manager") };
       case PATHS.ADMIN_VENUES_MANAGEMENT:
-        return { title: "Quản lý Địa điểm Tổ chức Sự kiện", category: "Xác minh & Quản lý địa điểm hệ thống" };
+        return { title: translate("Quản lý Địa điểm Tổ chức Sự kiện"), category: translate("Xác minh & Quản lý địa điểm hệ thống") };
       case PATHS.ADMIN_USERS_PERMISSIONS:
-        return { title: "Quản lý Người dùng & Phân quyền", category: "Phân quyền vai trò hệ thống (RBAC)" };
+        return { title: translate("Quản lý Người dùng & Phân quyền"), category: translate("Phân quyền vai trò hệ thống (RBAC)") };
       case PATHS.ADMIN_CATEGORIES_CONFIG:
-        return { title: "Quản lý Danh mục & Cấu hình", category: "Cấu hình hệ thống & Thể loại sự kiện" };
+        return { title: translate("Quản lý Danh mục & Cấu hình"), category: translate("Cấu hình hệ thống & Thể loại sự kiện") };
       case PATHS.ADMIN_PAYMENTS_MONITORING:
-        return { title: "Giám sát Thanh toán & Chuyển nhượng", category: "Nhật ký giao dịch Escrow & Payout" };
+        return { title: translate("Giám sát Thanh toán & Chuyển nhượng"), category: translate("Nhật ký giao dịch Escrow & Payout") };
       case PATHS.ADMIN_SYSTEM_HEALTH:
-        return { title: "Giám sát Trạng thái Microservices", category: "Hạ tầng kỹ thuật & Sức khỏe dịch vụ" };
+        return { title: translate("Giám sát Trạng thái Microservices"), category: translate("Hạ tầng kỹ thuật & Sức khỏe dịch vụ") };
       default:
-        return { title: "Admin Portal", category: "Quản trị hệ thống HaloTicket" };
+        return { title: translate("Admin Portal"), category: translate("Quản trị hệ thống HaloTicket") };
     }
   };
 
@@ -417,11 +420,11 @@ export const AdminLayout: React.FC = () => {
                   }`}
               >
                 <FiHome className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                {!isCollapsed && <span className="truncate">Về HaloTicket Client</span>}
+                {!isCollapsed && <span className="truncate">{translate("Về HaloTicket Client")}</span>}
               </Link>
               {isCollapsed && (
                 <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[11px] font-medium rounded-md shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50">
-                  Về HaloTicket Client
+                  {translate("Về HaloTicket Client")}
                 </div>
               )}
             </div>
@@ -441,7 +444,7 @@ export const AdminLayout: React.FC = () => {
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 app-bg-card app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all mx-auto"
-            title={isCollapsed ? "Mở rộng Sidebar" : "Thu gọn Sidebar"}
+            title={isCollapsed ? translate("Mở rộng Sidebar") : translate("Thu gọn Sidebar")}
           >
             {isCollapsed ? <FiChevronRight className="w-3.5 h-3.5" /> : <FiChevronLeft className="w-3.5 h-3.5" />}
           </button>
@@ -486,12 +489,15 @@ export const AdminLayout: React.FC = () => {
               <span>{currentTime}</span>
             </div>
 
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+
             {/* Dark Mode Switcher Toggle */}
             <button
               type="button"
               onClick={toggleTheme}
               className="p-2 rounded-md app-bg-card app-text-main border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-              title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
+              title={isDark ? translate("Chuyển sang Chế độ Sáng") : translate("Chuyển sang Chế độ Tối")}
             >
               {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
             </button>
@@ -503,8 +509,8 @@ export const AdminLayout: React.FC = () => {
               onMarkAllAsRead={markAllAsRead}
               onNotificationClick={handleNotificationClick}
               viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL}
-              viewAllText="Xem trang Kiểm duyệt Sự kiện →"
-              titleText="Thông báo hệ thống"
+              viewAllText={translate("Xem trang Kiểm duyệt Sự kiện →")}
+              titleText={translate("Thông báo hệ thống")}
             />
 
             {/* Admin Profile Dropdown Menu */}
@@ -538,7 +544,7 @@ export const AdminLayout: React.FC = () => {
                       {userProfile?.email || "admin@haloticket.com"}
                     </p>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] font-semibold border border-blue-200 dark:border-blue-800">
-                      Toàn quyền quản trị
+                      {translate("Toàn quyền quản trị")}
                     </span>
                   </div>
 
@@ -548,7 +554,7 @@ export const AdminLayout: React.FC = () => {
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   >
                     <FiUserCheck className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Quản lý phân quyền</span>
+                    <span>{translate("Quản lý phân quyền")}</span>
                   </Link>
 
                   <Link
@@ -557,7 +563,7 @@ export const AdminLayout: React.FC = () => {
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   >
                     <FiSettings className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Cấu hình hệ thống</span>
+                    <span>{translate("Cấu hình hệ thống")}</span>
                   </Link>
 
                   <div className="pt-1 border-t border-slate-200 dark:border-slate-800">
@@ -567,7 +573,7 @@ export const AdminLayout: React.FC = () => {
                       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                     >
                       <FiLogOut className="w-3.5 h-3.5" />
-                      <span>Đăng xuất Quản trị</span>
+                      <span>{translate("Đăng xuất Quản trị")}</span>
                     </button>
                   </div>
                 </div>
@@ -587,7 +593,7 @@ export const AdminLayout: React.FC = () => {
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText="Nhấn để kiểm duyệt ngay →"
+        actionText={translate("Nhấn để kiểm duyệt ngay →")}
         accentColor="blue"
       />
     </div>

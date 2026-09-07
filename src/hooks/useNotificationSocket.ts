@@ -2,10 +2,23 @@ import { useState, useEffect, useCallback } from "react";
 import { notificationApi } from "@/services/notificationApi";
 import type { NotificationItem } from "@/types";
 
+interface RawNotification {
+  id?: string;
+  userId?: string;
+  type?: string;
+  title?: string;
+  subjectTemplate?: string;
+  message?: string;
+  bodyTemplate?: string;
+  readStatus?: boolean;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
 // synthesize a pleasant bell chime using Web Audio API
 export async function playNotificationChime() {
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     if (ctx.state === "suspended") {
@@ -61,7 +74,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
     try {
       const data = await notificationApi.getUserNotifications(userId);
       if (Array.isArray(data)) {
-        const formatted: NotificationItem[] = data.map((item: any) => ({
+        const formatted: NotificationItem[] = data.map((item: RawNotification) => ({
           id: item.id || `notif-${Date.now()}-${Math.random()}`,
           userId: item.userId || userId,
           type: item.type || "GENERAL",
@@ -79,7 +92,9 @@ export function useNotificationSocket(userId: string = "ADMIN") {
   }, [userId]);
 
   useEffect(() => {
-    loadNotifications();
+    const initTimer = setTimeout(() => {
+      void loadNotifications();
+    }, 0);
 
     // 3s interval polling sync to ensure 100% notification updates even if WS is blocked
     const pollInterval = setInterval(loadNotifications, 3000);
@@ -126,7 +141,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
               loadNotifications();
             }
           }
-        } catch (e) {
+        } catch {
           // ignore parse errors
         }
       };
@@ -135,6 +150,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
     }
 
     return () => {
+      clearTimeout(initTimer);
       if (socket) {
         socket.onopen = null;
         socket.onmessage = null;

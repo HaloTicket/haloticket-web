@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiTrendingUp, FiClock, FiCalendar, FiMapPin, FiChevronRight, FiTrash2 } from "react-icons/fi";
 import { DESTINATIONS } from "@/mock/eventData";
-import { eventApi } from "@/services/eventApi";
+import { eventApi, type EventApiData } from "@/services/eventApi";
 import {
   getSearchHistory,
   removeSearchHistoryItem
@@ -20,21 +22,31 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   onClose,
   onSelectKeyword
 }) => {
+  useTranslation();
   const [activeTab, setActiveTab] = useState<"category" | "city">("category");
-  const [history, setHistory] = useState<string[]>([]);
-  const [realEvents, setRealEvents] = useState<any[]>([]);
-  const [trendingKeywords, setTrendingKeywords] = useState<string[]>(["idecaf", "xoay tròn", "Pickleball World Cup"]);
-
-  // Sync search history & trending keywords from DB query whenever modal opens
-  useEffect(() => {
+  const [history, setHistory] = useState<string[]>(() => getSearchHistory());
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setHistory(getSearchHistory());
-      eventApi.getTrendingSearches(3).then((list) => {
-        if (list && list.length > 0) {
-          setTrendingKeywords(list);
-        }
-      });
     }
+  }
+  const [realEvents, setRealEvents] = useState<EventApiData[]>([]);
+  const [trendingKeywords, setTrendingKeywords] = useState<string[]>(["idecaf", "xoay tròn", "Pickleball World Cup"]);
+
+  // Sync search trending keywords from DB query whenever modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    eventApi.getTrendingSearches(3).then((list) => {
+      if (isMounted && list && list.length > 0) {
+        setTrendingKeywords(list);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen]);
 
   // Fetch real events from backend API for recommendations
@@ -113,7 +125,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
                 type="button"
                 onClick={(e) => handleRemoveHistory(e, item)}
                 className="p-1 text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer shrink-0"
-                title="Xóa lịch sử này"
+                title={translate("Xóa lịch sử này")}
               >
                 <FiTrash2 className="w-3.5 h-3.5" />
               </button>
@@ -155,8 +167,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
                 : "app-text-muted hover:app-text-main"
               }`}
           >
-            Khám phá theo Thể loại
-            {activeTab === "category" && (
+            {translate("Khám phá theo Thể loại")}{" "}{activeTab === "category" && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full shadow-xs" />
             )}
           </button>
@@ -169,8 +180,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
                 : "app-text-muted hover:app-text-main"
               }`}
           >
-            Khám phá theo Thành phố
-            {activeTab === "city" && (
+            {translate("Khám phá theo Thành phố")}{" "}{activeTab === "city" && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full shadow-xs" />
             )}
           </button>
@@ -193,7 +203,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-2.5">
                   <span className="font-extrabold text-[11px] md:text-xs text-white line-clamp-1">
-                    {cat.title}
+                    {translate(cat.title)}
                   </span>
                 </div>
               </Link>
@@ -217,7 +227,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-2.5">
                   <span className="font-extrabold text-[11px] md:text-xs text-white line-clamp-1 flex items-center gap-1">
                     <FiMapPin className="w-3 h-3 app-text-brand" />
-                    {city.name}
+                    {translate(city.name)}
                   </span>
                 </div>
               </Link>
@@ -231,8 +241,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
       {/* Recommendations Grid */}
       <div>
         <h4 className="font-extrabold text-xs md:text-sm app-text-main mb-3 tracking-tight">
-          Gợi ý dành cho bạn
-        </h4>
+          {translate("Gợi ý dành cho bạn")}</h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
           {realEvents.map((ev) => (
@@ -251,7 +260,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
               </div>
 
               <h5 className="font-extrabold text-xs app-text-main line-clamp-2 leading-snug mb-2 group-hover:app-text-brand transition-colors">
-                {ev.title}
+                {translate(ev.title)}
               </h5>
 
               <div className="space-y-0.5 text-[11px]">
@@ -274,7 +283,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
             onClick={onClose}
             className="px-6 py-2 gradient-btn text-white font-extrabold text-xs rounded-lg shadow-sm hover:scale-105 transition-transform inline-flex items-center gap-1.5"
           >
-            <span>Xem thêm sự kiện</span>
+            <span>{translate("Xem thêm sự kiện")}</span>
             <FiChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>

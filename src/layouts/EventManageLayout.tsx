@@ -8,7 +8,7 @@ export const EventManageLayout: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [eventData, setEventData] = useState<any>(null);
+  const [eventData, setEventData] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     if (eventId) {

@@ -1,13 +1,24 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaFire } from "react-icons/fa";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { TRENDING_EVENTS, WEEKEND_EVENTS } from "@/mock/eventData";
+import { TRENDING_EVENTS, WEEKEND_EVENTS, type EventItem } from "@/mock/eventData";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
-import { eventApi } from "@/services/eventApi";
+import { eventApi, type EventApiData } from "@/services/eventApi";
+
+interface TrendingRankItem {
+  id: string;
+  rank: number;
+  title: string;
+  image?: string;
+  [key: string]: unknown;
+}
 
 export const TrendingEvents: React.FC = () => {
+  useTranslation();
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
   const rankScrollRef = useRef<HTMLDivElement>(null);
   const eventsScrollRef = useRef<HTMLDivElement>(null);
@@ -18,8 +29,8 @@ export const TrendingEvents: React.FC = () => {
   const [showEventsLeft, setShowEventsLeft] = useState(false);
   const [showEventsRight, setShowEventsRight] = useState(true);
 
-  const [trendingList, setTrendingList] = useState<any[]>(TRENDING_EVENTS);
-  const [tabEvents, setTabEvents] = useState<any[]>(WEEKEND_EVENTS);
+  const [trendingList, setTrendingList] = useState<TrendingRankItem[]>(TRENDING_EVENTS as unknown as TrendingRankItem[]);
+  const [tabEvents, setTabEvents] = useState<Array<EventItem | EventApiData>>(WEEKEND_EVENTS);
 
   // fetch trending events
   useEffect(() => {
@@ -94,7 +105,7 @@ export const TrendingEvents: React.FC = () => {
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
           <FaFire className="w-6 h-6 text-rose-500 animate-pulse" />
-          <span>Sự kiện xu hướng</span>
+          <span>{translate("Sự kiện xu hướng")}</span>
         </h2>
       </div>
 
@@ -106,7 +117,7 @@ export const TrendingEvents: React.FC = () => {
             type="button"
             onClick={scrollRankLeft}
             className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang trái"
+            aria-label={translate("Cuộn sang trái")}
           >
             <FiChevronLeft className="w-5 h-5" />
           </button>
@@ -146,7 +157,7 @@ export const TrendingEvents: React.FC = () => {
             type="button"
             onClick={scrollRankRight}
             className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang phải"
+            aria-label={translate("Cuộn sang phải")}
           >
             <FiChevronRight className="w-5 h-5" />
           </button>
@@ -169,7 +180,7 @@ export const TrendingEvents: React.FC = () => {
             type="button"
             onClick={scrollEventsLeft}
             className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang trái"
+            aria-label={translate("Cuộn sang trái")}
           >
             <FiChevronLeft className="w-5 h-5" />
           </button>
@@ -193,7 +204,7 @@ export const TrendingEvents: React.FC = () => {
             type="button"
             onClick={scrollEventsRight}
             className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang phải"
+            aria-label={translate("Cuộn sang phải")}
           >
             <FiChevronRight className="w-5 h-5" />
           </button>

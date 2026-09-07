@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React from "react";
 import { Link } from "react-router-dom";
 import { FiChevronRight } from "react-icons/fi";
@@ -21,6 +23,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   onTabChange,
   className = ""
 }) => {
+  useTranslation();
   return (
     <div className={`flex flex-col md:flex-row md:items-center justify-between mb-5 gap-3 ${className}`}>
       {/* Title & Tabs Group */}
@@ -28,7 +31,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         {title && (
           <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2.5 tracking-tight">
             {icon && <span className="app-text-brand">{icon}</span>}
-            <span>{title}</span>
+            <span>{translate(title)}</span>
           </h2>
         )}
 
@@ -48,7 +51,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                       : "app-text-muted hover:app-text-main scale-100"
                   }`}
                 >
-                  {tab.label}
+                  {translate(tab.label)}
                 </button>
               );
             })}
@@ -62,7 +65,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
           to={seeMoreLink}
           className="inline-flex items-center gap-1 text-sm font-semibold app-text-muted app-hover-text-brand transition-colors self-start md:self-auto group cursor-pointer"
         >
-          <span>Xem thêm</span>
+          <span>{translate("Xem thêm")}</span>
           <FiChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>
       )}

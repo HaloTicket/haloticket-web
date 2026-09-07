@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiCheck, FiChevronRight } from "react-icons/fi";
 
@@ -12,6 +13,7 @@ export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
   currentStep,
   onStepClick
 }) => {
+  const { t: translate } = useTranslation();
   return (
     <div className="w-full app-bg-card border app-border rounded-2xl p-4 md:p-6 mb-8 shadow-sm">
       <div className="flex items-center justify-between overflow-x-auto no-scrollbar pb-2 md:pb-0 gap-4">
@@ -44,7 +46,7 @@ export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
               >
                 {isCompleted ? <FiCheck className="w-4 h-4" /> : stepNum}
               </div>
-              <span className="text-xs md:text-sm">{stTitle}</span>
+              <span className="text-xs md:text-sm">{translate(stTitle)}</span>
               {idx < stepTitles.length - 1 && (
                 <FiChevronRight className="w-4 h-4 text-zinc-300 dark:text-zinc-700 shrink-0 ml-2 hidden md:block" />
               )}

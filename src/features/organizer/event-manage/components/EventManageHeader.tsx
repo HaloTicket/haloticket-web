@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
 import type { UserProfile } from "@/types";
@@ -25,8 +25,13 @@ import {
   LuUser
 } from "react-icons/lu";
 
+import type { NotificationItem } from "@/types";
+
 interface EventManageHeaderProps {
-  eventData: any;
+  eventData?: {
+    title?: string;
+    [key: string]: unknown;
+  } | null;
   onOpenSidebar: () => void;
 }
 
@@ -80,7 +85,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   const organizerTargetId = userProfile?.id || userProfile?.keycloakId || "ORGANIZER";
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(organizerTargetId);
 
-  const handleNotificationClick = async (n: any) => {
+  const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
     navigate(PATHS.MY_EVENTS);

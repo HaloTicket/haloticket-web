@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
@@ -22,6 +24,7 @@ import {
 import { FaTicketAlt, FaGem } from "react-icons/fa";
 
 export default function Profile() {
+  useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "info";
@@ -183,7 +186,7 @@ export default function Profile() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold app-text-muted">Đang tải thông tin hồ sơ...</p>
+        <p className="text-sm font-semibold app-text-muted">{translate("Đang tải thông tin hồ sơ...")}</p>
       </div>
     );
   }
@@ -195,10 +198,10 @@ export default function Profile() {
         <div className="flex items-center gap-2 text-sm app-text-muted">
           <Link to={PATHS.HOME} className="hover:text-blue-600 transition-colors flex items-center gap-1.5">
             <FiArrowLeft className="w-4 h-4" />
-            <span>Trang chủ</span>
+            <span>{translate("Trang chủ")}</span>
           </Link>
           <span>/</span>
-          <span className="font-semibold app-text-main">Thông tin cá nhân</span>
+          <span className="font-semibold app-text-main">{translate("Thông tin cá nhân")}</span>
         </div>
 
         <button
@@ -206,7 +209,7 @@ export default function Profile() {
           className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border app-border text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
         >
           <FiLogOut className="w-3.5 h-3.5" />
-          <span>Đăng xuất</span>
+          <span>{translate("Đăng xuất")}</span>
         </button>
       </div>
 
@@ -238,13 +241,13 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => {
-                    const url = prompt("Nhập đường dẫn ảnh đại diện mới (URL):", formData.avatarUrl);
+                    const url = prompt(translate("Nhập đường dẫn ảnh đại diện mới (URL):"), formData.avatarUrl);
                     if (url !== null) {
                       setFormData((prev) => ({ ...prev, avatarUrl: url.trim() }));
                     }
                   }}
                   className="absolute bottom-0 right-0 p-2 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-colors cursor-pointer"
-                  title="Đổi ảnh đại diện"
+                  title={translate("Đổi ảnh đại diện")}
                 >
                   <FiCamera className="w-3.5 h-3.5" />
                 </button>
@@ -252,7 +255,7 @@ export default function Profile() {
 
               {/* Name and Tag */}
               <h2 className="text-xl font-bold app-text-main mb-1">
-                {formData.fullName || "Khách hàng HaloTicket"}
+                {formData.fullName || translate("Khách hàng HaloTicket")}
               </h2>
               <p className="text-xs app-text-muted mb-3 flex items-center gap-1.5">
                 <FiMail className="w-3 h-3 text-blue-500" />
@@ -263,12 +266,10 @@ export default function Profile() {
               <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Đang hoạt động
-                </span>
+                  {translate("Đang hoạt động")}</span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40">
                   <FaGem className="w-3 h-3 text-amber-500" />
-                  Thành viên VIP
-                </span>
+                  {translate("Thành viên VIP")}</span>
               </div>
             </div>
 
@@ -283,9 +284,9 @@ export default function Profile() {
               >
                 <div className="flex items-center justify-center gap-1.5 text-blue-600 dark:text-blue-400 mb-1">
                   <FaTicketAlt className="w-4 h-4" />
-                  <span className="text-xs font-bold">Vé của tôi</span>
+                  <span className="text-xs font-bold">{translate("Vé của tôi")}</span>
                 </div>
-                <span className="text-xs app-text-muted">Xem vé đã mua</span>
+                <span className="text-xs app-text-muted">{translate("Xem vé đã mua")}</span>
               </Link>
 
               <button
@@ -295,9 +296,9 @@ export default function Profile() {
               >
                 <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400 mb-1">
                   <FiAward className="w-4 h-4" />
-                  <span className="text-xs font-bold">1,250 Điểm</span>
+                  <span className="text-xs font-bold">{translate("1,250 Điểm")}</span>
                 </div>
-                <span className="text-xs app-text-muted block text-center">Hạng Bạc VIP</span>
+                <span className="text-xs app-text-muted block text-center">{translate("Hạng Bạc VIP")}</span>
               </button>
             </div>
           </div>
@@ -313,7 +314,7 @@ export default function Profile() {
               }`}
             >
               <FiUser className={`w-4 h-4 ${activeTab === "info" ? "text-white" : "text-blue-500"}`} />
-              <span>Thông tin cá nhân</span>
+              <span>{translate("Thông tin cá nhân")}</span>
             </button>
 
             <button
@@ -325,7 +326,7 @@ export default function Profile() {
               }`}
             >
               <FiShield className={`w-4 h-4 ${activeTab === "security" ? "text-white" : "text-emerald-500"}`} />
-              <span>Bảo mật & Mật khẩu</span>
+              <span>{translate("Bảo mật & Mật khẩu")}</span>
             </button>
 
             <button
@@ -337,7 +338,7 @@ export default function Profile() {
               }`}
             >
               <FaGem className={`w-4 h-4 ${activeTab === "membership" ? "text-white" : "text-amber-500"}`} />
-              <span>Thẻ thành viên VIP</span>
+              <span>{translate("Thẻ thành viên VIP")}</span>
             </button>
 
             <Link
@@ -345,7 +346,7 @@ export default function Profile() {
               className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               <FaTicketAlt className="w-4 h-4 text-purple-500" />
-              <span>Vé của tôi</span>
+              <span>{translate("Vé của tôi")}</span>
             </Link>
           </div>
         </div>
@@ -356,16 +357,15 @@ export default function Profile() {
           {activeTab === "info" && (
             <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm">
               <div className="border-b app-border pb-5 mb-6">
-                <h3 className="text-xl font-bold app-text-main">Hồ sơ cá nhân</h3>
+                <h3 className="text-xl font-bold app-text-main">{translate("Hồ sơ cá nhân")}</h3>
                 <p className="text-xs sm:text-sm app-text-muted mt-1">
-                  Quản lý thông tin định danh và liên hệ tài khoản HaloTicket của bạn.
-                </p>
+                  {translate("Quản lý thông tin định danh và liên hệ tài khoản HaloTicket của bạn.")}</p>
               </div>
 
               {saveSuccess && (
                 <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-center gap-2.5 animate-in fade-in duration-300">
                   <FiCheckCircle className="w-5 h-5 shrink-0 text-emerald-500" />
-                  <span>Cập nhật thông tin cá nhân thành công!</span>
+                  <span>{translate("Cập nhật thông tin cá nhân thành công!")}</span>
                 </div>
               )}
 
@@ -380,7 +380,7 @@ export default function Profile() {
                 {/* Full Name */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Họ và tên <span className="text-rose-500">*</span>
+                    {translate("Họ và tên")}<span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -388,7 +388,7 @@ export default function Profile() {
                       type="text"
                       value={formData.fullName}
                       onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
-                      placeholder="Nhập họ và tên đầy đủ"
+                      placeholder={translate("Nhập họ và tên đầy đủ")}
                       className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border app-border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       required
                     />
@@ -399,11 +399,9 @@ export default function Profile() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-bold uppercase tracking-wider app-text-muted">
-                      Địa chỉ Email
-                    </label>
+                      {translate("Địa chỉ Email")}</label>
                     <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <FiCheckCircle className="w-3 h-3" /> Đã xác thực
-                    </span>
+                      <FiCheckCircle className="w-3 h-3" /> {translate("Đã xác thực")}</span>
                   </div>
                   <div className="relative">
                     <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -416,15 +414,13 @@ export default function Profile() {
                     />
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Email dùng để nhận vé điện tử và thông báo sự kiện, không thể thay đổi trực tiếp.
-                  </p>
+                    {translate("Email dùng để nhận vé điện tử và thông báo sự kiện, không thể thay đổi trực tiếp.")}</p>
                 </div>
 
                 {/* Phone Number */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Số điện thoại liên hệ
-                  </label>
+                    {translate("Số điện thoại liên hệ")}</label>
                   <div className="relative">
                     <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -436,20 +432,18 @@ export default function Profile() {
                     />
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Số điện thoại dùng để nhận tin nhắn SMS xác nhận vé tại cổng sự kiện.
-                  </p>
+                    {translate("Số điện thoại dùng để nhận tin nhắn SMS xác nhận vé tại cổng sự kiện.")}</p>
                 </div>
 
                 {/* Gender */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Giới tính
-                  </label>
+                    {translate("Giới tính")}</label>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { id: "MALE", label: "Nam" },
-                      { id: "FEMALE", label: "Nữ" },
-                      { id: "OTHER", label: "Khác" },
+                      { id: "MALE", label: translate("Nam") },
+                      { id: "FEMALE", label: translate("Nữ") },
+                      { id: "OTHER", label: translate("Khác") },
                     ].map((item) => (
                       <button
                         key={item.id}
@@ -466,7 +460,7 @@ export default function Profile() {
                             : "app-bg-subnav app-text-main app-border hover:border-slate-400"
                         }`}
                       >
-                        {item.label}
+                        {translate(item.label)}
                       </button>
                     ))}
                   </div>
@@ -475,8 +469,7 @@ export default function Profile() {
                 {/* Avatar URL Option */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Đường dẫn ảnh đại diện (URL)
-                  </label>
+                    {translate("Đường dẫn ảnh đại diện (URL)")}</label>
                   <input
                     type="url"
                     value={formData.avatarUrl}
@@ -496,12 +489,12 @@ export default function Profile() {
                     {isSaving ? (
                       <>
                         <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Đang lưu...</span>
+                        <span>{translate("Đang lưu...")}</span>
                       </>
                     ) : (
                       <>
                         <FiSave className="w-4 h-4" />
-                        <span>Lưu thay đổi</span>
+                        <span>{translate("Lưu thay đổi")}</span>
                       </>
                     )}
                   </button>
@@ -514,16 +507,15 @@ export default function Profile() {
           {activeTab === "security" && (
             <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm">
               <div className="border-b app-border pb-5 mb-6">
-                <h3 className="text-xl font-bold app-text-main">Bảo mật & Đổi mật khẩu</h3>
+                <h3 className="text-xl font-bold app-text-main">{translate("Bảo mật & Đổi mật khẩu")}</h3>
                 <p className="text-xs sm:text-sm app-text-muted mt-1">
-                  Bảo vệ tài khoản và cập nhật mật khẩu đăng nhập an toàn.
-                </p>
+                  {translate("Bảo vệ tài khoản và cập nhật mật khẩu đăng nhập an toàn.")}</p>
               </div>
 
               {passwordSuccess && (
                 <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-center gap-2.5">
                   <FiCheckCircle className="w-5 h-5 shrink-0 text-emerald-500" />
-                  <span>Đổi mật khẩu thành công! Tài khoản của bạn đã được bảo vệ.</span>
+                  <span>{translate("Đổi mật khẩu thành công! Tài khoản của bạn đã được bảo vệ.")}</span>
                 </div>
               )}
 
@@ -537,7 +529,7 @@ export default function Profile() {
               <form onSubmit={handleChangePassword} className="space-y-5">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Mật khẩu hiện tại <span className="text-rose-500">*</span>
+                    {translate("Mật khẩu hiện tại")}<span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -556,7 +548,7 @@ export default function Profile() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Mật khẩu mới <span className="text-rose-500">*</span>
+                    {translate("Mật khẩu mới")}<span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -566,7 +558,7 @@ export default function Profile() {
                       onChange={(e) =>
                         setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))
                       }
-                      placeholder="Ít nhất 8 ký tự, gồm chữ và số"
+                      placeholder={translate("Ít nhất 8 ký tự, gồm chữ và số")}
                       className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border app-border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       required
                     />
@@ -575,7 +567,7 @@ export default function Profile() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    Xác nhận mật khẩu mới <span className="text-rose-500">*</span>
+                    {translate("Xác nhận mật khẩu mới")}<span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -585,7 +577,7 @@ export default function Profile() {
                       onChange={(e) =>
                         setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))
                       }
-                      placeholder="Nhập lại mật khẩu mới"
+                      placeholder={translate("Nhập lại mật khẩu mới")}
                       className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border app-border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       required
                     />
@@ -601,12 +593,12 @@ export default function Profile() {
                     {passwordSaving ? (
                       <>
                         <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Đang xử lý...</span>
+                        <span>{translate("Đang xử lý...")}</span>
                       </>
                     ) : (
                       <>
                         <FiSave className="w-4 h-4" />
-                        <span>Cập nhật mật khẩu</span>
+                        <span>{translate("Cập nhật mật khẩu")}</span>
                       </>
                     )}
                   </button>
@@ -619,10 +611,9 @@ export default function Profile() {
           {activeTab === "membership" && (
             <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm space-y-6">
               <div className="border-b app-border pb-5">
-                <h3 className="text-xl font-bold app-text-main">Thẻ thành viên HaloTicket VIP</h3>
+                <h3 className="text-xl font-bold app-text-main">{translate("Thẻ thành viên HaloTicket VIP")}</h3>
                 <p className="text-xs sm:text-sm app-text-muted mt-1">
-                  Đặc quyền thành viên, tích lũy điểm thưởng và ưu tiên mua vé sớm.
-                </p>
+                  {translate("Đặc quyền thành viên, tích lũy điểm thưởng và ưu tiên mua vé sớm.")}</p>
               </div>
 
               {/* Digital Member Card */}
@@ -647,18 +638,16 @@ export default function Profile() {
                 <div className="relative z-10 space-y-6">
                   <div>
                     <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
-                      Chủ thẻ thành viên
-                    </span>
+                      {translate("Chủ thẻ thành viên")}</span>
                     <h4 className="text-2xl font-bold tracking-wide text-white">
-                      {formData.fullName || "Khách hàng HaloTicket"}
+                      {formData.fullName || translate("Khách hàng HaloTicket")}
                     </h4>
                   </div>
 
                   <div className="flex flex-wrap items-end justify-between gap-4 pt-4 border-t border-white/10">
                     <div>
                       <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
-                        Mã định danh thẻ
-                      </span>
+                        {translate("Mã định danh thẻ")}</span>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm sm:text-base font-bold text-slate-200">
                           {profile.id ? `HT-${profile.id.slice(0, 8).toUpperCase()}` : "HT-883921-VIP"}
@@ -667,7 +656,7 @@ export default function Profile() {
                           type="button"
                           onClick={handleCopyMemberId}
                           className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 transition-colors cursor-pointer"
-                          title="Sao chép mã thẻ"
+                          title={translate("Sao chép mã thẻ")}
                         >
                           {copied ? <FiCheck className="w-3.5 h-3.5 text-emerald-400" /> : <FiCopy className="w-3.5 h-3.5" />}
                         </button>
@@ -676,8 +665,7 @@ export default function Profile() {
 
                     <div className="text-right">
                       <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
-                        Điểm thưởng tích lũy
-                      </span>
+                        {translate("Điểm thưởng tích lũy")}</span>
                       <span className="text-xl font-extrabold text-amber-400">1,250 PTS</span>
                     </div>
                   </div>
@@ -687,26 +675,23 @@ export default function Profile() {
               {/* VIP Perks List */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-sm font-bold uppercase tracking-wider app-text-muted">
-                  Đặc quyền thành viên Silver VIP
-                </h4>
+                  {translate("Đặc quyền thành viên Silver VIP")}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-start gap-3">
                     <FiCheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                     <div>
-                      <h5 className="text-xs font-bold app-text-main">Ưu tiên đặt vé sớm</h5>
+                      <h5 className="text-xs font-bold app-text-main">{translate("Ưu tiên đặt vé sớm")}</h5>
                       <p className="text-[11px] app-text-muted mt-0.5">
-                        Mở bán sớm 1 giờ trước giờ công khai cho các sự kiện độc quyền.
-                      </p>
+                        {translate("Mở bán sớm 1 giờ trước giờ công khai cho các sự kiện độc quyền.")}</p>
                     </div>
                   </div>
 
                   <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 flex items-start gap-3">
                     <FaGem className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <h5 className="text-xs font-bold app-text-main">Tích lũy 5% điểm</h5>
+                      <h5 className="text-xs font-bold app-text-main">{translate("Tích lũy 5% điểm")}</h5>
                       <p className="text-[11px] app-text-muted mt-0.5">
-                        Quy đổi điểm thành mã giảm giá trực tiếp khi thanh toán vé.
-                      </p>
+                        {translate("Quy đổi điểm thành mã giảm giá trực tiếp khi thanh toán vé.")}</p>
                     </div>
                   </div>
                 </div>

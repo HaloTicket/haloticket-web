@@ -27,7 +27,7 @@ import {
   FiCalendar
 } from "react-icons/fi";
 import type { Step1Errors } from "@/types/organizer";
-import { eventApi } from "@/services/eventApi";
+import { eventApi, type EventApiData } from "@/services/eventApi";
 import { mediaApi } from "@/services/mediaApi";
 import { type SystemVenue } from "@/utils/venueUtils";
 import {
@@ -165,20 +165,20 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           const venueMap = new Map<string, SystemVenue>();
 
           // iterate real DB events to extract & group venue details
-          realEvents.forEach((ev: any) => {
+          realEvents.forEach((ev: EventApiData & Record<string, unknown>) => {
             if (!ev.locationName || !ev.locationName.trim()) return;
 
             const key = ev.locationName.toLowerCase().trim();
             const existing = venueMap.get(key);
 
-            const status = (ev.eventStatus || ev.status || "").toUpperCase();
-            const approval = (ev.eventApprovalStatus || ev.approvalStatus || "").toUpperCase();
+            const status = String(ev.eventStatus || ev.status || "").toUpperCase();
+            const approval = String(ev.eventApprovalStatus || ev.approvalStatus || "").toUpperCase();
             const isCompletedOrPublished = status === "COMPLETED" || status === "PUBLISHED" || approval === "APPROVED";
 
             const bookingItem = {
               eventName: ev.title || "Sự kiện",
-              organizer: ev.organizer?.name || ev.author || "Ban Tổ Chức",
-              date: ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : "Đã đặt chỗ"),
+              organizer: (ev.organizer as { name?: string })?.name || (ev.author as string) || "Ban Tổ Chức",
+              date: String(ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : "Đã đặt chỗ")),
               timeSlot: ev.startTime
                 ? `${new Date(ev.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${ev.endTime ? new Date(ev.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "23:00"
                 }`
@@ -187,7 +187,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             };
 
             if (existing) {
-              const exists = existing.bookings.some((b: any) => b.eventName === bookingItem.eventName);
+              const exists = existing.bookings.some((b) => b.eventName === bookingItem.eventName);
               if (!exists) {
                 existing.bookings.push(bookingItem);
                 existing.eventsHosted += 1;
@@ -199,9 +199,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               venueMap.set(key, {
                 id: `v-db-${ev.id}`,
                 name: ev.locationName,
-                city: ev.city || "TP. Hồ Chí Minh",
-                ward: ev.ward || "",
-                address: ev.address || ev.locationName,
+                city: (ev.city as string) || "TP. Hồ Chí Minh",
+                ward: (ev.ward as string) || "",
+                address: (ev.address as string) || ev.locationName,
                 capacity: 3000,
                 verified: isCompletedOrPublished,
                 eventsHosted: 1,
@@ -229,7 +229,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     if (!description || !description.trim()) {
       setDescription(DEFAULT_DESCRIPTION_TEMPLATE);
     }
-  }, []);
+  }, [description, setDescription]);
 
   const filteredVenues = systemVenues.filter(
     (v) =>
@@ -1448,7 +1448,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
 
             <div className="space-y-2.5 max-h-72 overflow-y-auto no-scrollbar">
-              {selectedVenue.bookings.map((b: any, idx: number) => (
+              {selectedVenue.bookings.map((b, idx: number) => (
                 <div
                   key={idx}
                   className="p-3 rounded-xl app-bg-subnav border app-border space-y-1 text-xs"

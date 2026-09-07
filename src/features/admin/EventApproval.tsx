@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
   FiCheckSquare,
@@ -22,7 +23,42 @@ import {
 import { eventApi } from "@/services/eventApi";
 import type { ApprovalEventItem } from "@/types";
 
+interface ApprovalTicket {
+  name?: string;
+  price?: number;
+  totalQuantity?: number;
+  quantity?: number;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface ApprovalEventRaw {
+  id?: string;
+  title?: string;
+  categoryName?: string;
+  organizer?: { name?: string };
+  author?: string;
+  locationName?: string;
+  address?: string;
+  datesSummary?: string;
+  startTime?: string;
+  posterImage?: string;
+  bannerUrl?: string;
+  thumbnailUrl?: string;
+  eventApprovalStatus?: string;
+  submittedAt?: string;
+  createdAt?: string;
+  minPrice?: number;
+  descriptionText?: string;
+  description?: string;
+  tickets?: ApprovalTicket[];
+  customQuestions?: Record<string, unknown>[];
+  galleryImages?: string[];
+  [key: string]: unknown;
+}
+
 export const EventApproval: React.FC = () => {
+  const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
 
@@ -53,7 +89,7 @@ export const EventApproval: React.FC = () => {
       const data = await eventApi.getApprovalEvents(activeTab);
       if (Array.isArray(data)) {
         const formatTimestamp = (rawDate?: string) => {
-          if (!rawDate) return "Vừa gửi";
+          if (!rawDate) return translate("Vừa gửi");
           const cleaned = String(rawDate).replace(/^Gửi lúc:\s*/i, "").trim();
           const d = new Date(cleaned);
           if (!isNaN(d.getTime())) {
@@ -84,24 +120,24 @@ export const EventApproval: React.FC = () => {
               });
             }
           }
-          return "Thời gian dự kiến";
+          return translate("Thời gian dự kiến");
         };
 
-        const formattedList: ApprovalEventItem[] = data.map((item: any) => ({
+        const formattedList: ApprovalEventItem[] = (data as ApprovalEventRaw[]).map((item) => ({
           ...item,
           id: item.id || `EV_${Date.now()}`,
-          title: item.title || "Sự kiện chưa đặt tên",
-          categoryName: item.categoryName || "Thể loại chung",
-          organizerName: item.organizer?.name || item.author || "Ban Tổ Chức",
-          locationName: item.locationName || "Địa điểm chưa xác định",
-          address: item.address || item.locationName || "Địa chỉ chi tiết",
+          title: item.title || translate("Sự kiện chưa đặt tên"),
+          categoryName: item.categoryName || translate("Thể loại chung"),
+          organizerName: item.organizer?.name || item.author || translate("Ban Tổ Chức"),
+          locationName: item.locationName || translate("Địa điểm chưa xác định"),
+          address: item.address || item.locationName || translate("Địa chỉ chi tiết"),
           datesSummary: formatDatesSummary(item.datesSummary, item.startTime),
           posterImage: item.posterImage || item.bannerUrl || item.thumbnailUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80",
           bannerUrl: item.bannerUrl || item.posterImage || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80",
-          eventApprovalStatus: (item.eventApprovalStatus || "PENDING").toUpperCase() as any,
+          eventApprovalStatus: ((item.eventApprovalStatus || "PENDING").toUpperCase() as "PENDING" | "APPROVED" | "REJECTED"),
           submittedAt: formatTimestamp(item.submittedAt || item.createdAt),
           minPrice: item.minPrice || 0,
-          descriptionText: item.descriptionText || item.description || "Nội dung mô tả chưa cập nhật.",
+          descriptionText: item.descriptionText || item.description || translate("Nội dung mô tả chưa cập nhật."),
           tickets: Array.isArray(item.tickets) ? item.tickets : [],
           customQuestions: Array.isArray(item.customQuestions) ? item.customQuestions : [],
           galleryImages: Array.isArray(item.galleryImages) ? item.galleryImages : []
@@ -121,16 +157,21 @@ export const EventApproval: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to load approval events", err);
-      showToast("Không thể tải danh sách sự kiện từ hệ thống", "error");
+      showToast(translate("Không thể tải danh sách sự kiện từ hệ thống"), "error");
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, translate]);
 
   useEffect(() => {
-    loadApprovalEvents();
+    const timer = setTimeout(() => {
+      loadApprovalEvents();
+    }, 0);
     window.addEventListener("approval-events-updated", loadApprovalEvents);
-    return () => window.removeEventListener("approval-events-updated", loadApprovalEvents);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("approval-events-updated", loadApprovalEvents);
+    };
   }, [loadApprovalEvents]);
 
   // auto-open modal if eventId is passed via URL search parameters
@@ -138,7 +179,10 @@ export const EventApproval: React.FC = () => {
     if (eventIdParam && eventsList.length > 0) {
       const match = eventsList.find((e) => e.id === eventIdParam || String(e.id) === String(eventIdParam));
       if (match) {
-        setSelectedEvent(match);
+        const timer = setTimeout(() => {
+          setSelectedEvent(match);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [eventIdParam, eventsList]);
@@ -152,7 +196,7 @@ export const EventApproval: React.FC = () => {
 
     const res = await eventApi.approveEvent(id);
     if (res) {
-      showToast(`Đã PHÊ DUYỆT thành công sự kiện "${selectedEvent?.title || id}"!`);
+      showToast(`${translate("Đã PHÊ DUYỆT thành công sự kiện")} "${selectedEvent?.title || id}"!`);
     }
     setSelectedEvent(null);
     loadApprovalEvents();
@@ -170,7 +214,7 @@ export const EventApproval: React.FC = () => {
 
     const res = await eventApi.rejectEvent(selectedEvent.id, rejectReason, rejectNotes);
     if (res) {
-      showToast(`Đã TỪ CHỐI phê duyệt sự kiện "${selectedEvent.title}"!`, "info");
+      showToast(`${translate("Đã TỪ CHỐI phê duyệt sự kiện")} "${selectedEvent.title}"!`, "info");
     }
     setShowRejectModal(false);
     setSelectedEvent(null);
@@ -213,10 +257,10 @@ export const EventApproval: React.FC = () => {
           <div>
             <h2 className="text-base font-bold app-text-main flex items-center gap-2">
               <FiCheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Kiểm Duyệt Yêu Cầu Đăng Tải Sự Kiện</span>
+              <span>{translate("Kiểm Duyệt Yêu Cầu Đăng Tải Sự Kiện")}</span>
             </h2>
             <p className="text-xs app-text-muted mt-0.5">
-              Đánh giá hồ sơ pháp lý, địa điểm, hạng vé và thông tin Ban Tổ Chức trước khi công khai mở bán vé.
+              {translate("Đánh giá hồ sơ pháp lý, địa điểm, hạng vé và thông tin Ban Tổ Chức trước khi công khai mở bán vé.")}
             </p>
           </div>
 
@@ -224,10 +268,10 @@ export const EventApproval: React.FC = () => {
             type="button"
             onClick={loadApprovalEvents}
             className="p-2 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
-            title="Tải lại dữ liệu"
+            title={translate("Tải lại dữ liệu")}
           >
             <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
-            <span>Làm mới</span>
+            <span>{translate("Làm mới")}</span>
           </button>
         </div>
 
@@ -249,12 +293,12 @@ export const EventApproval: React.FC = () => {
               >
                 <span>
                   {tab === "PENDING"
-                    ? "Chờ duyệt"
+                    ? translate("Chờ duyệt")
                     : tab === "APPROVED"
-                      ? "Đã duyệt"
+                      ? translate("Đã duyệt")
                       : tab === "REJECTED"
-                        ? "Bị từ chối"
-                        : "Tất cả"}
+                        ? translate("Bị từ chối")
+                        : translate("Tất cả")}
                 </span>
               </button>
             ))}
@@ -270,7 +314,7 @@ export const EventApproval: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Tìm tên sự kiện, BTC..."
+              placeholder={translate("Tìm tên sự kiện, BTC...")}
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-slate-400 font-medium"
             />
           </div>
@@ -283,12 +327,12 @@ export const EventApproval: React.FC = () => {
           <table className="w-full text-left text-xs table-fixed min-w-[1000px]">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 app-text-muted font-bold text-[11px] uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="py-3 px-4 w-[24%]">Sự kiện &amp; BTC</th>
-                <th className="py-3 px-4 w-[18%]">Thể loại &amp; Địa điểm</th>
-                <th className="py-3 px-4 w-[22%]">Thời gian diễn ra</th>
-                <th className="py-3 px-4 w-[11%]">Giá vé từ</th>
-                <th className="py-3 px-4 w-[12%] text-center">Trạng thái duyệt</th>
-                <th className="py-3 px-4 w-[13%] text-right">Thao tác Admin</th>
+                <th className="py-3 px-4 w-[24%]">{translate("Sự kiện & BTC")}</th>
+                <th className="py-3 px-4 w-[18%]">{translate("Thể loại & Địa điểm")}</th>
+                <th className="py-3 px-4 w-[22%]">{translate("Thời gian diễn ra")}</th>
+                <th className="py-3 px-4 w-[11%]">{translate("Giá vé từ")}</th>
+                <th className="py-3 px-4 w-[12%] text-center">{translate("Trạng thái duyệt")}</th>
+                <th className="py-3 px-4 w-[13%] text-right">{translate("Thao tác Admin")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -296,7 +340,7 @@ export const EventApproval: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="py-12 text-center app-text-muted">
                     <FiCheckSquare className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-50" />
-                    <p className="font-bold">Không tìm thấy yêu cầu sự kiện nào.</p>
+                    <p className="font-bold">{translate("Không tìm thấy yêu cầu sự kiện nào.")}</p>
                   </td>
                 </tr>
               ) : (
@@ -336,25 +380,25 @@ export const EventApproval: React.FC = () => {
                           <FiCalendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                           <span className="truncate">{item.datesSummary}</span>
                         </div>
-                        <p className="text-[10px] app-text-muted mt-0.5 truncate">Gửi lúc: {item.submittedAt}</p>
+                        <p className="text-[10px] app-text-muted mt-0.5 truncate">{translate("Gửi lúc:")} {item.submittedAt}</p>
                       </td>
 
                       <td className="py-3.5 px-4 font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                        {item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : "Miễn phí"}
+                        {item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : translate("Miễn phí")}
                       </td>
 
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {status === "APPROVED" ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[11px] font-extrabold border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-1">
-                            <FiCheckCircle className="w-3 h-3" /> Đã phê duyệt
+                            <FiCheckCircle className="w-3 h-3" /> {translate("Đã phê duyệt")}
                           </span>
                         ) : status === "REJECTED" ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-[11px] font-extrabold border border-rose-200 dark:border-rose-800 inline-flex items-center gap-1">
-                            <FiXCircle className="w-3 h-3" /> Bị từ chối
+                            <FiXCircle className="w-3 h-3" /> {translate("Bị từ chối")}
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[11px] font-extrabold border border-amber-200 dark:border-amber-800 inline-flex items-center gap-1 animate-pulse">
-                            <FiAlertTriangle className="w-3 h-3" /> Chờ phê duyệt
+                            <FiAlertTriangle className="w-3 h-3" /> {translate("Chờ phê duyệt")}
                           </span>
                         )}
                       </td>
@@ -366,7 +410,7 @@ export const EventApproval: React.FC = () => {
                           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
                         >
                           <FiEye className="w-3.5 h-3.5" />
-                          <span>Xem hồ sơ</span>
+                          <span>{translate("Xem hồ sơ")}</span>
                         </button>
                       </td>
                     </tr>
@@ -381,7 +425,7 @@ export const EventApproval: React.FC = () => {
         {totalPages > 1 && (
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <span className="app-text-muted font-medium">
-              Hiển thị <strong className="app-text-main">{paginatedEvents.length}</strong> / <strong className="app-text-main">{filteredEvents.length}</strong> sự kiện
+              {translate("Hiển thị")} <strong className="app-text-main">{paginatedEvents.length}</strong> / <strong className="app-text-main">{filteredEvents.length}</strong> {translate("sự kiện")}
             </span>
             <div className="flex items-center gap-1.5">
               <button
@@ -416,7 +460,7 @@ export const EventApproval: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
-                  Mã Hồ Sơ Sự Kiện: {selectedEvent.id}
+                  {translate("Mã Hồ Sơ Sự Kiện:")} {selectedEvent.id}
                 </span>
                 <h3 className="text-lg font-black app-text-main mt-0.5">{selectedEvent.title}</h3>
               </div>
@@ -451,31 +495,31 @@ export const EventApproval: React.FC = () => {
             <div className="p-4 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800 space-y-3">
               <h4 className="text-xs font-bold app-text-main flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
                 <FiShield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Hồ Sơ Pháp Lý & Thanh Toán Ban Tổ Chức</span>
+                <span>{translate("Hồ Sơ Pháp Lý & Thanh Toán Ban Tổ Chức")}</span>
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <span className="text-[10px] app-text-muted font-bold block uppercase">Đơn vị đăng ký (Tax Name)</span>
-                  <p className="font-extrabold app-text-main">{selectedEvent.taxName || selectedEvent.organizerName || "Chưa cập nhật"}</p>
+                  <span className="text-[10px] app-text-muted font-bold block uppercase">{translate("Đơn vị đăng ký (Tax Name)")}</span>
+                  <p className="font-extrabold app-text-main">{selectedEvent.taxName || selectedEvent.organizerName || translate("Chưa cập nhật")}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] app-text-muted font-bold block uppercase">Mã số thuế (Tax Code)</span>
+                  <span className="text-[10px] app-text-muted font-bold block uppercase">{translate("Mã số thuế (Tax Code)")}</span>
                   <p className="font-extrabold text-blue-600 dark:text-blue-400">{selectedEvent.taxCode || "0312345678"}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] app-text-muted font-bold block uppercase">Loại hình kinh doanh</span>
-                  <p className="font-extrabold app-text-main">{selectedEvent.businessType === "company" ? "Doanh nghiệp / Công ty" : "Cá nhân / Đơn vị tư nhân"}</p>
+                  <span className="text-[10px] app-text-muted font-bold block uppercase">{translate("Loại hình kinh doanh")}</span>
+                  <p className="font-extrabold app-text-main">{selectedEvent.businessType === "company" ? translate("Doanh nghiệp / Công ty") : translate("Cá nhân / Đơn vị tư nhân")}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] app-text-muted font-bold block uppercase">Chủ tài khoản nhận tiền</span>
+                  <span className="text-[10px] app-text-muted font-bold block uppercase">{translate("Chủ tài khoản nhận tiền")}</span>
                   <p className="font-extrabold app-text-main">{selectedEvent.accountHolder || selectedEvent.organizerName}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] app-text-muted font-bold block uppercase">Số tài khoản ngân hàng</span>
+                  <span className="text-[10px] app-text-muted font-bold block uppercase">{translate("Số tài khoản ngân hàng")}</span>
                   <p className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedEvent.accountNumber || "999988887777"}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] app-text-muted font-bold block uppercase">Ngân hàng & Chi nhánh</span>
+                  <span className="text-[10px] app-text-muted font-bold block uppercase">{translate("Ngân hàng & Chi nhánh")}</span>
                   <p className="font-semibold app-text-main">{selectedEvent.bankName || "Vietcombank"} ({selectedEvent.bankBranch || "Chi nhánh chính"})</p>
                 </div>
               </div>
@@ -484,7 +528,7 @@ export const EventApproval: React.FC = () => {
             {/* Event Location & Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3.5 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Địa điểm diễn ra</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">{translate("Địa điểm diễn ra")}</span>
                 <p className="font-bold app-text-main flex items-center gap-1.5">
                   <FiMapPin className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>{selectedEvent.locationName}</span>
@@ -493,7 +537,7 @@ export const EventApproval: React.FC = () => {
               </div>
 
               <div className="p-3.5 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Thời gian diễn ra sự kiện</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">{translate("Thời gian diễn ra sự kiện")}</span>
                 <p className="font-bold app-text-main flex items-center gap-1.5">
                   <FiCalendar className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>{selectedEvent.datesSummary}</span>
@@ -506,7 +550,7 @@ export const EventApproval: React.FC = () => {
               <div className="space-y-2">
                 <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
                   <FiImage className="w-4 h-4 text-blue-600" />
-                  <span>Bộ sưu tập hình ảnh sự kiện ({selectedEvent.galleryImages.length} ảnh)</span>
+                  <span>{translate("Bộ sưu tập hình ảnh sự kiện")} ({selectedEvent.galleryImages.length} {translate("ảnh")})</span>
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {selectedEvent.galleryImages.map((img, idx) => (
@@ -521,16 +565,16 @@ export const EventApproval: React.FC = () => {
               <div className="space-y-2">
                 <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
                   <FiTag className="w-4 h-4 text-blue-600" />
-                  <span>Cấu hình các loại vé đăng ký ({selectedEvent.tickets.length} hạng vé)</span>
+                  <span>{translate("Cấu hình các loại vé đăng ký")} ({selectedEvent.tickets.length} {translate("hạng vé")})</span>
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {selectedEvent.tickets.map((t: any, i: number) => (
+                  {selectedEvent.tickets.map((t: ApprovalTicket, i: number) => (
                     <div key={i} className="p-3 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800 text-xs space-y-1">
                       <span className="font-extrabold app-text-main block truncate">{t.name}</span>
                       <span className="text-blue-600 dark:text-blue-400 font-extrabold text-sm block">
-                        {t.price ? `${t.price.toLocaleString("vi-VN")} đ` : "Miễn phí"}
+                        {t.price ? `${t.price.toLocaleString("vi-VN")} đ` : translate("Miễn phí")}
                       </span>
-                      <span className="text-[11px] app-text-muted block font-medium">Số lượng: {t.totalQuantity || t.quantity || 100} vé</span>
+                      <span className="text-[11px] app-text-muted block font-medium">{translate("Số lượng:")} {t.totalQuantity || t.quantity || 100} {translate("vé")}</span>
                       {t.description && <p className="text-[10px] app-text-muted italic leading-tight">{t.description}</p>}
                     </div>
                   ))}
@@ -542,7 +586,7 @@ export const EventApproval: React.FC = () => {
             <div className="space-y-1.5">
               <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
                 <FiFileText className="w-4 h-4 text-blue-600" />
-                <span>Nội dung mô tả chi tiết sự kiện</span>
+                <span>{translate("Nội dung mô tả chi tiết sự kiện")}</span>
               </h4>
               <div className="p-4 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800 text-xs app-text-main whitespace-pre-line leading-relaxed max-h-48 overflow-y-auto">
                 {selectedEvent.descriptionText || selectedEvent.description}
@@ -554,10 +598,10 @@ export const EventApproval: React.FC = () => {
               <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs space-y-1">
                 <p className="font-bold flex items-center gap-1.5">
                   <FiAlertTriangle className="w-4 h-4 shrink-0" />
-                  <span>Sự kiện này đã bị từ chối phê duyệt</span>
+                  <span>{translate("Sự kiện này đã bị từ chối phê duyệt")}</span>
                 </p>
-                <p><strong>Lý do:</strong> {selectedEvent.rejectionReason}</p>
-                {selectedEvent.rejectionNotes && <p><strong>Ghi chú:</strong> {selectedEvent.rejectionNotes}</p>}
+                <p><strong>{translate("Lý do:")}</strong> {selectedEvent.rejectionReason}</p>
+                {selectedEvent.rejectionNotes && <p><strong>{translate("Ghi chú:")}</strong> {selectedEvent.rejectionNotes}</p>}
               </div>
             )}
 
@@ -569,7 +613,7 @@ export const EventApproval: React.FC = () => {
                 className="px-4 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-900 cursor-pointer transition-all flex items-center gap-1.5"
               >
                 <FiXCircle className="w-4 h-4" />
-                <span>Từ chối duyệt</span>
+                <span>{translate("Từ chối duyệt")}</span>
               </button>
 
               <button
@@ -578,7 +622,7 @@ export const EventApproval: React.FC = () => {
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5 active:scale-95"
               >
                 <FiCheckCircle className="w-4 h-4" />
-                <span>Phê duyệt sự kiện ngay</span>
+                <span>{translate("Phê duyệt sự kiện ngay")}</span>
               </button>
             </div>
           </div>
@@ -591,32 +635,32 @@ export const EventApproval: React.FC = () => {
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-2.5 text-rose-500">
               <FiAlertTriangle className="w-5 h-5 shrink-0" />
-              <h3 className="text-base font-extrabold app-text-main">Từ chối duyệt sự kiện</h3>
+              <h3 className="text-base font-extrabold app-text-main">{translate("Từ chối duyệt sự kiện")}</h3>
             </div>
 
             <p className="text-xs app-text-muted leading-relaxed">
-              Bạn đang từ chối duyệt sự kiện <strong className="app-text-main">"{selectedEvent.title}"</strong>. Vui lòng chọn lý do để hệ thống tự động gửi thông báo cho Ban Tổ Chức.
+              {translate("Bạn đang từ chối duyệt sự kiện")} <strong className="app-text-main">"{selectedEvent.title}"</strong>. {translate("Vui lòng chọn lý do để hệ thống tự động gửi thông báo cho Ban Tổ Chức.")}
             </p>
 
             <div className="space-y-3">
-              <label className="text-xs font-semibold app-text-main block">Lý do chính từ chối</label>
+              <label className="text-xs font-semibold app-text-main block">{translate("Lý do chính từ chối")}</label>
               <select
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl p-3 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition-all"
               >
-                <option value="Hình ảnh poster/banner không đạt tiêu chuẩn bản quyền" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Hình ảnh poster/banner không đạt tiêu chuẩn bản quyền</option>
-                <option value="Thiếu giấy phép tổ chức biểu diễn nghệ thuật/thể thao" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Thiếu giấy phép tổ chức biểu diễn nghệ thuật/thể thao</option>
-                <option value="Nội dung mô tả chưa rõ ràng hoặc vi phạm thuần phong mỹ tục" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Nội dung mô tả chưa rõ ràng hoặc vi phạm thuần phong mỹ tục</option>
-                <option value="Giá vé hoặc thông tin địa điểm chưa chính xác" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Giá vé hoặc thông tin địa điểm chưa chính xác</option>
-                <option value="Khác" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Lý do khác...</option>
+                <option value="Hình ảnh poster/banner không đạt tiêu chuẩn bản quyền" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{translate("Hình ảnh poster/banner không đạt tiêu chuẩn bản quyền")}</option>
+                <option value="Thiếu giấy phép tổ chức biểu diễn nghệ thuật/thể thao" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{translate("Thiếu giấy phép tổ chức biểu diễn nghệ thuật/thể thao")}</option>
+                <option value="Nội dung mô tả chưa rõ ràng hoặc vi phạm thuần phong mỹ tục" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{translate("Nội dung mô tả chưa rõ ràng hoặc vi phạm thuần phong mỹ tục")}</option>
+                <option value="Giá vé hoặc thông tin địa điểm chưa chính xác" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{translate("Giá vé hoặc thông tin địa điểm chưa chính xác")}</option>
+                <option value="Khác" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{translate("Lý do khác...")}</option>
               </select>
 
               <textarea
                 rows={3}
                 value={rejectNotes}
                 onChange={(e) => setRejectNotes(e.target.value)}
-                placeholder="Nhập ghi chú hướng dẫn BTC khắc phục..."
+                placeholder={translate("Nhập ghi chú hướng dẫn BTC khắc phục...")}
                 className="w-full app-bg-subnav app-text-main text-xs rounded-xl p-3 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-rose-500"
               />
             </div>
@@ -627,14 +671,14 @@ export const EventApproval: React.FC = () => {
                 onClick={() => setShowRejectModal(false)}
                 className="px-4 py-2 app-bg-subnav app-text-main text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer"
               >
-                Hủy bỏ
+                {translate("Hủy bỏ")}
               </button>
               <button
                 type="button"
                 onClick={handleRejectSubmit}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
               >
-                Xác nhận từ chối
+                {translate("Xác nhận từ chối")}
               </button>
             </div>
           </div>

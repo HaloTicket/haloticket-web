@@ -1,14 +1,20 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { SPECIAL_EVENTS } from "@/mock/eventData";
 import { eventApi } from "@/services/eventApi";
 
+import type { EventItem } from "@/mock/eventData";
+import type { EventApiData } from "@/services/eventApi";
+
 export const SpecialEvents: React.FC = () => {
+  useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
-  const [events, setEvents] = useState<any[]>(SPECIAL_EVENTS);
+  const [events, setEvents] = useState<Array<EventItem | EventApiData>>(SPECIAL_EVENTS);
 
   // fetch event data
   useEffect(() => {
@@ -48,8 +54,7 @@ export const SpecialEvents: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main tracking-tight">
-          Sự kiện đặc biệt
-        </h2>
+          {translate("Sự kiện đặc biệt")}</h2>
       </div>
 
       {/* Poster Cards Carousel Wrapper */}
@@ -60,7 +65,7 @@ export const SpecialEvents: React.FC = () => {
             type="button"
             onClick={scrollLeft}
             className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang trái"
+            aria-label={translate("Cuộn sang trái")}
           >
             <FiChevronLeft className="w-5 h-5" />
           </button>
@@ -95,7 +100,7 @@ export const SpecialEvents: React.FC = () => {
             type="button"
             onClick={scrollRight}
             className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang phải"
+            aria-label={translate("Cuộn sang phải")}
           >
             <FiChevronRight className="w-5 h-5" />
           </button>

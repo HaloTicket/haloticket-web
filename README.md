@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+Vietnamese/English interface configuration and translation guidelines: [I18N.md](./I18N.md).
+
 ## Authentication configuration
 
 Copy `.env.example` to `.env.local` before starting the app. Google login and

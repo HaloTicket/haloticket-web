@@ -1,11 +1,16 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { Link } from "react-router-dom";
 import { FiCalendar, FiMapPin } from "react-icons/fi";
 import type { EventItem } from "@/mock/eventData";
+import type { EventApiData } from "@/types";
+import { formatCurrency, formatDate, formatLegacyVietnameseDate, parseVndAmount } from "@/utils/formatters";
 import { Badge } from "./Badge";
 
+export type EventCardData = Partial<EventItem> & Partial<EventApiData>;
+
 interface EventCardProps {
-  event: EventItem | any;
+  event: EventCardData | null | undefined;
   variant?: "standard" | "compact" | "ranked" | "poster";
   className?: string;
 }
@@ -15,16 +20,22 @@ export const EventCard: React.FC<EventCardProps> = ({
   variant = "standard",
   className = ""
 }) => {
+  const { t: translate } = useTranslation();
   if (!event) return null;
 
   const isPoster = variant === "poster";
-  const displayPrice = event.price
-    ? event.price.startsWith("Từ")
-      ? event.price
-      : `Từ ${event.price}`
-    : "Từ 250.000đ";
+  const rawPrice = event.minPrice ?? event.price;
+  const numericPrice = parseVndAmount(rawPrice);
+  const displayPrice = numericPrice !== undefined
+    ? numericPrice > 0
+      ? translate("Từ {{price}}", { price: formatCurrency(numericPrice) })
+      : translate("Miễn phí")
+    : rawPrice ? translate(rawPrice) : translate("Miễn phí");
+  const displayDate = event.startTime
+    ? formatDate(event.startTime)
+    : event.date ? formatLegacyVietnameseDate(event.date) ?? translate(event.date) : translate("Sắp diễn ra");
 
-  const locationText = event.location || event.locationName || event.address;
+  const locationText = event.location || event.locationName || event.address || translate("Địa điểm chưa cập nhật");
 
   return (
     <Link
@@ -35,7 +46,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       <div className={`relative w-full overflow-hidden ${isPoster ? "aspect-[3/4]" : "aspect-[16/9]"} bg-slate-200 dark:bg-slate-800 shrink-0`}>
         <img
           src={event.image || event.bannerUrl || event.thumbnailUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80"}
-          alt={event.title || "Sự kiện"}
+          alt={event.title || translate("Sự kiện")}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
@@ -43,13 +54,13 @@ export const EventCard: React.FC<EventCardProps> = ({
         {/* Badges Overlay */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
           {event.isResale && (
-            <Badge variant="resale">VÉ BÁN LẠI</Badge>
+            <Badge variant="resale">{translate("VÉ BÁN LẠI")}</Badge>
           )}
           {event.isHot && (
             <Badge variant="danger">🔥 HOT</Badge>
           )}
           {(event.category || event.categoryName) && (
-            <Badge variant="dark">{event.category || event.categoryName}</Badge>
+            <Badge variant="dark">{translate(String(event.category || event.categoryName))}</Badge>
           )}
         </div>
 
@@ -74,7 +85,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           {/* Date & Location */}
           <div className="flex items-center gap-1.5 text-xs app-text-muted font-medium">
             <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{event.date || "25/09/2026"}</span>
+            <span className="truncate">{displayDate}</span>
           </div>
 
           {locationText && (

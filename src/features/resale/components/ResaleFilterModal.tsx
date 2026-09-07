@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
+import React, { useState } from "react";
 
 export interface FilterState {
   sortOption: "latest" | "price-asc" | "price-desc";
@@ -23,11 +25,16 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
   onApplyFilters,
   onResetFilters
 }) => {
+  useTranslation();
   const [localFilters, setLocalFilters] = useState<FilterState>(filters);
+  const [prevFilters, setPrevFilters] = useState<FilterState>(filters);
+  const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
 
-  useEffect(() => {
+  if (filters !== prevFilters || isOpen !== prevIsOpen) {
+    setPrevFilters(filters);
+    setPrevIsOpen(isOpen);
     setLocalFilters(filters);
-  }, [filters, isOpen]);
+  }
 
   if (!isOpen) return null;
 
@@ -44,7 +51,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
     <div className="absolute right-0 top-11 z-50 w-[360px] md:w-[450px] app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in slide-in-from-top-2">
       {/* Sorting */}
       <div>
-        <h4 className="font-extrabold text-sm app-text-main mb-2">Sắp xếp</h4>
+        <h4 className="font-extrabold text-sm app-text-main mb-2">{translate("Sắp xếp")}</h4>
         <div className="space-y-2 text-xs md:text-sm font-medium app-text-main">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -54,7 +61,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               onChange={() => setLocalFilters({ ...localFilters, sortOption: "latest" })}
               className="accent-blue-600 cursor-pointer"
             />
-            <span>Tin đăng mới nhất</span>
+            <span>{translate("Tin đăng mới nhất")}</span>
           </label>
 
           <label className="flex items-center gap-2 cursor-pointer">
@@ -65,7 +72,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               onChange={() => setLocalFilters({ ...localFilters, sortOption: "price-asc" })}
               className="accent-blue-600 cursor-pointer"
             />
-            <span>Giá từ thấp đến cao</span>
+            <span>{translate("Giá từ thấp đến cao")}</span>
           </label>
 
           <label className="flex items-center gap-2 cursor-pointer">
@@ -76,7 +83,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               onChange={() => setLocalFilters({ ...localFilters, sortOption: "price-desc" })}
               className="accent-blue-600 cursor-pointer"
             />
-            <span>Giá từ cao đến thấp</span>
+            <span>{translate("Giá từ cao đến thấp")}</span>
           </label>
         </div>
       </div>
@@ -86,9 +93,9 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
       {/* Ticket quantity */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h4 className="font-extrabold text-sm app-text-main">Số lượng vé</h4>
+          <h4 className="font-extrabold text-sm app-text-main">{translate("Số lượng vé")}</h4>
           <span className="px-2 py-0.5 rounded text-[11px] font-bold gradient-btn text-white">
-            {localFilters.selectedQuantity === 0 ? "Tất cả" : `${localFilters.selectedQuantity} vé`}
+            {localFilters.selectedQuantity === 0 ? translate("Tất cả") : translate("{{count}} vé", { count: localFilters.selectedQuantity })}
           </span>
         </div>
 
@@ -101,8 +108,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               : "bg-zinc-100 dark:bg-zinc-800 app-text-muted"
               }`}
           >
-            Tất cả
-          </button>
+            {translate("Tất cả")}</button>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
             <button
               key={num}
@@ -123,7 +129,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
 
       {/* Showtime dropdown */}
       <div>
-        <h4 className="font-extrabold text-sm app-text-main mb-2">Suất diễn</h4>
+        <h4 className="font-extrabold text-sm app-text-main mb-2">{translate("Suất diễn")}</h4>
         <select
           value={localFilters.selectedShowtime}
           onChange={(e) => setLocalFilters({ ...localFilters, selectedShowtime: e.target.value })}
@@ -137,14 +143,14 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
 
       {/* Ticket Type Dropdown */}
       <div>
-        <h4 className="font-extrabold text-sm app-text-main mb-1">Loại vé</h4>
-        <p className="text-[11px] app-text-muted mb-2">Vui lòng chọn suất diễn để lọc theo loại vé</p>
+        <h4 className="font-extrabold text-sm app-text-main mb-1">{translate("Loại vé")}</h4>
+        <p className="text-[11px] app-text-muted mb-2">{translate("Vui lòng chọn suất diễn để lọc theo loại vé")}</p>
         <select
           value={localFilters.selectedTier}
           onChange={(e) => setLocalFilters({ ...localFilters, selectedTier: e.target.value })}
           className="w-full p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border app-border text-xs md:text-sm font-semibold app-text-main focus:outline-none focus:border-brand-primary"
         >
-          <option value="all">Tất cả hạng vé</option>
+          <option value="all">{translate("Tất cả hạng vé")}</option>
           <option value="XOAY TRÒN A2">XOAY TRÒN A2 (SEATED)</option>
           <option value="XOAY ĐỀU B">XOAY ĐỀU B (STANDING)</option>
           <option value="XOAY TRÒN B1">XOAY TRÒN B1 (SEATED)</option>
@@ -156,7 +162,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
 
       {/* Retail/Non-Retail Pills */}
       <div>
-        <h4 className="font-extrabold text-sm app-text-main mb-2">Hình thức bán</h4>
+        <h4 className="font-extrabold text-sm app-text-main mb-2">{translate("Hình thức bán")}</h4>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -171,8 +177,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               : "app-bg-card border-slate-300 dark:border-zinc-700 app-text-main hover:border-brand-primary"
               }`}
           >
-            Bán lẻ
-          </button>
+            {translate("Bán lẻ")}</button>
           <button
             type="button"
             onClick={() =>
@@ -186,8 +191,7 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
               : "app-bg-card border-slate-300 dark:border-zinc-700 app-text-main hover:border-brand-primary"
               }`}
           >
-            Không bán lẻ
-          </button>
+            {translate("Không bán lẻ")}</button>
         </div>
       </div>
 
@@ -198,15 +202,13 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
           onClick={handleReset}
           className="w-1/2 py-2.5 rounded-xl border border-brand-primary app-text-brand font-bold text-xs md:text-sm hover:bg-brand-primary/10 transition-colors cursor-pointer"
         >
-          Thiết lập lại
-        </button>
+          {translate("Thiết lập lại")}</button>
         <button
           type="button"
           onClick={handleApply}
           className="w-1/2 py-2.5 rounded-xl gradient-btn text-white font-extrabold text-xs md:text-sm shadow-md hover:scale-105 transition-transform cursor-pointer"
         >
-          Áp dụng
-        </button>
+          {translate("Áp dụng")}</button>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { getLocale } from "@/i18n";
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import {
   FiDollarSign,
@@ -23,6 +25,7 @@ interface TransactionLog {
 }
 
 export const PaymentMonitoring: React.FC = () => {
+  const { t: translate } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "RESALE_ESCROW" | "ORGANIZER_PAYOUT">("ALL");
 
@@ -126,9 +129,9 @@ export const PaymentMonitoring: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
               <FiDollarSign className="w-4 h-4 text-blue-600" />
-              <span>Nhật ký Giao dịch Escrow & Thanh toán ({filteredTxs.length})</span>
+              <span>{translate("Nhật ký Giao dịch Escrow & Thanh toán (")}{filteredTxs.length})</span>
             </h3>
-            <p className="text-xs app-text-muted mt-0.5">Giám sát dòng tiền đặt vé, tạm giữ trung gian Escrow và Payout cho Ban tổ chức</p>
+            <p className="text-xs app-text-muted mt-0.5">{translate("Giám sát dòng tiền đặt vé, tạm giữ trung gian Escrow và Payout cho Ban tổ chức")}</p>
           </div>
 
           <div className="flex items-center gap-2 app-bg-subnav border border-slate-200 dark:border-slate-800 rounded-md px-3 py-1.5 max-w-xs w-full">
@@ -140,7 +143,7 @@ export const PaymentMonitoring: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Tìm theo Mã GD, Sự kiện..."
+              placeholder={translate("Tìm theo Mã GD, Sự kiện...")}
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-slate-400 font-medium"
             />
           </div>
@@ -157,7 +160,7 @@ export const PaymentMonitoring: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => {
-                setActiveTab(tab.id as any);
+                setActiveTab(tab.id as "ALL" | "RESALE_ESCROW" | "ORGANIZER_PAYOUT");
                 setCurrentPage(1);
               }}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${activeTab === tab.id
@@ -165,7 +168,7 @@ export const PaymentMonitoring: React.FC = () => {
                   : "app-bg-subnav app-text-muted hover:app-text-main border border-slate-200 dark:border-slate-800"
                 }`}
             >
-              {tab.label}
+              {translate(tab.label)}
             </button>
           ))}
         </div>
@@ -175,13 +178,13 @@ export const PaymentMonitoring: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 app-text-muted font-bold text-[11px] uppercase tracking-wider">
-                <th className="py-2.5 px-3">Mã Giao Dịch</th>
-                <th className="py-2.5 px-3">Loại Giao Dịch</th>
-                <th className="py-2.5 px-3">Sự Kiện & Đối Tác</th>
-                <th className="py-2.5 px-3 text-right">Số Tiền (VNĐ)</th>
-                <th className="py-2.5 px-3 text-center">Cổng Thanh Toán</th>
-                <th className="py-2.5 px-3 text-center">Trạng Thái</th>
-                <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                <th className="py-2.5 px-3">{translate("Mã Giao Dịch")}</th>
+                <th className="py-2.5 px-3">{translate("Loại Giao Dịch")}</th>
+                <th className="py-2.5 px-3">{translate("Sự Kiện & Đối Tác")}</th>
+                <th className="py-2.5 px-3 text-right">{translate("Số Tiền (VNĐ)")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("Cổng Thanh Toán")}</th>
+                <th className="py-2.5 px-3 text-center">{translate("Trạng Thái")}</th>
+                <th className="py-2.5 px-3 text-right">{translate("Thao Tác")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -193,25 +196,21 @@ export const PaymentMonitoring: React.FC = () => {
                   <td className="py-3 px-3 font-bold app-text-main">
                     {t.type === "RESALE_ESCROW" ? (
                       <span className="text-amber-500 flex items-center gap-1">
-                        <FiShield className="w-3.5 h-3.5" /> Escrow Resale
-                      </span>
+                        <FiShield className="w-3.5 h-3.5" /> {translate("Escrow Resale")} </span>
                     ) : t.type === "ORGANIZER_PAYOUT" ? (
                       <span className="text-emerald-500 flex items-center gap-1">
-                        <FiArrowUpRight className="w-3.5 h-3.5" /> Payout BTC
-                      </span>
+                        <FiArrowUpRight className="w-3.5 h-3.5" /> {translate("Payout BTC")} </span>
                     ) : (
                       <span className="text-blue-500 flex items-center gap-1">
-                        <FiArrowDownLeft className="w-3.5 h-3.5" /> Mua vé gốc
-                      </span>
+                        <FiArrowDownLeft className="w-3.5 h-3.5" /> {translate("Mua vé gốc")} </span>
                     )}
                   </td>
                   <td className="py-3 px-3 app-text-main max-w-xs">
-                    <span className="block font-bold truncate">{t.eventName}</span>
-                    <span className="text-[11px] app-text-muted truncate">{t.buyerName}</span>
+                    <span className="block font-bold truncate">{translate(t.eventName)}</span>
+                    <span className="text-[11px] app-text-muted truncate">{translate(t.buyerName)}</span>
                   </td>
                   <td className="py-3 px-3 text-right font-bold text-blue-600 dark:text-blue-400">
-                    {t.amount.toLocaleString("vi-VN")} đ
-                  </td>
+                    {t.amount.toLocaleString(getLocale())} {translate("đ")} </td>
                   <td className="py-3 px-3 text-center font-bold">
                     <span className="px-2 py-0.5 rounded-md app-bg-subnav border border-slate-200 dark:border-slate-800 text-[11px]">
                       {t.gateway}
@@ -226,7 +225,7 @@ export const PaymentMonitoring: React.FC = () => {
                             : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
                         }`}
                     >
-                      {t.status === "SUCCESS" ? "Thành công" : t.status === "PENDING" ? "Đang xử lý" : "Thất bại"}
+                      {t.status === "SUCCESS" ? translate("Thành công") : t.status === "PENDING" ? translate("Đang xử lý") : translate("Thất bại")}
                     </span>
                   </td>
                   <td className="py-3 px-3 text-right">
@@ -237,7 +236,7 @@ export const PaymentMonitoring: React.FC = () => {
                         className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-md cursor-pointer transition-all flex items-center gap-1 ml-auto"
                       >
                         <FiRefreshCw className="w-3 h-3" />
-                        <span>Thử lại</span>
+                        <span>{translate("Thử lại")}</span>
                       </button>
                     )}
                   </td>
@@ -251,8 +250,7 @@ export const PaymentMonitoring: React.FC = () => {
         {filteredTxs.length > 0 && (
           <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500">
             <span>
-              Hiển thị <span className="font-bold text-slate-900 dark:text-slate-100">{paginatedTxs.length}</span> trên tổng số <span className="font-bold text-slate-900 dark:text-slate-100">{filteredTxs.length}</span> giao dịch
-            </span>
+              {translate("Hiển thị")} <span className="font-bold text-slate-900 dark:text-slate-100">{paginatedTxs.length}</span> {translate("trên tổng số")} <span className="font-bold text-slate-900 dark:text-slate-100">{filteredTxs.length}</span> {translate("giao dịch")} </span>
 
             <div className="flex items-center gap-1.5">
               <button
@@ -264,7 +262,7 @@ export const PaymentMonitoring: React.FC = () => {
                 <FiChevronLeft className="w-4 h-4" />
               </button>
               <span className="px-3 font-semibold text-slate-700 dark:text-slate-300">
-                Trang {currentPage} / {totalPages}
+                {translate("Trang")} {currentPage} / {totalPages}
               </span>
               <button
                 type="button"

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 import {
   FiCalendar,
@@ -20,9 +22,11 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
   event,
   onSelectTicket
 }) => {
+  useTranslation();
+  const showtimes = event.showtimes ?? [];
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [expandedShowtimeId, setExpandedShowtimeId] = useState<string>(
-    event.showtimes[0]?.id || "st-1"
+    showtimes[0]?.id || "st-1"
   );
   const [selectedCalendarMonth, setSelectedCalendarMonth] = useState<number>(9);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(25);
@@ -36,7 +40,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
   const daysInMonth = Array.from({ length: 30 }, (_, i) => i + 1);
   const emptyDaysOffset = [null];
 
-  const activeDayShowtimes = event.showtimes.filter(
+  const activeDayShowtimes = showtimes.filter(
     (st) => st.dayNumber === selectedCalendarDay && st.monthNumber === selectedCalendarMonth
   );
 
@@ -46,7 +50,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
           <FiCalendar className="w-5 h-5 app-text-brand" />
-          <span>Lịch diễn</span>
+          <span>{translate("Lịch diễn")}</span>
         </h2>
 
         {/* View Mode Switcher */}
@@ -58,7 +62,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
               ? "gradient-btn text-white shadow-md scale-105"
               : "app-text-muted hover:app-text-main"
               }`}
-            title="Xem danh sách"
+            title={translate("Xem danh sách")}
           >
             <FiList className="w-4 h-4" />
           </button>
@@ -69,7 +73,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
               ? "gradient-btn text-white shadow-md scale-105"
               : "app-text-muted hover:app-text-main"
               }`}
-            title="Xem lịch tháng"
+            title={translate("Xem lịch tháng")}
           >
             <FiCalendar className="w-4 h-4" />
           </button>
@@ -81,7 +85,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
         {/* List view */}
         {viewMode === "list" && (
           <div className="space-y-4">
-            {event.showtimes.map((st) => {
+            {showtimes.map((st) => {
               const isExpanded = expandedShowtimeId === st.id;
               return (
                 <div
@@ -113,16 +117,14 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                       }}
                       className="px-4 py-2 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md cursor-pointer shrink-0"
                     >
-                      Mua vé ngay
-                    </button>
+                      {translate("Mua vé ngay")}</button>
                   </div>
 
                   {/* Expanded Tickets Area */}
                   {isExpanded && (
                     <div className="p-4 md:p-5 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-100/60 dark:bg-zinc-900/80 space-y-3">
                       <h4 className="font-extrabold text-xs md:text-sm app-text-muted uppercase tracking-wider mb-3">
-                        Thông tin vé
-                      </h4>
+                        {translate("Thông tin vé")}</h4>
 
                       <div className="grid grid-cols-1 gap-2.5">
                         {st.tickets.map((t) => (
@@ -135,7 +137,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                             onClick={() => t.available && onSelectTicket && onSelectTicket(st, t)}
                           >
                             <span className="font-black text-sm md:text-base app-text-main">
-                              {t.name}
+                              {translate(t.name)}
                             </span>
 
                             <div className="flex items-center gap-3">
@@ -145,7 +147,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
 
                               {!t.available && (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-500 border border-amber-500/30">
-                                  {t.statusText || "Vé chưa mở bán"}
+                                  {t.statusText || translate("Vé chưa mở bán")}
                                 </span>
                               )}
                             </div>
@@ -181,8 +183,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     : "border-transparent app-text-muted"
                     }`}
                 >
-                  Tháng 9, 2026 (6 suất diễn)
-                </button>
+                  {translate("Tháng 9, 2026 (6 suất diễn)")}</button>
 
                 <button
                   type="button"
@@ -192,8 +193,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     : "border-transparent app-text-muted"
                     }`}
                 >
-                  Th 10 (0 suất diễn)
-                </button>
+                  {translate("Th 10 (0 suất diễn)")}</button>
 
                 <button
                   type="button"
@@ -203,8 +203,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     : "border-transparent app-text-muted"
                     }`}
                 >
-                  Th 11 (0 suất diễn)
-                </button>
+                  {translate("Th 11 (0 suất diễn)")}</button>
               </div>
 
               <button
@@ -217,13 +216,13 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
 
             {/* 7-Day Header */}
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold app-text-muted mb-3 py-2 border-b border-slate-200/40 dark:border-slate-800/40">
-              <div>Thứ 2</div>
-              <div>Thứ 3</div>
-              <div>Thứ 4</div>
-              <div>Thứ 5</div>
-              <div>Thứ 6</div>
-              <div>Thứ 7</div>
-              <div>Chủ nhật</div>
+              <div>{translate("Thứ 2")}</div>
+              <div>{translate("Thứ 3")}</div>
+              <div>{translate("Thứ 4")}</div>
+              <div>{translate("Thứ 5")}</div>
+              <div>{translate("Thứ 6")}</div>
+              <div>{translate("Thứ 7")}</div>
+              <div>{translate("Chủ nhật")}</div>
             </div>
 
             {/* Calendar Days Grid */}
@@ -265,7 +264,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
               <div className="p-4 md:p-5 rounded-2xl bg-slate-100 dark:bg-zinc-800/80 border app-border space-y-3">
                 <h4 className="font-extrabold text-sm md:text-base app-text-main flex items-center gap-2">
                   <FiCheckCircle className="w-4 h-4 app-text-brand" />
-                  <span>Suất diễn ngày {selectedCalendarDay} Tháng 9, 2026</span>
+                  <span>{translate("Suất diễn ngày")}{" "}{selectedCalendarDay} {translate("Tháng 9, 2026")}</span>
                 </h4>
 
                 {activeDayShowtimes.map((st) => (
@@ -278,23 +277,20 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                         {st.timeStr}
                       </div>
                       <div className="text-xs app-text-muted mt-0.5">
-                        {st.tickets.length} loại vé khả dụng
-                      </div>
+                        {st.tickets.length} {translate("loại vé khả dụng")}</div>
                     </div>
 
                     <button
                       type="button"
                       className="px-4 py-2 gradient-btn text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer"
                     >
-                      Mua vé ngay
-                    </button>
+                      {translate("Mua vé ngay")}</button>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-slate-100 dark:bg-zinc-800/50 text-center text-xs md:text-sm app-text-muted">
-                Không có suất diễn nào vào ngày đã chọn
-              </div>
+                {translate("Không có suất diễn nào vào ngày đã chọn")}</div>
             )}
           </div>
         )}

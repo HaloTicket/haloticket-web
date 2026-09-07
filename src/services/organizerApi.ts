@@ -6,8 +6,8 @@ export const organizerApi = {
   getOrganizerProfile: async (userId?: string): Promise<OrganizerProfileData | null> => {
     try {
       const url = userId ? `/events/organizer-profile?userId=${encodeURIComponent(userId)}` : "/events/organizer-profile";
-      const response: any = await axiosClient.get(url);
-      return response;
+      const response: unknown = await axiosClient.get(url);
+      return response as OrganizerProfileData;
     } catch (err) {
       console.warn("Failed to fetch organizer profile:", err);
       return null;

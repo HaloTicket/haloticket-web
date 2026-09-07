@@ -1,7 +1,9 @@
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { FiChevronRight, FiChevronDown, FiShield, FiCheckCircle } from "react-icons/fi";
 
 export const OrganizerTerms: React.FC = () => {
+  const { t: translate } = useTranslation();
   const [openSection, setOpenSection] = useState<number | null>(null);
 
   const termSections = [
@@ -60,7 +62,7 @@ export const OrganizerTerms: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <FiShield className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
                   <span className="text-sm font-extrabold app-text-main">
-                    {sec.title}
+                    {translate(sec.title)}
                   </span>
                 </div>
                 {isOpen ? (
@@ -76,7 +78,7 @@ export const OrganizerTerms: React.FC = () => {
                     {sec.details.map((detail, idx) => (
                       <div key={idx} className="flex items-start gap-2.5 text-xs app-text-main leading-relaxed">
                         <FiCheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <span>{detail}</span>
+                        <span>{translate(detail)}</span>
                       </div>
                     ))}
                   </div>

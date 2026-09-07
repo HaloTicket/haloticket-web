@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiUser } from "react-icons/fi";
 import { PATHS } from "@/routes/paths";
-import { getAuthErrorMessage, secondsUntil } from "@/services/authApi";
+import { getAuthErrorMessage, secondsUntil, type LocalizedError } from "@/services/authApi";
 
 export interface PasswordRecoveryRequest {
   identifier: string;
@@ -28,13 +30,14 @@ export default function ForgotPassword({
   onVerifyOtp,
   onResendOtp,
 }: ForgotPasswordProps) {
+  useTranslation();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
   const [challenge, setChallenge] = useState<Challenge>();
   const [step, setStep] = useState<"form" | "otp">("form");
   const [cooldown, setCooldown] = useState(0);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<LocalizedError>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -67,9 +70,9 @@ export default function ForgotPassword({
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
-    if (!/^\d{6}$/.test(otp)) return setError("Mã OTP gồm đúng 6 chữ số.");
+    if (!/^\d{6}$/.test(otp)) return setError({ key: "Mã OTP gồm đúng 6 chữ số." });
     if (!challenge || secondsUntil(challenge.expiresAt) === 0)
-      return setError("Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.");
+      return setError({ key: "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới." });
 
     setIsSubmitting(true);
     try {
@@ -109,12 +112,12 @@ export default function ForgotPassword({
     <section className="auth-panel">
       <div className="auth-heading">
         <h1 className="auth-title">
-          {step === "form" ? "Quên mật khẩu" : "Xác minh OTP"}
+          {step === "form" ? translate("Quên mật khẩu") : translate("Xác minh OTP")}
         </h1>
         <p className="auth-subtitle">
           {step === "form"
-            ? "Nhập email hoặc số điện thoại đã đăng ký"
-            : "Mã xác minh đã được gửi tới email đăng ký của bạn"}
+            ? translate("Nhập email hoặc số điện thoại đã đăng ký")
+            : translate("Mã xác minh đã được gửi tới email đăng ký của bạn")}
         </p>
       </div>
 
@@ -125,8 +128,7 @@ export default function ForgotPassword({
               className="auth-label"
               htmlFor="forgot-identifier"
             >
-              Email hoặc số điện thoại
-            </label>
+              {translate("Email hoặc số điện thoại")}</label>
             <div className="auth-input-shell">
               <div className="auth-input-icon">
                 <FiUser aria-hidden="true" />
@@ -136,7 +138,7 @@ export default function ForgotPassword({
                 className="auth-input auth-input--icon"
                 id="forgot-identifier"
                 onChange={(event) => setIdentifier(event.target.value)}
-                placeholder="email@example.com hoặc 0912 345 678"
+                placeholder={translate("email@example.com hoặc 0912 345 678")}
                 required
                 type="text"
                 value={identifier}
@@ -149,7 +151,7 @@ export default function ForgotPassword({
               className="auth-error"
               role="alert"
             >
-              {error}
+              {translate(error.key, error.values)}
             </div>
           )}
 
@@ -158,11 +160,11 @@ export default function ForgotPassword({
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Đang gửi mã..." : "Gửi mã OTP"}
+            {isSubmitting ? translate("Đang gửi mã...") : translate("Gửi mã OTP")}
           </button>
 
           <div className="auth-divider" aria-hidden="true">
-            <span>HOẶC</span>
+            <span>{translate("HOẶC")}</span>
           </div>
 
           <div className="auth-switch">
@@ -170,8 +172,7 @@ export default function ForgotPassword({
               className="auth-link"
               to={PATHS.LOGIN}
             >
-              Quay lại đăng nhập
-            </Link>
+              {translate("Quay lại đăng nhập")}</Link>
           </div>
         </form>
       ) : (
@@ -181,8 +182,7 @@ export default function ForgotPassword({
               className="auth-label"
               htmlFor="forgot-otp"
             >
-              Mã OTP 6 số
-            </label>
+              {translate("Mã OTP 6 số")}</label>
             <input
               autoComplete="one-time-code"
               className="auth-input auth-otp"
@@ -203,7 +203,7 @@ export default function ForgotPassword({
               className="auth-error"
               role="alert"
             >
-              {error}
+              {translate(error.key, error.values)}
             </div>
           )}
 
@@ -212,7 +212,7 @@ export default function ForgotPassword({
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Đang xác minh..." : "Xác minh OTP"}
+            {isSubmitting ? translate("Đang xác minh...") : translate("Xác minh OTP")}
           </button>
 
           <div className="auth-link-row">
@@ -222,7 +222,7 @@ export default function ForgotPassword({
               onClick={resendOtp}
               type="button"
             >
-              {cooldown ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã OTP"}
+              {cooldown ? translate("Gửi lại mã sau {{seconds}}s", { seconds: cooldown }) : translate("Gửi lại mã OTP")}
             </button>
           </div>
 
@@ -232,8 +232,7 @@ export default function ForgotPassword({
               type="button"
               className="auth-back-link"
             >
-              ← Thay đổi thông tin nhận mã
-            </button>
+              {translate("← Thay đổi thông tin nhận mã")}</button>
           </div>
         </form>
       )}

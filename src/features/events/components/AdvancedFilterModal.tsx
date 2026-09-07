@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 
 interface AdvancedFilterModalProps {
@@ -15,6 +17,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
   currentLocation = "Toàn quốc",
   currentCategory = "Tất cả"
 }) => {
+  useTranslation();
   const [selectedLocation, setSelectedLocation] = useState<string>(currentLocation);
   const [isFree, setIsFree] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>(currentCategory);
@@ -58,12 +61,11 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
       {/* Location Section */}
       <div className="space-y-3">
         <h4 className="font-extrabold text-xs md:text-sm app-text-main">
-          Vị trí
-        </h4>
+          {translate("Vị trí")}</h4>
         <div className="space-y-2 text-xs font-semibold">
           {locations.map((loc) => (
             <label
-              key={loc}
+              key={translate(loc)}
               className="flex items-center gap-3 cursor-pointer py-1 hover:app-text-brand transition-colors"
             >
               <input
@@ -73,7 +75,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
                 onChange={() => setSelectedLocation(loc)}
                 className="w-4 h-4 accent-brand-primary cursor-pointer"
               />
-              <span className="app-text-main">{loc}</span>
+              <span className="app-text-main">{translate(loc)}</span>
             </label>
           ))}
         </div>
@@ -85,9 +87,8 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h4 className="font-extrabold text-xs md:text-sm app-text-main">
-            Giá tiền
-          </h4>
-          <span className="text-xs font-semibold app-text-muted">Miễn phí</span>
+            {translate("Giá tiền")}</h4>
+          <span className="text-xs font-semibold app-text-muted">{translate("Miễn phí")}</span>
         </div>
 
         {/* Toggle Switch */}
@@ -109,23 +110,22 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
       {/* Category Section */}
       <div className="space-y-3">
         <h4 className="font-extrabold text-xs md:text-sm app-text-main">
-          Thể loại
-        </h4>
+          {translate("Thể loại")}</h4>
 
         <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
             <button
-              key={cat}
+              key={translate(cat)}
               type="button"
               onClick={() =>
-                setSelectedCategory(selectedCategory === cat ? "Tất cả" : cat)
+                setSelectedCategory(selectedCategory === cat ? translate("Tất cả") : cat)
               }
               className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${selectedCategory === cat
                   ? "border border-brand-primary app-text-brand bg-brand-primary/10 shadow-xs"
                   : "border app-border app-text-muted hover:app-text-main"
                 }`}
             >
-              {cat}
+              {translate(cat)}
             </button>
           ))}
         </div>
@@ -138,15 +138,13 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
           onClick={handleReset}
           className="flex-1 py-2.5 rounded-xl border border-brand-primary/40 text-xs font-extrabold app-text-brand hover:bg-brand-primary/10 transition-colors cursor-pointer"
         >
-          Thiết lập lại
-        </button>
+          {translate("Thiết lập lại")}</button>
         <button
           type="button"
           onClick={handleApply}
           className="flex-1 py-2.5 rounded-xl gradient-btn text-white text-xs font-extrabold shadow-md hover:scale-102 active:scale-95 transition-transform cursor-pointer"
         >
-          Áp dụng
-        </button>
+          {translate("Áp dụng")}</button>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 interface AppState {
   theme: "light" | "dark";
-  user: any | null;
+  user: Record<string, unknown> | null;
 }
 
 const initialState: AppState = {
@@ -17,7 +17,7 @@ export const appSlice = createSlice({
     setTheme: (state, action: PayloadAction<"light" | "dark">) => {
       state.theme = action.payload;
     },
-    setUser: (state, action: PayloadAction<any>) => {
+    setUser: (state, action: PayloadAction<Record<string, unknown> | null>) => {
       state.user = action.payload;
     },
   },

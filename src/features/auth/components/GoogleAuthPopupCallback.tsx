@@ -1,9 +1,12 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useEffect } from "react";
 import { getKeycloakSession } from "@/services/keycloakSession";
 
 const messageType = "haloticket-google-auth";
 
 export default function GoogleAuthPopupCallback() {
+  useTranslation();
   useEffect(() => {
     async function completeAuthentication() {
       const params = new URLSearchParams(window.location.search);
@@ -108,5 +111,5 @@ export default function GoogleAuthPopupCallback() {
 
   }, []);
 
-  return <p>Đang hoàn tất xác thực Google…</p>;
+  return <p>{translate("Đang hoàn tất xác thực Google…")}</p>;
 }

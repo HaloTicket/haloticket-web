@@ -21,8 +21,8 @@ axiosClient.interceptors.request.use(
         config.headers.delete("Authorization");
         config.headers.delete("authorization");
       } else {
-        delete (config.headers as Record<string, any>).Authorization;
-        delete (config.headers as Record<string, any>).authorization;
+        delete (config.headers as Record<string, unknown>).Authorization;
+        delete (config.headers as Record<string, unknown>).authorization;
       }
     }
     return config;
@@ -46,8 +46,8 @@ axiosClient.interceptors.response.use(
           originalRequest.headers.delete("Authorization");
           originalRequest.headers.delete("authorization");
         } else {
-          delete (originalRequest.headers as Record<string, any>).Authorization;
-          delete (originalRequest.headers as Record<string, any>).authorization;
+          delete (originalRequest.headers as Record<string, unknown>).Authorization;
+          delete (originalRequest.headers as Record<string, unknown>).authorization;
         }
       }
       try {

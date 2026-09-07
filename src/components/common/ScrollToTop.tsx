@@ -1,7 +1,10 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { FiArrowUp } from "react-icons/fi";
 
 export const ScrollToTop: React.FC = () => {
+  useTranslation();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -34,8 +37,8 @@ export const ScrollToTop: React.FC = () => {
             ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
             : "opacity-0 scale-75 translate-y-8 pointer-events-none"
         } hover:scale-110 active:scale-95`}
-        aria-label="Cuộn lên đầu trang"
-        title="Cuộn lên đầu trang"
+        aria-label={translate("Cuộn lên đầu trang")}
+        title={translate("Cuộn lên đầu trang")}
       >
         <FiArrowUp className="w-6 h-6 group-hover:-translate-y-1 transition-transform duration-300" />
       </button>

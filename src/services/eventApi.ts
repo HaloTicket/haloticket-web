@@ -6,16 +6,14 @@ export const eventApi = {
   // fetch all events safely
   getAllEvents: async (): Promise<EventApiData[]> => {
     try {
-      const response: any = await axiosClient.get("/events");
+      const response: unknown = await axiosClient.get("/events");
       if (Array.isArray(response)) {
-        return response
-          .filter((item: any) => item != null && typeof item === "object")
-          .map((item: any) => ({
+        return (response as Record<string, unknown>[])
+          .filter((item) => item != null && typeof item === "object")
+          .map((item) => ({
             ...item,
-            image: item.bannerUrl || item.thumbnailUrl || item.posterImage || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
-            price: item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : "Miễn phí",
-            date: item.datesSummary || (item.startTime ? new Date(item.startTime).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra")
-          }));
+            image: (item.bannerUrl || item.thumbnailUrl || item.posterImage || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80") as string,
+          } as EventApiData));
       }
       return [];
     } catch (err) {
@@ -25,23 +23,29 @@ export const eventApi = {
   },
 
   // fetch event details by id safely
-  getEventById: async (id: string): Promise<any> => {
+  getEventById: async (id: string): Promise<Record<string, unknown> | null> => {
     try {
-      const response: any = await axiosClient.get(`/events/${id}`);
+      const response = await axiosClient.get(`/events/${id}`) as unknown as Record<string, unknown>;
       if (response && response.id) {
         return {
           ...response,
           id: response.id,
           title: response.title,
-          locationName: response.locationName || "Địa điểm chưa cập nhật",
+          locationName: response.locationName,
           address: response.address || "",
-          minPrice: response.minPrice ? `${response.minPrice.toLocaleString("vi-VN")} đ` : "Miễn phí",
+          minPrice: response.minPrice,
+          startTime: response.startTime,
+          endTime: response.endTime,
           posterImage: response.posterImage || response.bannerUrl || response.thumbnailUrl || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80",
-          datesSummary: response.datesSummary || (response.startTime ? new Date(response.startTime).toLocaleString("vi-VN") : "Sắp diễn ra"),
+          datesSummary: response.datesSummary,
           extraDaysCount: response.extraDaysCount ?? 0,
           author: response.author || "",
           director: response.director || "",
           cast: response.cast || [],
+          descriptionText: response.descriptionText || response.description,
+          galleryImages: response.galleryImages || [],
+          organizer: response.organizer || null,
+          showtimes: response.showtimes || []
         };
       }
       return null;
@@ -54,12 +58,12 @@ export const eventApi = {
   // fetch top searched keywords dynamically from backend DB query safely
   getTrendingSearches: async (limit = 3): Promise<string[]> => {
     try {
-      const response: any = await axiosClient.get(`/events/trending-searches?limit=${limit}`);
+      const response: unknown = await axiosClient.get(`/events/trending-searches?limit=${limit}`);
       if (Array.isArray(response) && response.length > 0) {
-        return response.filter((k: any) => typeof k === "string" && k.trim() !== "");
+        return (response as unknown[]).filter((k): k is string => typeof k === "string" && k.trim() !== "");
       }
       return ["idecaf", "xoay tròn", "Pickleball World Cup"];
-    } catch (err) {
+    } catch {
       return ["idecaf", "xoay tròn", "Pickleball World Cup"];
     }
   },
@@ -69,15 +73,15 @@ export const eventApi = {
     if (!query || !query.trim()) return;
     try {
       await axiosClient.post(`/events/search-log?query=${encodeURIComponent(query.trim())}`);
-    } catch (err) {
+    } catch {
       // silent catch
     }
   },
 
   // submit new event creation approval request
-  createEventApprovalRequest: async (data: any): Promise<any> => {
+  createEventApprovalRequest: async (data: Record<string, unknown>): Promise<unknown> => {
     try {
-      const response: any = await axiosClient.post("/events", data);
+      const response: unknown = await axiosClient.post("/events", data);
       return response;
     } catch (err) {
       console.error("Failed to create/submit event in DB:", err);
@@ -86,12 +90,12 @@ export const eventApi = {
   },
 
   // get list approval events
-  getApprovalEvents: async (status: string = "ALL"): Promise<any[]> => {
+  getApprovalEvents: async (status: string = "ALL"): Promise<Record<string, unknown>[]> => {
     try {
       const url = status && status !== "ALL" ? `/events/approvals?status=${encodeURIComponent(status)}` : "/events/approvals";
-      const response: any = await axiosClient.get(url);
+      const response: unknown = await axiosClient.get(url);
       if (Array.isArray(response)) {
-        return response;
+        return response as Record<string, unknown>[];
       }
       return [];
     } catch (err) {
@@ -100,9 +104,9 @@ export const eventApi = {
     }
   },
 
-  approveEvent: async (id: string): Promise<any> => {
+  approveEvent: async (id: string): Promise<unknown> => {
     try {
-      const response: any = await axiosClient.patch(`/events/${id}/approve`);
+      const response: unknown = await axiosClient.patch(`/events/${id}/approve`);
       return response;
     } catch (err) {
       console.error("Failed to approve event in DB:", err);
@@ -110,9 +114,9 @@ export const eventApi = {
     }
   },
 
-  rejectEvent: async (id: string, reason: string, notes?: string): Promise<any> => {
+  rejectEvent: async (id: string, reason: string, notes?: string): Promise<unknown> => {
     try {
-      const response: any = await axiosClient.patch(`/events/${id}/reject`, { reason, notes });
+      const response: unknown = await axiosClient.patch(`/events/${id}/reject`, { reason, notes });
       return response;
     } catch (err) {
       console.error("Failed to reject event in DB:", err);

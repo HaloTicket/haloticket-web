@@ -1,12 +1,24 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight, FiPlay } from "react-icons/fi";
 import { HERO_BANNERS } from "@/mock/eventData";
 import { eventApi } from "@/services/eventApi";
 
+interface HeroBannerItem {
+  id: string;
+  title: string;
+  image?: string;
+  link: string;
+  badge?: string;
+  subtitle?: string;
+}
+
 export const HeroCarousel: React.FC = () => {
+  useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [banners, setBanners] = useState<any[]>(HERO_BANNERS);
+  const [banners, setBanners] = useState<HeroBannerItem[]>(HERO_BANNERS);
 
   // fetch live event data
   useEffect(() => {
@@ -17,7 +29,7 @@ export const HeroCarousel: React.FC = () => {
           title: ev.title,
           image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
           link: `/events/${ev.id}`,
-          badge: ev.categoryName || "Hot Event"
+          badge: ev.categoryName || "Sự kiện nổi bật"
         }));
         setBanners(liveBanners);
       }
@@ -65,7 +77,7 @@ export const HeroCarousel: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent flex flex-col justify-end p-5 md:p-6">
               {banner.badge && (
                 <span className="self-start px-2.5 py-0.5 bg-blue-600 dark:bg-blue-500 text-white text-[10px] font-extrabold rounded-md mb-2 shadow-md">
-                  {banner.badge}
+                  {translate(banner.badge)}
                 </span>
               )}
               <h3 className="text-lg md:text-xl font-extrabold text-white mb-3 line-clamp-2 leading-tight">
@@ -77,8 +89,7 @@ export const HeroCarousel: React.FC = () => {
                   to={banner.link}
                   className="px-4 py-1.5 gradient-btn text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95"
                 >
-                  Xem chi tiết
-                </Link>
+                  {translate("Xem chi tiết")}</Link>
                 <div className="w-8 h-8 rounded-full bg-slate-950/60 flex items-center justify-center text-white backdrop-blur-md">
                   <FiPlay className="w-3.5 h-3.5 fill-current ml-0.5" />
                 </div>

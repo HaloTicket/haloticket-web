@@ -1,6 +1,9 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { EventItem } from "@/mock/eventData";
+import type { EventApiData } from "@/types";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
 
@@ -8,7 +11,7 @@ interface CategorySectionProps {
   title: string;
   icon?: React.ReactNode;
   seeMoreLink?: string;
-  events: EventItem[];
+  events: Array<EventItem | EventApiData>;
   className?: string;
 }
 
@@ -19,6 +22,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   events,
   className = "mb-10"
 }) => {
+  useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
@@ -49,7 +53,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
   return (
     <div className={className}>
-      <SectionHeader title={title} icon={icon} seeMoreLink={seeMoreLink} />
+      <SectionHeader title={translate(title)} icon={icon} seeMoreLink={seeMoreLink} />
 
       <div className="relative group">
         {/* Navigation Arrow Left (Smart Visibility) */}
@@ -58,7 +62,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
             type="button"
             onClick={scrollLeft}
             className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang trái"
+            aria-label={translate("Cuộn sang trái")}
           >
             <FiChevronLeft className="w-5 h-5" />
           </button>
@@ -83,7 +87,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
             type="button"
             onClick={scrollRight}
             className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang phải"
+            aria-label={translate("Cuộn sang phải")}
           >
             <FiChevronRight className="w-5 h-5" />
           </button>

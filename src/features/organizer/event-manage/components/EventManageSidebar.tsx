@@ -17,7 +17,12 @@ import {
 import { FaTicketAlt } from "react-icons/fa";
 
 interface EventManageSidebarProps {
-  eventData: any;
+  eventData?: {
+    bannerUrl?: string;
+    thumbnailUrl?: string;
+    title?: string;
+    [key: string]: unknown;
+  } | null;
   isSidebarOpen: boolean;
   isCollapsed: boolean;
   onCloseSidebar: () => void;

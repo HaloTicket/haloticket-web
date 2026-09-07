@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useState, useEffect, useCallback } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
@@ -29,6 +31,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   aspectRatio = "aspect-[21/9]",
   renderCustomSlide
 }) => {
+  useTranslation();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isHovered, setIsHovered] = useState<boolean>(false);
 
@@ -91,12 +94,12 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
                     )}
                     {slide.title && (
                       <h3 className="text-xl md:text-3xl font-extrabold text-white mb-2 leading-tight">
-                        {slide.title}
+                        {translate(slide.title)}
                       </h3>
                     )}
                     {slide.subtitle && (
                       <p className="text-sm md:text-base text-slate-300 font-medium">
-                        {slide.subtitle}
+                        {translate(slide.subtitle)}
                       </p>
                     )}
                   </div>

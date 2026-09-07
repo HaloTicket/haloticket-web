@@ -9,6 +9,10 @@ export interface EventItem {
   isHot?: boolean;
   isResale?: boolean;
   rank?: number;
+  bannerUrl?: string;
+  thumbnailUrl?: string;
+  minPrice?: string;
+  [key: string]: unknown;
 }
 
 export interface ArtistItem {
@@ -448,7 +452,9 @@ export interface EventDetailData {
   title: string;
   locationName: string;
   address: string;
-  minPrice: string;
+  minPrice: string | number;
+  startTime?: string;
+  endTime?: string;
   posterImage: string;
   datesSummary: string;
   extraDaysCount: number;

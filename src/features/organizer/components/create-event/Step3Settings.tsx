@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
@@ -22,12 +23,12 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
   onBack,
   onNext
 }) => {
+  const { t: translate } = useTranslation();
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4">
-          Cài đặt quyền riêng tư & Tin nhắn xác nhận
-        </h3>
+          {translate("Cài đặt quyền riêng tư & Tin nhắn xác nhận")} </h3>
 
         {/* Private link setting */}
         <label className="flex items-start gap-3 p-4 rounded-xl app-bg-subnav border app-border cursor-pointer">
@@ -39,18 +40,16 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
           />
           <div>
             <span className="text-sm font-extrabold app-text-main block">
-              Chỉ người có link trực tiếp mới đặt được vé (Sự kiện riêng tư)
-            </span>
+              {translate("Chỉ người có link trực tiếp mới đặt được vé (Sự kiện riêng tư)")} </span>
             <span className="text-xs app-text-muted">
-              Sự kiện sẽ không hiển thị trên trang tìm kiếm công khai của HaloTicket.
-            </span>
+              {translate("Sự kiện sẽ không hiển thị trên trang tìm kiếm công khai của HaloTicket.")} </span>
           </div>
         </label>
 
         {/* Confirmation Message */}
         <div className="space-y-2">
           <div className="flex justify-between text-xs font-bold app-text-main">
-            <span>Tin nhắn xác nhận cho người tham gia sau khi đặt vé thành công</span>
+            <span>{translate("Tin nhắn xác nhận cho người tham gia sau khi đặt vé thành công")}</span>
             <span className="text-[11px] app-text-muted">{confirmationMessage.length} / 500</span>
           </div>
           <textarea
@@ -58,7 +57,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
             maxLength={500}
             value={confirmationMessage}
             onChange={(e) => setConfirmationMessage(e.target.value)}
-            placeholder="Nhập lời cảm ơn hoặc hướng dẫn lưu ý check-in..."
+            placeholder={translate("Nhập lời cảm ơn hoặc hướng dẫn lưu ý check-in...")}
             className="w-full app-bg-subnav app-text-main text-sm rounded-xl p-4 border app-border"
           />
         </div>
@@ -67,11 +66,9 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
         <div className="p-4 rounded-xl border border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h4 className="text-sm font-extrabold app-text-main">
-              Tạo bảng câu hỏi khảo sát cho người mua vé
-            </h4>
+              {translate("Tạo bảng câu hỏi khảo sát cho người mua vé")} </h4>
             <p className="text-xs app-text-muted mt-0.5">
-              Hệ thống sẽ thêm bước "Thông tin đăng ký" để thu thập thông tin CCCD, kích cỡ áo, công ty...
-            </p>
+              {translate("Hệ thống sẽ thêm bước \"Thông tin đăng ký\" để thu thập thông tin CCCD, kích cỡ áo, công ty...")} </p>
           </div>
 
           <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -94,7 +91,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
           className="px-6 py-3 app-bg-subnav app-text-main font-extrabold text-sm rounded-xl border app-border flex items-center gap-2 cursor-pointer"
         >
           <FiChevronLeft className="w-4 h-4" />
-          <span>Quay lại</span>
+          <span>{translate("Quay lại")}</span>
         </button>
 
         <button
@@ -102,7 +99,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
           onClick={onNext}
           className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95"
         >
-          <span>{enableCustomQuestions ? "Tiếp tục: Thông tin đăng ký" : "Tiếp tục: Thông tin thanh toán"}</span>
+          <span>{enableCustomQuestions ? translate("Tiếp tục: Thông tin đăng ký") : translate("Tiếp tục: Thông tin thanh toán")}</span>
           <FiChevronRight className="w-4 h-4" />
         </button>
       </div>

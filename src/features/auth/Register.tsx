@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { FiMail, FiCheckCircle } from "react-icons/fi";
@@ -8,7 +10,7 @@ import {
   TermsNotice,
 } from "@/features/auth/components";
 import { isPasswordValid } from "@/validation/passwordRules";
-import { getAuthErrorMessage, secondsUntil } from "@/services/authApi";
+import { getAuthErrorMessage, secondsUntil, type LocalizedError } from "@/services/authApi";
 import { PATHS } from "@/routes/paths";
 
 export interface RegistrationData {
@@ -35,6 +37,7 @@ interface RegisterProps {
 }
 
 export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleLogin }: RegisterProps) {
+  useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,7 +45,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
   const [challenge, setChallenge] = useState<AuthChallenge>();
   const [step, setStep] = useState<"form" | "otp" | "done">("form");
   const [cooldown, setCooldown] = useState(0);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<LocalizedError>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canContinue =
@@ -80,9 +83,9 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
-    if (!/^\d{6}$/.test(otp)) return setError("Mã OTP gồm đúng 6 chữ số.");
+    if (!/^\d{6}$/.test(otp)) return setError({ key: "Mã OTP gồm đúng 6 chữ số." });
     if (!challenge || secondsUntil(challenge.expiresAt) === 0)
-      return setError("Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.");
+      return setError({ key: "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới." });
 
     setIsSubmitting(true);
     try {
@@ -122,17 +125,17 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
       <div className="auth-heading">
         <h1 className="auth-title">
           {step === "form"
-            ? "Đăng ký tài khoản"
+            ? translate("Đăng ký tài khoản")
             : step === "otp"
-            ? "Xác minh email"
-            : "Hoàn tất đăng ký"}
+            ? translate("Xác minh email")
+            : translate("Hoàn tất đăng ký")}
         </h1>
         <p className="auth-subtitle">
           {step === "form"
-            ? "Tạo tài khoản để bắt đầu đặt vé"
+            ? translate("Tạo tài khoản để bắt đầu đặt vé")
             : step === "otp"
-            ? `Nhập mã 6 số đã gửi tới ${email}`
-            : "Tài khoản của bạn đã được tạo thành công."}
+            ? translate("Nhập mã 6 số đã gửi tới {{email}}", { email })
+            : translate("Tài khoản của bạn đã được tạo thành công.")}
         </p>
       </div>
 
@@ -142,21 +145,18 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             <FiCheckCircle size={40} />
           </div>
           <p className="auth-result-copy">
-            Email của bạn đã được xác minh thành công! Bây giờ bạn có thể đăng nhập.
-          </p>
+            {translate("Email của bạn đã được xác minh thành công! Bây giờ bạn có thể đăng nhập.")}</p>
           <Link
             to={PATHS.LOGIN}
             className="auth-button"
           >
-            Đăng nhập ngay
-          </Link>
+            {translate("Đăng nhập ngay")}</Link>
         </div>
       ) : step === "otp" ? (
         <form className="auth-form" onSubmit={verifyOtp}>
           <div>
             <label className="auth-label" htmlFor="register-otp">
-              Mã OTP 6 số
-            </label>
+              {translate("Mã OTP 6 số")}</label>
             <input
               autoComplete="one-time-code"
               className="auth-input auth-otp"
@@ -172,7 +172,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
 
           {error && (
             <div className="auth-error" role="alert">
-              {error}
+              {translate(error.key, error.values)}
             </div>
           )}
 
@@ -181,7 +181,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Đang xác minh..." : "Xác minh và tạo tài khoản"}
+            {isSubmitting ? translate("Đang xác minh...") : translate("Xác minh và tạo tài khoản")}
           </button>
 
           <div className="auth-link-row">
@@ -191,7 +191,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
               onClick={resendOtp}
               type="button"
             >
-              {cooldown ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã OTP"}
+              {cooldown ? translate("Gửi lại mã sau {{seconds}}s", { seconds: cooldown }) : translate("Gửi lại mã OTP")}
             </button>
           </div>
 
@@ -201,8 +201,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
               type="button"
               className="auth-back-link"
             >
-              ← Thay đổi email đăng ký
-            </button>
+              {translate("← Thay đổi email đăng ký")}</button>
           </div>
         </form>
       ) : (
@@ -220,7 +219,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
                 className="auth-input auth-input--icon"
                 id="register-email"
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="Nhập email của bạn"
+                placeholder={translate("Nhập email của bạn")}
                 required
                 type="email"
                 value={email}
@@ -232,9 +231,9 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
           <PasswordField
             autoComplete="new-password"
             id="register-password"
-            label="Mật khẩu"
+            label={translate("Mật khẩu")}
             onChange={setPassword}
-            placeholder="Nhập mật khẩu"
+            placeholder={translate("Nhập mật khẩu")}
             value={password}
           />
 
@@ -243,13 +242,13 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             autoComplete="new-password"
             error={
               Boolean(confirmPassword) && password !== confirmPassword
-                ? "Mật khẩu xác nhận chưa khớp."
+                ? translate("Mật khẩu xác nhận chưa khớp.")
                 : undefined
             }
             id="register-confirm-password"
-            label="Nhập lại mật khẩu"
+            label={translate("Nhập lại mật khẩu")}
             onChange={setConfirmPassword}
-            placeholder="Nhập lại mật khẩu"
+            placeholder={translate("Nhập lại mật khẩu")}
             value={confirmPassword}
           />
 
@@ -257,7 +256,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
 
           {error && (
             <div className="auth-error" role="alert">
-              {error}
+              {translate(error.key, error.values)}
             </div>
           )}
 
@@ -266,25 +265,24 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             disabled={!canContinue || isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Đang gửi mã..." : "Tiếp tục"}
+            {isSubmitting ? translate("Đang gửi mã...") : translate("Tiếp tục")}
           </button>
 
           <TermsNotice />
 
           <div className="auth-divider" aria-hidden="true">
-            <span>HOẶC</span>
+            <span>{translate("HOẶC")}</span>
           </div>
 
           <GoogleAuthButton onClick={onGoogleLogin} />
 
           <div className="auth-switch">
-            Đã có tài khoản?{" "}
+            {translate("Đã có tài khoản?")}{" "}
             <Link
               className="auth-link"
               to={PATHS.LOGIN}
             >
-              Đăng nhập ngay
-            </Link>
+              {translate("Đăng nhập ngay")}</Link>
           </div>
         </form>
       )}

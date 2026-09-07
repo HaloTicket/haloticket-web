@@ -37,6 +37,11 @@ export interface ApiError extends Error {
   attemptsRemaining?: number;
 }
 
+export interface LocalizedError {
+  key: string;
+  values?: Record<string, string | number>;
+}
+
 function toApiError(error: unknown, fallback: string): ApiError {
   if (!axios.isAxiosError(error)) return Object.assign(new Error(fallback), { status: undefined });
   const axiosError = error as AxiosError<{ message?: string; code?: string; retryAfterSeconds?: number; attemptsRemaining?: number }>;
@@ -93,15 +98,17 @@ export const authApi = {
   ),
 };
 
-export function getAuthErrorMessage(error: unknown, fallback: string): string {
+export function getAuthErrorMessage(error: unknown, fallback: string): LocalizedError {
   const apiError = error as Partial<ApiError>;
   if (apiError.status === 429) {
-    return apiError.retryAfterSeconds ? `Bạn đã thử quá nhiều lần. Vui lòng thử lại sau ${apiError.retryAfterSeconds}s.` : "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.";
+    return apiError.retryAfterSeconds
+      ? { key: "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau {{seconds}}s.", values: { seconds: apiError.retryAfterSeconds } }
+      : { key: "Bạn đã thử quá nhiều lần. Vui lòng thử lại sau." };
   }
-  if (apiError.status === 410 || apiError.code === "OTP_EXPIRED") return "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.";
-  if (apiError.status === 423 || apiError.code === "OTP_LOCKED") return "Mã OTP đã bị khóa do nhập sai quá nhiều lần.";
-  if (apiError.status === 409 || apiError.code === "USER_ALREADY_EXISTS") return "Email này đã được đăng ký. Vui lòng đăng nhập.";
-  return error instanceof Error ? error.message : fallback;
+  if (apiError.status === 410 || apiError.code === "OTP_EXPIRED") return { key: "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới." };
+  if (apiError.status === 423 || apiError.code === "OTP_LOCKED") return { key: "Mã OTP đã bị khóa do nhập sai quá nhiều lần." };
+  if (apiError.status === 409 || apiError.code === "USER_ALREADY_EXISTS") return { key: "Email này đã được đăng ký. Vui lòng đăng nhập." };
+  return { key: error instanceof Error ? error.message : fallback };
 }
 
 export function secondsUntil(isoDate: string | undefined, now = Date.now()): number {

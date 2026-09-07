@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiRefreshCw, FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
@@ -5,6 +7,7 @@ import { RESALE_EVENTS } from "@/mock/eventData";
 import { EventCard } from "@/components/common/EventCard";
 
 export const ResaleTicketsSection: React.FC = () => {
+  useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
@@ -40,23 +43,21 @@ export const ResaleTicketsSection: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-500 text-white font-extrabold text-xs rounded-md mb-2 shadow-sm">
             <FiRefreshCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "8s" }} />
-            <span>RESALE TICKET - VÉ BÁN LẠI</span>
+            <span>{translate("RESALE TICKET - VÉ BÁN LẠI")}</span>
           </div>
           <h3 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2">
-            <span>Sàn Nhượng Vé Chính Thức</span>
+            <span>{translate("Sàn Nhượng Vé Chính Thức")}</span>
             <FiCheckCircle className="w-5 h-5 text-emerald-500" />
           </h3>
           <p className="text-xs md:text-sm app-text-muted mt-1">
-            An tâm mua bán vé sang nhượng với cơ chế <span className="text-blue-600 dark:text-blue-400 font-extrabold">Hủy cũ - Cấp mới</span> độc quyền tại HaloTicket.
-          </p>
+            {translate("An tâm mua bán vé sang nhượng với cơ chế")}<span className="text-blue-600 dark:text-blue-400 font-extrabold">{translate("Hủy cũ - Cấp mới")}</span> {translate("độc quyền tại HaloTicket.")}</p>
         </div>
 
         <Link
           to="/resale-ticket"
           className="px-5 py-2.5 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
         >
-          Khám phá vé bán lại
-        </Link>
+          {translate("Khám phá vé bán lại")}</Link>
       </div>
 
       {/* Resale Event Cards Carousel Wrapper */}
@@ -67,7 +68,7 @@ export const ResaleTicketsSection: React.FC = () => {
             type="button"
             onClick={scrollLeft}
             className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang trái"
+            aria-label={translate("Cuộn sang trái")}
           >
             <FiChevronLeft className="w-5 h-5" />
           </button>
@@ -92,7 +93,7 @@ export const ResaleTicketsSection: React.FC = () => {
             type="button"
             onClick={scrollRight}
             className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:bg-brand-primary hover:scale-110 cursor-pointer"
-            aria-label="Cuộn sang phải"
+            aria-label={translate("Cuộn sang phải")}
           >
             <FiChevronRight className="w-5 h-5" />
           </button>
