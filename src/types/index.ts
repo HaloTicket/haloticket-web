@@ -8,3 +8,4 @@ export * from "./booking";
 export * from "./voucher";
 export * from "./seating";
 export * from "./member";
+export * from "./ticket";

@@ -48,6 +48,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   isAttendeeMode = false,
   attendeeCart = [],
   onToggleAttendeeSeat,
+  onSelectZoneAttendee,
   isFullscreen = false,
   onToggleFullscreen,
   onCanvasClickPosition,
@@ -79,6 +80,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     | 'ROTATE_STAGE'
     | 'ROTATE_STRUCTURE';
     id?: string;
+    handleDir?: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
     startMouseX: number;
     startMouseY: number;
     centerX?: number;
@@ -155,7 +157,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     seats.forEach((s) => {
       const isTargetSeat =
         activeSeatIds.includes(s.id) ||
-        (activeZoneId && (s.zoneId === activeZoneId || (activeZone && isSeatInsideZone(s, activeZone))));
+        (activeZoneId && s.zoneId === activeZoneId);
       if (isTargetSeat) {
         seatMap.set(s.id, { x: s.x, y: s.y, rotation: s.rotation || 0 });
       }
@@ -301,7 +303,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
   // pointer down for zone block container area
   const handlePointerDownZone = (e: React.PointerEvent, zone: ZoneBlock) => {
-    if (isAttendeeMode) return;
+    if (isAttendeeMode) {
+      e.stopPropagation();
+      onSelectZoneAttendee?.(zone);
+      return;
+    }
     const target = e.target as HTMLElement;
     const isHeaderTag = target.closest('[data-zone-header="true"]');
 
@@ -368,7 +374,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     };
   };
 
-  const handlePointerDownResizeZone = (e: React.PointerEvent, zone: ZoneBlock) => {
+  const handlePointerDownResizeZone = (
+    e: React.PointerEvent,
+    zone: ZoneBlock,
+    dir: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' = 'se'
+  ) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -376,6 +386,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     draggingRef.current = {
       type: 'RESIZE_ZONE',
       id: zone.id,
+      handleDir: dir,
       startMouseX: e.clientX,
       startMouseY: e.clientY,
       initialSeats: seatMap,
@@ -665,13 +676,40 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
       }
     } else if (draggingRef.current.type === 'RESIZE_ZONE' && onUpdateZones) {
       const init = draggingRef.current.initialZones.get(draggingRef.current.id!);
+      const dir = draggingRef.current.handleDir || 'se';
       if (init) {
+        let nextX = init.x;
+        let nextY = init.y;
+        let nextW = init.width;
+        let nextH = init.height;
+
+        if (dir.includes('e')) nextW = Math.max(150, snap(init.width + deltaX));
+        if (dir.includes('s')) nextH = Math.max(80, snap(init.height + deltaY));
+
+        if (dir.includes('w')) {
+          const possibleW = init.width - deltaX;
+          if (possibleW >= 150) {
+            nextW = snap(possibleW);
+            nextX = snap(init.x + deltaX);
+          }
+        }
+
+        if (dir.includes('n')) {
+          const possibleH = init.height - deltaY;
+          if (possibleH >= 80) {
+            nextH = snap(possibleH);
+            nextY = snap(init.y + deltaY);
+          }
+        }
+
         onUpdateZones((prev) => ({
           ...prev,
           [draggingRef.current!.id!]: {
             ...prev[draggingRef.current!.id!],
-            width: Math.max(200, snap(init.width + deltaX)),
-            height: Math.max(80, snap(init.height + deltaY)),
+            x: nextX,
+            y: nextY,
+            width: nextW,
+            height: nextH,
           },
         }));
       }
@@ -837,11 +875,32 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             if (!zone.x || !zone.y || !zone.width || !zone.height) return null;
             const isSelected = selectedZoneId === zone.id;
 
+            // Calculate zone styling based on shape & curvature
+            const curvatureVal = zone.curvature ?? 16;
+            const shapeType = zone.shape || 'rounded';
+            let borderRadius = `${curvatureVal}px`;
+            let clipPath: string | undefined = undefined;
+
+            if (shapeType === 'ellipse' || shapeType === 'circle') {
+              borderRadius = '50%';
+            } else if (shapeType === 'fan') {
+              borderRadius = `${curvatureVal * 2}px ${curvatureVal * 2}px 0 0`;
+            } else if (shapeType === 'trapezoid') {
+              clipPath = 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)';
+              borderRadius = '0px';
+            } else if (shapeType === 'rectangle') {
+              borderRadius = `${curvatureVal}px`;
+            }
+
+            // Fill Opacity
+            const fillOpacity = zone.fillOpacity ?? 0.25;
+            const zoneSeatsCount = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone)).length;
+
             return (
               <div
                 key={zone.id}
                 onPointerDown={(e) => handlePointerDownZone(e, zone)}
-                className={`absolute rounded-2xl border-2 transition-shadow ${zone.borderStyle === 'dashed' ? 'border-dashed' : 'border-solid'
+                className={`absolute border-2 transition-all ${zone.borderStyle === 'dashed' ? 'border-dashed' : 'border-solid'
                   } ${isSelected
                     ? 'ring-4 ring-teal-400 ring-offset-2 ring-offset-slate-900 z-20 shadow-xl'
                     : 'z-0'
@@ -852,39 +911,67 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   width: `${zone.width}px`,
                   height: `${zone.height}px`,
                   borderColor: zone.color,
-                  backgroundColor: `${zone.color}0D`,
+                  backgroundColor: zone.color,
+                  opacity: 1,
+                  borderRadius: borderRadius,
+                  clipPath: clipPath,
                   transform: zone.rotation ? `rotate(${zone.rotation}deg)` : undefined,
                   transformOrigin: 'center center',
+                  boxShadow: `inset 0 0 0 1000px rgba(15, 23, 42, ${1 - fillOpacity})`,
                 }}
               >
                 <div
                   data-zone-header="true"
-                  className="inline-block px-3 py-1 rounded-br-xl rounded-tl-xl text-[11px] font-extrabold uppercase shadow-xs tracking-wider cursor-grab active:cursor-grabbing"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-br-xl rounded-tl-xl text-[11px] font-extrabold uppercase shadow-xs tracking-wider cursor-grab active:cursor-grabbing backdrop-blur-xs relative z-10"
                   style={{ backgroundColor: zone.color, color: '#ffffff' }}
                 >
-                  {zone.name} — {getZonePrice(zone).toLocaleString('vi-VN')} đ
+                  <span>{zone.name}</span>
                 </div>
 
-                {/* Rotation Handle (Top Center) */}
-                {!isAttendeeMode && isSelected && (
-                  <div
-                    onPointerDown={(e) => handlePointerDownRotateZone(e, zone)}
-                    className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-lg z-50 hover:scale-125 transition-transform"
-                    title="Kéo để xoay Khu Vực (Giữ Shift để hít góc 15°)"
-                  >
-                    <FiRotateCw className="w-3.5 h-3.5" />
-                  </div>
-                )}
+                {/* Center Label & Info inside Zone */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center z-10">
+                  <span className="text-sm md:text-base font-black uppercase tracking-widest drop-shadow-md text-white">
+                    {zone.centerText || zone.name}
+                  </span>
+                  <span className="text-xs font-extrabold font-mono text-white/90 drop-shadow-sm mt-0.5">
+                    {tiers?.find((t) => t.id === zone.tierId)?.name || 'Hạng vé chưa gán'} • {getZonePrice(zone).toLocaleString('vi-VN')} đ
+                  </span>
+                  {zoneSeatsCount === 0 && zone.capacity && (
+                    <span className="text-[10px] font-bold text-white/90 bg-black/40 px-2.5 py-0.5 rounded-full mt-1 border border-white/20 font-mono">
+                      Khối đứng: {zone.capacity} vé
+                    </span>
+                  )}
+                </div>
 
-                {/* Resizable Corner Handle */}
+                {/* 8 Directional Resizable Handles */}
                 {!isAttendeeMode && isSelected && (
-                  <div
-                    onPointerDown={(e) => handlePointerDownResizeZone(e, zone)}
-                    className="absolute -right-2 -bottom-2 w-5 h-5 rounded-full bg-white text-teal-600 border-2 border-teal-600 flex items-center justify-center cursor-nwse-resize z-50 shadow-md"
-                    title="Kéo để đổi kích thước Khu Vực Ghế"
-                  >
-                    <span className="text-[9px] font-bold">↘</span>
-                  </div>
+                  <>
+                    <div
+                      onPointerDown={(e) => handlePointerDownRotateZone(e, zone)}
+                      className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-lg z-50 hover:scale-125 transition-transform"
+                      title="Kéo để xoay Khu Vực (Giữ Shift để hít góc 15°)"
+                    >
+                      <FiRotateCw className="w-3.5 h-3.5" />
+                    </div>
+
+                    {[
+                      { dir: 'nw', class: '-top-1.5 -left-1.5 cursor-nwse-resize' },
+                      { dir: 'n', class: '-top-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize' },
+                      { dir: 'ne', class: '-top-1.5 -right-1.5 cursor-nesw-resize' },
+                      { dir: 'e', class: 'top-1/2 -translate-y-1/2 -right-1.5 cursor-ew-resize' },
+                      { dir: 'se', class: '-bottom-1.5 -right-1.5 cursor-nwse-resize' },
+                      { dir: 's', class: '-bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize' },
+                      { dir: 'sw', class: '-bottom-1.5 -left-1.5 cursor-nesw-resize' },
+                      { dir: 'w', class: 'top-1/2 -translate-y-1/2 -left-1.5 cursor-ew-resize' },
+                    ].map((h) => (
+                      <div
+                        key={h.dir}
+                        onPointerDown={(e) => handlePointerDownResizeZone(e, zone, h.dir as any)}
+                        className={`absolute w-3.5 h-3.5 rounded-full bg-white border-2 border-teal-600 z-50 shadow-md hover:scale-125 transition-transform ${h.class}`}
+                        title={`Kéo để thay đổi kích thước Zone (${h.dir.toUpperCase()})`}
+                      />
+                    ))}
+                  </>
                 )}
               </div>
             );
@@ -1048,7 +1135,9 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   top: `${seat.y}px`,
                   backgroundColor:
                     !isCartItem && !isMaintenance && !isSold && !isBlocked && !isReserved && !isAccessible
-                      ? zone.color
+                      ? (seat.color || (tiers?.find((t) => t.id === (seat.tierId || zone.tierId))?.color?.startsWith('#')
+                          ? tiers?.find((t) => t.id === (seat.tierId || zone.tierId))?.color
+                          : undefined) || zone.color)
                       : undefined,
                   transform: seat.rotation ? `rotate(${seat.rotation}deg)` : undefined,
                 }}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiX, FiPlus, FiTrash2, FiEdit2, FiCheck, FiDollarSign, FiTag } from 'react-icons/fi';
 import type { SeatTier, TierManagerModalProps } from '@/types/seating';
 
@@ -27,6 +27,13 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   const [price, setPrice] = useState<number>(500000);
   const [color, setColor] = useState(PRESET_COLORS[0].color);
   const [description, setDescription] = useState('');
+
+  // Keep localTiers updated when tiers prop or modal visibility changes
+  useEffect(() => {
+    if (tiers && tiers.length > 0) {
+      setLocalTiers(tiers);
+    }
+  }, [tiers, isOpen]);
 
   if (!isOpen) return null;
 

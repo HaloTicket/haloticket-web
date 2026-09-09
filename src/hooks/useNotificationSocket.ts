@@ -155,7 +155,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
         socket.onopen = null;
         socket.onmessage = null;
         socket.onerror = null;
-        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        if (socket.readyState === WebSocket.OPEN) {
           socket.close();
         }
       }

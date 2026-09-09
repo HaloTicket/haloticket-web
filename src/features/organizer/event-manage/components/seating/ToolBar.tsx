@@ -40,7 +40,11 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   const getZonePrice = (z: ZoneBlock) => z.price ?? tiers?.find((t) => t.id === z.tierId)?.price ?? 0;
 
   // current active modal state
-  const [activeModal, setActiveModal] = useState<'ROW' | 'MATRIX' | 'ARC' | 'ZONE' | null>(null);
+  const [activeModal, setActiveModal] = useState<'ROW' | 'MATRIX' | 'ARC' | 'ZONE' | 'GALA' | null>(null);
+
+  // gala table generator form state
+  const [galaSeatCount, setGalaSeatCount] = useState(8);
+  const [galaZone, setGalaZone] = useState(defaultZoneId);
 
   // straight row generator form state
   const [rowLetter, setRowLetter] = useState('A');
@@ -133,13 +137,13 @@ export const ToolBar: React.FC<ToolBarProps> = ({
           <div className="relative group w-full flex justify-center">
             <button
               type="button"
-              onClick={() => onAddTable()}
+              onClick={() => setActiveModal('GALA')}
               className="w-9 h-9 rounded-xl app-bg-main hover:app-bg-hover border app-border hover:border-emerald-500/50 text-emerald-500 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
             >
               <FiDisc className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Bàn tròn Gala (8 ghế)
+              Bàn tròn Gala (Tùy chọn ghế)
             </span>
           </div>
 
@@ -595,6 +599,71 @@ export const ToolBar: React.FC<ToolBarProps> = ({
                 className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs shadow-xs cursor-pointer"
               >
                 Tạo Khu Vực Ghế ({zoneRows > 0 && zoneCols > 0 ? `${zoneRows * zoneCols} ghế` : 'Không ghế'})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gala Round Table Custom Seat Count Modal */}
+      {activeModal === 'GALA' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl app-bg-card border app-border shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b app-border pb-3">
+              <h3 className="text-xs font-extrabold app-text-main uppercase tracking-wider flex items-center gap-2">
+                <FiDisc className="text-emerald-500" />
+                <span>Tạo Bàn Tròn Gala</span>
+              </h3>
+              <button onClick={() => setActiveModal(null)} className="app-text-muted hover:app-text-main cursor-pointer">
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">Số lượng ghế quanh bàn</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[4, 6, 8, 10, 12, 16].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setGalaSeatCount(num)}
+                      className={`py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        galaSeatCount === num
+                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                          : 'app-bg-main border-app-border app-text-muted hover:app-text-main'
+                      }`}
+                    >
+                      {num} ghế
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">Chọn Khu Vực (Zone) đính kèm</label>
+                <select
+                  value={galaZone}
+                  onChange={(e) => setGalaZone(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl app-bg-main border app-border font-bold text-xs"
+                >
+                  {zoneList.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name} ({getZonePrice(z).toLocaleString('vi-VN')}đ)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onAddTable(galaZone, galaSeatCount);
+                  setActiveModal(null);
+                }}
+                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer mt-2"
+              >
+                Tạo Bàn Tròn Gala ({galaSeatCount} Ghế)
               </button>
             </div>
           </div>

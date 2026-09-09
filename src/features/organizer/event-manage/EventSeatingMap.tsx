@@ -1,18 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { ticketApi } from '@/services/ticketApi';
+import { venueApi } from '@/services/venueApi';
 import {
+  FiCamera,
   FiCheck,
   FiCheckCircle,
   FiCopy,
   FiDownload,
   FiEdit3,
   FiEye,
+  FiImage,
   FiLayers,
   FiSave,
+  FiSend,
   FiTag,
   FiTrash2,
   FiUpload,
   FiX,
 } from 'react-icons/fi';
+import { ToastContainer, ConfirmModal, type ToastMessage } from './components/seating/SeatingToast';
 import type {
   CanvasSettings,
   HistoryState,
@@ -41,6 +48,7 @@ import {
   cloneTemplateForCurrentEvent,
   DEFAULT_CANVAS_SETTINGS,
   DEFAULT_EVENT_TICKET_TIERS,
+  generateSeatMapSVG,
   isSeatInsideZone,
   safeClone,
 } from '@/utils/seatMapHelpers';
@@ -81,9 +89,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   initialMap,
   onSave,
 }) => {
+  const { eventId: urlEventId } = useParams<{ eventId: string }>();
+  const activeEventId = urlEventId || 'e045ea48-2a1b-4914-8d90-3e29ff7cce03';
+
+  const [backendTiers, setBackendTiers] = useState<SeatTier[]>([]);
+
   const effectiveTiers = useMemo(
-    () => (ticketTiers?.length ? ticketTiers : DEFAULT_EVENT_TICKET_TIERS),
-    [ticketTiers]
+    () => (backendTiers.length ? backendTiers : (ticketTiers?.length ? ticketTiers : DEFAULT_EVENT_TICKET_TIERS)),
+    [backendTiers, ticketTiers]
   );
   const defaultTemplate = PRESET_TEMPLATES[0];
   const defaultLayout = useMemo(
@@ -103,11 +116,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       };
     }
     return {
-      seats: safeClone(defaultLayout.seats),
-      stages: safeClone(defaultLayout.stages),
-      structures: safeClone(defaultLayout.structures),
-      zones: safeClone(defaultLayout.zones),
-      canvasSettings: safeClone(defaultLayout.canvasSettings),
+      seats: [],
+      stages: [],
+      structures: [],
+      zones: {},
+      canvasSettings: safeClone(DEFAULT_CANVAS_SETTINGS),
     };
   }, [defaultLayout, effectiveTiers, initialMap]);
 
@@ -141,13 +154,332 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const [copied, setCopied] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Đã tự động lưu nháp');
+  const [layoutStatus, setLayoutStatus] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  } | null>(null);
+
+  const showToast = (type: 'success' | 'error' | 'warning' | 'info', text: string) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, text }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
   const [isPropertyPanelCollapsed, setIsPropertyPanelCollapsed] = useState(false);
   const [lastClickedPos, setLastClickedPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedZoneModal, setSelectedZoneModal] = useState<ZoneBlock | null>(null);
+  const [zoneTicketQuantity, setZoneTicketQuantity] = useState<number>(1);
 
   const latestRef = useRef<StudioSnapshot>(initialSnapshot);
   useEffect(() => {
     latestRef.current = { seats, stages, structures, zones, canvasSettings };
   }, [canvasSettings, seats, stages, structures, zones]);
+
+  // Load Real Venues from Backend API via venueApi service
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const venues = await venueApi.getVenues();
+        if (venues && venues.length > 0) {
+          const venueTemplates: VenueTemplate[] = venues.map((v: any, idx: number) => {
+            const samplePreset = PRESET_TEMPLATES[idx % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[0];
+            return {
+              id: `venue_${v.id}`,
+              name: v.name,
+              address: v.address,
+              city: v.city,
+              capacity: v.capacity || samplePreset.capacity || 2000,
+              description: `Địa điểm chính thức: ${v.address || ''}, ${v.city || ''}`,
+              source: 'system' as const,
+              stages: safeClone(samplePreset.stages || []),
+              structures: safeClone(samplePreset.structures || []),
+              seats: safeClone(samplePreset.seats || []),
+              zones: safeClone(samplePreset.zones || {}),
+              canvasSettings: safeClone(samplePreset.canvasSettings || DEFAULT_CANVAS_SETTINGS),
+            };
+          });
+          setTemplates((prev) => [...venueTemplates, ...prev.filter((t) => !t.id.startsWith('venue_'))]);
+        }
+      } catch {
+        // Fallback to presets if backend endpoint offline
+      }
+    };
+    fetchVenues();
+  }, []);
+
+  // Fetch Ticket Types & Existing Seat Layout from Backend API via ticketApi service
+  useEffect(() => {
+    if (!activeEventId) return;
+    const fetchLayoutAndTypes = async () => {
+      try {
+        // 1. Fetch ticket types via ticketApi
+        const typesList = await ticketApi.getTicketTypesByEventId(activeEventId);
+        if (typesList && typesList.length > 0) {
+          const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
+          const mappedTiers: SeatTier[] = typesList.map((t: any, idx: number) => ({
+            id: t.id,
+            name: t.name,
+            price: t.price || 0,
+            color: colors[idx % colors.length],
+            description: t.description || undefined,
+          }));
+          setBackendTiers(mappedTiers);
+        }
+
+        // 2. Fetch layout via ticketApi
+        const layoutData = await ticketApi.getSeatLayoutByEventId(activeEventId);
+        if (layoutData) {
+          if (layoutData.status) {
+            setLayoutStatus((layoutData.status as any) === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT');
+          }
+          if (layoutData.draftJson) {
+            try {
+              const parsedDoc = JSON.parse(layoutData.draftJson) as SeatMapDocument;
+              const snapshot: StudioSnapshot = {
+                seats: safeClone(parsedDoc.seats || []),
+                stages: safeClone(parsedDoc.stages || []),
+                structures: safeClone(parsedDoc.structures || []),
+                zones: safeClone(parsedDoc.zones || {}),
+                canvasSettings: { ...DEFAULT_CANVAS_SETTINGS, ...(parsedDoc.canvasSettings || {}) },
+              };
+              applySnapshot(snapshot);
+              latestRef.current = snapshot;
+              setHistory([safeClone(snapshot)]);
+              setHistoryIndex(0);
+              return;
+            } catch (e) {
+              console.warn('Failed to parse draftJson', e);
+            }
+          }
+
+          if (layoutData.zones && Array.isArray(layoutData.zones) && layoutData.zones.length > 0) {
+            const zonesMap: Record<string, ZoneBlock> = {};
+            layoutData.zones.forEach((z: any) => {
+              let parsedPoints = undefined;
+              if (z.points) {
+                if (typeof z.points === 'string') {
+                  try { parsedPoints = JSON.parse(z.points); } catch { parsedPoints = undefined; }
+                } else {
+                  parsedPoints = z.points;
+                }
+              }
+              zonesMap[z.id || `zone_${Date.now()}`] = {
+                id: z.id || `zone_${Date.now()}`,
+                name: z.name || 'Khu vực',
+                tierId: z.ticketTypeId || undefined,
+                shape: (z.shapeType || 'rectangle').toString().toLowerCase() as any,
+                color: z.colorCode || z.fillColor || '#3b82f6',
+                fillColor: z.fillColor || z.colorCode || '#3b82f6',
+                strokeColor: z.strokeColor || '#2563eb',
+                curvature: z.curvature ?? 16,
+                x: z.x ?? 100,
+                y: z.y ?? 100,
+                width: z.width ?? 300,
+                height: z.height ?? 180,
+                rotation: z.rotation ?? 0,
+                points: parsedPoints,
+                capacity: z.capacity,
+              };
+            });
+            setZones(zonesMap);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching seat layout or ticket types:', err);
+      }
+    };
+
+    fetchLayoutAndTypes();
+  }, [activeEventId]);
+
+  // Realtime Auto-Save (LocalStorage + Debounced Backend Draft Save)
+  const autoSaveTimerRef = useRef<any>(null);
+  useEffect(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+
+    setAutoSaveStatus('Đang tự động lưu nháp...');
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const payload = buildSeatMapDocument({
+          name: eventName,
+          venueTemplateId: selectedTemplateId,
+          canvasSettings,
+          zones,
+          stages,
+          structures,
+          seats,
+          ticketTiers: effectiveTiers,
+        });
+
+        // Save locally for instant recovery
+        localStorage.setItem(`haloticket_seatmap_draft_${eventName}`, JSON.stringify(payload));
+
+        const zonesPayload = Object.entries(zones).map(([zId, z]) => {
+          const rawZone = z as any;
+          const shapeVal = rawZone.shape || rawZone.shapeType || 'RECTANGLE';
+          const pointsVal = rawZone.points;
+          return {
+            id: zId,
+            name: z.name,
+            ticketTypeId: z.tierId || null,
+            shapeType: String(shapeVal).toUpperCase(),
+            colorCode: z.color,
+            fillColor: z.fillColor || z.color,
+            strokeColor: z.strokeColor || z.color,
+            curvature: z.curvature ?? 16,
+            x: z.x ?? 100,
+            y: z.y ?? 100,
+            width: z.width ?? 300,
+            height: z.height ?? 180,
+            rotation: z.rotation ?? 0,
+            points: pointsVal ? (typeof pointsVal === 'string' ? pointsVal : JSON.stringify(pointsVal)) : null,
+            capacity: z.capacity || (seats.filter((s) => s.zoneId === zId).length || 100),
+          };
+        });
+
+        await ticketApi.saveSeatLayoutDraft(activeEventId, {
+          eventId: activeEventId,
+          draftJson: JSON.stringify(payload),
+          svgData: generateSeatMapSVG(payload),
+          imageUrl: null,
+          status: 'DRAFT',
+          zones: zonesPayload,
+        });
+
+        const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        setAutoSaveStatus(`Đã tự động lưu nháp lúc ${timeStr}`);
+      } catch {
+        setAutoSaveStatus('Lỗi tự động lưu nháp');
+      }
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [seats, stages, structures, zones, canvasSettings, eventName, effectiveTiers, selectedTemplateId, activeEventId]);
+
+  // Export SeatMap Image Function
+  const handleExportImage = () => {
+    const canvasElem = document.createElement('canvas');
+    const ctx = canvasElem.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvasSettings.width || 1400;
+    const h = canvasSettings.height || 900;
+    canvasElem.width = w;
+    canvasElem.height = h;
+
+    // Background - Pure White
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Header Title on Image
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`${eventName.toUpperCase()} — SƠ ĐỒ CHÍNH THỨC`, 30, 40);
+
+    // Draw Zones
+    Object.values(zones).forEach((zone) => {
+      if (!zone.x || !zone.y || !zone.width || !zone.height) return;
+      ctx.save();
+      ctx.translate(zone.x + zone.width / 2, zone.y + zone.height / 2);
+      if (zone.rotation) ctx.rotate((zone.rotation * Math.PI) / 180);
+      ctx.translate(-zone.width / 2, -zone.height / 2);
+
+      const fillOpacity = zone.fillOpacity ?? 0.25;
+      ctx.fillStyle = zone.color;
+      ctx.globalAlpha = fillOpacity;
+      ctx.strokeStyle = zone.color;
+      ctx.lineWidth = 3;
+
+      const cur = zone.curvature ?? 16;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(0, 0, zone.width, zone.height, cur);
+      } else {
+        ctx.rect(0, 0, zone.width, zone.height);
+      }
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.stroke();
+
+      // Zone Header Badge
+      ctx.fillStyle = zone.color;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(0, 0, Math.min(zone.width, 240), 28, [cur, 0, 10, 0]);
+      } else {
+        ctx.rect(0, 0, Math.min(zone.width, 240), 28);
+      }
+      ctx.fill();
+
+      const price = zone.price ?? effectiveTiers.find((t) => t.id === zone.tierId)?.price ?? 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(`${zone.name} - ${price.toLocaleString('vi-VN')}đ`, 10, 18);
+      ctx.restore();
+    });
+
+    // Draw Stages
+    stages.forEach((stage) => {
+      ctx.save();
+      ctx.translate(stage.x + stage.width / 2, stage.y + stage.height / 2);
+      if (stage.rotation) ctx.rotate((stage.rotation * Math.PI) / 180);
+      ctx.translate(-stage.width / 2, -stage.height / 2);
+
+      ctx.fillStyle = stage.color || '#6366f1';
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(0, 0, stage.width, stage.height, 12);
+      } else {
+        ctx.rect(0, 0, stage.width, stage.height);
+      }
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(stage.label, stage.width / 2, stage.height / 2);
+      ctx.restore();
+    });
+
+    // Draw Seats
+    seats.forEach((seat) => {
+      ctx.save();
+      ctx.translate(seat.x, seat.y);
+      if (seat.rotation) ctx.rotate((seat.rotation * Math.PI) / 180);
+
+      const zone = zones[seat.zoneId];
+      const color = zone?.color || '#3b82f6';
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${seat.number}`, 0, 0);
+      ctx.restore();
+    });
+
+    // Download Image File
+    const link = document.createElement('a');
+    link.download = `SeatMap-${eventName.replace(/\s+/g, '_')}.png`;
+    link.href = canvasElem.toDataURL('image/png');
+    link.click();
+  };
 
   // push history snapshot
   const pushHistory = (snapshot?: StudioSnapshot) => {
@@ -229,11 +561,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       rowLetter = configOrLetter.rowLetter || 'A';
       count = configOrLetter.count || 12;
       zoneId = configOrLetter.zoneId || '';
-      spacing = configOrLetter.spacing || 32;
+      spacing = configOrLetter.spacing || 48;
     } else {
       rowLetter = (configOrLetter as string) || 'A';
       count = countVal || 12;
       zoneId = zoneIdVal || '';
+      spacing = 48;
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
@@ -281,8 +614,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       cols = configOrRows.cols || 10;
       startRowLetter = configOrRows.startRowLetter || 'A';
       zoneId = configOrRows.zoneId || '';
-      spacingX = configOrRows.spacingX || 32;
-      spacingY = configOrRows.spacingY || 32;
+      spacingX = configOrRows.spacingX || 48;
+      spacingY = configOrRows.spacingY || 48;
       aisleAfter = configOrRows.aisleAfter || 0;
       aisleGap = configOrRows.aisleGap || 0;
     } else {
@@ -290,6 +623,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       cols = colsVal || 10;
       startRowLetter = startRowLetterVal || 'A';
       zoneId = zoneIdVal || '';
+      spacingX = 48;
+      spacingY = 48;
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
@@ -784,22 +1119,31 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     };
     setTemplates((prev) => [template, ...prev]);
     setSelectedTemplateId(template.id);
-    window.alert('Đã lưu mẫu trong phiên làm việc hiện tại. Khi nối backend, hãy thay bằng API lưu template của địa điểm.');
+    showToast('success', 'Đã lưu mẫu trong phiên làm việc hiện tại.');
   };
 
   const handleClearCanvas = () => {
-    if (!window.confirm('Xóa toàn bộ ghế, khu vực, sân khấu và tiện ích trên canvas?')) return;
-    const snapshot: StudioSnapshot = {
-      seats: [],
-      stages: [],
-      structures: [],
-      zones: {},
-      canvasSettings,
-    };
-    applySnapshot(snapshot);
-    latestRef.current = snapshot;
-    pushHistory(snapshot);
-    setAttendeeCart([]);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa Canvas',
+      message: 'Bạn có chắc chắn muốn xóa toàn bộ ghế, khu vực, sân khấu và tiện ích trên canvas không?',
+      type: 'danger',
+      onConfirm: () => {
+        const snapshot: StudioSnapshot = {
+          seats: [],
+          stages: [],
+          structures: [],
+          zones: {},
+          canvasSettings,
+        };
+        applySnapshot(snapshot);
+        latestRef.current = snapshot;
+        pushHistory(snapshot);
+        setAttendeeCart([]);
+        setConfirmModal(null);
+        showToast('info', 'Đã xóa toàn bộ nội dung canvas.');
+      },
+    });
   };
 
   const handleToggleAttendeeSeat = (seat: Seat) => {
@@ -840,12 +1184,61 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       latestRef.current = snapshot;
       pushHistory(snapshot);
       setIsJSONModalOpen(false);
+      showToast('success', 'Đã nạp bản đồ từ JSON thành công.');
     } catch {
-      window.alert('JSON không đúng định dạng Seat Map v2.0.');
+      showToast('error', 'JSON không đúng định dạng Seat Map v2.0.');
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveTiers = async (newTiers: SeatTier[]) => {
+    setBackendTiers(newTiers);
+    try {
+      const requests = newTiers.map((t) => ({
+        name: t.name,
+        price: t.price,
+        isFree: t.price === 0,
+        totalQuantity: 500,
+        minPerOrder: 1,
+        maxPerOrder: 10,
+        description: t.description || `Hạng vé ${t.name}`,
+      }));
+
+      await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
+      setAutoSaveStatus('Đã đồng bộ hạng vé vào CSDL!');
+      showToast('success', 'Đã đồng bộ thành công danh sách Hạng vé & Giá vé!');
+    } catch (err) {
+      console.warn('Lỗi khi đồng bộ hạng vé tới backend:', err);
+      showToast('error', 'Không thể kết nối CSDL để lưu Hạng vé!');
+    }
+  };
+
+  const buildZonesPayload = () => {
+    return Object.entries(zones).map(([zId, z]) => {
+      const rawZone = z as any;
+      const shapeVal = rawZone.shape || rawZone.shapeType || 'RECTANGLE';
+      const pointsVal = rawZone.points;
+      return {
+        id: zId,
+        name: z.name,
+        ticketTypeId: z.tierId || null,
+        shapeType: String(shapeVal).toUpperCase(),
+        colorCode: z.color,
+        fillColor: z.fillColor || z.color,
+        strokeColor: z.strokeColor || z.color,
+        curvature: z.curvature ?? 16,
+        x: z.x ?? 100,
+        y: z.y ?? 100,
+        width: z.width ?? 300,
+        height: z.height ?? 180,
+        rotation: z.rotation ?? 0,
+        points: pointsVal ? (typeof pointsVal === 'string' ? pointsVal : JSON.stringify(pointsVal)) : null,
+        capacity: z.capacity || (seats.filter((s) => s.zoneId === zId).length || 100),
+      };
+    });
+  };
+
+  // 1. Save as Draft
+  const handleSaveDraft = async () => {
     const payload = buildSeatMapDocument({
       name: eventName,
       venueTemplateId: selectedTemplateId,
@@ -857,14 +1250,69 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       ticketTiers: effectiveTiers,
     });
 
+    try {
+      setIsSaving(true);
+      await ticketApi.saveSeatLayoutDraft(activeEventId, {
+        eventId: activeEventId,
+        draftJson: JSON.stringify(payload),
+        svgData: generateSeatMapSVG(payload),
+        imageUrl: null,
+        status: 'DRAFT',
+        zones: buildZonesPayload(),
+      });
+
+      await onSave?.(payload);
+      setLayoutStatus('DRAFT');
+      setSaveSuccess(true);
+      window.setTimeout(() => setSaveSuccess(false), 2500);
+      setAutoSaveStatus('Đã lưu bản nháp vào CSDL!');
+      showToast('info', 'Đã lưu bản nháp sơ đồ ghế (DRAFT) thành công!');
+    } catch (err) {
+      console.error('Error saving seat layout draft:', err);
+      showToast('error', 'Đã xảy ra lỗi khi kết nối tới backend để lưu bản nháp!');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 2. Save Official (Publish Layout)
+  const handlePublishOfficial = async () => {
     const unassignedZones = Object.values(zones).filter((zone) => !zone.tierId);
-    if (unassignedZones.length && !window.confirm(`Có ${unassignedZones.length} khu vực chưa gán hạng vé. Vẫn lưu bản nháp?`)) return;
+    if (unassignedZones.length > 0) {
+      showToast('warning', `Có ${unassignedZones.length} khu vực chưa gán Hạng vé! Vui lòng kiểm tra lại.`);
+    }
+
+    const payload = buildSeatMapDocument({
+      name: eventName,
+      venueTemplateId: selectedTemplateId,
+      canvasSettings,
+      zones,
+      stages,
+      structures,
+      seats,
+      ticketTiers: effectiveTiers,
+    });
 
     try {
       setIsSaving(true);
+      await ticketApi.publishSeatLayout(activeEventId, {
+        eventId: activeEventId,
+        draftJson: JSON.stringify(payload),
+        svgData: generateSeatMapSVG(payload),
+        imageUrl: null,
+        status: 'PUBLISHED',
+        zones: buildZonesPayload(),
+      });
+
       await onSave?.(payload);
+      setLayoutStatus('PUBLISHED');
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2500);
+      setAutoSaveStatus('Đã xuất bản sơ đồ chính thức!');
+      showToast('success', 'ĐÃ LƯU CHÍNH THỨC & XUẤT BẢN (PUBLISHED) SƠ ĐỒ GHẾ THÀNH CÔNG!');
+    } catch (err) {
+      console.error('Error publishing seat layout:', err);
+      showToast('error', 'Đã xảy ra lỗi khi xuất bản sơ đồ ghế lên CSDL!');
     } finally {
       setIsSaving(false);
     }
@@ -893,6 +1341,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="seat-studio-badge">HALOTICKET</span>
             <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.16em]">Seat Map Studio</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold">
+              {autoSaveStatus}
+            </span>
+            {layoutStatus === 'PUBLISHED' ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold tracking-wide flex items-center gap-1">
+                <FiCheckCircle className="w-3 h-3" /> CHÍNH THỨC (PUBLISHED)
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-extrabold tracking-wide">
+                BẢN NHÁP (DRAFT)
+              </span>
+            )}
           </div>
           <h2 className="text-base font-black app-text-main truncate mt-1">{eventName}</h2>
           <p className="text-[11px] app-text-muted mt-0.5">Thiết kế mặt bằng kéo thả · gán hạng vé theo khu vực · preview người mua vé</p>
@@ -901,7 +1361,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button type="button" onClick={() => setIsTemplateModalOpen(true)} className="seat-studio-secondary-button"><FiLayers className="w-4 h-4" />Mẫu địa điểm <span className="seat-studio-badge ml-1">{templates.length}</span></button>
           <button type="button" onClick={() => setIsTierModalOpen(true)} className="seat-studio-secondary-button"><FiTag className="w-4 h-4" />Hạng vé <span className="seat-studio-badge ml-1">{assignedZoneCount}/{Object.keys(zones).length}</span></button>
-          <button type="button" onClick={handleSaveAsTemplate} className="seat-studio-secondary-button"><FiCopy className="w-4 h-4" />Lưu làm mẫu</button>
+          <button type="button" onClick={handleExportImage} className="seat-studio-secondary-button border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10" title="Xuất file ảnh PNG sơ đồ sự kiện"><FiCamera className="w-4 h-4" />Xuất ảnh sơ đồ</button>
 
           <div className="seat-studio-mode-switch">
             <button type="button" onClick={() => setIsAttendeeMode(false)} className={!isAttendeeMode ? 'is-active' : ''}><FiEdit3 />Thiết kế</button>
@@ -910,7 +1370,31 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
           <button type="button" onClick={handleOpenJSONModal} className="seat-studio-icon-button" title="Import/Export JSON"><FiDownload /></button>
           <button type="button" onClick={handleClearCanvas} className="seat-studio-icon-button text-rose-500" title="Xóa canvas"><FiTrash2 /></button>
-          {!isAttendeeMode && <button type="button" onClick={handleSave} disabled={isSaving} className="seat-studio-primary-button"><FiSave className="w-4 h-4" />{isSaving ? 'Đang lưu...' : 'Lưu sơ đồ'}</button>}
+          
+          {!isAttendeeMode && (
+            <>
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={isSaving}
+                className="seat-studio-secondary-button border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
+                title="Lưu tạm sơ đồ dưới dạng Bản nháp"
+              >
+                <FiSave className="w-4 h-4" />
+                <span>{isSaving ? 'Đang lưu...' : 'Lưu nháp'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePublishOfficial}
+                disabled={isSaving}
+                className="seat-studio-primary-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md"
+                title="Xuất bản chính thức sơ đồ ghế cho khán giả mua vé"
+              >
+                <FiSend className="w-4 h-4" />
+                <span>{isSaving ? 'Đang lưu...' : 'Lưu chính thức'}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -923,7 +1407,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       <div className="flex flex-row gap-3 items-start w-full">
         {/* Left Toolbar Column (ToolBar) - Compact vertical strip */}
         {!isAttendeeMode && (
-          <div className="w-12 flex-shrink-0">
+          <div className="w-12 flex-shrink-0 sticky top-4 z-10">
             <ToolBar
               zones={zones}
               tiers={effectiveTiers}
@@ -975,6 +1459,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             isAttendeeMode={isAttendeeMode}
             attendeeCart={attendeeCart}
             onToggleAttendeeSeat={handleToggleAttendeeSeat}
+            onSelectZoneAttendee={(zone) => {
+              setSelectedZoneModal(zone);
+              setZoneTicketQuantity(1);
+            }}
             isFullscreen={isFullscreen}
             onToggleFullscreen={handleToggleFullscreen}
             onCanvasClickPosition={setLastClickedPos}
@@ -983,7 +1471,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
         {/* Right Inspector Column (PropertyPanel / AttendeePreview) */}
         <div
-          className={`transition-all duration-200 flex-shrink-0 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
+          className={`transition-all duration-200 flex-shrink-0 sticky top-4 z-10 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
             }`}
         >
           {!isAttendeeMode ? (
@@ -1031,6 +1519,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         isOpen={isTierModalOpen}
         onClose={() => setIsTierModalOpen(false)}
         tiers={effectiveTiers}
+        onSaveTiers={handleSaveTiers}
       />
 
       {isJSONModalOpen && (
@@ -1062,6 +1551,113 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Zone Ticket Selector Modal for Preview Mode */}
+      {selectedZoneModal && (
+        <div className="seat-studio-modal-backdrop" onMouseDown={() => setSelectedZoneModal(null)}>
+          <div className="seat-studio-modal max-w-md p-6 space-y-4" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b app-border pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500">Khán giả chọn mua vé theo Zone</span>
+                <h3 className="text-base font-black app-text-main mt-0.5">{selectedZoneModal.name}</h3>
+              </div>
+              <button type="button" onClick={() => setSelectedZoneModal(null)} className="seat-studio-icon-button"><FiX /></button>
+            </div>
+
+            <div className="p-4 rounded-xl app-bg-main border app-border space-y-2 font-mono">
+              <div className="flex items-center justify-between text-xs">
+                <span className="app-text-muted">Hạng vé đính kèm:</span>
+                <span className="font-bold text-blue-500">
+                  {effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.name || 'Vé Tiêu Chuẩn'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="app-text-muted">Đơn giá:</span>
+                <span className="font-bold text-emerald-500">
+                  {(selectedZoneModal.price ?? effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.price ?? 0).toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+              {selectedZoneModal.capacity && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="app-text-muted">Sức chứa tối đa:</span>
+                  <span className="font-bold app-text-main">{selectedZoneModal.capacity} vé</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quantity Counter */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold app-text-muted uppercase">Chọn Số Lượng Vé</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setZoneTicketQuantity((prev) => Math.max(1, prev - 1))}
+                  className="w-10 h-10 rounded-xl app-bg-main border app-border font-bold text-lg hover:border-emerald-500/40 transition-colors cursor-pointer"
+                >
+                  -
+                </button>
+                <span className="flex-1 text-center font-mono font-extrabold text-lg app-text-main">
+                  {zoneTicketQuantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoneTicketQuantity((prev) => Math.min(10, prev + 1))}
+                  className="w-10 h-10 rounded-xl app-bg-main border app-border font-bold text-lg hover:border-emerald-500/40 transition-colors cursor-pointer"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Total Calculation */}
+            <div className="flex items-center justify-between pt-2 border-t app-border">
+              <span className="text-xs font-bold app-text-muted">Tổng tiền tạm tính:</span>
+              <span className="font-mono text-lg font-black text-emerald-500">
+                {((selectedZoneModal.price ?? effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.price ?? 0) * zoneTicketQuantity).toLocaleString('vi-VN')} đ
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const baseId = Date.now();
+                const newZoneCartSeats: Seat[] = Array.from({ length: zoneTicketQuantity }, (_, idx) => ({
+                  id: `cart_zone_${selectedZoneModal.id}_${baseId}_${idx}`,
+                  row: selectedZoneModal.name,
+                  number: idx + 1,
+                  x: 0,
+                  y: 0,
+                  zoneId: selectedZoneModal.id,
+                  tierId: selectedZoneModal.tierId,
+                  status: 'available',
+                }));
+
+                setAttendeeCart((prev) => [...prev, ...newZoneCartSeats]);
+                setSelectedZoneModal(null);
+                setZoneTicketQuantity(1);
+              }}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Thêm {zoneTicketQuantity} Vé Vào Giỏ Hàng</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Global Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal && (
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          type={confirmModal.type}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
       )}
     </div>
   );

@@ -385,6 +385,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">Text/Tiêu Đề Hiển Thị Giữa Khối</label>
+                <input
+                  type="text"
+                  value={selectedZone.centerText || ''}
+                  onChange={(e) => onUpdateZoneProps(selectedZone.id, { centerText: e.target.value })}
+                  className="w-full px-3 py-1.5 rounded-lg app-bg-card border app-border font-bold text-xs"
+                  placeholder="Mặc định lấy tên Zone (Ví dụ: KHU VIP A)"
+                />
+              </div>
+
               {/* Tier Binding */}
               {effectiveTiers.length > 0 && (
                 <div>
@@ -396,7 +407,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       onUpdateZoneProps(selectedZone.id, {
                         tierId: e.target.value,
                         price: selectedTier?.price ?? selectedZone.price,
-                        color: selectedTier?.color || selectedZone.color,
                       });
                     }}
                     className="w-full px-3 py-1.5 rounded-lg app-bg-card border app-border font-bold text-xs"
@@ -410,6 +420,103 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   </select>
                 </div>
               )}
+
+              {/* Independent Zone Color Selector */}
+              <div className="pt-2 border-t app-border space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold app-text-muted uppercase">Màu Khối Zone (Độc Lập)</label>
+                  <input
+                    type="color"
+                    value={selectedZone.color || '#3b82f6'}
+                    onChange={(e) =>
+                      onUpdateZoneProps(selectedZone.id, {
+                        color: e.target.value,
+                        fillColor: e.target.value,
+                        strokeColor: e.target.value,
+                      })
+                    }
+                    className="w-6 h-6 rounded-md border-0 cursor-pointer p-0 bg-transparent"
+                    title="Tùy chỉnh màu tự do"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {PALETTE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() =>
+                        onUpdateZoneProps(selectedZone.id, {
+                          color: c,
+                          fillColor: c,
+                          strokeColor: c,
+                        })
+                      }
+                      className="w-5 h-5 rounded-full border-2 transition-transform cursor-pointer hover:scale-110"
+                      style={{
+                        backgroundColor: c,
+                        borderColor: selectedZone.color === c ? '#ffffff' : 'transparent',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Capacity for Standalone Zone */}
+              <div className="pt-2 border-t app-border">
+                <label className="block text-[11px] font-bold app-text-muted mb-1">Sức Chứa Khối Zone (Khán giả/Vé)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={selectedZone.capacity || 100}
+                  onChange={(e) => onUpdateZoneProps(selectedZone.id, { capacity: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 rounded-lg app-bg-card border app-border font-bold text-xs"
+                  placeholder="Ví dụ: 500 người"
+                />
+              </div>
+
+              {/* Zone Shape Selection */}
+              <div className="pt-2 border-t app-border space-y-1.5">
+                <label className="block text-[11px] font-bold app-text-muted uppercase">Hình Thù Khối Zone</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { id: 'rectangle', label: 'Chữ Nhật' },
+                    { id: 'rounded', label: 'Bo Góc' },
+                    { id: 'ellipse', label: 'H.Tròn/Oval' },
+                    { id: 'trapezoid', label: 'Hình Thang' },
+                    { id: 'fan', label: 'Hình Quạt' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => onUpdateZoneProps(selectedZone.id, { shape: s.id as any })}
+                      className={`py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-colors cursor-pointer text-center ${(selectedZone.shape || 'rounded') === s.id
+                        ? 'bg-cyan-600 text-white border-cyan-500 shadow-xs'
+                        : 'app-bg-card border-app-border app-text-muted hover:app-text-main'
+                        }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Curvature Slider */}
+              <div className="space-y-1.5 pt-2 border-t app-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold app-text-main uppercase flex items-center gap-1.5">
+                    Độ cong / Bo góc Zone
+                  </label>
+                  <span className="font-mono font-bold text-cyan-500 text-xs">{selectedZone.curvature ?? 16}px</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={selectedZone.curvature ?? 16}
+                  onChange={(e) => onUpdateZoneProps(selectedZone.id, { curvature: Number(e.target.value) })}
+                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                />
+              </div>
 
               {/* Dimensions */}
               <div className="grid grid-cols-2 gap-2 pt-1 border-t app-border">
@@ -494,15 +601,36 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
               </div>
 
+              {/* Fill Opacity Slider */}
+              <div className="space-y-1.5 pt-2 border-t app-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold app-text-main uppercase flex items-center gap-1.5">
+                    Độ Nổi Màu Nền Zone (Fill Opacity)
+                  </label>
+                  <span className="font-mono font-bold text-cyan-500 text-xs">
+                    {Math.round((selectedZone.fillOpacity ?? 0.25) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.05}
+                  max={0.9}
+                  step={0.05}
+                  value={selectedZone.fillOpacity ?? 0.25}
+                  onChange={(e) => onUpdateZoneProps(selectedZone.id, { fillOpacity: Number(e.target.value) })}
+                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                />
+              </div>
+
               {/* Color Palette Selection */}
               <div className="space-y-1.5 pt-2 border-t app-border">
-                <label className="block text-[11px] font-bold app-text-muted uppercase">Màu Sắc Khu Vực</label>
+                <label className="block text-[11px] font-bold app-text-muted uppercase">Màu Sắc Khu Vực (Chủ Đạo)</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PALETTE_COLORS.map((c) => (
                     <button
                       key={c}
                       type="button"
-                      onClick={() => onUpdateZoneProps(selectedZone.id, { color: c })}
+                      onClick={() => onUpdateZoneProps(selectedZone.id, { color: c, fillColor: c })}
                       className="w-6 h-6 rounded-full border-2 transition-transform cursor-pointer hover:scale-110"
                       style={{ backgroundColor: c, borderColor: selectedZone.color === c ? '#ffffff' : 'transparent' }}
                     />

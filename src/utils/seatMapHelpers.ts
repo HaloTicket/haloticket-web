@@ -4,6 +4,7 @@ import type {
     Seat,
     SeatMapDocument,
     SeatTier,
+    StructureElement,
     VenueTemplate,
     ZoneBlock,
     ZoneShape,
@@ -267,4 +268,95 @@ export const reassignSeatZones = (
     return seat;
   });
 };
+
+// Generate valid SVG string for seat map document
+export const generateSeatMapSVG = (doc: {
+  canvasSettings?: CanvasSettings;
+  stages?: any[];
+  structures?: any[];
+  zones?: Record<string, ZoneBlock>;
+  seats?: Seat[];
+  ticketTiers?: SeatTier[];
+}): string => {
+  const w = doc.canvasSettings?.width || 1500;
+  const h = doc.canvasSettings?.height || 1050;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`;
+  svg += `<rect width="100%" height="100%" fill="#0f172a"/>`;
+
+  // Draw Stages
+  (doc.stages || []).forEach((stg) => {
+    const rot = stg.rotation ? ` transform="rotate(${stg.rotation} ${stg.x + stg.width / 2} ${stg.y + stg.height / 2})"` : '';
+    svg += `<g${rot}><rect x="${stg.x}" y="${stg.y}" width="${stg.width}" height="${stg.height}" rx="12" fill="${stg.color || '#6366f1'}" stroke="#818cf8" stroke-width="2"/><text x="${stg.x + stg.width / 2}" y="${stg.y + stg.height / 2}" fill="#ffffff" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${stg.label || 'SÂN KHẤU'}</text></g>`;
+  });
+
+  // Draw Zones
+  Object.values(doc.zones || {}).forEach((z) => {
+    const rot = z.rotation ? ` transform="rotate(${z.rotation} ${z.x + z.width / 2} ${z.y + z.height / 2})"` : '';
+    const color = z.color || '#3b82f6';
+    svg += `<g${rot}><rect x="${z.x}" y="${z.y}" width="${z.width}" height="${z.height}" rx="${z.curvature || 12}" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2"/><text x="${z.x + z.width / 2}" y="${z.y + 25}" fill="${color}" font-size="14" font-weight="bold" text-anchor="middle">${z.centerText || z.name}</text></g>`;
+  });
+
+  // Draw Seats
+  (doc.seats || []).forEach((seat) => {
+    const zone = doc.zones?.[seat.zoneId];
+    const tier = doc.ticketTiers?.find((t) => t.id === (seat.tierId || zone?.tierId));
+    const seatColor = seat.color || tier?.color || zone?.color || '#3b82f6';
+    svg += `<circle cx="${seat.x}" cy="${seat.y}" r="12" fill="${seatColor}" stroke="#ffffff" stroke-width="1"/><text x="${seat.x}" y="${seat.y}" fill="#ffffff" font-size="9" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${seat.number}</text>`;
+  });
+
+  svg += `</svg>`;
+  return svg;
+};
+
+// generate Gala Table and surrounding seats with customizable seat count
+export const generateGalaTableSeats = (args: {
+  tableNumber: number;
+  centerX: number;
+  centerY: number;
+  seatCount: number;
+  radius?: number;
+  zoneId: string;
+  tierId?: string;
+}) => {
+  const count = Math.max(2, Math.min(24, args.seatCount));
+  const r = args.radius || Math.max(50, Math.min(120, count * 9));
+  const tableId = `gala_table_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+  const tableStructure: StructureElement = {
+    id: tableId,
+    type: 'structure',
+    label: `BÀN ${args.tableNumber}`,
+    x: args.centerX - r,
+    y: args.centerY - r,
+    width: r * 2,
+    height: r * 2,
+    shape: 'ellipse',
+    color: '#0284c7',
+  };
+
+  const seats: Seat[] = [];
+  const distance = r + 24; // Distance from center to seat
+  for (let i = 0; i < count; i++) {
+    const angle = (i * 2 * Math.PI) / count - Math.PI / 2;
+    const sx = Math.round(args.centerX + distance * Math.cos(angle));
+    const sy = Math.round(args.centerY + distance * Math.sin(angle));
+    const rotationDeg = Math.round((angle * 180) / Math.PI) + 90;
+
+    seats.push({
+      id: `seat_gala_${args.tableNumber}_${i + 1}_${Date.now()}_${i}`,
+      row: `BÀN ${args.tableNumber}`,
+      number: i + 1,
+      x: sx,
+      y: sy,
+      rotation: rotationDeg,
+      shape: 'circle',
+      zoneId: args.zoneId,
+      tierId: args.tierId,
+      status: 'available',
+    });
+  }
+
+  return { tableStructure, seats };
+};
+
 

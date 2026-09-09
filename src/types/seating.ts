@@ -89,17 +89,15 @@ export interface StructureElement {
 export interface ZoneBlock {
   id: string;
   name: string;
-
-  /**
-   * price is kept only for backward compatibility with old preset data.
-   * The Seat Map editor MUST NOT edit this field. Current event pricing is read
-   * from the selected SeatTier through tierId.
-   */
   price?: number;
   tierId?: string;
-
   color: string;
+  fillColor?: string;
+  strokeColor?: string;
+  curvature?: number; // 0-100 or corner radius / arc curvature
   shape?: ZoneShape | SeatShape;
+  shapeType?: string;
+  points?: any;
   customClipPath?: string;
   rows?: string[];
   seatsPerRow?: number;
@@ -111,6 +109,8 @@ export interface ZoneBlock {
   rotation?: number;
   borderStyle?: 'dashed' | 'solid';
   fillOpacity?: number;
+  centerText?: string;
+  textColor?: string;
   locked?: boolean;
   hidden?: boolean;
   zIndex?: number;
@@ -158,7 +158,6 @@ export interface SeatMapDocument {
   stages: StageElement[];
   structures: StructureElement[];
   seats: Seat[];
-  /** Snapshot for rendering only. Tier setup remains owned by the ticket setup module. */
   ticketTiers: SeatTier[];
 }
 
@@ -182,10 +181,6 @@ export interface CustomElement {
   rotation?: number;
   color?: string;
 }
-
-/* ==========================================================================
-   Component Props Interfaces (Seating Feature)
-   ========================================================================== */
 
 export interface AddRowConfig {
   rowLetter: string;
@@ -294,6 +289,7 @@ export interface SeatCanvasProps {
   isAttendeeMode?: boolean;
   attendeeCart?: Seat[];
   onToggleAttendeeSeat?: (seat: Seat) => void;
+  onSelectZoneAttendee?: (zone: ZoneBlock) => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onCanvasClickPosition?: (pos: { x: number; y: number }) => void;
