@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { validateProfileForm, hasProfileErrors, type ProfileFieldErrors } from "@/validation";
+import { mediaApi } from "@/services/mediaApi";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { userApi, type UserProfile, type UserProfileUpdateRequest } from "@/services/userApi";
@@ -17,11 +19,19 @@ import {
   FiArrowLeft,
   FiLogOut,
   FiCamera,
-  FiAward,
   FiCopy,
   FiCheck,
 } from "react-icons/fi";
 import { FaTicketAlt, FaGem } from "react-icons/fa";
+
+function createProfileDraft(profile: UserProfile): UserProfileUpdateRequest {
+  return {
+    fullName: profile.fullName || "",
+    phoneNumber: profile.phoneNumber || "",
+    gender: profile.gender || "OTHER",
+    avatarUrl: profile.avatarUrl || "",
+  };
+}
 
 export default function Profile() {
   useTranslation();
@@ -52,6 +62,33 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
+  const avatarInput = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [failedAvatar, setFailedAvatar] = useState<string>();
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setErrorMessage(translate("Vui lòng chọn ảnh JPG, PNG hoặc WebP tối đa 5 MB."));
+      return;
+    }
+    setIsUploadingAvatar(true);
+    setErrorMessage("");
+    setSaveSuccess(false);
+    try {
+      const result = await mediaApi.uploadImage(file, "avatars");
+      if (!result?.imageUrl) throw new Error(translate("Không thể tải ảnh lên. Vui lòng thử lại."));
+      setFormData((previous) => ({ ...previous, avatarUrl: result.imageUrl }));
+      setFailedAvatar(undefined);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : translate("Không thể tải ảnh lên. Vui lòng thử lại."));
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -79,12 +116,7 @@ export default function Profile() {
         const data = await userApi.getProfile();
         if (isMounted && data) {
           setProfile(data);
-          setFormData({
-            fullName: data.fullName || "",
-            phoneNumber: data.phoneNumber || "",
-            gender: data.gender || "OTHER",
-            avatarUrl: data.avatarUrl || "",
-          });
+          setFormData(createProfileDraft(data));
         }
       } catch (err) {
         console.error("Error loading profile:", err);
@@ -110,25 +142,30 @@ export default function Profile() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName.trim()) {
-      setErrorMessage("Vui lòng nhập họ và tên.");
-      return;
-    }
+
+    // --- Validate fields ---
+    const errors = validateProfileForm(formData);
+    setFieldErrors(errors);
+    if (hasProfileErrors(errors)) return;
 
     setIsSaving(true);
     setErrorMessage("");
     setSaveSuccess(false);
+    setFieldErrors({});
 
     try {
       const updated = await userApi.updateProfile(formData);
-      setProfile((prev) => ({ ...prev, ...updated }));
+      const savedProfile = { ...profile, ...updated };
+      setProfile(savedProfile);
+      setFormData(createProfileDraft(savedProfile));
+      setFailedAvatar(undefined);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: unknown) {
       const message =
         err instanceof Error
           ? err.message
-          : "Không thể cập nhật thông tin. Vui lòng thử lại.";
+          : translate("Không thể cập nhật thông tin. Vui lòng thử lại.");
       setErrorMessage(message);
     } finally {
       setIsSaving(false);
@@ -141,15 +178,15 @@ export default function Profile() {
     setPasswordSuccess(false);
 
     if (!passwordData.currentPassword) {
-      setPasswordError("Vui lòng nhập mật khẩu hiện tại.");
+      setPasswordError(translate("Vui lòng nhập mật khẩu hiện tại."));
       return;
     }
     if (passwordData.newPassword.length < 8) {
-      setPasswordError("Mật khẩu mới phải có ít nhất 8 ký tự.");
+      setPasswordError(translate("Mật khẩu mới phải có ít nhất 8 ký tự."));
       return;
     }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Mật khẩu xác nhận không khớp.");
+      setPasswordError(translate("Mật khẩu xác nhận không khớp."));
       return;
     }
 
@@ -161,7 +198,7 @@ export default function Profile() {
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setTimeout(() => setPasswordSuccess(false), 5000);
     } catch {
-      setPasswordError("Đổi mật khẩu không thành công. Vui lòng thử lại.");
+      setPasswordError(translate("Đổi mật khẩu không thành công. Vui lòng thử lại."));
     } finally {
       setPasswordSaving(false);
     }
@@ -180,136 +217,94 @@ export default function Profile() {
     navigate(PATHS.HOME, { replace: true });
   };
 
+  const isDirty =
+    formData.fullName !== (profile.fullName || "") ||
+    formData.phoneNumber !== (profile.phoneNumber || "") ||
+    formData.gender !== (profile.gender || "OTHER") ||
+    formData.avatarUrl !== (profile.avatarUrl || "");
+
+  const handleCancelChanges = () => {
+    setFormData(createProfileDraft(profile));
+    setFailedAvatar(undefined);
+    setErrorMessage("");
+    setSaveSuccess(false);
+  };
+
   const userInitial = (profile.fullName?.[0] || profile.email?.[0] || "M").toUpperCase();
 
   if (isLoading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold app-text-muted">{translate("Đang tải thông tin hồ sơ...")}</p>
+      <div className="min-h-[60vh] max-w-[1120px] mx-auto px-4 py-10 sm:px-6" aria-label={translate("Đang tải thông tin hồ sơ...")}>
+        <div className="h-7 w-56 rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse" />
+        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="h-64 rounded-2xl bg-slate-200 dark:bg-slate-800 animate-pulse lg:col-span-4" />
+          <div className="h-[520px] rounded-2xl bg-slate-200 dark:bg-slate-800 animate-pulse lg:col-span-8" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 max-w-[1200px] mx-auto">
-      {/* Navigation Header / Breadcrumbs */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2 text-sm app-text-muted">
+    <div className="min-h-screen max-w-[1120px] mx-auto px-4 py-8 sm:px-6 lg:py-10">
+      <div className="mb-7">
+        <div className="mb-3 flex items-center gap-2 text-sm app-text-muted">
           <Link to={PATHS.HOME} className="hover:text-blue-600 transition-colors flex items-center gap-1.5">
             <FiArrowLeft className="w-4 h-4" />
             <span>{translate("Trang chủ")}</span>
           </Link>
           <span>/</span>
-          <span className="font-semibold app-text-main">{translate("Thông tin cá nhân")}</span>
+          <span className="font-semibold app-text-main">{translate("Tài khoản")}</span>
         </div>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border app-border text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-        >
-          <FiLogOut className="w-3.5 h-3.5" />
-          <span>{translate("Đăng xuất")}</span>
-        </button>
+        <h1 className="text-2xl font-bold tracking-tight app-text-main sm:text-3xl">
+          {translate("Tài khoản của tôi")}
+        </h1>
+        <p className="mt-1.5 max-w-xl text-sm app-text-muted">
+          {translate("Quản lý hồ sơ, bảo mật và quyền lợi thành viên HaloTicket của bạn.")}
+        </p>
       </div>
 
-      {/* Main Profile Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Side: Summary Card & Navigation Tabs */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="lg:col-span-4 space-y-5">
-          {/* User Card */}
-          <div className="rounded-3xl app-bg-card border app-border p-6 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
-
-            <div className="flex flex-col items-center text-center">
-              {/* Avatar */}
-              <div className="relative group mb-4">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg overflow-hidden border-4 border-white dark:border-slate-800">
-                  {formData.avatarUrl ? (
+          <section className="rounded-2xl app-bg-card border app-border p-6 shadow-sm" aria-labelledby="saved-profile-heading">
+            <p className="mb-5 text-xs font-bold uppercase tracking-[0.14em] app-text-muted">
+              {translate("Hồ sơ đã lưu")}
+            </p>
+            <div className="flex items-center gap-4 lg:flex-col lg:text-center">
+              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-blue-600 text-2xl font-bold text-white shadow-sm dark:border-slate-800 flex items-center justify-center">
+                  {profile.avatarUrl && failedAvatar !== profile.avatarUrl ? (
                     <img
-                      src={formData.avatarUrl}
-                      alt={formData.fullName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
+                      src={profile.avatarUrl}
+                      alt={profile.fullName || translate("Ảnh đại diện")}
+                      className="h-full w-full object-cover"
+                      onError={() => setFailedAvatar(profile.avatarUrl)}
                     />
                   ) : (
                     <span>{userInitial}</span>
                   )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url = prompt(translate("Nhập đường dẫn ảnh đại diện mới (URL):"), formData.avatarUrl);
-                    if (url !== null) {
-                      setFormData((prev) => ({ ...prev, avatarUrl: url.trim() }));
-                    }
-                  }}
-                  className="absolute bottom-0 right-0 p-2 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-colors cursor-pointer"
-                  title={translate("Đổi ảnh đại diện")}
-                >
-                  <FiCamera className="w-3.5 h-3.5" />
-                </button>
               </div>
-
-              {/* Name and Tag */}
-              <h2 className="text-xl font-bold app-text-main mb-1">
-                {formData.fullName || translate("Khách hàng HaloTicket")}
-              </h2>
-              <p className="text-xs app-text-muted mb-3 flex items-center gap-1.5">
-                <FiMail className="w-3 h-3 text-blue-500" />
-                {profile.email || "email@haloticket.vn"}
-              </p>
-
-              {/* Status & Member Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {translate("Đang hoạt động")}</span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40">
-                  <FaGem className="w-3 h-3 text-amber-500" />
-                  {translate("Thành viên VIP")}</span>
+              <div className="min-w-0">
+                <h2 id="saved-profile-heading" className="truncate text-lg font-bold app-text-main">
+                  {profile.fullName || translate("Khách hàng HaloTicket")}
+                </h2>
+                <p className="mt-1 flex items-center gap-1.5 truncate text-sm app-text-muted lg:justify-center">
+                  <FiMail className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                  <span className="truncate">{profile.email || "email@haloticket.vn"}</span>
+                </p>
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  {translate("Tài khoản đang hoạt động")}
+                </span>
               </div>
             </div>
+          </section>
 
-            {/* Divider */}
-            <div className="my-5 border-t app-border" />
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <Link
-                to={PATHS.MY_TICKETS}
-                className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100/70 dark:hover:bg-blue-950/60 transition-colors block border border-blue-100 dark:border-blue-900/40"
-              >
-                <div className="flex items-center justify-center gap-1.5 text-blue-600 dark:text-blue-400 mb-1">
-                  <FaTicketAlt className="w-4 h-4" />
-                  <span className="text-xs font-bold">{translate("Vé của tôi")}</span>
-                </div>
-                <span className="text-xs app-text-muted">{translate("Xem vé đã mua")}</span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => handleTabChange("membership")}
-                className="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100/70 dark:hover:bg-amber-950/60 transition-colors block border border-amber-100 dark:border-amber-900/40 cursor-pointer text-left"
-              >
-                <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400 mb-1">
-                  <FiAward className="w-4 h-4" />
-                  <span className="text-xs font-bold">{translate("1,250 Điểm")}</span>
-                </div>
-                <span className="text-xs app-text-muted block text-center">{translate("Hạng Bạc VIP")}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Navigation Tab Menu */}
-          <div className="rounded-3xl app-bg-card border app-border p-3 shadow-sm space-y-1.5">
+          <nav className="flex gap-2 overflow-x-auto rounded-2xl app-bg-card border app-border p-2 shadow-sm lg:flex-col" aria-label={translate("Điều hướng tài khoản")}>
             <button
+              type="button"
               onClick={() => handleTabChange("info")}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-colors cursor-pointer lg:w-full ${
                 activeTab === "info"
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-blue-600 text-white"
                   : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -318,10 +313,11 @@ export default function Profile() {
             </button>
 
             <button
+              type="button"
               onClick={() => handleTabChange("security")}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-colors cursor-pointer lg:w-full ${
                 activeTab === "security"
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-blue-600 text-white"
                   : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -330,10 +326,11 @@ export default function Profile() {
             </button>
 
             <button
+              type="button"
               onClick={() => handleTabChange("membership")}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-colors cursor-pointer lg:w-full ${
                 activeTab === "membership"
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-blue-600 text-white"
                   : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
@@ -343,23 +340,43 @@ export default function Profile() {
 
             <Link
               to={PATHS.MY_TICKETS}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              className="shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold app-text-main transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 lg:w-full"
             >
               <FaTicketAlt className="w-4 h-4 text-purple-500" />
               <span>{translate("Vé của tôi")}</span>
             </Link>
-          </div>
+
+            <div className="hidden lg:block my-1 border-t app-border" />
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer lg:w-full"
+            >
+              <FiLogOut className="w-4 h-4 text-rose-500" />
+              <span>{translate("Đăng xuất")}</span>
+            </button>
+          </nav>
         </div>
 
         {/* Right Side: Tab Contents */}
         <div className="lg:col-span-8">
           {/* TAB 1: THÔNG TIN CÁ NHÂN */}
           {activeTab === "info" && (
-            <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm">
-              <div className="border-b app-border pb-5 mb-6">
-                <h3 className="text-xl font-bold app-text-main">{translate("Hồ sơ cá nhân")}</h3>
-                <p className="text-xs sm:text-sm app-text-muted mt-1">
-                  {translate("Quản lý thông tin định danh và liên hệ tài khoản HaloTicket của bạn.")}</p>
+            <div className="rounded-2xl app-bg-card border app-border p-5 shadow-sm sm:p-7">
+              <div className="mb-6 border-b app-border pb-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold app-text-main">{translate("Thông tin cá nhân")}</h3>
+                  {isDirty && (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" role="status">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      {translate("Có thay đổi chưa lưu")}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-sm app-text-muted">
+                  {translate("Cung cấp thông tin chính xác sẽ hỗ trợ bạn trong quá trình mua vé, hoặc khi cần xác thực vé")}
+                </p>
               </div>
 
               {saveSuccess && (
@@ -376,29 +393,103 @@ export default function Profile() {
                 </div>
               )}
 
-              <form onSubmit={handleSaveProfile} className="space-y-5">
+              <form onSubmit={handleSaveProfile} className="space-y-6">
+                {/* Avatar — căn giữa, camera button overlay */}
+                <div className="flex flex-col items-center gap-3 pb-2">
+                  <div className="relative">
+                    {/* Avatar circle */}
+                    <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white dark:border-slate-700 bg-blue-600 text-3xl font-bold text-white flex items-center justify-center shadow-md">
+                      {formData.avatarUrl && failedAvatar !== formData.avatarUrl ? (
+                        <img
+                          src={formData.avatarUrl}
+                          alt={translate("Ảnh đại diện mới")}
+                          className="h-full w-full object-cover"
+                          onError={() => setFailedAvatar(formData.avatarUrl)}
+                        />
+                      ) : (
+                        <span>{userInitial}</span>
+                      )}
+                    </div>
+
+                    {/* Camera button overlay */}
+                    <input
+                      ref={avatarInput}
+                      id="profile-avatar"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      aria-label={translate("Chọn ảnh đại diện")}
+                      disabled={isUploadingAvatar || isSaving}
+                      onChange={handleAvatarUpload}
+                    />
+                    <button
+                      type="button"
+                      disabled={isUploadingAvatar || isSaving}
+                      onClick={() => avatarInput.current?.click()}
+                      className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md ring-2 ring-white dark:ring-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      title={translate("Thay đổi ảnh đại diện")}
+                    >
+                      {isUploadingAvatar ? (
+                        <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : (
+                        <FiCamera className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+
+                    {/* Badge ảnh mới chưa lưu */}
+                    {formData.avatarUrl !== (profile.avatarUrl || "") && !isUploadingAvatar && (
+                      <span
+                        className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 ring-2 ring-white dark:ring-slate-800"
+                        title={translate("Ảnh mới chưa lưu")}
+                      >
+                        <span className="text-[9px] font-black text-white">!</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Helper text căn giữa */}
+                  <p className="text-center text-xs app-text-muted">
+                    {isUploadingAvatar
+                      ? translate("Đang tải ảnh lên...")
+                      : translate("JPG, PNG hoặc WebP, tối đa 5 MB")}
+                  </p>
+                </div>
+
                 {/* Full Name */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
+                  <label htmlFor="profile-full-name" className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
                     {translate("Họ và tên")}<span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
+                      id="profile-full-name"
                       value={formData.fullName}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
+                      onChange={(e) => {
+                        setFormData((prev) => ({ ...prev, fullName: e.target.value }));
+                        if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: undefined }));
+                      }}
                       placeholder={translate("Nhập họ và tên đầy đủ")}
-                      className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border app-border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      required
+                      className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border focus:outline-none focus:ring-2 transition-all ${
+                        fieldErrors.fullName
+                          ? "border-rose-400 focus:ring-rose-400"
+                          : "app-border focus:ring-blue-500"
+                      }`}
                     />
                   </div>
+                  {fieldErrors.fullName && (
+                    <p className="mt-1.5 text-xs text-rose-500 flex items-center gap-1">
+                      <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {fieldErrors.fullName}
+                    </p>
+                  )}
                 </div>
 
                 {/* Email (Read-only / Identity) */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider app-text-muted">
+                    <label htmlFor="profile-email" className="block text-xs font-bold uppercase tracking-wider app-text-muted">
                       {translate("Địa chỉ Email")}</label>
                     <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <FiCheckCircle className="w-3 h-3" /> {translate("Đã xác thực")}</span>
@@ -407,6 +498,7 @@ export default function Profile() {
                     <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="email"
+                      id="profile-email"
                       value={profile.email}
                       readOnly
                       disabled
@@ -419,93 +511,118 @@ export default function Profile() {
 
                 {/* Phone Number */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    {translate("Số điện thoại liên hệ")}</label>
+                  <label htmlFor="profile-phone" className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
+                    {translate("Số điện thoại liên hệ")}<span className="text-rose-500">*</span>
+                  </label>
                   <div className="relative">
                     <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="tel"
+                      id="profile-phone"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={formData.phoneNumber}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+                      onChange={(e) => {
+                        const onlyNums = e.target.value.replace(/\D/g, "");
+                        setFormData((prev) => ({ ...prev, phoneNumber: onlyNums }));
+                        if (fieldErrors.phoneNumber) setFieldErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                      }}
                       placeholder="09xx xxx xxx"
-                      className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border app-border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm app-bg-subnav app-text-main border focus:outline-none focus:ring-2 transition-all ${
+                        fieldErrors.phoneNumber
+                          ? "border-rose-400 focus:ring-rose-400"
+                          : "app-border focus:ring-blue-500"
+                      }`}
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {translate("Số điện thoại dùng để nhận tin nhắn SMS xác nhận vé tại cổng sự kiện.")}</p>
+                  {fieldErrors.phoneNumber ? (
+                    <p className="mt-1.5 text-xs text-rose-500 flex items-center gap-1">
+                      <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {fieldErrors.phoneNumber}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {translate("Số điện thoại dùng để nhận tin nhắn SMS xác nhận vé tại cổng sự kiện.")}
+                    </p>
+                  )}
                 </div>
 
                 {/* Gender */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    {translate("Giới tính")}</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
+                  <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-3">
+                    {translate("Giới tính")}<span className="text-rose-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-5">
+                    {([
                       { id: "MALE", label: translate("Nam") },
                       { id: "FEMALE", label: translate("Nữ") },
                       { id: "OTHER", label: translate("Khác") },
-                    ].map((item) => (
-                      <button
+                    ] as const).map((item) => (
+                      <label
                         key={item.id}
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            gender: item.id as "MALE" | "FEMALE" | "OTHER",
-                          }))
-                        }
-                        className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
-                          formData.gender === item.id
-                            ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-500"
-                            : "app-bg-subnav app-text-main app-border hover:border-slate-400"
-                        }`}
+                        htmlFor={`gender-${item.id}`}
+                        className="flex items-center gap-2 cursor-pointer select-none"
                       >
-                        {translate(item.label)}
-                      </button>
+                        <input
+                          type="radio"
+                          id={`gender-${item.id}`}
+                          name="profile-gender"
+                          value={item.id}
+                          checked={formData.gender === item.id}
+                          onChange={() => {
+                            setFormData((prev) => ({ ...prev, gender: item.id }));
+                            if (fieldErrors.gender) setFieldErrors((prev) => ({ ...prev, gender: undefined }));
+                          }}
+                          className="w-4 h-4 accent-blue-600 cursor-pointer"
+                        />
+                        <span className="text-sm font-medium app-text-main">{item.label}</span>
+                      </label>
                     ))}
                   </div>
+                  {fieldErrors.gender && (
+                    <p className="mt-1.5 text-xs text-rose-500 flex items-center gap-1">
+                      <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {fieldErrors.gender}
+                    </p>
+                  )}
                 </div>
 
-                {/* Avatar URL Option */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider app-text-muted mb-2">
-                    {translate("Đường dẫn ảnh đại diện (URL)")}</label>
-                  <input
-                    type="url"
-                    value={formData.avatarUrl}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, avatarUrl: e.target.value }))}
-                    placeholder="https://example.com/avatar.jpg"
-                    className="w-full rounded-xl px-4 py-2.5 text-sm app-bg-subnav app-text-main border app-border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
-                </div>
-
-                {/* Submit Action */}
-                <div className="pt-4 border-t app-border flex items-center justify-end gap-3">
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSaving ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>{translate("Đang lưu...")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <FiSave className="w-4 h-4" />
-                        <span>{translate("Lưu thay đổi")}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                {isDirty && (
+                  <div className="flex flex-col-reverse gap-3 border-t app-border pt-5 sm:flex-row sm:items-center sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCancelChanges}
+                      disabled={isSaving || isUploadingAvatar}
+                      className="min-h-10 rounded-xl border app-border px-5 py-2.5 text-sm font-semibold app-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      {translate("Hủy thay đổi")}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSaving || isUploadingAvatar}
+                      className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSaving ? (
+                        <>
+                          <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          <span>{translate("Đang lưu...")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSave className="h-4 w-4" />
+                          <span>{translate("Lưu thay đổi")}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </form>
             </div>
           )}
 
           {/* TAB 2: BẢO MẬT & MẬT KHẨU */}
           {activeTab === "security" && (
-            <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm">
+            <div className="rounded-2xl app-bg-card border app-border p-5 shadow-sm sm:p-7">
               <div className="border-b app-border pb-5 mb-6">
                 <h3 className="text-xl font-bold app-text-main">{translate("Bảo mật & Đổi mật khẩu")}</h3>
                 <p className="text-xs sm:text-sm app-text-muted mt-1">
@@ -588,7 +705,7 @@ export default function Profile() {
                   <button
                     type="submit"
                     disabled={passwordSaving}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                    className="flex min-h-10 items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   >
                     {passwordSaving ? (
                       <>
@@ -609,7 +726,7 @@ export default function Profile() {
 
           {/* TAB 3: THẺ THÀNH VIÊN VIP */}
           {activeTab === "membership" && (
-            <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="rounded-2xl app-bg-card border app-border p-5 shadow-sm space-y-6 sm:p-7">
               <div className="border-b app-border pb-5">
                 <h3 className="text-xl font-bold app-text-main">{translate("Thẻ thành viên HaloTicket VIP")}</h3>
                 <p className="text-xs sm:text-sm app-text-muted mt-1">
@@ -631,7 +748,7 @@ export default function Profile() {
 
                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-extrabold uppercase tracking-wider">
                     <FaGem className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Silver Member</span>
+                    <span>{translate("Silver Member")}</span>
                   </div>
                 </div>
 
@@ -640,7 +757,7 @@ export default function Profile() {
                     <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
                       {translate("Chủ thẻ thành viên")}</span>
                     <h4 className="text-2xl font-bold tracking-wide text-white">
-                      {formData.fullName || translate("Khách hàng HaloTicket")}
+                      {profile.fullName || translate("Khách hàng HaloTicket")}
                     </h4>
                   </div>
 

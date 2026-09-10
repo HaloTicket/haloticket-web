@@ -51,30 +51,6 @@ export function getCachedUserProfile(): UserProfile | null {
 export function setCachedUserProfile(profile: UserProfile, notify = false): void {
   try {
     localStorage.setItem(USER_CACHE_KEY, JSON.stringify(profile));
-    if (profile.email) {
-      let existingPic: string | undefined = profile.avatarUrl;
-      const existing = localStorage.getItem("haloticket_last_google_account");
-      if (existing) {
-        try {
-          const parsed = JSON.parse(existing);
-          if (parsed.email === profile.email && !existingPic) {
-            existingPic = parsed.picture || parsed.avatarUrl;
-          }
-        } catch {
-          // ignore
-        }
-      }
-      let cleanName = (profile.fullName || profile.email.split("@")[0]).trim();
-      cleanName = cleanName.replace(/\s+HaloTicket$/i, "").trim();
-      const accountToSave = {
-        name: cleanName || profile.email.split("@")[0],
-        email: profile.email,
-        picture: existingPic,
-        avatarUrl: existingPic,
-      };
-      localStorage.setItem("haloticket_last_google_account", JSON.stringify(accountToSave));
-      window.dispatchEvent(new CustomEvent("google-account-updated", { detail: accountToSave }));
-    }
     if (notify) {
       window.dispatchEvent(new Event("user-updated"));
     }
@@ -131,25 +107,11 @@ export const userApi = {
   },
 
   updateProfile: async (data: UserProfileUpdateRequest): Promise<UserProfile> => {
-    try {
-      const response = await axiosClient.put<unknown, UserProfile>("/users/me", data);
-      if (response && response.email) {
-        setCachedUserProfile(response, true);
-        return response;
-      }
-    } catch (error) {
-      console.warn("Could not update profile via API, updating local cache:", error);
+    const response = await axiosClient.put<unknown, UserProfile>("/users/me", data);
+    if (response && response.email) {
+      setCachedUserProfile(response, true);
+      return response;
     }
-
-    const existing = getCachedUserProfile() || {
-      email: "user@haloticket.vn",
-      fullName: data.fullName,
-    };
-    const updated: UserProfile = {
-      ...existing,
-      ...data,
-    };
-    setCachedUserProfile(updated, true);
-    return updated;
+    throw new Error("Không thể cập nhật thông tin. Vui lòng thử lại.");
   },
 };
