@@ -3,6 +3,7 @@ export interface GoogleAccountSuggestion {
   email: string;
   picture?: string;
   avatarUrl?: string;
+  provider?: "google";
 }
 
 export const LAST_GOOGLE_ACCOUNT_KEY = "haloticket_last_google_account";
@@ -20,50 +21,46 @@ export function cleanDisplayName(rawName?: string, email?: string): string {
 
 let cachedSnapshot: GoogleAccountSuggestion | null = null;
 let lastGoogleRaw: string | null = null;
-let lastProfileRaw: string | null = null;
 let initialized = false;
+
+function getStoredGooglePicture(account: GoogleAccountSuggestion): string | undefined {
+  const picture = account.picture || account.avatarUrl;
+  if (!picture) return undefined;
+  if (account.provider === "google") return picture;
+
+  try {
+    const hostname = new URL(picture).hostname.toLowerCase();
+    return hostname === "googleusercontent.com" || hostname.endsWith(".googleusercontent.com")
+      ? picture
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function computeSnapshot(): GoogleAccountSuggestion | null {
   if (typeof window === "undefined") return null;
 
   try {
     const googleRaw = localStorage.getItem(LAST_GOOGLE_ACCOUNT_KEY);
-    const profileRaw = localStorage.getItem("haloticket_user_profile");
 
-    if (initialized && googleRaw === lastGoogleRaw && profileRaw === lastProfileRaw) {
+    if (initialized && googleRaw === lastGoogleRaw) {
       return cachedSnapshot;
     }
 
     initialized = true;
     lastGoogleRaw = googleRaw;
-    lastProfileRaw = profileRaw;
 
     if (googleRaw) {
       try {
-        const parsed = JSON.parse(googleRaw);
+        const parsed = JSON.parse(googleRaw) as GoogleAccountSuggestion;
         if (parsed && typeof parsed.email === "string") {
+          const picture = getStoredGooglePicture(parsed);
           cachedSnapshot = {
             ...parsed,
             name: cleanDisplayName(parsed.name, parsed.email),
-            picture: parsed.picture || parsed.avatarUrl,
-            avatarUrl: parsed.picture || parsed.avatarUrl,
-          };
-          return cachedSnapshot;
-        }
-      } catch {
-        // invalid JSON
-      }
-    }
-
-    if (profileRaw) {
-      try {
-        const profile = JSON.parse(profileRaw);
-        if (profile?.email) {
-          cachedSnapshot = {
-            name: cleanDisplayName(profile.fullName || profile.email.split("@")[0], profile.email),
-            email: profile.email,
-            picture: profile.avatarUrl,
-            avatarUrl: profile.avatarUrl,
+            picture,
+            avatarUrl: picture,
           };
           return cachedSnapshot;
         }
@@ -90,6 +87,7 @@ export function saveLastGoogleAccount(account: GoogleAccountSuggestion): void {
       name: cleanDisplayName(account.name, account.email),
       picture: account.picture || account.avatarUrl,
       avatarUrl: account.picture || account.avatarUrl,
+      provider: "google",
     };
     const serialized = JSON.stringify(cleaned);
     lastGoogleRaw = serialized;
@@ -111,13 +109,11 @@ export function subscribeGoogleAccount(callback: () => void): () => void {
   window.addEventListener("google-account-updated", handler);
   window.addEventListener("storage", handler);
   window.addEventListener("auth-changed", handler);
-  window.addEventListener("user-updated", handler);
 
   return () => {
     window.removeEventListener("google-account-updated", handler);
     window.removeEventListener("storage", handler);
     window.removeEventListener("auth-changed", handler);
-    window.removeEventListener("user-updated", handler);
   };
 }
 

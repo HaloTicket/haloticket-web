@@ -98,6 +98,44 @@ describe("GoogleAuthButton", () => {
     expect(screen.getByText("minhtran2st@gmail.com")).toBeInTheDocument();
   });
 
+  it("does not use the HaloTicket profile as a Google account suggestion", () => {
+    window.localStorage.setItem(
+      "haloticket_user_profile",
+      JSON.stringify({
+        fullName: "Trần Công Minh",
+        email: "minhtran2st@gmail.com",
+        avatarUrl: "https://cdn.haloticket.vn/avatars/uploaded-by-user.jpg",
+      }),
+    );
+
+    render(<GoogleAuthButton onClick={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Tiếp tục với Google" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Trần Công Minh" })).not.toBeInTheDocument();
+  });
+
+  it("ignores a legacy HaloTicket avatar that was written into the Google account cache", () => {
+    window.localStorage.setItem(
+      "haloticket_last_google_account",
+      JSON.stringify({
+        name: "Trần Công Minh",
+        email: "minhtran2st@gmail.com",
+        picture: "https://cdn.haloticket.vn/avatars/uploaded-by-user.jpg",
+        avatarUrl: "https://cdn.haloticket.vn/avatars/uploaded-by-user.jpg",
+      }),
+    );
+
+    render(<GoogleAuthButton onClick={vi.fn()} />);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Đăng nhập với tên Trần Công Minh (minhtran2st@gmail.com)",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Trần Công Minh" })).not.toBeInTheDocument();
+    expect(screen.getByText("T")).toBeInTheDocument();
+  });
+
   it("renders the account avatar image when picture URL is present", () => {
     const account = {
       name: "Trần Công Minh",

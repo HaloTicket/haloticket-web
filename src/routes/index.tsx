@@ -113,17 +113,6 @@ function AuthHandlers() {
     localStorage.setItem("access_token", result.accessToken);
     if (result.refreshToken) localStorage.setItem("refresh_token", result.refreshToken);
     if (result.idToken) localStorage.setItem("id_token", result.idToken);
-    try {
-      const cleanName = email.split("@")[0];
-      const accountToSave = {
-        name: cleanName,
-        email,
-      };
-      localStorage.setItem("haloticket_last_google_account", JSON.stringify(accountToSave));
-      window.dispatchEvent(new CustomEvent("google-account-updated", { detail: accountToSave }));
-    } catch {
-      // ignore
-    }
     await redirectAfterLogin(result.accessToken);
   };
 

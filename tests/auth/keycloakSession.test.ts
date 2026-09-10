@@ -196,6 +196,28 @@ describe("createKeycloakSession", () => {
     expect(storage.removeItem).toHaveBeenCalledWith("id_token");
   });
 
+  it("uses the stored refresh token and persists its rotation before access expires", async () => {
+    const header = btoa(JSON.stringify({ alg: "RS256" }));
+    const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 10, azp: "user-service" }));
+    const storageValues = new Map<string, string>([
+      ["access_token", `${header}.${payload}.signature`],
+      ["refresh_token", "old-refresh"],
+    ]);
+    const storage = {
+      getItem: vi.fn((key: string) => storageValues.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => storageValues.set(key, value)),
+      removeItem: vi.fn((key: string) => storageValues.delete(key)),
+    };
+    const refreshRequest = vi.fn().mockResolvedValue({
+      accessToken: "fresh-access", refreshToken: "fresh-refresh", idToken: "fresh-id",
+    });
+    const session = createKeycloakSession({ keycloak: makeKeycloak(), storage, refreshRequest });
+
+    await expect(session.getAccessToken()).resolves.toBe("fresh-access");
+    expect(refreshRequest).toHaveBeenCalledWith("old-refresh", "user-service");
+    expect(storage.setItem).toHaveBeenCalledWith("refresh_token", "fresh-refresh");
+  });
+
   it("reports either a Keycloak or legacy session as authenticated", () => {
     const keycloak = makeKeycloak({ authenticated: false });
     const storage = { getItem: vi.fn().mockReturnValue("password-token") };
@@ -227,6 +249,23 @@ describe("createKeycloakSession", () => {
       redirectUri: "https://haloticket.test/",
     });
     expect(storage.removeItem).toHaveBeenCalledWith("haloticket_user_profile");
+  });
+
+  it("can redirect to the login page after logging out an expired session", async () => {
+    const keycloak = makeKeycloak({
+      logout: vi.fn().mockResolvedValue(undefined),
+    });
+    const session = createKeycloakSession({
+      keycloak,
+      location: { origin: "https://haloticket.test" },
+      storage: { getItem: vi.fn(), removeItem: vi.fn() },
+    });
+
+    await session.logout("https://haloticket.test/login");
+
+    expect(keycloak.logout).toHaveBeenCalledWith({
+      redirectUri: "https://haloticket.test/login",
+    });
   });
 
   it("clears legacy auth keys when no Keycloak session exists", async () => {
