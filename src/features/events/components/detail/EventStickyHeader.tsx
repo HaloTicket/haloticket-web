@@ -3,7 +3,7 @@ import { t as translate } from "@/i18n";
 import React from "react";
 import { FiMapPin } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
-import type { EventDetailData } from "@/mock/eventData";
+import type { EventDetailData } from "@/types";
 
 interface EventStickyHeaderProps {
   event: EventDetailData;

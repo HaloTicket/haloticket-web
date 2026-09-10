@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FiCalendar,
   FiList,
@@ -11,7 +11,7 @@ import {
   FiCheckCircle,
   FiClock
 } from "react-icons/fi";
-import type { EventDetailData, Showtime, TicketTier } from "@/mock/eventData";
+import type { EventDetailData, Showtime, TicketTier } from "@/types";
 
 interface EventScheduleProps {
   event: EventDetailData;
@@ -23,22 +23,61 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
   onSelectTicket
 }) => {
   useTranslation();
-  const showtimes = event.showtimes ?? [];
+
+  // ensure showtimes list
+  const showtimes: Showtime[] = useMemo(() => {
+    if (event.showtimes && event.showtimes.length > 0) {
+      return event.showtimes;
+    }
+    // parse event startTime or fallback date
+    const startDate = event.startTime ? new Date(event.startTime) : new Date(2026, 9, 18, 19, 0);
+    const dayNum = startDate.getDate() || 18;
+    const monthNum = startDate.getMonth() + 1 || 10;
+    const yearNum = startDate.getFullYear() || 2026;
+    const dateStr = `${dayNum} Tháng ${monthNum < 10 ? '0' + monthNum : monthNum}, ${yearNum}`;
+    const timeStr = "19:00 - 23:59";
+    const fullDateTime = `${timeStr}, ${dateStr}`;
+
+    return [
+      {
+        id: `st_default_1`,
+        dateStr,
+        timeStr,
+        fullDateTime,
+        dayNumber: dayNum,
+        monthNumber: monthNum,
+        yearNumber: yearNum,
+        isOpen: true,
+        tickets: [
+          { id: "t_vip_1", name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
+          { id: "t_std_1", name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true }
+        ]
+      }
+    ];
+  }, [event]);
+
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [expandedShowtimeId, setExpandedShowtimeId] = useState<string>(
     showtimes[0]?.id || "st-1"
   );
-  const [selectedCalendarMonth, setSelectedCalendarMonth] = useState<number>(9);
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(25);
 
-  const activeShowtimeDays = [25, 26, 27];
+  const initialMonth = showtimes[0]?.monthNumber || 10;
+  const initialDay = showtimes[0]?.dayNumber || 18;
+
+  const [selectedCalendarMonth, setSelectedCalendarMonth] = useState<number>(initialMonth);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(initialDay);
+
+  const activeShowtimeDays = useMemo(
+    () => showtimes.map((st) => st.dayNumber),
+    [showtimes]
+  );
 
   const handleToggleShowtime = (id: string) => {
     setExpandedShowtimeId((prev) => (prev === id ? "" : id));
   };
 
-  const daysInMonth = Array.from({ length: 30 }, (_, i) => i + 1);
-  const emptyDaysOffset = [null];
+  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+  const emptyDaysOffset = [null, null];
 
   const activeDayShowtimes = showtimes.filter(
     (st) => st.dayNumber === selectedCalendarDay && st.monthNumber === selectedCalendarMonth
@@ -113,7 +152,11 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleToggleShowtime(st.id);
+                        if (onSelectTicket) {
+                          onSelectTicket(st, st.tickets[0]);
+                        } else {
+                          handleToggleShowtime(st.id);
+                        }
                       }}
                       className="px-4 py-2 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md cursor-pointer shrink-0"
                     >
@@ -282,6 +325,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
 
                     <button
                       type="button"
+                      onClick={() => onSelectTicket && onSelectTicket(st, st.tickets[0])}
                       className="px-4 py-2 gradient-btn text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer"
                     >
                       {translate("Mua vé ngay")}</button>

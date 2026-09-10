@@ -19,6 +19,94 @@ export interface EventApiData {
   [key: string]: unknown;
 }
 
+export interface TicketTier {
+  id: string;
+  name: string;
+  price: string;
+  priceValue: number;
+  available: boolean;
+  statusText?: string;
+}
+
+export interface Showtime {
+  id: string;
+  dateStr: string;
+  timeStr: string;
+  fullDateTime: string;
+  tickets: TicketTier[];
+  isOpen: boolean;
+  dayNumber: number;
+  monthNumber: number;
+  yearNumber: number;
+}
+
+export interface EventOrganizerInfo {
+  name: string;
+  avatar: string;
+  description?: string;
+}
+
+export interface EventDetailData {
+  id: string;
+  title: string;
+  locationName: string;
+  address: string;
+  minPrice: string | number;
+  startTime?: string;
+  endTime?: string;
+  posterImage: string;
+  datesSummary: string;
+  extraDaysCount: number;
+  author: string;
+  director: string;
+  cast: string[];
+  descriptionText: string;
+  galleryImages: string[];
+  showtimes: Showtime[];
+  organizer?: EventOrganizerInfo;
+}
+
+export interface EventItem {
+  id: string;
+  title: string;
+  price: string;
+  date: string;
+  image: string;
+  location?: string;
+  category?: string;
+  isHot?: boolean;
+  isResale?: boolean;
+  rank?: number;
+  bannerUrl?: string;
+  thumbnailUrl?: string;
+  minPrice?: string;
+  [key: string]: unknown;
+}
+
+export interface ArtistItem {
+  id: string;
+  name: string;
+  avatar: string;
+  verified: boolean;
+}
+
+export interface HeroBannerItem {
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+  image: string;
+  link: string;
+  badge?: string;
+}
+
+export interface DestinationItem {
+  id: string;
+  name: string;
+  image: string;
+  count: number;
+}
+
 export interface ApprovalEventItem {
   id: string;
   title: string;
