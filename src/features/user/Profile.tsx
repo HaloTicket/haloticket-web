@@ -365,15 +365,15 @@ export default function Profile() {
             <button
               type="button"
               onClick={() => handleTabChange("ekyc")}
-              className={`shrink-0 flex items-center justify-between gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap lg:whitespace-normal lg:w-full ${
+              className={`shrink-0 flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex-nowrap lg:w-full ${
                 activeTab === "ekyc"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 shrink-0">
                 <FiShield className={`w-4 h-4 shrink-0 ${activeTab === "ekyc" ? "text-white" : "text-blue-500"}`} />
-                <span className="truncate lg:whitespace-normal">{translate("Xác minh danh tính (eKYC)")}</span>
+                <span className="whitespace-nowrap">{translate("Xác minh danh tính (eKYC)")}</span>
               </div>
               {ekycStatus?.status === "APPROVED" ? (
                 <span
@@ -982,7 +982,7 @@ export default function Profile() {
 
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                     <Link
-                      to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc`}
+                      to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc&mode=update`}
                       className="w-full sm:w-auto px-5 py-2.5 rounded-xl border app-border text-xs font-bold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center"
                     >
                       {translate("Cập nhật lại eKYC")}
@@ -1009,7 +1009,7 @@ export default function Profile() {
                         </h4>
                         <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
                           {translate(
-                            "Sau khi xác minh thành công, bạn có thể tạo sự kiện bằng danh tính đã được đối chiếu:"
+                            "Sau khi xác minh danh tính, tài khoản mới có quyền tạo sự kiện, chuyển nhượng vé và bán vé:"
                           )}
                         </p>
                       </div>
@@ -1022,7 +1022,7 @@ export default function Profile() {
                         </div>
                         <div>
                           <h5 className="app-text-main font-bold">{translate("Tạo sự kiện")}</h5>
-                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Hoàn tất xác minh danh tính trước khi tạo sự kiện.")}</p>
+                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Mở khóa quyền tạo và phát hành sự kiện.")}</p>
                         </div>
                       </div>
 
@@ -1031,8 +1031,8 @@ export default function Profile() {
                           <FaTicketAlt className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h5 className="app-text-main font-bold">{translate("Hạn chế giả mạo")}</h5>
-                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Sự kiện được gắn với tài khoản đã xác minh danh tính.")}</p>
+                          <h5 className="app-text-main font-bold">{translate("Chuyển nhượng & Bán vé")}</h5>
+                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Quyền bán vé và sang nhượng vé chính chủ.")}</p>
                         </div>
                       </div>
 
@@ -1041,25 +1041,25 @@ export default function Profile() {
                           <FiShield className="w-4 h-4" />
                         </div>
                         <div>
-                          <h5 className="app-text-main font-bold">{translate("Xác minh tài khoản thụ hưởng")}</h5>
-                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Tài khoản thụ hưởng cần được xác minh riêng.")}</p>
+                          <h5 className="app-text-main font-bold">{translate("Tài khoản thụ hưởng riêng")}</h5>
+                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Xác minh tài khoản thụ hưởng riêng khi rút tiền.")}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* 3 Steps Guide & Action CTA */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2 border-t app-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-3 border-t app-border">
                     <div className="flex items-center gap-2 text-xs app-text-muted">
                       <FiCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span>{translate("Chuẩn bị hai mặt căn cước và ảnh chân dung rõ nét.")}</span>
+                      <span>{translate("Chuẩn bị hai mặt Căn cước công dân (CCCD gắn chip) để quét OCR.")}</span>
                     </div>
                     <Link
                       to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc`}
-                      className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all cursor-pointer active:scale-98"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-blue-500/25 hover:shadow-blue-500/40 transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-98"
                     >
                       <span>{translate("Bắt đầu xác minh ngay")}</span>
-                      <FiArrowRight className="w-4 h-4" />
+                      <FiArrowRight className="w-4 h-4 shrink-0" />
                     </Link>
                   </div>
                 </div>

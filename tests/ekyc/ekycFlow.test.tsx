@@ -21,7 +21,7 @@ describe("real eKYC API", () => {
   it("uses the configured API base once and accepts legacy empty status", async () => {
     get.mockResolvedValue({ status: null });
     expect(await ekycApi.getStatus()).toEqual({ status: "NOT_STARTED" });
-    expect(get).toHaveBeenCalledWith("/users/me/ekyc");
+    expect(get).toHaveBeenCalledWith("/users/me/ekyc", { timeout: 15000 });
   });
   it("never falls back to forged stored approval on any API failure", async () => {
     sessionStorage.setItem("haloticket_mock_ekyc_state", JSON.stringify({ status: "APPROVED" }));
@@ -97,6 +97,60 @@ describe("verification UI", () => {
     render(<MemoryRouter><EkycVerification /></MemoryRouter>);
     expect(await screen.findByText("Đang chờ xét duyệt")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+  it("allows already approved users to enter update mode via button and re-verify", async () => {
+    get.mockResolvedValue({ status: "APPROVED", legalName: "ORIGINAL NAME", documentNumber: "079*******99" });
+    post.mockResolvedValueOnce(session("update-session"))
+      .mockResolvedValueOnce({ status: "APPROVED", legalName: "UPDATED NAME", documentNumber: "079*******00" });
+
+    render(
+      <MemoryRouter initialEntries={["/ekyc?returnUrl=/profile?tab=ekyc"]}>
+        <EkycVerification />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("ORIGINAL NAME")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gửi xác minh" })).not.toBeInTheDocument();
+
+    const updateBtn = screen.getByRole("button", { name: /Cập nhật lại eKYC/i });
+    await userEvent.click(updateBtn);
+
+    expect(await screen.findByText("Chế độ cập nhật lại eKYC")).toBeInTheDocument();
+    const submit = await screen.findByRole("button", { name: "Gửi xác minh" });
+    expect(submit).toBeDisabled();
+
+    // Test cancel update
+    const cancelBtn = screen.getByRole("button", { name: "Hủy cập nhật" });
+    await userEvent.click(cancelBtn);
+    expect(await screen.findByText("ORIGINAL NAME")).toBeInTheDocument();
+    expect(screen.queryByText("Chế độ cập nhật lại eKYC")).not.toBeInTheDocument();
+
+    // Re-enter update mode and submit
+    await userEvent.click(screen.getByRole("button", { name: /Cập nhật lại eKYC/i }));
+    await userEvent.click(await screen.findByRole("checkbox"));
+    for (const label of ["Ảnh mặt trước căn cước", "Ảnh mặt sau căn cước", "Ảnh chân dung"]) {
+      await userEvent.upload(screen.getByLabelText(label), file());
+    }
+    const readySubmit = screen.getByRole("button", { name: "Gửi xác minh" });
+    expect(readySubmit).toBeEnabled();
+    fireEvent.submit(readySubmit.closest("form")!);
+
+    expect(await screen.findByText("UPDATED NAME")).toBeInTheDocument();
+    expect(post.mock.calls[0][0]).toContain("/sessions");
+    expect(post.mock.calls[1][0]).toContain("/update-session/verify");
+  });
+  it("directly opens update form when URL has mode=update for approved users", async () => {
+    get.mockResolvedValue({ status: "APPROVED", legalName: "EXISTING USER" });
+
+    render(
+      <MemoryRouter initialEntries={["/ekyc?returnUrl=/profile?tab=ekyc&mode=update"]}>
+        <EkycVerification />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Chế độ cập nhật lại eKYC")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Gửi xác minh" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hủy cập nhật" })).toBeInTheDocument();
   });
 });
 

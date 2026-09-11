@@ -11,13 +11,13 @@ function checked(value: EkycStatusResponse): EkycStatusResponse {
 
 export const ekycApi = {
   async getStatus(): Promise<EkycStatusResponse> {
-    return checked(await axiosClient.get<unknown, EkycStatusResponse>("/users/me/ekyc"));
+    return checked(await axiosClient.get<unknown, EkycStatusResponse>("/users/me/ekyc", { timeout: 15000 }));
   },
   async startSession(consentAccepted: boolean, consentVersion: string): Promise<SessionResponse> {
     const result = await axiosClient.post<unknown, SessionResponse>(
       "/users/me/ekyc/sessions",
       { consentAccepted, consentVersion },
-      { headers: { "Idempotency-Key": crypto.randomUUID() } }
+      { headers: { "Idempotency-Key": crypto.randomUUID() }, timeout: 30000 }
     );
     if (!result?.sessionId || !Number.isFinite(Date.parse(result.expiresAt))) {
       throw new Error("Invalid session response");
@@ -33,7 +33,8 @@ export const ekycApi = {
     return checked(
       await axiosClient.post<unknown, EkycStatusResponse>(
         `/users/me/ekyc/sessions/${encodeURIComponent(sessionId)}/verify`,
-        data
+        data,
+        { timeout: 60000 }
       )
     );
   },

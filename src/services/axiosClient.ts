@@ -33,6 +33,15 @@ axiosClient.interceptors.request.use(
         delete (config.headers as Record<string, unknown>).authorization;
       }
     }
+    if (config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === "function") {
+        config.headers.delete("Content-Type");
+        config.headers.delete("content-type");
+      } else {
+        delete (config.headers as Record<string, unknown>)["Content-Type"];
+        delete (config.headers as Record<string, unknown>)["content-type"];
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error),
