@@ -163,6 +163,8 @@ export default function EkycVerification() {
           setError("CCCD đã hết hạn. Vui lòng sử dụng giấy tờ còn hiệu lực.");
         } else if (verifyResult.reasonCode === "DOCUMENT_TYPE_INVALID") {
           setError("VNPT không nhận diện ảnh là CCCD gắn chip. Vui lòng kiểm tra đúng mặt trước, mặt sau và chụp đủ bốn góc thẻ.");
+        } else if (verifyResult.reasonCode === "DOCUMENT_INVALID") {
+          setError("VNPT đã đọc được CCCD nhưng phát hiện cảnh báo về dữ liệu, chất lượng ảnh hoặc tính hợp lệ. Vui lòng chụp lại rõ nét, đủ bốn góc và đúng hai mặt của cùng một CCCD.");
         } else if (verifyResult.reasonCode === "PROVIDER_REJECTED") {
           setError("VNPT từ chối hồ sơ. Vui lòng kiểm tra chất lượng ảnh và thử lại.");
         } else if (verifyResult.reasonCode) {
