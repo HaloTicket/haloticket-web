@@ -145,6 +145,8 @@ import TicketDetail from "@/features/tickets/TicketDetail";
 
 // User Feature
 import Profile from "@/features/user/Profile";
+import EkycVerification from "@/features/ekyc/EkycVerification";
+import OrganizerEligibilityGate from "@/features/ekyc/OrganizerEligibilityGate";
 
 // Organizer Feature
 import CreateEvent from "@/features/organizer/CreateEvent";
@@ -280,6 +282,16 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // Standalone Identity Verification (eKYC) Route
+  {
+    path: PATHS.EKYC,
+    element: (
+      <ProtectedRoute>
+        <EkycVerification />
+      </ProtectedRoute>
+    ),
+  },
+
   // Auth Routes (with Auth Layout)
   {
     element: <AuthLayout />,
@@ -329,7 +341,11 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.CREATE_EVENT,
-        element: <CreateEvent />,
+        element: (
+          <OrganizerEligibilityGate>
+            <CreateEvent />
+          </OrganizerEligibilityGate>
+        ),
       },
     ],
   },

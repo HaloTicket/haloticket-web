@@ -792,5 +792,14 @@
   "Xem trang Kiểm duyệt Sự kiện →": "View Event Moderation page →",
   "Nhấn để kiểm duyệt ngay →": "Click to review now →",
   "Trạng thái xác minh": "Verification status",
-  "Chọn ngôn ngữ": "Choose language"
+  "Chọn ngôn ngữ": "Choose language",
+  "Tài khoản chưa hoàn tất xác thực eKYC": "Account has not completed eKYC verification",
+  "Theo quy định VNPT eKYC, Nhà tổ chức cần xác minh danh tính trước khi sự kiện được xét duyệt hoặc mở bán vé.": "According to VNPT eKYC regulations, Organizers need to verify their identity before events can be approved or tickets opened for sale.",
+  "Xác minh ngay": "Verify now",
+  "Yêu Cầu Xác Minh Danh Tính (eKYC)": "Identity Verification Required (eKYC)",
+  "Cấp quyền Nhà tổ chức & Bảo vệ thanh toán vé": "Grant Organizer privileges & Protect ticket payments",
+  "Chào bạn! Để đảm bảo an toàn giao dịch vé và bảo vệ người mua, hệ thống HaloTicket yêu cầu mọi Nhà tổ chức phải hoàn thành xác minh căn cước công dân (eKYC) trước khi tạo sự kiện chính thức.": "Hello! To ensure ticket transaction safety and protect buyers, HaloTicket requires all Organizers to complete citizen ID verification (eKYC) before creating official events.",
+  "Quy trình tự động 100% qua VNPT eKYC": "100% automated process via VNPT eKYC",
+  "Chỉ cần chụp 2 mặt CCCD và quét nhận diện khuôn mặt sinh trắc học (khoảng 2 phút).": "Just capture both sides of your citizen ID card and perform biometric face recognition (about 2 minutes).",
+  "Để sau (Xem nháp)": "Later (View draft)"
 }

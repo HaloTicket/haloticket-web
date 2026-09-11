@@ -1,11 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ChangeEvent, type FormEvent } from "react";
 import { validateProfileForm, hasProfileErrors, type ProfileFieldErrors } from "@/validation";
 import { mediaApi } from "@/services/mediaApi";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { userApi, type UserProfile, type UserProfileUpdateRequest } from "@/services/userApi";
+import { ekycApi } from "@/services/ekycApi";
+import { EKYC_STATUS_LABELS, type EkycStatusResponse } from "@/types/ekyc";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import {
   FiUser,
@@ -17,6 +19,7 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiArrowLeft,
+  FiArrowRight,
   FiLogOut,
   FiCamera,
   FiCopy,
@@ -39,9 +42,30 @@ export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "info";
 
-  const [activeTab, setActiveTab] = useState<"info" | "security" | "membership">(
-    initialTab === "membership" ? "membership" : initialTab === "security" ? "security" : "info"
+  const [activeTab, setActiveTab] = useState<"info" | "security" | "membership" | "ekyc">(
+    initialTab === "ekyc"
+      ? "ekyc"
+      : initialTab === "membership"
+      ? "membership"
+      : initialTab === "security"
+      ? "security"
+      : "info"
   );
+
+  const [ekycStatus, setEkycStatus] = useState<EkycStatusResponse | null>(null);
+  const [ekycError, setEkycError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    ekycApi.getStatus().then((result) => {
+      if (active) setEkycStatus(result);
+    }).catch(() => {
+      if (active) setEkycError("Không thể tải trạng thái xác minh. Mở trang xác minh để thử lại.");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [profile, setProfile] = useState<UserProfile>({
     email: "",
@@ -67,7 +91,7 @@ export default function Profile() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [failedAvatar, setFailedAvatar] = useState<string>();
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -131,7 +155,7 @@ export default function Profile() {
     };
   }, [navigate]);
 
-  const handleTabChange = (tab: "info" | "security" | "membership") => {
+  const handleTabChange = (tab: "info" | "security" | "membership" | "ekyc") => {
     setActiveTab(tab);
     setSearchParams(tab === "info" ? {} : { tab });
     setSaveSuccess(false);
@@ -140,7 +164,7 @@ export default function Profile() {
     setPasswordError("");
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
 
     // --- Validate fields ---
@@ -172,7 +196,7 @@ export default function Profile() {
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError("");
     setPasswordSuccess(false);
@@ -336,6 +360,42 @@ export default function Profile() {
             >
               <FaGem className={`w-4 h-4 ${activeTab === "membership" ? "text-white" : "text-amber-500"}`} />
               <span>{translate("Thẻ thành viên VIP")}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange("ekyc")}
+              className={`shrink-0 flex items-center justify-between gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap lg:whitespace-normal lg:w-full ${
+                activeTab === "ekyc"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FiShield className={`w-4 h-4 shrink-0 ${activeTab === "ekyc" ? "text-white" : "text-blue-500"}`} />
+                <span className="truncate lg:whitespace-normal">{translate("Xác minh danh tính (eKYC)")}</span>
+              </div>
+              {ekycStatus?.status === "APPROVED" ? (
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                    activeTab === "ekyc"
+                      ? "bg-emerald-400/30 text-white border border-white/20"
+                      : "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800"
+                  }`}
+                >
+                  {translate("Đã duyệt")}
+                </span>
+              ) : (
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                    activeTab === "ekyc"
+                      ? "bg-white/20 text-white border border-white/20"
+                      : "bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800"
+                  }`}
+                >
+                  {translate("Chưa duyệt")}
+                </span>
+              )}
             </button>
 
             <Link
@@ -813,6 +873,197 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 4: XÁC MINH DANH TÍNH (eKYC) */}
+          {activeTab === "ekyc" && (
+            <div className="rounded-3xl app-bg-card border app-border p-6 sm:p-8 shadow-sm space-y-7 animate-in fade-in">
+              {/* Header */}
+              <div className="border-b app-border pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+                      <FiShield className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-xl font-extrabold app-text-main">
+                      {translate("Xác minh danh tính Nhà tổ chức")}
+                    </h3>
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800">
+                      VNPT eKYC
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm app-text-muted mt-1">
+                    {translate("Xác minh danh tính trước khi tạo sự kiện.")}
+                  </p>
+                </div>
+
+                <div className="shrink-0">
+                  {ekycStatus?.status === "APPROVED" ? (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-xs">
+                      <FiCheckCircle className="w-4 h-4 text-emerald-500" />
+                      <span>{translate("Đã xác thực")}</span>
+                    </span>
+                  ) : ekycStatus?.status === "PENDING" ? (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 text-xs font-bold shadow-xs">
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span>{translate("Đang chờ đối soát")}</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border app-border text-xs font-bold shadow-xs">
+                      <FiAlertCircle className="w-4 h-4 text-amber-500" />
+                      <span>{ekycError || (ekycStatus ? EKYC_STATUS_LABELS[ekycStatus.status] : translate("Đang tải…"))}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {ekycStatus?.status === "APPROVED" ? (
+                <div className="space-y-6">
+                  {/* Digital ID Hologram Card */}
+                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white p-6 shadow-xl border border-blue-500/30">
+                    <div className="absolute -right-12 -top-12 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
+                    <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
+
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10 relative z-10">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow">
+                          <FaTicketAlt className="w-3.5 h-3.5 transform -rotate-12" />
+                        </div>
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-blue-300">
+                          HaloTicket Verified Identity
+                        </span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold text-amber-400 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30">
+                        EMV Chip ID-1
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 pb-2 relative z-10 text-xs">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                          {translate("Họ và tên")}
+                        </span>
+                        <p className="text-base font-bold uppercase text-white">
+                          {ekycStatus.legalName || "Chưa có dữ liệu"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-0.5 sm:text-right">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                          {translate("Số CCCD (đã che)")}
+                        </span>
+                        <p className="text-base font-mono font-bold text-blue-400">
+                          {ekycStatus.documentNumber || "Chưa có dữ liệu"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10 text-[11px] text-slate-400 relative z-10">
+                      <span className="flex items-center gap-1.5">
+                        <FiCheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        {translate("Đã xác thực qua VNPT eKYC")}
+                      </span>
+                      <span>
+                        {translate("Ngày xác thực:")}{" "}
+                        {ekycStatus.verifiedAt
+                          ? new Date(ekycStatus.verifiedAt).toLocaleDateString("vi-VN")
+                          : "Chưa có dữ liệu"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Notice & Actions */}
+                  <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs app-text-muted">
+                    <p className="leading-relaxed">
+                      {translate("Danh tính đã được xác minh. Tài khoản thụ hưởng cần được xác minh riêng trước khi nhận thanh toán.")}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                    <Link
+                      to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc`}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl border app-border text-xs font-bold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center"
+                    >
+                      {translate("Cập nhật lại eKYC")}
+                    </Link>
+                    <Link
+                      to={PATHS.MY_EVENTS}
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all text-center"
+                    >
+                      {translate("Quản lý sự kiện")}
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Hero Benefits Box */}
+                  <div className="p-6 rounded-3xl bg-gradient-to-br from-blue-600/5 via-indigo-600/5 to-purple-600/5 border border-blue-200/80 dark:border-blue-900/40 space-y-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25">
+                        <FiShield className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-base sm:text-lg font-bold app-text-main">
+                          {translate("Quyền lợi khi hoàn tất xác minh danh tính eKYC")}
+                        </h4>
+                        <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
+                          {translate(
+                            "Sau khi xác minh thành công, bạn có thể tạo sự kiện bằng danh tính đã được đối chiếu:"
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/60 flex items-start gap-3.5 text-xs shadow-2xs">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center shrink-0">
+                          <FiCheckCircle className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="app-text-main font-bold">{translate("Tạo sự kiện")}</h5>
+                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Hoàn tất xác minh danh tính trước khi tạo sự kiện.")}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/60 flex items-start gap-3.5 text-xs shadow-2xs">
+                        <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center shrink-0">
+                          <FaTicketAlt className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h5 className="app-text-main font-bold">{translate("Hạn chế giả mạo")}</h5>
+                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Sự kiện được gắn với tài khoản đã xác minh danh tính.")}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/60 flex items-start gap-3.5 text-xs shadow-2xs">
+                        <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center shrink-0">
+                          <FiShield className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="app-text-main font-bold">{translate("Xác minh tài khoản thụ hưởng")}</h5>
+                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Tài khoản thụ hưởng cần được xác minh riêng.")}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 Steps Guide & Action CTA */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2 border-t app-border">
+                    <div className="flex items-center gap-2 text-xs app-text-muted">
+                      <FiCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>{translate("Chuẩn bị hai mặt căn cước và ảnh chân dung rõ nét.")}</span>
+                    </div>
+                    <Link
+                      to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc`}
+                      className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all cursor-pointer active:scale-98"
+                    >
+                      <span>{translate("Bắt đầu xác minh ngay")}</span>
+                      <FiArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
