@@ -39,6 +39,9 @@ export interface EkycStatusResponse {
   verifiedAt?: string;
   identityVersion?: number;
   reasonCode?: string;
+  birthDate?: string;
+  address?: string;
+  documentExpiresOn?: string;
 }
 
 export interface OrganizerEligibilityResponse {
