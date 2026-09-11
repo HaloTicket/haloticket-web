@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   FiCheck,
   FiRefreshCw,
@@ -6,9 +7,8 @@ import {
   FiArrowLeft,
   FiArrowRight,
   FiShield,
+  FiCreditCard,
 } from "react-icons/fi";
-import { FiCreditCard } from "react-icons/fi";
-import { FaMicrochip } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { type ImageMetadata } from "@/utils/imageUtils";
 
@@ -39,24 +39,26 @@ export function ReviewSubmitStep({
   onPrev,
   returnUrl,
 }: ReviewStepProps) {
+  const { t } = useTranslation();
+
   const sides = [
     {
       index: 0 as const,
-      label: "Mặt trước CCCD",
+      label: t("Mặt trước CCCD"),
       goToStep: () => onGoToStep(1),
       icon: <FiCreditCard className="w-4 h-4 text-blue-500" />,
       spinnerColor: "text-blue-400",
-      changeLabel: files[0] ? "Thay đổi ảnh mặt trước" : "Tải ảnh mặt trước ngay",
-      noImageText: "Chưa tải ảnh mặt trước",
+      changeLabel: files[0] ? t("Thay đổi ảnh mặt trước") : t("Tải ảnh mặt trước ngay"),
+      noImageText: t("Chưa tải ảnh mặt trước"),
     },
     {
       index: 1 as const,
-      label: "Mặt sau CCCD",
+      label: t("Mặt sau CCCD"),
       goToStep: () => onGoToStep(2),
-      icon: <FaMicrochip className="w-4 h-4 text-purple-500" />,
-      spinnerColor: "text-purple-400",
-      changeLabel: files[1] ? "Thay đổi ảnh mặt sau" : "Tải ảnh mặt sau ngay",
-      noImageText: "Chưa tải ảnh mặt sau",
+      icon: <FiCreditCard className="w-4 h-4 text-blue-500" />,
+      spinnerColor: "text-blue-400",
+      changeLabel: files[1] ? t("Thay đổi ảnh mặt sau") : t("Tải ảnh mặt sau ngay"),
+      noImageText: t("Chưa tải ảnh mặt sau"),
     },
   ] as const;
 
@@ -79,17 +81,17 @@ export function ReviewSubmitStep({
                   <div className="flex items-center gap-1.5">
                     {meta?.isPortrait && (
                       <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                        Cần xoay ngang
+                        {t("Cần xoay ngang")}
                       </span>
                     )}
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
                       <FiCheck className="w-3 h-3 stroke-[3]" />
-                      <span>Đã sẵn sàng</span>
+                      <span>{t("Đã sẵn sàng")}</span>
                     </span>
                   </div>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
-                    Chưa có ảnh
+                    {t("Chưa có ảnh")}
                   </span>
                 )}
               </div>
@@ -116,7 +118,7 @@ export function ReviewSubmitStep({
                     className="flex-1 py-1.5 px-2 rounded-lg border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
                   >
                     <FiRotateCcw className="w-3 h-3" />
-                    <span>Xoay trái</span>
+                    <span>{t("Xoay trái")}</span>
                   </button>
                   <button
                     type="button"
@@ -125,7 +127,7 @@ export function ReviewSubmitStep({
                     className="flex-1 py-1.5 px-2 rounded-lg border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
                   >
                     <FiRotateCw className="w-3 h-3" />
-                    <span>Xoay phải</span>
+                    <span>{t("Xoay phải")}</span>
                   </button>
                 </div>
               )}
@@ -146,10 +148,10 @@ export function ReviewSubmitStep({
       <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs app-text-muted space-y-1.5">
         <div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300">
           <FiShield className="w-4 h-4 text-blue-500" />
-          <span>Quy trình bóc tách &amp; Cấp quyền</span>
+          <span>{t("Quy trình đối soát tự động")}</span>
         </div>
         <p className="leading-relaxed">
-          Hệ thống sẽ đối soát tự động Số CCCD 12 số, Họ và tên và Ngày hết hạn của giấy tờ. Sau khi xác thực thành công, tài khoản của bạn sẽ được kích hoạt quyền Nhà tổ chức để tạo sự kiện và phát hành vé ngay lập tức.
+          {t("Hệ thống sẽ đối soát tự động Số CCCD 12 số, Họ và tên và Ngày hết hạn của giấy tờ để thiết lập tài khoản nhận doanh thu bán vé.")}
         </p>
       </div>
 
@@ -163,7 +165,7 @@ export function ReviewSubmitStep({
           onChange={(e) => onConsentChange(e.target.checked)}
         />
         <span className="app-text-muted leading-relaxed">
-          Tôi đồng ý gửi ảnh Căn cước công dân để HaloTicket bóc tách và xác thực thông tin giấy tờ qua VNPT eKYC (phiên bản đồng ý 2026.1).
+          {t("Tôi đồng ý gửi ảnh Căn cước công dân để HaloTicket bóc tách và xác thực thông tin giấy tờ qua VNPT eKYC (phiên bản đồng ý 2026.1).")}
         </span>
       </label>
 
@@ -175,7 +177,7 @@ export function ReviewSubmitStep({
           className="px-5 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center gap-2 cursor-pointer app-text-main order-2 sm:order-1"
         >
           <FiArrowLeft className="w-4 h-4" />
-          <span>Quay lại bước 2</span>
+          <span>{t("Quay lại bước 2")}</span>
         </button>
 
         <button
@@ -186,11 +188,11 @@ export function ReviewSubmitStep({
           {busy ? (
             <>
               <FiRefreshCw className="w-4 h-4 animate-spin" />
-              <span>Đang bóc tách &amp; gửi xác minh…</span>
+              <span>{t("Đang bóc tách & gửi xác minh…")}</span>
             </>
           ) : (
             <>
-              <span>Gửi xác minh</span>
+              <span>{t("Gửi xác minh")}</span>
               <FiArrowRight className="w-4 h-4" />
             </>
           )}
@@ -200,7 +202,7 @@ export function ReviewSubmitStep({
       {/* Back to profile link */}
       <div className="text-center">
         <Link to={returnUrl} className="text-xs app-text-muted hover:app-text-main">
-          ← Quay lại hồ sơ
+          ← {t("Về hồ sơ")}
         </Link>
       </div>
     </div>
