@@ -12,8 +12,8 @@ interface CropModalProps {
   originalMimeType?: string;
 }
 
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 4;
+const MIN_ZOOM = 1.0; // 100% (vừa vặn khung)
+const MAX_ZOOM = 2.0; // 200% (tối đa 200%)
 
 export function CropModal({
   src,
@@ -27,7 +27,8 @@ export function CropModal({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  const [scale, setScale] = useState(1);
+  const [baseScale, setBaseScale] = useState(1);
+  const [zoom, setZoom] = useState(1); // 1.0 (100%) -> 2.0 (200%)
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -38,6 +39,7 @@ export function CropModal({
   // Crop box dimensions inside container
   const cropW = containerSize.w;
   const cropH = containerSize.h;
+  const currentScale = baseScale * zoom;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -52,10 +54,10 @@ export function CropModal({
       img,
       offset.x,
       offset.y,
-      imgSize.w * scale,
-      imgSize.h * scale
+      imgSize.w * currentScale,
+      imgSize.h * currentScale
     );
-  }, [offset, scale, imgSize, cropW, cropH, containerSize.w]);
+  }, [offset, currentScale, imgSize, cropW, cropH, containerSize.w]);
 
   useEffect(() => {
     draw();
@@ -84,15 +86,16 @@ export function CropModal({
       const ih = img.naturalHeight;
       setImgSize({ w: iw, h: ih });
 
-      // Fit: scale so image fills the crop box (cover)
+      // Base scale: scale so image fills the crop box (cover)
       const scaleX = cropW / iw;
       const scaleY = cropH / ih;
-      const initScale = Math.max(scaleX, scaleY);
-      setScale(initScale);
+      const fit = Math.max(scaleX, scaleY);
+      setBaseScale(fit);
+      setZoom(1.0);
 
       // Center
-      const scaledW = iw * initScale;
-      const scaledH = ih * initScale;
+      const scaledW = iw * fit;
+      const scaledH = ih * fit;
       setOffset({
         x: (cropW - scaledW) / 2,
         y: (cropH - scaledH) / 2,
@@ -118,13 +121,23 @@ export function CropModal({
     [imgSize, cropW, cropH]
   );
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
-    const clamped = clampOffset(offset.x, offset.y, newScale);
-    setScale(newScale);
-    setOffset(clamped);
+  const setZoomLevel = (newZ: number) => {
+    const clampedZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZ));
+    if (!cropW || !cropH || !baseScale) {
+      setZoom(clampedZ);
+      return;
+    }
+    const cx = cropW / 2;
+    const cy = cropH / 2;
+    const ratio = clampedZ / zoom;
+    const newOx = cx - (cx - offset.x) * ratio;
+    const newOy = cy - (cy - offset.y) * ratio;
+    setZoom(clampedZ);
+    setOffset(clampOffset(newOx, newOy, baseScale * clampedZ));
+  };
+
+  const zoomBy = (delta: number) => {
+    setZoomLevel(zoom + delta);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -134,7 +147,7 @@ export function CropModal({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!dragging) return;
     const raw = { x: e.clientX - dragStart.x, y: e.clientY - dragStart.y };
-    setOffset(clampOffset(raw.x, raw.y, scale));
+    setOffset(clampOffset(raw.x, raw.y, currentScale));
   };
   const handleMouseUp = () => setDragging(false);
 
@@ -145,6 +158,7 @@ export function CropModal({
       setDragging(true);
       setDragStart({ x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y });
     } else if (e.touches.length === 2) {
+      setDragging(false);
       lastTouchDist.current = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -154,17 +168,15 @@ export function CropModal({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 1 && dragging) {
       const raw = { x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y };
-      setOffset(clampOffset(raw.x, raw.y, scale));
+      setOffset(clampOffset(raw.x, raw.y, currentScale));
     } else if (e.touches.length === 2 && lastTouchDist.current !== null) {
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * (dist / lastTouchDist.current)));
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * (dist / lastTouchDist.current)));
       lastTouchDist.current = dist;
-      const clamped = clampOffset(offset.x, offset.y, newScale);
-      setScale(newScale);
-      setOffset(clamped);
+      setZoomLevel(newZoom);
     }
   };
   const handleTouchEnd = () => { setDragging(false); lastTouchDist.current = null; };
@@ -186,17 +198,15 @@ export function CropModal({
     );
   };
 
-  const zoom = (delta: number) => {
-    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
-    setOffset(clampOffset(offset.x, offset.y, newScale));
-    setScale(newScale);
-  };
-
   const resetFit = () => {
-    if (!imgSize.w) return;
-    const initScale = Math.max(cropW / imgSize.w, cropH / imgSize.h);
-    setScale(initScale);
-    setOffset(clampOffset((cropW - imgSize.w * initScale) / 2, (cropH - imgSize.h * initScale) / 2, initScale));
+    if (!imgSize.w || !baseScale) return;
+    setZoom(1.0);
+    const scaledW = imgSize.w * baseScale;
+    const scaledH = imgSize.h * baseScale;
+    setOffset({
+      x: (cropW - scaledW) / 2,
+      y: (cropH - scaledH) / 2,
+    });
   };
 
   return (
@@ -206,7 +216,7 @@ export function CropModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-zinc-700">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Cắt &amp; Căn chỉnh ảnh</h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Kéo để di chuyển · Cuộn/Pinch để thu phóng</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Kéo để di chuyển · Dùng thanh zoom bên dưới để thu phóng (100% - 200%)</p>
           </div>
           <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors cursor-pointer">
             <FiX className="w-5 h-5" />
@@ -218,7 +228,6 @@ export function CropModal({
           ref={containerRef}
           className="relative w-full bg-slate-950 overflow-hidden select-none touch-none"
           style={{ height: containerSize.h || 260, cursor: dragging ? "grabbing" : "grab" }}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -242,20 +251,54 @@ export function CropModal({
           ))}
         </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-center gap-2 px-5 py-3 border-b border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50">
-          <button type="button" onClick={() => zoom(-0.2)} className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-slate-700 dark:text-zinc-200" title="Thu nhỏ">
+        {/* Toolbar: range slider zoom (100% - 200%) */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50">
+          <button
+            type="button"
+            onClick={() => zoomBy(-0.1)}
+            disabled={zoom <= MIN_ZOOM}
+            className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-slate-700 dark:text-zinc-200 shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Thu nhỏ"
+          >
             <FiZoomOut className="w-4 h-4" />
           </button>
-          <div className="text-xs font-mono font-bold text-slate-600 dark:text-zinc-400 min-w-[3rem] text-center">
-            {Math.round(scale * 100)}%
+
+          {/* Range slider 100% -> 200% */}
+          <div className="flex-1 flex flex-col items-center gap-0.5">
+            <input
+              type="range"
+              min={100}
+              max={200}
+              step={1}
+              value={Math.round(zoom * 100)}
+              onChange={(e) => setZoomLevel(Number(e.target.value) / 100)}
+              className="w-full h-1.5 rounded-full appearance-none bg-slate-200 dark:bg-zinc-700 accent-blue-600 cursor-pointer"
+            />
+            <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-zinc-300">
+              {Math.round(zoom * 100)}%
+            </span>
           </div>
-          <button type="button" onClick={() => zoom(0.2)} className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-slate-700 dark:text-zinc-200" title="Phóng to">
+
+          <button
+            type="button"
+            onClick={() => zoomBy(0.1)}
+            disabled={zoom >= MAX_ZOOM}
+            className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-slate-700 dark:text-zinc-200 shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Phóng to"
+          >
             <FiZoomIn className="w-4 h-4" />
           </button>
-          <div className="w-px h-5 bg-slate-200 dark:bg-zinc-600 mx-1" />
-          <button type="button" onClick={resetFit} className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-slate-700 dark:text-zinc-200" title="Reset vừa khung">
-            <FiRefreshCw className="w-4 h-4" />
+
+          <div className="w-px h-5 bg-slate-200 dark:bg-zinc-600" />
+
+          <button
+            type="button"
+            onClick={resetFit}
+            className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-slate-700 dark:text-zinc-200 shrink-0 text-xs font-semibold flex items-center gap-1.5"
+            title="Đặt lại vừa khung (100%)"
+          >
+            <FiRefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Vừa khung</span>
           </button>
         </div>
 
