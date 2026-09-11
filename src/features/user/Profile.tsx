@@ -894,7 +894,7 @@ export default function Profile() {
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm app-text-muted mt-1">
-                    {translate("Xác minh danh tính trước khi tạo sự kiện.")}
+                    {translate("Xác minh danh tính & Thiết lập tài khoản nhận tiền bán vé.")}
                   </p>
                 </div>
 
