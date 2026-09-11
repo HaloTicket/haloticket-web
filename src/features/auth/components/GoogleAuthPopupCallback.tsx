@@ -28,12 +28,14 @@ export default function GoogleAuthPopupCallback() {
         localStorage.getItem("access_token") ||
         undefined;
       const idToken = session.getCurrentIdToken() || undefined;
+      const refreshToken = session.getCurrentRefreshToken() || undefined;
       const message = !error && token
         ? {
             type: messageType,
             status: "success" as const,
             token,
             ...(idToken ? { idToken } : {}),
+            ...(refreshToken ? { refreshToken } : {}),
           }
         : { type: messageType, status: "cancelled" as const };
 
@@ -62,6 +64,7 @@ export default function GoogleAuthPopupCallback() {
       try {
         if (token) {
           localStorage.setItem("access_token", token);
+          if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
           const raw = idToken || token;
           const base64Url = raw.split(".")[1];
           if (base64Url) {
@@ -85,6 +88,7 @@ export default function GoogleAuthPopupCallback() {
                   name,
                   email: payload.email,
                   picture: payload.picture,
+                  provider: "google",
                 }),
               );
             }

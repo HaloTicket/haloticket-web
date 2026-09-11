@@ -13,6 +13,7 @@ export const PATHS = {
   MY_TICKETS: "/my-tickets",
   TICKET_DETAIL: (id: string | number) => `/my-tickets/${id}`,
   PROFILE: "/profile",
+  EKYC: "/ekyc",
   ORGANIZER: "/organizer",
   MY_EVENTS: "/organizer/my-events",
   REPORTS: "/organizer/reports",

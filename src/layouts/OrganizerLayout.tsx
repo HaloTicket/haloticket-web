@@ -72,21 +72,14 @@ export const OrganizerLayout: React.FC = () => {
       setUserProfile(getCachedUserProfile());
     };
 
-    const handleSessionExpired = () => {
-      getKeycloakSession().logout();
-      navigate(`${PATHS.LOGIN}?session_expired=true`, { replace: true });
-    };
-
     checkAuth();
     window.addEventListener("storage", checkAuth);
     window.addEventListener("auth-changed", checkAuth);
     window.addEventListener("user-updated", handleProfileUpdate);
-    window.addEventListener("session-expired", handleSessionExpired);
     return () => {
       window.removeEventListener("storage", checkAuth);
       window.removeEventListener("auth-changed", checkAuth);
       window.removeEventListener("user-updated", handleProfileUpdate);
-      window.removeEventListener("session-expired", handleSessionExpired);
     };
   }, [navigate]);
 

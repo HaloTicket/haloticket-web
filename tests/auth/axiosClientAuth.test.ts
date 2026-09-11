@@ -2,15 +2,48 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getAccessToken = vi.fn();
+const isAuthenticated = vi.fn();
 
 vi.mock("@/services/keycloakSession", () => ({
-  getKeycloakSession: () => ({ getAccessToken }),
+  getKeycloakSession: () => ({ getAccessToken, isAuthenticated }),
 }));
 
 describe("axiosClient authentication", () => {
   beforeEach(() => {
     getAccessToken.mockReset();
+    isAuthenticated.mockReset();
+    isAuthenticated.mockReturnValue(false);
     window.localStorage.clear();
+  });
+
+  it("notifies the app when an authenticated request remains unauthorized after refresh fails", async () => {
+    let authenticated = true;
+    isAuthenticated.mockImplementation(() => authenticated);
+    getAccessToken.mockImplementation(async () => {
+      authenticated = false;
+      return null;
+    });
+    const { default: axiosClient } = await import("@/services/axiosClient");
+    axiosClient.defaults.adapter = async (config) => {
+      throw {
+        config,
+        isAxiosError: true,
+        response: {
+          config,
+          data: {},
+          headers: {},
+          status: 401,
+          statusText: "Unauthorized",
+        },
+      };
+    };
+    const onSessionExpired = vi.fn();
+    window.addEventListener("session-expired", onSessionExpired);
+
+    await expect(axiosClient.get("/users/me")).rejects.toBeDefined();
+
+    expect(onSessionExpired).toHaveBeenCalledOnce();
+    window.removeEventListener("session-expired", onSessionExpired);
   });
 
   it("attaches the refreshed token supplied by the shared auth session", async () => {

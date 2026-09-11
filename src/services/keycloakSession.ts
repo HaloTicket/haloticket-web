@@ -11,6 +11,7 @@ export type KeycloakLike = Pick<
   authenticated?: boolean;
   token?: string;
   idToken?: string;
+  refreshToken?: string;
   logout?: KeycloakInstance["logout"];
 };
 
@@ -32,6 +33,7 @@ interface GoogleAuthMessageEvent {
     status?: "success" | "cancelled";
     token?: string;
     idToken?: string;
+    refreshToken?: string;
   };
 }
 
@@ -59,6 +61,13 @@ export interface KeycloakSessionOptions {
   location?: Pick<Location, "origin">;
   silentCheckSsoRedirectUri?: string;
   tokenRefreshLeewaySeconds?: number;
+  refreshRequest?: (refreshToken: string, clientId: string) => Promise<RefreshedTokens>;
+}
+
+export interface RefreshedTokens {
+  accessToken: string;
+  refreshToken?: string;
+  idToken?: string;
 }
 
 export interface KeycloakSession {
@@ -67,8 +76,9 @@ export interface KeycloakSession {
   getAccessToken(): Promise<string | null>;
   getCurrentToken(): string | null;
   getCurrentIdToken(): string | null;
+  getCurrentRefreshToken(): string | null;
   isAuthenticated(): boolean;
-  logout(): Promise<void>;
+  logout(redirectUri?: string): Promise<void>;
   hasKeycloakSession(): boolean;
 }
 
@@ -103,6 +113,20 @@ export function isTokenExpired(token: string): boolean {
   return false;
 }
 
+function secondsUntilExpiry(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof payload.exp === "number" ? payload.exp - Date.now() / 1000 : null;
+  } catch { return null; }
+}
+
+function tokenClientId(token: string): string {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof payload.azp === "string" ? payload.azp : "user-service";
+  } catch { return "user-service"; }
+}
+
 export function createKeycloakSession(
   options: KeycloakSessionOptions = {},
 ): KeycloakSession {
@@ -126,6 +150,31 @@ export function createKeycloakSession(
     new URL(
       options.config?.url ?? import.meta.env.VITE_KEYCLOAK_URL ?? "http://localhost:9080",
     ).origin;
+  let refreshPromise: Promise<string | null> | undefined;
+  const requestRefresh = options.refreshRequest ?? (async (refreshToken: string, clientId: string) => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken, clientId }),
+    });
+    if (!response.ok) throw new Error("Session refresh failed");
+    return response.json() as Promise<RefreshedTokens>;
+  });
+  const refreshStoredToken = async (): Promise<string | null> => {
+    const refreshToken = storage?.getItem("refresh_token");
+    const accessToken = storage?.getItem(legacyTokenKey);
+    if (!refreshToken || !accessToken) return null;
+    refreshPromise ??= requestRefresh(refreshToken, tokenClientId(accessToken))
+      .then((tokens) => {
+        storage?.setItem?.(legacyTokenKey, tokens.accessToken);
+        storage?.setItem?.("refresh_token", tokens.refreshToken || refreshToken);
+        if (tokens.idToken) storage?.setItem?.("id_token", tokens.idToken);
+        return tokens.accessToken;
+      })
+      .catch(() => null)
+      .finally(() => { refreshPromise = undefined; });
+    return refreshPromise;
+  };
 
   return {
     init: async (initOverrides) => {
@@ -137,7 +186,9 @@ export function createKeycloakSession(
           options.silentCheckSsoRedirectUri ??
           `${location.origin}/silent-check-sso.html`,
       };
-      return keycloak.init(initOptions);
+      const authenticated = await keycloak.init(initOptions);
+      if (authenticated) return true;
+      return Boolean(await refreshStoredToken());
     },
 
     loginWithGoogle: async () => {
@@ -212,6 +263,7 @@ export function createKeycloakSession(
           if (data.status === "success" && data.token) {
             storage?.setItem?.(legacyTokenKey, data.token);
             if (data.idToken) storage?.setItem?.("id_token", data.idToken);
+            if (data.refreshToken) storage?.setItem?.("refresh_token", data.refreshToken);
             try {
               const raw = data.idToken || data.token;
               const base64Url = raw.split(".")[1];
@@ -239,6 +291,7 @@ export function createKeycloakSession(
                     email: payload.email,
                     picture,
                     avatarUrl: picture,
+                    provider: "google",
                   };
                   storage?.setItem?.(
                     "haloticket_last_google_account",
@@ -296,6 +349,11 @@ export function createKeycloakSession(
       }
       const raw = storage?.getItem(legacyTokenKey);
       if (raw) {
+        const secondsLeft = secondsUntilExpiry(raw);
+        if (secondsLeft !== null && secondsLeft <= refreshLeeway) {
+          const refreshed = await refreshStoredToken();
+          if (refreshed) return refreshed;
+        }
         if (!isTokenExpired(raw)) {
           return raw;
         } else {
@@ -316,13 +374,15 @@ export function createKeycloakSession(
 
     getCurrentIdToken: () => keycloak.idToken ?? storage?.getItem("id_token") ?? null,
 
+    getCurrentRefreshToken: () => keycloak.refreshToken ?? storage?.getItem("refresh_token") ?? null,
+
     isAuthenticated: () => {
       if (keycloak.authenticated && keycloak.token && !isTokenExpired(keycloak.token)) return true;
       const legacy = storage?.getItem(legacyTokenKey);
-      return Boolean(legacy && !isTokenExpired(legacy));
+      return Boolean((legacy && !isTokenExpired(legacy)) || storage?.getItem("refresh_token"));
     },
 
-    logout: async () => {
+    logout: async (redirectUri = `${location.origin}/`) => {
       const idToken = keycloak.idToken ?? storage?.getItem("id_token");
       for (const key of ["access_token", "refresh_token", "id_token", "haloticket_user_profile"]) {
         storage?.removeItem?.(key);
@@ -333,7 +393,7 @@ export function createKeycloakSession(
       // Google account with `different_user_authenticated`.
       if (keycloak.logout) {
         if (idToken) keycloak.idToken = idToken;
-        await keycloak.logout({ redirectUri: `${location.origin}/` });
+        await keycloak.logout({ redirectUri });
       }
     },
 

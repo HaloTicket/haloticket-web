@@ -6,9 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const getCurrentToken = vi.fn();
 const getCurrentIdToken = vi.fn();
+const getCurrentRefreshToken = vi.fn();
 const init = vi.fn();
 vi.mock("@/services/keycloakSession", () => ({
-  getKeycloakSession: () => ({ getCurrentToken, getCurrentIdToken, init }),
+  getKeycloakSession: () => ({ getCurrentToken, getCurrentIdToken, getCurrentRefreshToken, init }),
 }));
 
 import GoogleAuthPopupCallback from "@/features/auth/components/GoogleAuthPopupCallback";
@@ -18,6 +19,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   getCurrentToken.mockReset();
   getCurrentIdToken.mockReset();
+  getCurrentRefreshToken.mockReset();
   init.mockReset();
 });
 
@@ -26,6 +28,7 @@ describe("GoogleAuthPopupCallback", () => {
     init.mockResolvedValue(true);
     getCurrentToken.mockReturnValue("google-token");
     getCurrentIdToken.mockReturnValue("google-id-token");
+    getCurrentRefreshToken.mockReturnValue("google-refresh-token");
     const postMessage = vi.fn();
     Object.defineProperty(window, "opener", { configurable: true, value: { postMessage } });
     vi.spyOn(window, "close").mockImplementation(() => undefined);
@@ -38,6 +41,7 @@ describe("GoogleAuthPopupCallback", () => {
         status: "success",
         token: "google-token",
         idToken: "google-id-token",
+        refreshToken: "google-refresh-token",
       },
       window.location.origin,
     ));

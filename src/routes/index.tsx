@@ -113,17 +113,6 @@ function AuthHandlers() {
     localStorage.setItem("access_token", result.accessToken);
     if (result.refreshToken) localStorage.setItem("refresh_token", result.refreshToken);
     if (result.idToken) localStorage.setItem("id_token", result.idToken);
-    try {
-      const cleanName = email.split("@")[0];
-      const accountToSave = {
-        name: cleanName,
-        email,
-      };
-      localStorage.setItem("haloticket_last_google_account", JSON.stringify(accountToSave));
-      window.dispatchEvent(new CustomEvent("google-account-updated", { detail: accountToSave }));
-    } catch {
-      // ignore
-    }
     await redirectAfterLogin(result.accessToken);
   };
 
@@ -156,6 +145,7 @@ import TicketDetail from "@/features/tickets/TicketDetail";
 
 // User Feature
 import Profile from "@/features/user/Profile";
+import EkycVerification from "@/features/ekyc/EkycVerification";
 
 // Organizer Feature
 import CreateEvent from "@/features/organizer/CreateEvent";
@@ -281,6 +271,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: PATHS.EKYC,
+        element: (
+          <ProtectedRoute>
+            <EkycVerification />
           </ProtectedRoute>
         ),
       },
