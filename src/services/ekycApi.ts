@@ -24,12 +24,11 @@ export const ekycApi = {
     }
     return result;
   },
-  async verify(sessionId: string, frontFile: File, backFile: File, faceFile: File): Promise<EkycStatusResponse> {
-    if (!sessionId || !frontFile || !backFile || !faceFile) throw new Error("Three images required");
+  async verify(sessionId: string, frontFile: File, backFile: File): Promise<EkycStatusResponse> {
+    if (!sessionId || !frontFile || !backFile) throw new Error("Two document images required");
     const data = new FormData();
     data.append("frontImage", frontFile);
     data.append("backImage", backFile);
-    data.append("faceImage", faceFile);
     return checked(
       await axiosClient.post<unknown, EkycStatusResponse>(
         `/users/me/ekyc/sessions/${encodeURIComponent(sessionId)}/verify`,

@@ -29,22 +29,22 @@ describe("real eKYC API", () => {
     await expect(ekycApi.getStatus()).rejects.toThrow("503");
     await expect(ekycApi.getOrganizerEligibility()).rejects.toThrow("503");
     await expect(ekycApi.startSession(true, "2026.1")).rejects.toThrow("503");
-    await expect(ekycApi.verify("id", file(), file(), file())).rejects.toThrow("503");
+    await expect(ekycApi.verify("id", file(), file())).rejects.toThrow("503");
   });
   it("rejects malformed approval and eligibility responses", async () => {
     get.mockResolvedValue({});
     await expect(ekycApi.getStatus()).rejects.toThrow();
     await expect(ekycApi.getOrganizerEligibility()).rejects.toThrow();
   });
-  it("sends all three real multipart files without JSON content type", async () => {
+  it("sends both document images without JSON content type", async () => {
     post.mockResolvedValue({ status: "PENDING" });
-    const front = file(), back = file(), face = file();
-    expect(await ekycApi.verify("id", front, back, face)).toEqual({ status: "PENDING" });
+    const front = file(), back = file();
+    expect(await ekycApi.verify("id", front, back)).toEqual({ status: "PENDING" });
     const [url, payload, config] = post.mock.calls[0];
     expect(url).toBe("/users/me/ekyc/sessions/id/verify");
     expect((payload as FormData).get("frontImage")).toBe(front);
     expect((payload as FormData).get("backImage")).toBe(back);
-    expect((payload as FormData).get("faceImage")).toBe(face);
+    expect((payload as FormData).has("faceImage")).toBe(false);
     expect(config?.headers?.["Content-Type"]).toBeUndefined();
   });
 });
@@ -72,7 +72,7 @@ describe("verification UI", () => {
     expect(revoke).toHaveBeenCalledWith("blob:back");
     expect(revoke).toHaveBeenCalledWith("blob:replacement");
   });
-  it("requires three images and consent, and retries with a fresh session after verify failure", async () => {
+  it("requires both document images and consent, and retries with a fresh session after verify failure", async () => {
     get.mockResolvedValue({ status: "NOT_STARTED" });
     post.mockResolvedValueOnce(session("first")).mockRejectedValueOnce(new Error("timeout"))
       .mockResolvedValueOnce(session("second")).mockResolvedValueOnce({ status: "APPROVED", legalName: "TEST SERVER" });
@@ -81,7 +81,7 @@ describe("verification UI", () => {
     expect(submit).toBeDisabled();
     await userEvent.click(screen.getByRole("checkbox"));
     expect(submit).toBeDisabled();
-    for (const label of ["Ảnh mặt trước căn cước", "Ảnh mặt sau căn cước", "Ảnh chân dung"]) await userEvent.upload(screen.getByLabelText(label), file());
+    for (const label of ["Ảnh mặt trước căn cước", "Ảnh mặt sau căn cước"]) await userEvent.upload(screen.getByLabelText(label), file());
     expect(submit).toBeEnabled();
     fireEvent.submit(submit.closest("form")!);
     expect(await screen.findByRole("alert")).toHaveTextContent("Không thể hoàn tất");
@@ -98,7 +98,7 @@ describe("verification UI", () => {
     expect(await screen.findByText("Đang chờ xét duyệt")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
-  it("allows already approved users to enter update mode via button and re-verify", async () => {
+  it("does not allow already approved users to repeat initial verification", async () => {
     get.mockResolvedValue({ status: "APPROVED", legalName: "ORIGINAL NAME", documentNumber: "079*******99" });
     post.mockResolvedValueOnce(session("update-session"))
       .mockResolvedValueOnce({ status: "APPROVED", legalName: "UPDATED NAME", documentNumber: "079*******00" });
@@ -112,34 +112,10 @@ describe("verification UI", () => {
     expect(await screen.findByText("ORIGINAL NAME")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gửi xác minh" })).not.toBeInTheDocument();
 
-    const updateBtn = screen.getByRole("button", { name: /Cập nhật lại eKYC/i });
-    await userEvent.click(updateBtn);
-
-    expect(await screen.findByText("Chế độ cập nhật lại eKYC")).toBeInTheDocument();
-    const submit = await screen.findByRole("button", { name: "Gửi xác minh" });
-    expect(submit).toBeDisabled();
-
-    // Test cancel update
-    const cancelBtn = screen.getByRole("button", { name: "Hủy cập nhật" });
-    await userEvent.click(cancelBtn);
-    expect(await screen.findByText("ORIGINAL NAME")).toBeInTheDocument();
-    expect(screen.queryByText("Chế độ cập nhật lại eKYC")).not.toBeInTheDocument();
-
-    // Re-enter update mode and submit
-    await userEvent.click(screen.getByRole("button", { name: /Cập nhật lại eKYC/i }));
-    await userEvent.click(await screen.findByRole("checkbox"));
-    for (const label of ["Ảnh mặt trước căn cước", "Ảnh mặt sau căn cước", "Ảnh chân dung"]) {
-      await userEvent.upload(screen.getByLabelText(label), file());
-    }
-    const readySubmit = screen.getByRole("button", { name: "Gửi xác minh" });
-    expect(readySubmit).toBeEnabled();
-    fireEvent.submit(readySubmit.closest("form")!);
-
-    expect(await screen.findByText("UPDATED NAME")).toBeInTheDocument();
-    expect(post.mock.calls[0][0]).toContain("/sessions");
-    expect(post.mock.calls[1][0]).toContain("/update-session/verify");
+    expect(screen.queryByRole("button", { name: /Cập nhật lại eKYC/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gửi xác minh" })).not.toBeInTheDocument();
   });
-  it("directly opens update form when URL has mode=update for approved users", async () => {
+  it("ignores update mode for an already approved account", async () => {
     get.mockResolvedValue({ status: "APPROVED", legalName: "EXISTING USER" });
 
     render(
@@ -148,9 +124,8 @@ describe("verification UI", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Chế độ cập nhật lại eKYC")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Gửi xác minh" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Hủy cập nhật" })).toBeInTheDocument();
+    expect(await screen.findByText("EXISTING USER")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gửi xác minh" })).not.toBeInTheDocument();
   });
 });
 

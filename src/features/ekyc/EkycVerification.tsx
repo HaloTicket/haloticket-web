@@ -19,7 +19,6 @@ import { FaTicketAlt, FaMicrochip } from "react-icons/fa";
 import { FiCreditCard } from "react-icons/fi";
 import { ImageUploadStep } from "./components/ImageUploadStep";
 import { ReviewSubmitStep } from "./components/ReviewSubmitStep";
-import { FaceUploadStep } from "./components/FaceUploadStep";
 import { rotateImageFile, readImageMetadata, type ImageMetadata } from "@/utils/imageUtils";
 
 export default function EkycVerification() {
@@ -35,22 +34,21 @@ export default function EkycVerification() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
-  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null]);
-  const [metadatas, setMetadatas] = useState<(ImageMetadata | null)[]>([null, null, null]);
+  const [files, setFiles] = useState<(File | null)[]>([null, null]);
+  const [previews, setPreviews] = useState<(string | null)[]>([null, null]);
+  const [metadatas, setMetadatas] = useState<(ImageMetadata | null)[]>([null, null]);
   const [rotatingIndex, setRotatingIndex] = useState<number | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [uploadVersion, setUploadVersion] = useState(0);
   const inFlight = useRef(false);
-  const previewUrls = useRef<(string | null)[]>([null, null, null]);
+  const previewUrls = useRef<(string | null)[]>([null, null]);
 
   // Reset inFlight on unmount to prevent stale lock across hot-reloads
   useEffect(() => {
     return () => { inFlight.current = false; };
   }, []);
 
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
-  const [isUpdating, setIsUpdating] = useState(params.get("mode") === "update");
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
     let active = true;
@@ -143,7 +141,7 @@ export default function EkycVerification() {
   };
 
   async function submit() {
-    if (inFlight.current || !consent || !files[0] || !files[1] || !files[2]) {
+    if (inFlight.current || !consent || !files[0] || !files[1]) {
       return;
     }
     inFlight.current = true;
@@ -153,18 +151,13 @@ export default function EkycVerification() {
     try {
       const session = await ekycApi.startSession(true, "2026.1");
       if (Date.parse(session.expiresAt) <= Date.now()) throw new Error("Expired session");
-      const faceFile = files[2]!;
-      const verifyResult = await ekycApi.verify(session.sessionId, files[0]!, files[1]!, faceFile);
+      const verifyResult = await ekycApi.verify(session.sessionId, files[0]!, files[1]!);
       const finalStatus = verifyResult;
       setStatus(finalStatus);
 
       // If rejected, show error message from verifyResult
       if (verifyResult.status === "REJECTED") {
-        if (verifyResult.reasonCode === "DOCUMENT_LIVENESS_FAILED") {
-          setError("Ảnh CCCD không đạt tiêu chuẩn liveness. Vui lòng chụp lại ảnh thật trực tiếp từ thẻ CCCD (không chụp từ màn hình hay photocopy).");
-        } else if (verifyResult.reasonCode === "FACE_MATCH_FAILED") {
-          setError("Khuôn mặt không khớp với ảnh trên CCCD. Vui lòng kiểm tra lại.");
-        } else if (verifyResult.reasonCode === "OCR_DATA_INCOMPLETE") {
+        if (verifyResult.reasonCode === "OCR_DATA_INCOMPLETE") {
           setError("Không đọc được đầy đủ thông tin từ CCCD. Vui lòng chụp rõ nét hơn.");
         } else if (verifyResult.reasonCode === "DOCUMENT_EXPIRED") {
           setError("CCCD đã hết hạn. Vui lòng sử dụng giấy tờ còn hiệu lực.");
@@ -190,13 +183,12 @@ export default function EkycVerification() {
         return;
       }
 
-      setIsUpdating(false);
       setParams((prev) => { const next = new URLSearchParams(prev); next.delete("mode"); return next; });
-      setFiles([null, null, null]);
+      setFiles([null, null]);
       previewUrls.current.forEach((url) => { if (url) URL.revokeObjectURL(url); });
-      previewUrls.current = [null, null, null];
-      setPreviews([null, null, null]);
-      setMetadatas([null, null, null]);
+      previewUrls.current = [null, null];
+      setPreviews([null, null]);
+      setMetadatas([null, null]);
       setConsent(false);
       setCurrentStep(1);
       setUploadVersion((v) => v + 1);
@@ -224,13 +216,8 @@ export default function EkycVerification() {
     }
   }
 
-  // Helper: activate update mode when clicking steps from approved state
-  const activateStep = (step: 1 | 2 | 3 | 4) => {
+  const activateStep = (step: 1 | 2 | 3) => {
     setCurrentStep(step);
-    if (status?.status === "APPROVED" && !isUpdating) {
-      setIsUpdating(true);
-      setParams((prev) => { const next = new URLSearchParams(prev); next.set("mode", "update"); return next; });
-    }
   };
 
   return (
@@ -273,7 +260,7 @@ export default function EkycVerification() {
           <div className="flex items-center gap-2 sm:self-center">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800/80 text-[11px] font-medium text-slate-600 dark:text-zinc-400 border app-border">
               <FiLock className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Ảnh được gửi để xác minh danh tính</span>
+              <span>Ảnh được gửi để xác thực thông tin CCCD</span>
             </span>
             <Link
               to={returnUrl}
@@ -289,10 +276,9 @@ export default function EkycVerification() {
           {[
             { step: 1 as const, title: "1. Mặt trước CCCD", sub: "Mặt trước CCCD gắn chip", hasFile: files[0] },
             { step: 2 as const, title: "2. Mặt sau giấy tờ", sub: "Mặt sau chip & mã MRZ", hasFile: files[1] },
-            { step: 3 as const, title: "3. Ảnh chân dung", sub: "Liveness & so khớp", hasFile: files[2] },
-            { step: 4 as const, title: "4. Xác minh", sub: "Bóc tách & Mở quyền", hasFile: null },
+            { step: 3 as const, title: "3. Xác minh", sub: "Bóc tách & Mở quyền", hasFile: null },
           ].map(({ step, title, sub, hasFile }) => {
-            const isApprovedDone = step === 3 && status?.status === "APPROVED" && !isUpdating;
+            const isApprovedDone = step === 3 && status?.status === "APPROVED";
             const isDone = isApprovedDone || Boolean(hasFile);
             return (
               <button
@@ -426,7 +412,7 @@ export default function EkycVerification() {
         )}
 
         {/* APPROVED STATE */}
-        {status?.status === "APPROVED" && !isUpdating && (
+        {status?.status === "APPROVED" && (
           <div className="app-bg-card app-border rounded-3xl border p-6 sm:p-8 space-y-6 shadow-md animate-in fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b app-border">
               <div className="flex items-center gap-3.5">
@@ -436,18 +422,18 @@ export default function EkycVerification() {
                 <div>
                   <div className="flex items-center gap-2">
                     <p role="status" className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                      {EKYC_STATUS_LABELS.APPROVED}
+                      Đã xác thực thông tin CCCD
                     </p>
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-300 dark:border-emerald-800">
                       Đã xác minh
                     </span>
                   </div>
-                  <p className="text-xs app-text-muted mt-0.5">Máy chủ đã xác nhận kết quả xác minh danh tính.</p>
+                  <p className="text-xs app-text-muted mt-0.5">Máy chủ đã xác nhận thông tin được bóc tách từ CCCD.</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
                 <FiCheck className="w-4 h-4" />
-                <span>Danh tính: Đã xác minh</span>
+                <span>Thông tin CCCD: Đã xác thực</span>
               </div>
             </div>
 
@@ -511,14 +497,6 @@ export default function EkycVerification() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t app-border">
               <Link to={returnUrl} className="text-xs font-semibold app-text-muted hover:app-text-main">← Quay lại hồ sơ</Link>
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => { setCurrentStep(1); setIsUpdating(true); setParams((prev) => { const next = new URLSearchParams(prev); next.set("mode", "update"); return next; }); }}
-                  className="w-full sm:w-auto px-5 py-3.5 rounded-xl border app-border text-xs sm:text-sm font-bold app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                >
-                  <FiRefreshCw className="w-4 h-4 text-blue-500" />
-                  <span>Cập nhật lại eKYC</span>
-                </button>
                 <Link
                   to={returnUrl === PATHS.CREATE_EVENT ? PATHS.CREATE_EVENT : PATHS.MY_EVENTS}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all cursor-pointer active:scale-98"
@@ -574,39 +552,8 @@ export default function EkycVerification() {
         )}
 
         {/* UPLOAD & VERIFICATION CONTAINER */}
-        {status && (status.status !== "APPROVED" || isUpdating) && status.status !== "PENDING" && (
+        {status && status.status !== "APPROVED" && status.status !== "PENDING" && (
           <div className="space-y-6">
-            {/* Update mode banner */}
-            {isUpdating && (
-              <div className="p-4 sm:p-5 rounded-3xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25">
-                    <FiRefreshCw className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold">Chế độ cập nhật lại eKYC</h4>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-200/70 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 text-[10px] font-extrabold uppercase tracking-wide">
-                        Làm mới giấy tờ
-                      </span>
-                    </div>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5 leading-relaxed">
-                      Bạn đang thực hiện tải lên CCCD mới để cập nhật hồ sơ định danh. Thông tin sau khi xác thực thành công sẽ ghi đè lên dữ liệu hiện tại.
-                    </p>
-                  </div>
-                </div>
-                {status?.status === "APPROVED" && (
-                  <button
-                    type="button"
-                    onClick={() => { setIsUpdating(false); setParams((prev) => { const next = new URLSearchParams(prev); next.delete("mode"); return next; }); }}
-                    className="px-4 py-2 rounded-xl border border-blue-300 dark:border-blue-700 bg-white dark:bg-zinc-800 text-xs font-bold hover:bg-blue-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 transition-colors shrink-0 cursor-pointer self-end sm:self-auto shadow-2xs"
-                  >
-                    Hủy cập nhật
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* Wizard Form */}
             <form
               key={uploadVersion}
@@ -621,26 +568,24 @@ export default function EkycVerification() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-extrabold uppercase tracking-wide border border-blue-200 dark:border-blue-800">
-                      Bước {currentStep}/4
+                      Bước {currentStep}/3
                     </span>
                     <h3 className="text-base sm:text-lg font-bold app-text-main">
                       {currentStep === 1 && "1. Tải lên Mặt trước CCCD gắn chip"}
                       {currentStep === 2 && "2. Tải lên Mặt sau CCCD (Chip & Mã MRZ)"}
-                      {currentStep === 3 && "3. Tải ảnh chân dung"}
-                      {currentStep === 4 && "4. Bóc tách dữ liệu & Mở quyền Nhà tổ chức"}
+                      {currentStep === 3 && "3. Kiểm tra và gửi xác minh"}
                     </h3>
                   </div>
                   <p className="text-xs app-text-muted mt-0.5">
                     {currentStep === 1 && "Chụp rõ nét mặt trước thẻ CCCD gắn chip, đảm bảo thấy rõ ảnh và số định danh 12 số."}
                     {currentStep === 2 && "Chụp rõ mặt sau chứa chip vi mạch điện tử và 3 dòng mã ký tự quang học MRZ."}
-                    {currentStep === 3 && "Chụp khuôn mặt chính diện để VNPT kiểm tra liveness và so khớp với CCCD."}
-                    {currentStep === 4 && "Xem lại hồ sơ, đồng ý điều khoản và gửi VNPT đối soát."}
+                    {currentStep === 3 && "Xem lại hai mặt CCCD, đồng ý điều khoản và gửi VNPT bóc tách thông tin."}
                   </p>
                 </div>
 
                 {/* Mini step switcher */}
                 <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl border app-border">
-                  {([1, 2, 3, 4] as const).map((s) => (
+                  {([1, 2, 3] as const).map((s) => (
                     <button
                       key={s}
                       type="button"
@@ -651,9 +596,8 @@ export default function EkycVerification() {
                     >
                       {s === 1 && files[0] && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
                       {s === 2 && files[1] && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
-                      {s === 3 && files[2] && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
-                      {s === 4 && files.every(Boolean) && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
-                      <span>{s === 1 ? "1. Mặt trước" : s === 2 ? "2. Mặt sau" : s === 3 ? "3. Chân dung" : "4. Xác minh"}</span>
+                      {s === 3 && files.every(Boolean) && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
+                      <span>{s === 1 ? "1. Mặt trước" : s === 2 ? "2. Mặt sau" : "3. Xác minh"}</span>
                     </button>
                   ))}
                 </div>
@@ -698,28 +642,23 @@ export default function EkycVerification() {
                   onRotate={(i, d) => void handleRotate(i, d)}
                   prevLabel="Quay lại bước 1"
                   onPrev={() => setCurrentStep(1)}
-                  nextLabel="Sang bước 3: Ảnh chân dung"
+                  nextLabel="Sang bước 3: Kiểm tra thông tin"
                   onNext={() => setCurrentStep(3)}
                 />
               </div>
 
               <div className={currentStep === 3 ? "block" : "hidden"}>
-                <FaceUploadStep preview={previews[2]} busy={busy} onFileChange={handleFileSelect} onPrev={() => setCurrentStep(2)} onNext={() => setCurrentStep(4)} />
-              </div>
-
-              {/* TAB 4 */}
-              <div className={currentStep === 4 ? "block" : "hidden"}>
                 <ReviewSubmitStep
-                  previews={[previews[0], previews[1], previews[2]]}
+                  previews={[previews[0], previews[1]]}
                   metadatas={[metadatas[0], metadatas[1]]}
-                  files={[files[0], files[1], files[2]]}
+                  files={[files[0], files[1]]}
                   rotatingIndex={rotatingIndex}
                   consent={consent}
                   busy={busy}
                   onConsentChange={setConsent}
                   onRotate={(i, d) => void handleRotate(i, d)}
                   onGoToStep={setCurrentStep}
-                  onPrev={() => setCurrentStep(3)}
+                  onPrev={() => setCurrentStep(2)}
                   returnUrl={returnUrl}
                 />
               </div>

@@ -976,17 +976,11 @@ export default function Profile() {
                   {/* Notice & Actions */}
                   <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs app-text-muted">
                     <p className="leading-relaxed">
-                      {translate("Danh tính đã được xác minh. Tài khoản thụ hưởng cần được xác minh riêng trước khi nhận thanh toán.")}
+                      {translate("Thông tin CCCD đã được xác thực. Tài khoản thụ hưởng cần được xác minh riêng trước khi nhận thanh toán.")}
                     </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                    <Link
-                      to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc&mode=update`}
-                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl border app-border text-xs font-bold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center"
-                    >
-                      {translate("Cập nhật lại eKYC")}
-                    </Link>
+                  <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
                     <Link
                       to={PATHS.MY_EVENTS}
                       className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all text-center"
@@ -1005,11 +999,11 @@ export default function Profile() {
                       </div>
                       <div className="space-y-1">
                         <h4 className="text-base sm:text-lg font-bold app-text-main">
-                          {translate("Quyền lợi khi hoàn tất xác minh danh tính eKYC")}
+                          {translate("Quyền lợi khi hoàn tất xác thực thông tin CCCD")}
                         </h4>
                         <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
                           {translate(
-                            "Sau khi xác minh danh tính, tài khoản mới có quyền tạo sự kiện, chuyển nhượng vé và bán vé:"
+                            "Sau khi xác thực thông tin CCCD, tài khoản mới có quyền tạo sự kiện, chuyển nhượng vé và bán vé:"
                           )}
                         </p>
                       </div>

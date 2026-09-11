@@ -13,15 +13,15 @@ import { Link } from "react-router-dom";
 import { type ImageMetadata } from "@/utils/imageUtils";
 
 interface ReviewStepProps {
-  previews: [string | null, string | null, string | null];
+  previews: [string | null, string | null];
   metadatas: [ImageMetadata | null, ImageMetadata | null];
-  files: [File | null, File | null, File | null];
+  files: [File | null, File | null];
   rotatingIndex: number | null;
   consent: boolean;
   busy: boolean;
   onConsentChange: (v: boolean) => void;
   onRotate: (index: number, degrees: number) => void;
-  onGoToStep: (step: 1 | 2 | 3) => void;
+  onGoToStep: (step: 1 | 2) => void;
   onPrev: () => void;
   returnUrl: string;
 }
@@ -62,7 +62,7 @@ export function ReviewSubmitStep({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {sides.map((side) => {
           const preview = previews[side.index];
           const meta = metadatas[side.index];
@@ -140,13 +140,6 @@ export function ReviewSubmitStep({
             </div>
           );
         })}
-        <div className="p-4 rounded-2xl border app-border app-bg-page space-y-3">
-          <span className="text-xs font-bold app-text-main">Ảnh chân dung</span>
-          <div className="aspect-[16/10] rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
-            {previews[2] ? <img src={previews[2]} alt="Ảnh chân dung" className="w-full h-full object-cover" /> : <p className="text-xs app-text-muted">Chưa tải ảnh chân dung</p>}
-          </div>
-          <button type="button" onClick={() => onGoToStep(3)} className="w-full py-2 rounded-xl border app-border text-xs font-bold">Thay đổi ảnh chân dung</button>
-        </div>
       </div>
 
       {/* Information Notice */}
@@ -170,7 +163,7 @@ export function ReviewSubmitStep({
           onChange={(e) => onConsentChange(e.target.checked)}
         />
         <span className="app-text-muted leading-relaxed">
-          Tôi đồng ý gửi ảnh Căn cước công dân và ảnh khuôn mặt để HaloTicket xử lý xác minh danh tính qua VNPT eKYC (phiên bản đồng ý 2026.1).
+          Tôi đồng ý gửi ảnh Căn cước công dân để HaloTicket bóc tách và xác thực thông tin giấy tờ qua VNPT eKYC (phiên bản đồng ý 2026.1).
         </span>
       </label>
 
@@ -188,7 +181,7 @@ export function ReviewSubmitStep({
         <button
           type="submit"
           className="w-full sm:w-auto min-h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-8 py-3.5 font-bold text-white text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98 order-1 sm:order-2"
-          disabled={!consent || !files[0] || !files[1] || !files[2] || busy}
+          disabled={!consent || !files[0] || !files[1] || busy}
         >
           {busy ? (
             <>
