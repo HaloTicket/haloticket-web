@@ -11,7 +11,7 @@ import {
   FiCheckCircle,
   FiClock,
 } from "react-icons/fi";
-import type { EventDetailData, Showtime, TicketTier } from "@/mock/eventData";
+import type { EventDetailData, Showtime, TicketTier } from "@/types";
 
 interface EventScheduleProps {
   event: EventDetailData;
@@ -34,8 +34,8 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
     const end = event.endTime
       ? new Date(event.endTime)
       : event.startTime
-      ? new Date(event.startTime)
-      : new Date(2026, 9, 18, 23, 59);
+        ? new Date(event.startTime)
+        : new Date(2026, 9, 18, 23, 59);
 
     const startHours = String(start.getHours()).padStart(2, "0");
     const startMins = String(start.getMinutes()).padStart(2, "0");
@@ -63,16 +63,16 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
       const tickets: TicketTier[] =
         Array.isArray(rawTickets) && rawTickets.length > 0
           ? rawTickets.map((t: any, tIdx: number) => ({
-              id: `t_${idx}_${tIdx}`,
-              name: t.name || "Vé Thường",
-              price: typeof t.price === "number" ? `${t.price.toLocaleString("vi-VN")} đ` : String(t.price || "0 đ"),
-              priceValue: typeof t.price === "number" ? t.price : 1000000,
-              available: t.totalQuantity ? t.totalQuantity > 0 : t.available !== false,
-            }))
+            id: `t_${idx}_${tIdx}`,
+            name: t.name || "Vé Thường",
+            price: typeof t.price === "number" ? `${t.price.toLocaleString("vi-VN")} đ` : String(t.price || "0 đ"),
+            priceValue: typeof t.price === "number" ? t.price : 1000000,
+            available: t.totalQuantity ? t.totalQuantity > 0 : t.available !== false,
+          }))
           : [
-              { id: `t_${idx}_vip`, name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
-              { id: `t_${idx}_std`, name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
-            ];
+            { id: `t_${idx}_vip`, name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
+            { id: `t_${idx}_std`, name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
+          ];
 
       showtimeList.push({
         id: `st_${idx}_${curr.getTime()}`,
@@ -93,21 +93,21 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
     return showtimeList.length > 0
       ? showtimeList.reverse()
       : [
-          {
-            id: "st_default_1",
-            dateStr: "17 Tháng 10, 2026",
-            timeStr: "19:00 - 23:59",
-            fullDateTime: "19:00 - 23:59, 17 Tháng 10, 2026",
-            dayNumber: 17,
-            monthNumber: 10,
-            yearNumber: 2026,
-            isOpen: true,
-            tickets: [
-              { id: "t_vip_1", name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
-              { id: "t_std_1", name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
-            ],
-          },
-        ];
+        {
+          id: "st_default_1",
+          dateStr: "17 Tháng 10, 2026",
+          timeStr: "19:00 - 23:59",
+          fullDateTime: "19:00 - 23:59, 17 Tháng 10, 2026",
+          dayNumber: 17,
+          monthNumber: 10,
+          yearNumber: 2026,
+          isOpen: true,
+          tickets: [
+            { id: "t_vip_1", name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
+            { id: "t_std_1", name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
+          ],
+        },
+      ];
   }, [event]);
 
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
@@ -181,11 +181,10 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
           <button
             type="button"
             onClick={() => setViewMode("list")}
-            className={`p-2 rounded-lg transition-all duration-300 cursor-pointer ${
-              viewMode === "list"
+            className={`p-2 rounded-lg transition-all duration-300 cursor-pointer ${viewMode === "list"
                 ? "gradient-btn text-white shadow-md scale-105"
                 : "app-text-muted hover:app-text-main"
-            }`}
+              }`}
             title={translate("Xem danh sách")}
           >
             <FiList className="w-4 h-4" />
@@ -193,11 +192,10 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
           <button
             type="button"
             onClick={() => setViewMode("calendar")}
-            className={`p-2 rounded-lg transition-all duration-300 cursor-pointer ${
-              viewMode === "calendar"
+            className={`p-2 rounded-lg transition-all duration-300 cursor-pointer ${viewMode === "calendar"
                 ? "gradient-btn text-white shadow-md scale-105"
                 : "app-text-muted hover:app-text-main"
-            }`}
+              }`}
             title={translate("Xem lịch tháng")}
           >
             <FiCalendar className="w-4 h-4" />
@@ -273,11 +271,10 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                         {st.tickets.map((t) => (
                           <div
                             key={t.id}
-                            className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
-                              t.available
+                            className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${t.available
                                 ? "app-bg-card border-slate-200/80 dark:border-zinc-700/80 hover:border-brand-primary cursor-pointer shadow-xs"
                                 : "bg-slate-200/50 dark:bg-zinc-800/40 border-slate-200/40 dark:border-zinc-800/40 opacity-70"
-                            }`}
+                              }`}
                             onClick={() => t.available && onSelectTicket && onSelectTicket(st, t)}
                           >
                             <span className="font-black text-sm md:text-base app-text-main">
@@ -328,11 +325,10 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                       const firstDay = showtimes.find((st) => st.monthNumber === month)?.dayNumber || 1;
                       setSelectedCalendarDay(firstDay);
                     }}
-                    className={`py-1 border-b-2 transition-all cursor-pointer ${
-                      selectedCalendarMonth === month
+                    className={`py-1 border-b-2 transition-all cursor-pointer ${selectedCalendarMonth === month
                         ? "border-brand-primary app-text-brand font-black"
                         : "border-transparent app-text-muted hover:app-text-main"
-                    }`}
+                      }`}
                   >
                     {translate("Tháng")} {month}, {year} ({count} {translate("suất diễn")})
                   </button>
@@ -373,20 +369,18 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     key={day}
                     type="button"
                     onClick={() => hasShowtime && setSelectedCalendarDay(day)}
-                    className={`h-12 md:h-14 rounded-xl flex flex-col items-center justify-center font-bold text-sm md:text-base relative transition-all ${
-                      hasShowtime
+                    className={`h-12 md:h-14 rounded-xl flex flex-col items-center justify-center font-bold text-sm md:text-base relative transition-all ${hasShowtime
                         ? isSelected
                           ? "gradient-btn text-white shadow-lg scale-105"
                           : "app-bg-card border-2 border-brand-primary app-text-brand hover:scale-105 cursor-pointer"
                         : "app-text-muted opacity-40 cursor-not-allowed"
-                    }`}
+                      }`}
                   >
                     <span>{day < 10 ? `0${day}` : day}</span>
                     {hasShowtime && (
                       <span
-                        className={`w-4 h-1 rounded-full mt-1 ${
-                          isSelected ? "bg-white" : "bg-brand-primary"
-                        }`}
+                        className={`w-4 h-1 rounded-full mt-1 ${isSelected ? "bg-white" : "bg-brand-primary"
+                          }`}
                       />
                     )}
                   </button>

@@ -2,6 +2,11 @@ import axios from "axios";
 import { CONFIG } from "@/config";
 import { getKeycloakSession } from "@/services/keycloakSession";
 
+interface AuthRequestMetadata {
+  _retry?: boolean;
+  _hadAuthSession?: boolean;
+}
+
 const axiosClient = axios.create({
   baseURL: CONFIG.API_BASE_URL,
   headers: {
@@ -13,7 +18,10 @@ const axiosClient = axios.create({
 // request interceptor: automatically attach the token before sending the API request.
 axiosClient.interceptors.request.use(
   async (config) => {
-    const token = await getKeycloakSession().getAccessToken();
+    const session = getKeycloakSession();
+    const authConfig = config as typeof config & AuthRequestMetadata;
+    authConfig._hadAuthSession = session.isAuthenticated();
+    const token = await session.getAccessToken();
     if (token && token !== "null" && token !== "undefined" && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     } else if (config.headers) {
@@ -25,6 +33,15 @@ axiosClient.interceptors.request.use(
         delete (config.headers as Record<string, unknown>).authorization;
       }
     }
+    if (config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === "function") {
+        config.headers.delete("Content-Type");
+        config.headers.delete("content-type");
+      } else {
+        delete (config.headers as Record<string, unknown>)["Content-Type"];
+        delete (config.headers as Record<string, unknown>)["content-type"];
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error),
@@ -34,7 +51,9 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as
+      | (typeof error.config & AuthRequestMetadata)
+      | undefined;
     if (
       error.response?.status === 401 &&
       originalRequest &&
@@ -63,7 +82,7 @@ axiosClient.interceptors.response.use(
       } catch (retryErr) {
         console.warn("Unauthorized API call after retry:", originalRequest.url);
         // if request requires authentication and failed with 401, dispatch session-expired
-        if (getKeycloakSession().isAuthenticated()) {
+        if (originalRequest._hadAuthSession || getKeycloakSession().isAuthenticated()) {
           window.dispatchEvent(new CustomEvent("session-expired"));
         }
         return Promise.reject(retryErr);
@@ -72,7 +91,7 @@ axiosClient.interceptors.response.use(
 
     if (error.response?.status === 401) {
       console.warn("Unauthorized API call:", error.config?.url);
-      if (getKeycloakSession().isAuthenticated()) {
+      if (originalRequest?._hadAuthSession || getKeycloakSession().isAuthenticated()) {
         window.dispatchEvent(new CustomEvent("session-expired"));
       }
     }

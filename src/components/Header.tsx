@@ -45,6 +45,7 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [failedAvatar, setFailedAvatar] = useState<string>();
   const lang = i18n.resolvedLanguage;
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
     getKeycloakSession().isAuthenticated()
@@ -284,7 +285,9 @@ export const Header: React.FC = () => {
                 aria-haspopup="menu"
               >
                 <span className="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-[10px]">
-                  {userInitial}
+                  {userProfile?.avatarUrl?.startsWith("https://") && failedAvatar !== userProfile.avatarUrl ? (
+                    <img src={userProfile.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" onError={() => setFailedAvatar(userProfile.avatarUrl)} />
+                  ) : userInitial}
                 </span>
                 <span>{translate("Tài khoản")}</span>
                 <FiChevronDown

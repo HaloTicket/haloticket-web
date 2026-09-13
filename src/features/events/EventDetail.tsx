@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import EventHero from "./components/detail/EventHero";
 import EventDescription from "./components/detail/EventDescription";
 import EventSchedule from "./components/detail/EventSchedule";
@@ -11,12 +11,12 @@ import EventCard from "@/components/common/EventCard";
 import { eventApi } from "@/services/eventApi";
 import { FiGrid } from "react-icons/fi";
 
-import type { EventDetailData } from "@/mock/eventData";
-import type { EventApiData } from "@/services/eventApi";
+import type { EventDetailData, EventApiData } from "@/types";
 
 export default function EventDetail() {
   useTranslation();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [isStickyVisible, setIsStickyVisible] = useState(false);
   const [eventData, setEventData] = useState<EventDetailData | null>(null);
   const [recommendedEvents, setRecommendedEvents] = useState<EventApiData[]>([]);
@@ -60,10 +60,9 @@ export default function EventDetail() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleScrollToSchedule = () => {
-    const scheduleEl = document.getElementById("schedule-section");
-    if (scheduleEl) {
-      scheduleEl.scrollIntoView({ behavior: "smooth" });
+  const handleGoToSelectTicket = () => {
+    if (id) {
+      navigate(`/events/${id}/select-ticket`);
     }
   };
 
@@ -95,7 +94,7 @@ export default function EventDetail() {
       <EventStickyHeader
         event={eventData}
         isVisible={isStickyVisible}
-        onBuyTicketsClick={handleScrollToSchedule}
+        onBuyTicketsClick={handleGoToSelectTicket}
       />
 
       {/* Main Container with side margins */}
@@ -103,7 +102,7 @@ export default function EventDetail() {
         {/* Top Physical Ticket Stub Banner*/}
         <EventHero
           event={eventData}
-          onBuyTicketsClick={handleScrollToSchedule}
+          onBuyTicketsClick={handleGoToSelectTicket}
         />
 
         {/* Compact Sections */}
@@ -116,9 +115,7 @@ export default function EventDetail() {
             {/* Schedule & Tickets */}
             <EventSchedule
               event={eventData}
-              onSelectTicket={(st, t) => {
-                alert(translate("Đã chọn suất diễn {{time}} ({{date}}) - Vé {{ticket}} - Giá: {{price}}", { time: st.timeStr, date: st.dateStr, ticket: t.name, price: t.price }));
-              }}
+              onSelectTicket={() => handleGoToSelectTicket()}
             />
 
             {/* Organizer Section */}

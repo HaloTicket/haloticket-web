@@ -8,6 +8,7 @@ import MainLayout from "@/layouts/MainLayout";
 import AuthLayout from "@/layouts/AuthLayout";
 import OrganizerLayout from "@/layouts/OrganizerLayout";
 import AdminLayout from "@/layouts/AdminLayout";
+import BookingLayout from "@/layouts/BookingLayout";
 
 // Events Feature
 import Home from "@/features/events/Home";
@@ -37,6 +38,7 @@ import TicketDetail from "@/features/tickets/TicketDetail";
 
 // User Feature
 import Profile from "@/features/user/Profile";
+import EkycVerification from "@/features/ekyc/EkycVerification";
 
 // Organizer Feature
 import CreateEvent from "@/features/organizer/CreateEvent";
@@ -160,17 +162,6 @@ function AuthHandlers() {
     localStorage.setItem("access_token", result.accessToken);
     if (result.refreshToken) localStorage.setItem("refresh_token", result.refreshToken);
     if (result.idToken) localStorage.setItem("id_token", result.idToken);
-    try {
-      const cleanName = email.split("@")[0];
-      const accountToSave = {
-        name: cleanName,
-        email,
-      };
-      localStorage.setItem("haloticket_last_google_account", JSON.stringify(accountToSave));
-      window.dispatchEvent(new CustomEvent("google-account-updated", { detail: accountToSave }));
-    } catch {
-      // ignore
-    }
     await redirectAfterLogin(result.accessToken);
   };
 
@@ -198,6 +189,25 @@ export const router = createBrowserRouter([
   {
     path: "/auth/popup-callback",
     element: <GoogleAuthPopupCallback />,
+  },
+
+  // Ticket Booking Flow Routes (Header + Outlet, NO Footer)
+  {
+    element: <BookingLayout />,
+    children: [
+      {
+        path: "/events/:id/select-ticket",
+        element: <SelectTicket />,
+      },
+      {
+        path: PATHS.CHECKOUT,
+        element: <Checkout />,
+      },
+      {
+        path: PATHS.BOOKING_SUCCESS,
+        element: <BookingSuccess />,
+      },
+    ],
   },
 
   // Main App Routes (with Main Header & Footer)
@@ -230,10 +240,6 @@ export const router = createBrowserRouter([
         element: <EventDetail />,
       },
       {
-        path: "/events/:id/select-ticket",
-        element: <SelectTicket />,
-      },
-      {
         path: "/resale-ticket",
         element: <ResaleList />,
       },
@@ -244,22 +250,6 @@ export const router = createBrowserRouter([
       {
         path: "/resale-ticket/:eventId/ticket/:ticketId",
         element: <ResaleTicketCheckout />,
-      },
-      {
-        path: PATHS.CHECKOUT,
-        element: (
-          <ProtectedRoute>
-            <Checkout />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: PATHS.BOOKING_SUCCESS,
-        element: (
-          <ProtectedRoute>
-            <BookingSuccess />
-          </ProtectedRoute>
-        ),
       },
       {
         path: PATHS.MY_TICKETS,
@@ -282,6 +272,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: PATHS.EKYC,
+        element: (
+          <ProtectedRoute>
+            <EkycVerification />
           </ProtectedRoute>
         ),
       },
