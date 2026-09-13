@@ -1,3 +1,16 @@
+export interface BookingOrderData {
+  eventId?: string;
+  eventTitle: string;
+  eventTime: string;
+  eventLocation: string;
+  zoneId?: string;
+  zoneName?: string;
+  ticketTypeName: string;
+  price: number;
+  quantity: number;
+  totalAmount: number;
+}
+
 export interface BookingItem {
   id: string;
   orderCode: string;

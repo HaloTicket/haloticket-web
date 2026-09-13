@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 import { FiChevronDown, FiChevronUp, FiInfo } from "react-icons/fi";
-import type { EventDetailData } from "@/mock/eventData";
+import type { EventDetailData } from "@/types";
 
 interface EventDescriptionProps {
   event: EventDetailData;
@@ -11,7 +11,6 @@ interface EventDescriptionProps {
 export const EventDescription: React.FC<EventDescriptionProps> = ({ event }) => {
   useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
-  const cast = event.cast ?? [];
   const description = event.descriptionText || translate("Chưa có mô tả.");
 
   return (
@@ -33,23 +32,7 @@ export const EventDescription: React.FC<EventDescriptionProps> = ({ event }) => 
             {description}
           </div>
 
-          {/* Credits Box (Author, Director, Cast) */}
-          <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 border app-border text-xs md:text-sm space-y-2 mb-4">
-            <div>
-              <span className="font-extrabold text-rose-500 italic">{translate("Tác giả:")}</span>
-              <span className="font-bold app-text-main">{event.author}</span>
-            </div>
-            <div>
-              <span className="font-extrabold text-rose-500 italic">{translate("Đạo diễn:")}</span>
-              <span className="font-bold app-text-main">{event.director}</span>
-            </div>
-            <div>
-              <span className="font-extrabold text-rose-500 italic underline">{translate("Với sự tham gia của nghệ sĩ:")}</span>
-              <span className="app-text-main font-medium leading-relaxed">
-                {cast.join(", ")}
-              </span>
-            </div>
-          </div>
+
 
           {/* Gallery Images Grid */}
           {event.galleryImages && event.galleryImages.length > 0 && (
