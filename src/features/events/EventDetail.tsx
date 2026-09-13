@@ -122,7 +122,7 @@ export default function EventDetail() {
             />
 
             {/* Organizer Section */}
-            {eventData.organizer && <EventOrganizer organizer={eventData.organizer} />}
+            <EventOrganizer organizer={eventData.organizer} event={eventData} />
           </div>
         </div>
 

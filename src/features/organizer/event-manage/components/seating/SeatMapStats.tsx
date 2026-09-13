@@ -1,45 +1,22 @@
 import React from 'react';
 import {
   FiInfo,
-  FiDollarSign,
   FiAlertTriangle,
   FiCheckCircle,
   FiLock,
   FiTool,
   FiPieChart,
 } from 'react-icons/fi';
-import type { Seat, SeatMapStatsProps } from '@/types/seating';
+import type { SeatMapStatsProps } from '@/types/seating';
 
 // seat map statistics component
-export const SeatMapStats: React.FC<SeatMapStatsProps> = ({ seats, tiers = [], zones, compact }) => {
+export const SeatMapStats: React.FC<SeatMapStatsProps> = ({ seats, tiers = [], compact }) => {
   const totalSeats = seats.length;
   const availableSeats = seats.filter((s) => s.status === 'available' || (s.status as string) === 'AVAILABLE').length;
   const reservedSeats = seats.filter((s) => s.status === 'reserved' || (s.status as string) === 'RESERVED').length;
   const soldSeats = seats.filter((s) => s.status === 'sold' || (s.status as string) === 'SOLD').length;
   const blockedSeats = seats.filter((s) => s.status === 'blocked' || (s.status as string) === 'BLOCKED').length;
   const maintenanceSeats = seats.filter((s) => s.status === 'maintenance' || (s.status as string) === 'MAINTENANCE').length;
-
-  // find seat price helper
-  const findSeatPrice = (seat: Seat) => {
-    const tierId = seat.tierId || (zones && seat.zoneId ? zones[seat.zoneId]?.tierId : undefined);
-    const tier = (tiers || []).find((t) => t.id === tierId || t.id === seat.tierId || t.id === seat.zoneId);
-    if (tier) return tier.price;
-    if (zones && seat.zoneId && zones[seat.zoneId]?.price != null) return zones[seat.zoneId].price || 0;
-    return 0;
-  };
-
-  // calculate total potential revenue
-  const totalPotentialRevenue = seats.reduce((acc, seat) => {
-    if (seat.status === 'maintenance' || (seat.status as string) === 'MAINTENANCE' || seat.status === 'blocked' || (seat.status as string) === 'BLOCKED') return acc;
-    return acc + findSeatPrice(seat);
-  }, 0);
-
-  // calculate sold revenue
-  const currentSoldRevenue = seats.reduce((acc, seat) => {
-
-    if (seat.status !== 'sold' && (seat.status as string) !== 'SOLD') return acc;
-    return acc + findSeatPrice(seat);
-  }, 0);
 
   if (compact) {
     return (
@@ -79,38 +56,12 @@ export const SeatMapStats: React.FC<SeatMapStatsProps> = ({ seats, tiers = [], z
             </div>
           )}
         </div>
-
-        <div className="flex items-center gap-2">
-          <span className="app-text-muted font-medium">Doanh thu dự kiến:</span>
-          <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-black bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/30">
-            {totalPotentialRevenue.toLocaleString('vi-VN')} đ
-          </span>
-        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
-      {/* Revenue Potential Banner */}
-      <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-purple-600/10 border border-blue-500/20 space-y-2">
-        <div className="flex items-center justify-between text-xs font-extrabold app-text-main">
-          <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px] text-blue-600 dark:text-blue-400">
-            <FiDollarSign className="w-4 h-4" />
-            Doanh thu tiềm năng sơ đồ
-          </span>
-          <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white font-extrabold">
-            100% Sức chứa
-          </span>
-        </div>
-        <div className="text-xl font-extrabold font-mono text-emerald-500">
-          {totalPotentialRevenue.toLocaleString('vi-VN')} đ
-        </div>
-        <div className="flex items-center justify-between text-[11px] app-text-muted font-semibold pt-1 border-t app-border">
-          <span>Đã bán: {currentSoldRevenue.toLocaleString('vi-VN')} đ</span>
-          <span>Tỷ lệ: {totalPotentialRevenue > 0 ? Math.round((currentSoldRevenue / totalPotentialRevenue) * 100) : 0}%</span>
-        </div>
-      </div>
 
       {/* Warning Banner if Maintenance seats exist */}
       {maintenanceSeats > 0 && (

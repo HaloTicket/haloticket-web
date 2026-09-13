@@ -19,7 +19,8 @@ import {
   FiUpload,
   FiX,
 } from 'react-icons/fi';
-import { ToastContainer, ConfirmModal, type ToastMessage } from './components/seating/SeatingToast';
+import { ToastContainer, type ToastMessage } from './components/seating/SeatingToast';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import type {
   CanvasSettings,
   HistoryState,
@@ -71,14 +72,31 @@ const normalizeImportedTierIds = (
 ): Record<string, ZoneBlock> => {
   const validIds = new Set(tiers.map((tier) => tier.id));
   return Object.fromEntries(
-    Object.entries(zones).map(([id, zone]) => [
-      id,
-      {
-        ...zone,
-        tierId: zone.tierId && validIds.has(zone.tierId) ? zone.tierId : undefined,
-        price: undefined,
-      },
-    ])
+    Object.entries(zones).map(([id, zone]) => {
+      let matchedTierId: string | undefined = undefined;
+      if (zone.tierId) {
+        if (validIds.has(zone.tierId)) {
+          matchedTierId = zone.tierId;
+        } else {
+          const matchByName = tiers.find(
+            (t) => t.name.toLowerCase().trim() === zone.name.toLowerCase().trim()
+          );
+          if (matchByName) {
+            matchedTierId = matchByName.id;
+          } else {
+            matchedTierId = zone.tierId;
+          }
+        }
+      }
+      return [
+        id,
+        {
+          ...zone,
+          tierId: matchedTierId,
+          price: undefined,
+        },
+      ];
+    })
   );
 };
 
@@ -189,23 +207,66 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       try {
         const venues = await venueApi.getVenues();
         if (venues && venues.length > 0) {
-          const venueTemplates: VenueTemplate[] = venues.map((v: any, idx: number) => {
-            const samplePreset = PRESET_TEMPLATES[idx % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[0];
-            return {
-              id: `venue_${v.id}`,
-              name: v.name,
+          const venueTemplates: VenueTemplate[] = [];
+          venues.forEach((v: any, idx: number) => {
+            if (v.verified === false) return; // Only public verified venues
+
+            // Layout Variant 1: Concert & Music Stage
+            const preset1 = PRESET_TEMPLATES[idx % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[0];
+            venueTemplates.push({
+              id: `venue_${v.id}_concert`,
+              name: `${v.name} - Sơ đồ Concert & Âm Nhạc`,
               address: v.address,
               city: v.city,
-              capacity: v.capacity || samplePreset.capacity || 2000,
-              description: `Địa điểm chính thức: ${v.address || ''}, ${v.city || ''}`,
-              source: 'system' as const,
-              stages: safeClone(samplePreset.stages || []),
-              structures: safeClone(samplePreset.structures || []),
-              seats: safeClone(samplePreset.seats || []),
-              zones: safeClone(samplePreset.zones || {}),
-              canvasSettings: safeClone(samplePreset.canvasSettings || DEFAULT_CANVAS_SETTINGS),
-            };
+              capacity: v.capacity || preset1.capacity || 5000,
+              description: `Địa điểm công cộng: ${v.name} (${v.address || ''}, ${v.city || ''}). Sơ đồ bố cục biểu diễn Concert Sân khấu chính.`,
+              source: 'system',
+              stages: safeClone(preset1.stages || []),
+              structures: safeClone(preset1.structures || []),
+              seats: safeClone(preset1.seats || []),
+              zones: safeClone(preset1.zones || {}),
+              canvasSettings: safeClone(preset1.canvasSettings || DEFAULT_CANVAS_SETTINGS),
+            });
+
+            // Layout Variant 2: Sports & Arena Stand
+            const preset2 = PRESET_TEMPLATES[(idx + 1) % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[1];
+            if (preset2) {
+              venueTemplates.push({
+                id: `venue_${v.id}_sports`,
+                name: `${v.name} - Sơ đồ Thể Thao & Khán Đài`,
+                address: v.address,
+                city: v.city,
+                capacity: v.capacity ? Math.round(v.capacity * 0.9) : 4500,
+                description: `Địa điểm công cộng: ${v.name} (${v.address || ''}, ${v.city || ''}). Sơ đồ bố cục Giải đấu thể thao & Khán đài.`,
+                source: 'system',
+                stages: safeClone(preset2.stages || []),
+                structures: safeClone(preset2.structures || []),
+                seats: safeClone(preset2.seats || []),
+                zones: safeClone(preset2.zones || {}),
+                canvasSettings: safeClone(preset2.canvasSettings || DEFAULT_CANVAS_SETTINGS),
+              });
+            }
+
+            // Layout Variant 3: 360 Arena Center Stage
+            const preset3 = PRESET_TEMPLATES[(idx + 2) % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[2];
+            if (preset3) {
+              venueTemplates.push({
+                id: `venue_${v.id}_arena360`,
+                name: `${v.name} - Sơ đồ Sân Khấu Tròn 360°`,
+                address: v.address,
+                city: v.city,
+                capacity: v.capacity ? Math.round(v.capacity * 1.1) : 6000,
+                description: `Địa điểm công cộng: ${v.name} (${v.address || ''}, ${v.city || ''}). Sơ đồ bố cục Sân khấu trung tâm 360 độ góc nhìn đa chiều.`,
+                source: 'system',
+                stages: safeClone(preset3.stages || []),
+                structures: safeClone(preset3.structures || []),
+                seats: safeClone(preset3.seats || []),
+                zones: safeClone(preset3.zones || {}),
+                canvasSettings: safeClone(preset3.canvasSettings || DEFAULT_CANVAS_SETTINGS),
+              });
+            }
           });
+
           setTemplates((prev) => [...venueTemplates, ...prev.filter((t) => !t.id.startsWith('venue_'))]);
         }
       } catch {
@@ -368,117 +429,48 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   // Export SeatMap Image Function
   const handleExportImage = () => {
-    const canvasElem = document.createElement('canvas');
-    const ctx = canvasElem.getContext('2d');
-    if (!ctx) return;
+    const payload: SeatMapDocument = {
+      version: '2.0',
+      timestamp: new Date().toISOString(),
+      name: eventName,
+      venueTemplateId: 'default',
+      canvasSettings,
+      zones,
+      stages,
+      structures,
+      seats,
+      ticketTiers: effectiveTiers,
+    };
+    const svgString = generateSeatMapSVG(payload);
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
 
-    const w = canvasSettings.width || 1400;
-    const h = canvasSettings.height || 900;
-    canvasElem.width = w;
-    canvasElem.height = h;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const w = canvasSettings?.width || 1500;
+      const h = canvasSettings?.height || 1050;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    // Background - Pure White
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, w, h);
-
-    // Header Title on Image
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`${eventName.toUpperCase()} — SƠ ĐỒ CHÍNH THỨC`, 30, 40);
-
-    // Draw Zones
-    Object.values(zones).forEach((zone) => {
-      if (!zone.x || !zone.y || !zone.width || !zone.height) return;
-      ctx.save();
-      ctx.translate(zone.x + zone.width / 2, zone.y + zone.height / 2);
-      if (zone.rotation) ctx.rotate((zone.rotation * Math.PI) / 180);
-      ctx.translate(-zone.width / 2, -zone.height / 2);
-
-      const fillOpacity = zone.fillOpacity ?? 0.25;
-      ctx.fillStyle = zone.color;
-      ctx.globalAlpha = fillOpacity;
-      ctx.strokeStyle = zone.color;
-      ctx.lineWidth = 3;
-
-      const cur = zone.curvature ?? 16;
-      ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') {
-        ctx.roundRect(0, 0, zone.width, zone.height, cur);
-      } else {
-        ctx.rect(0, 0, zone.width, zone.height);
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = `Sơ_đồ_ghế_${eventName.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
       }
-      ctx.fill();
-
-      ctx.globalAlpha = 1;
-      ctx.stroke();
-
-      // Zone Header Badge
-      ctx.fillStyle = zone.color;
-      ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') {
-        ctx.roundRect(0, 0, Math.min(zone.width, 240), 28, [cur, 0, 10, 0]);
-      } else {
-        ctx.rect(0, 0, Math.min(zone.width, 240), 28);
-      }
-      ctx.fill();
-
-      const price = zone.price ?? effectiveTiers.find((t) => t.id === zone.tierId)?.price ?? 0;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillText(`${zone.name} - ${price.toLocaleString('vi-VN')}đ`, 10, 18);
-      ctx.restore();
-    });
-
-    // Draw Stages
-    stages.forEach((stage) => {
-      ctx.save();
-      ctx.translate(stage.x + stage.width / 2, stage.y + stage.height / 2);
-      if (stage.rotation) ctx.rotate((stage.rotation * Math.PI) / 180);
-      ctx.translate(-stage.width / 2, -stage.height / 2);
-
-      ctx.fillStyle = stage.color || '#6366f1';
-      ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') {
-        ctx.roundRect(0, 0, stage.width, stage.height, 12);
-      } else {
-        ctx.rect(0, 0, stage.width, stage.height);
-      }
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(stage.label, stage.width / 2, stage.height / 2);
-      ctx.restore();
-    });
-
-    // Draw Seats
-    seats.forEach((seat) => {
-      ctx.save();
-      ctx.translate(seat.x, seat.y);
-      if (seat.rotation) ctx.rotate((seat.rotation * Math.PI) / 180);
-
-      const zone = zones[seat.zoneId];
-      const color = zone?.color || '#3b82f6';
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 10px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${seat.number}`, 0, 0);
-      ctx.restore();
-    });
-
-    // Download Image File
-    const link = document.createElement('a');
-    link.download = `SeatMap-${eventName.replace(/\s+/g, '_')}.png`;
-    link.href = canvasElem.toDataURL('image/png');
-    link.click();
+    };
+    img.src = url;
   };
 
   // push history snapshot
@@ -829,14 +821,21 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     let name = `Khu Vực Ghế ${index + 1}`;
     let tierId: string | undefined = undefined;
     let price: number | undefined = priceVal;
-    let color = colorVal || ['#2563eb', '#7c3aed', '#0891b2', '#0f766e', '#d97706'][index % 5];
-    let width = widthVal || 820;
-    let height = heightVal || 180;
+    let color = colorVal || ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'][index % 5];
+    let width = widthVal || 520;
+    let height = heightVal || 220;
     let borderStyle: 'dashed' | 'solid' = borderStyleVal || 'dashed';
     let shape: any = undefined;
     let type: any = undefined;
-    let rows = rowsVal ?? 0;
-    let cols = colsVal ?? 0;
+    let layoutType: string = 'STANDING';
+    let rowPrefix = 'A';
+    let rowCount = rowsVal ?? 0;
+    let seatsPerRow = colsVal ?? 0;
+    let arcCount = 0;
+    let arcRadius = 240;
+    let tableCount = 0;
+    let seatsPerTable = 8;
+    let capacityVal: number | undefined = undefined;
 
     if (typeof configOrName === 'object' && configOrName !== null) {
       name = configOrName.name || name;
@@ -848,8 +847,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       borderStyle = configOrName.borderStyle || borderStyle;
       shape = configOrName.shape;
       type = configOrName.type;
+      layoutType = configOrName.layoutType || (rowCount > 0 && seatsPerRow > 0 ? 'MATRIX' : 'STANDING');
+      rowPrefix = configOrName.rowPrefix || 'A';
+      rowCount = configOrName.rowCount || rowCount;
+      seatsPerRow = configOrName.seatsPerRow || seatsPerRow;
+      arcCount = configOrName.arcCount || 0;
+      arcRadius = configOrName.arcRadius || 240;
+      tableCount = configOrName.tableCount || 0;
+      seatsPerTable = configOrName.seatsPerTable || 8;
+      capacityVal = configOrName.capacity;
     } else if (typeof configOrName === 'string') {
       name = configOrName || name;
+      if (rowCount > 0 && seatsPerRow > 0) layoutType = 'MATRIX';
     }
 
     const tier = effectiveTiers.find((item) => item.id === tierId);
@@ -861,7 +870,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       name,
       tierId,
       price: price ?? tier?.price,
-      color: tier?.color || color,
+      color: color,
       shape,
       type,
       x: zoneX,
@@ -869,22 +878,45 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       width,
       height,
       borderStyle,
-      fillOpacity: 0.12,
+      fillOpacity: 0.15,
       rotation: 0,
+      capacity: capacityVal,
     };
 
     const baseId = Date.now();
     const generatedSeats: Seat[] = [];
 
-    if (rows > 0 && cols > 0) {
-      const spacingX = Math.min(36, Math.max(24, Math.floor((width - 60) / Math.max(1, cols))));
-      const spacingY = Math.min(36, Math.max(24, Math.floor((height - 60) / Math.max(1, rows))));
-      const startX = Math.round(zoneX + (width - cols * spacingX) / 2 + spacingX / 2);
-      const startY = Math.round(zoneY + 45);
+    if (layoutType === 'ROW' && seatsPerRow > 0) {
+      const spacingX = 38;
+      const totalW = seatsPerRow * spacingX;
+      const startX = Math.round(zoneX + (width - totalW) / 2 + spacingX / 2);
+      const startY = Math.round(zoneY + height / 2);
 
-      for (let r = 0; r < rows; r++) {
-        const rowName = String.fromCharCode(65 + r);
-        for (let c = 0; c < cols; c++) {
+      for (let c = 0; c < seatsPerRow; c++) {
+        generatedSeats.push({
+          id: `seat_${baseId}_${c}`,
+          row: rowPrefix,
+          number: c + 1,
+          col: c + 1,
+          x: startX + c * spacingX,
+          y: startY,
+          zoneId: id,
+          status: 'available',
+          shape: 'rounded',
+          rotation: 0,
+        });
+      }
+    } else if (layoutType === 'MATRIX' && rowCount > 0 && seatsPerRow > 0) {
+      const spacingX = 38;
+      const spacingY = 38;
+      const totalW = seatsPerRow * spacingX;
+      const startX = Math.round(zoneX + (width - totalW) / 2 + spacingX / 2);
+      const startY = Math.round(zoneY + 45);
+      const startChar = rowPrefix.charCodeAt(0);
+
+      for (let r = 0; r < rowCount; r++) {
+        const rowName = String.fromCharCode(startChar + r);
+        for (let c = 0; c < seatsPerRow; c++) {
           generatedSeats.push({
             id: `seat_${baseId}_${r}_${c}`,
             row: rowName,
@@ -896,6 +928,57 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             status: 'available',
             shape: 'rounded',
             rotation: 0,
+          });
+        }
+      }
+    } else if (layoutType === 'ARC' && arcCount > 0) {
+      const centerX = Math.round(zoneX + width / 2);
+      const centerY = Math.round(zoneY + height - 35);
+      const startAngle = -150;
+      const endAngle = -30;
+      const stepAngle = (endAngle - startAngle) / Math.max(1, arcCount - 1);
+
+      for (let i = 0; i < arcCount; i++) {
+        const currentAngleDeg = startAngle + i * stepAngle;
+        const angleRad = (currentAngleDeg * Math.PI) / 180;
+        const x = Math.round(centerX + arcRadius * Math.cos(angleRad));
+        const y = Math.round(centerY + arcRadius * Math.sin(angleRad));
+        const rot = Math.round(currentAngleDeg + 90);
+
+        generatedSeats.push({
+          id: `seat_${baseId}_arc_${i}`,
+          row: rowPrefix,
+          number: i + 1,
+          x,
+          y,
+          zoneId: id,
+          status: 'available',
+          shape: 'rounded',
+          rotation: rot,
+        });
+      }
+    } else if (layoutType === 'GALA' && tableCount > 0 && seatsPerTable > 0) {
+      const tableRadius = 55;
+      for (let t = 0; t < tableCount; t++) {
+        const tableCenterX = Math.round(zoneX + (width / (tableCount + 1)) * (t + 1));
+        const tableCenterY = Math.round(zoneY + height / 2 + 10);
+
+        for (let s = 0; s < seatsPerTable; s++) {
+          const angleDeg = s * (360 / seatsPerTable);
+          const angleRad = (angleDeg * Math.PI) / 180;
+          const x = Math.round(tableCenterX + tableRadius * Math.cos(angleRad));
+          const y = Math.round(tableCenterY + tableRadius * Math.sin(angleRad));
+
+          generatedSeats.push({
+            id: `seat_${baseId}_gala_${t}_${s}`,
+            row: `B${t + 1}`,
+            number: s + 1,
+            x,
+            y,
+            zoneId: id,
+            status: 'available',
+            shape: 'circle',
+            rotation: Math.round(angleDeg),
           });
         }
       }
@@ -919,26 +1002,44 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
     if (selectedSeatIds.length) {
       nextSeats = seats.filter((seat) => !selectedSeatIds.includes(seat.id));
+      setSeats(nextSeats);
+      resetSelection();
+      commitWith({ seats: nextSeats });
     } else if (selectedStageId) {
       nextStages = stages.filter((stage) => stage.id !== selectedStageId);
+      setStages(nextStages);
+      resetSelection();
+      commitWith({ stages: nextStages });
     } else if (selectedStructureId) {
       nextStructures = structures.filter((item) => item.id !== selectedStructureId);
+      setStructures(nextStructures);
+      resetSelection();
+      commitWith({ structures: nextStructures });
     } else if (selectedZoneId) {
       const seatCount = seats.filter((seat) => seat.zoneId === selectedZoneId).length;
-      if (seatCount && !window.confirm(`Khu vực này đang chứa ${seatCount} ghế. Xóa khu vực sẽ xóa luôn các ghế đó. Tiếp tục?`)) return;
-      nextSeats = seats.filter((seat) => seat.zoneId !== selectedZoneId);
+      if (seatCount > 0) {
+        setConfirmModal({
+          isOpen: true,
+          title: 'Xác Nhận Xóa Khu Vực',
+          message: `Khu vực này đang chứa ${seatCount} ghế. Xóa khu vực sẽ xóa luôn các ghế đó. Tiếp tục?`,
+          type: 'danger',
+          onConfirm: () => {
+            const filteredSeats = seats.filter((seat) => seat.zoneId !== selectedZoneId);
+            const { [selectedZoneId]: _removed, ...rest } = zones;
+            setSeats(filteredSeats);
+            setZones(rest);
+            resetSelection();
+            commitWith({ seats: filteredSeats, zones: rest });
+            setConfirmModal(null);
+          },
+        });
+        return;
+      }
       const { [selectedZoneId]: _removed, ...rest } = zones;
-      nextZones = rest;
-    } else {
-      return;
+      setZones(rest);
+      resetSelection();
+      commitWith({ zones: rest });
     }
-
-    setSeats(nextSeats);
-    setStages(nextStages);
-    setStructures(nextStructures);
-    setZones(nextZones);
-    resetSelection();
-    commitWith({ seats: nextSeats, stages: nextStages, structures: nextStructures, zones: nextZones });
   };
 
   // handle duplicate selected elements
@@ -1212,8 +1313,59 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
-  const buildZonesPayload = () => {
-    return Object.entries(zones).map(([zId, z]) => {
+  const syncTiersAndGetUpdatedData = async () => {
+    let syncedTiers = effectiveTiers;
+    if (effectiveTiers && effectiveTiers.length > 0) {
+      try {
+        const requests = effectiveTiers.map((t) => ({
+          id: t.id.startsWith("tier_") ? undefined : t.id,
+          eventId: activeEventId,
+          name: t.name,
+          price: t.price,
+          isFree: t.price === 0,
+          totalQuantity: t.totalQuantity ?? 500,
+          minPerOrder: 1,
+          maxPerOrder: 10,
+          description: t.description || `Hạng vé ${t.name}`,
+        }));
+        const res = await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
+        if (res && res.length > 0) {
+          const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
+          syncedTiers = res.map((t: any, idx: number) => ({
+            id: t.id,
+            name: t.name,
+            price: t.price || 0,
+            color: colors[idx % colors.length],
+            totalQuantity: t.totalQuantity ?? 500,
+            description: t.description || undefined,
+          }));
+          setBackendTiers(syncedTiers);
+        }
+      } catch (e) {
+        console.warn('Sync ticket types warning:', e);
+      }
+    }
+
+    const tierIdMap = new Map<string, string>();
+    effectiveTiers.forEach((oldTier) => {
+      const matched = syncedTiers.find(
+        (st) => st.id === oldTier.id || st.name.toLowerCase().trim() === oldTier.name.toLowerCase().trim()
+      );
+      if (matched) tierIdMap.set(oldTier.id, matched.id);
+    });
+
+    const updatedZones: Record<string, ZoneBlock> = {};
+    Object.entries(zones).forEach(([zId, z]) => {
+      const mappedTierId = z.tierId ? (tierIdMap.get(z.tierId) || z.tierId) : undefined;
+      updatedZones[zId] = { ...z, tierId: mappedTierId };
+    });
+
+    setZones(updatedZones);
+    return { syncedTiers, updatedZones };
+  };
+
+  const buildZonesPayload = (targetZones: Record<string, ZoneBlock> = zones) => {
+    return Object.entries(targetZones).map(([zId, z]) => {
       const rawZone = z as any;
       const shapeVal = rawZone.shape || rawZone.shapeType || 'RECTANGLE';
       const pointsVal = rawZone.points;
@@ -1239,26 +1391,28 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   // 1. Save as Draft
   const handleSaveDraft = async () => {
-    const payload = buildSeatMapDocument({
-      name: eventName,
-      venueTemplateId: selectedTemplateId,
-      canvasSettings,
-      zones,
-      stages,
-      structures,
-      seats,
-      ticketTiers: effectiveTiers,
-    });
-
     try {
       setIsSaving(true);
+      const { syncedTiers, updatedZones } = await syncTiersAndGetUpdatedData();
+
+      const payload = buildSeatMapDocument({
+        name: eventName,
+        venueTemplateId: selectedTemplateId,
+        canvasSettings,
+        zones: updatedZones,
+        stages,
+        structures,
+        seats,
+        ticketTiers: syncedTiers,
+      });
+
       await ticketApi.saveSeatLayoutDraft(activeEventId, {
         eventId: activeEventId,
         draftJson: JSON.stringify(payload),
         svgData: generateSeatMapSVG(payload),
         imageUrl: null,
         status: 'DRAFT',
-        zones: buildZonesPayload(),
+        zones: buildZonesPayload(updatedZones),
       });
 
       await onSave?.(payload);
@@ -1282,26 +1436,28 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       showToast('warning', `Có ${unassignedZones.length} khu vực chưa gán Hạng vé! Vui lòng kiểm tra lại.`);
     }
 
-    const payload = buildSeatMapDocument({
-      name: eventName,
-      venueTemplateId: selectedTemplateId,
-      canvasSettings,
-      zones,
-      stages,
-      structures,
-      seats,
-      ticketTiers: effectiveTiers,
-    });
-
     try {
       setIsSaving(true);
+      const { syncedTiers, updatedZones } = await syncTiersAndGetUpdatedData();
+
+      const payload = buildSeatMapDocument({
+        name: eventName,
+        venueTemplateId: selectedTemplateId,
+        canvasSettings,
+        zones: updatedZones,
+        stages,
+        structures,
+        seats,
+        ticketTiers: syncedTiers,
+      });
+
       await ticketApi.publishSeatLayout(activeEventId, {
         eventId: activeEventId,
         draftJson: JSON.stringify(payload),
         svgData: generateSeatMapSVG(payload),
         imageUrl: null,
         status: 'PUBLISHED',
-        zones: buildZonesPayload(),
+        zones: buildZonesPayload(updatedZones),
       });
 
       await onSave?.(payload);
@@ -1355,7 +1511,6 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             )}
           </div>
           <h2 className="text-base font-black app-text-main truncate mt-1">{eventName}</h2>
-          <p className="text-[11px] app-text-muted mt-0.5">Thiết kế mặt bằng kéo thả · gán hạng vé theo khu vực · preview người mua vé</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -1363,38 +1518,29 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           <button type="button" onClick={() => setIsTierModalOpen(true)} className="seat-studio-secondary-button"><FiTag className="w-4 h-4" />Hạng vé <span className="seat-studio-badge ml-1">{assignedZoneCount}/{Object.keys(zones).length}</span></button>
           <button type="button" onClick={handleExportImage} className="seat-studio-secondary-button border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10" title="Xuất file ảnh PNG sơ đồ sự kiện"><FiCamera className="w-4 h-4" />Xuất ảnh sơ đồ</button>
 
-          <div className="seat-studio-mode-switch">
-            <button type="button" onClick={() => setIsAttendeeMode(false)} className={!isAttendeeMode ? 'is-active' : ''}><FiEdit3 />Thiết kế</button>
-            <button type="button" onClick={() => setIsAttendeeMode(true)} className={isAttendeeMode ? 'is-active is-preview' : ''}><FiEye />Preview</button>
-          </div>
-
           <button type="button" onClick={handleOpenJSONModal} className="seat-studio-icon-button" title="Import/Export JSON"><FiDownload /></button>
           <button type="button" onClick={handleClearCanvas} className="seat-studio-icon-button text-rose-500" title="Xóa canvas"><FiTrash2 /></button>
           
-          {!isAttendeeMode && (
-            <>
-              <button
-                type="button"
-                onClick={handleSaveDraft}
-                disabled={isSaving}
-                className="seat-studio-secondary-button border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
-                title="Lưu tạm sơ đồ dưới dạng Bản nháp"
-              >
-                <FiSave className="w-4 h-4" />
-                <span>{isSaving ? 'Đang lưu...' : 'Lưu nháp'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handlePublishOfficial}
-                disabled={isSaving}
-                className="seat-studio-primary-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md"
-                title="Xuất bản chính thức sơ đồ ghế cho khán giả mua vé"
-              >
-                <FiSend className="w-4 h-4" />
-                <span>{isSaving ? 'Đang lưu...' : 'Lưu chính thức'}</span>
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={isSaving}
+            className="seat-studio-secondary-button border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
+            title="Lưu tạm sơ đồ dưới dạng Bản nháp"
+          >
+            <FiSave className="w-4 h-4" />
+            <span>{isSaving ? 'Đang lưu...' : 'Lưu nháp'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePublishOfficial}
+            disabled={isSaving}
+            className="seat-studio-primary-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md"
+            title="Xuất bản chính thức sơ đồ ghế cho khán giả mua vé"
+          >
+            <FiSend className="w-4 h-4" />
+            <span>{isSaving ? 'Đang lưu...' : 'Lưu chính thức'}</span>
+          </button>
         </div>
       </div>
 
@@ -1404,10 +1550,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
       <SeatMapStats seats={seats} tiers={effectiveTiers} zones={zones} stages={stages} structures={structures} compact />
 
-      <div className="flex flex-row gap-3 items-start w-full">
+      <div className={`flex flex-row gap-3 items-start w-full ${isFullscreen ? 'flex-1 min-h-0' : ''}`}>
         {/* Left Toolbar Column (ToolBar) - Compact vertical strip */}
         {!isAttendeeMode && (
-          <div className="w-12 flex-shrink-0 sticky top-4 z-10">
+          <div className="w-12 flex-shrink-0 sticky top-4 z-20">
             <ToolBar
               zones={zones}
               tiers={effectiveTiers}
@@ -1429,7 +1575,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         )}
 
         {/* Center Canvas Column (SeatCanvas) - Expands to fill available space */}
-        <div className="flex-1 min-w-0">
+        <div className={`flex-1 min-w-0 ${isFullscreen ? 'h-full flex flex-col' : ''}`}>
           <SeatCanvas
             seats={seats}
             stages={stages}
@@ -1471,7 +1617,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
         {/* Right Inspector Column (PropertyPanel / AttendeePreview) */}
         <div
-          className={`transition-all duration-200 flex-shrink-0 sticky top-4 z-10 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
+          className={`transition-all duration-200 flex-shrink-0 sticky top-4 z-20 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
             }`}
         >
           {!isAttendeeMode ? (
@@ -1519,7 +1665,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         isOpen={isTierModalOpen}
         onClose={() => setIsTierModalOpen(false)}
         tiers={effectiveTiers}
-        onSaveTiers={handleSaveTiers}
+        readOnly={true}
       />
 
       {isJSONModalOpen && (

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { FiX, FiCheck, FiMapPin, FiUsers, FiLayers, FiSearch, FiCheckCircle, FiStar, FiCalendar, FiEye } from 'react-icons/fi';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { FiX, FiCheck, FiMapPin, FiUsers, FiLayers, FiSearch, FiCheckCircle, FiStar, FiCalendar, FiEye, FiFilter, FiChevronDown, FiGlobe } from 'react-icons/fi';
 import type { VenueTemplate, VenueTemplateModalProps } from '@/types/seating';
+import type { VenueApiData } from '@/types';
+import { venueApi } from '@/services/venueApi';
 
 // venue template selection modal component with live preview
 export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
@@ -10,10 +13,51 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   selectedTemplateId,
   onSelectTemplate,
 }) => {
-  // search query, city filter, and preview state
+  // search query, city filter, venue location filter, and preview state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
+  const [selectedVenueId, setSelectedVenueId] = useState<string>('ALL');
   const [previewTemplate, setPreviewTemplate] = useState<VenueTemplate | null>(null);
+  const [dbVenues, setDbVenues] = useState<VenueApiData[]>([]);
+
+  // Custom venue dropdown open state & ref
+  const [isVenueDropdownOpen, setIsVenueDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsVenueDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Prevent background page scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Fetch public venues from backend DB API
+  useEffect(() => {
+    if (isOpen) {
+      venueApi.getVenues().then((data) => {
+        if (data && Array.isArray(data)) {
+          // Filter public & verified venues
+          const publicVenues = data.filter((v) => v.verified !== false);
+          setDbVenues(publicVenues);
+        }
+      });
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (templates && templates.length > 0) {
@@ -22,26 +66,74 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     }
   }, [templates, selectedTemplateId, isOpen]);
 
+  // Filter templates by search query, city, and selected venue location
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((tpl) => {
+      const matchesSearch =
+        tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (tpl.address && tpl.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (tpl.pastEvents && tpl.pastEvents.some((ev) => ev.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+        tpl.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCity = selectedCity === 'ALL' || tpl.city === selectedCity;
+
+      const matchesVenue =
+        selectedVenueId === 'ALL' ||
+        tpl.id.includes(selectedVenueId) ||
+        (tpl.name && tpl.name.toLowerCase().includes(selectedVenueId.toLowerCase())) ||
+        (tpl.address && tpl.address.toLowerCase().includes(selectedVenueId.toLowerCase()));
+
+      return matchesSearch && matchesCity && matchesVenue;
+    });
+  }, [templates, searchQuery, selectedCity, selectedVenueId]);
+
+  // Group filtered templates by Venue Location
+  const groupedVenues = useMemo(() => {
+    const map = new Map<string, { venueName: string; address?: string; city?: string; templates: VenueTemplate[] }>();
+
+    filteredTemplates.forEach((tpl) => {
+      const key = tpl.address
+        ? `${tpl.address.toLowerCase().trim()}_${(tpl.city || '').toLowerCase().trim()}`
+        : tpl.name.split(' - ')[0].trim().toLowerCase();
+
+      const venueTitle = tpl.name.split(' - ')[0].trim();
+
+      if (!map.has(key)) {
+        map.set(key, {
+          venueName: venueTitle,
+          address: tpl.address,
+          city: tpl.city,
+          templates: [],
+        });
+      }
+      map.get(key)!.templates.push(tpl);
+    });
+
+    return Array.from(map.values());
+  }, [filteredTemplates]);
+
+  // Find all available templates for the venue of the current previewTemplate
+  const currentVenueGroupTemplates = useMemo(() => {
+    if (!previewTemplate) return [];
+    const previewKey = previewTemplate.address
+      ? `${previewTemplate.address.toLowerCase().trim()}_${(previewTemplate.city || '').toLowerCase().trim()}`
+      : previewTemplate.name.split(' - ')[0].trim().toLowerCase();
+
+    return templates.filter((tpl) => {
+      const key = tpl.address
+        ? `${tpl.address.toLowerCase().trim()}_${(tpl.city || '').toLowerCase().trim()}`
+        : tpl.name.split(' - ')[0].trim().toLowerCase();
+      return key === previewKey;
+    });
+  }, [templates, previewTemplate]);
+
   if (!isOpen) return null;
 
-  // filter templates by search query and city
-  const filteredTemplates = templates.filter((tpl) => {
-    const matchesSearch =
-      tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (tpl.address && tpl.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (tpl.pastEvents && tpl.pastEvents.some((ev) => ev.toLowerCase().includes(searchQuery.toLowerCase()))) ||
-      tpl.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesCity = selectedCity === 'ALL' || tpl.city === selectedCity;
-
-    return matchesSearch && matchesCity;
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl app-bg-card border app-border shadow-2xl overflow-hidden">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 md:p-6 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200 overflow-hidden">
+      <div className="w-full max-w-5xl h-[88vh] max-h-[88vh] flex flex-col rounded-2xl app-bg-card border app-border shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b app-border bg-slate-500/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b app-border bg-slate-500/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-600 flex items-center justify-center font-bold">
               <FiLayers className="w-5 h-5" />
@@ -51,7 +143,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                 Xem Trước & Chọn Mẫu Địa Điểm Có Sẵn
               </h3>
               <p className="text-xs app-text-muted">
-                Xem trước bản đồ 2D trước khi quyết định áp dụng cho sơ đồ sự kiện
+                Xem trước các mẫu sơ đồ 2D của cùng một địa điểm công cộng trước khi áp dụng
               </p>
             </div>
           </div>
@@ -64,129 +156,271 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
           </button>
         </div>
 
-        {/* Search Bar & City Filter */}
-        <div className="p-4 border-b app-border bg-slate-500/5 space-y-3">
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+        {/* Search Bar & Location Filter */}
+        <div className="p-4 border-b app-border bg-slate-500/5 space-y-3 shrink-0">
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            {/* Search Input */}
             <div className="relative flex-1 w-full">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm mẫu theo địa điểm, tên sự kiện đã diễn ra..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl app-bg-main border app-border text-xs font-bold app-text-main focus:outline-none focus:border-blue-500"
+                placeholder="Tìm kiếm mẫu theo tên địa điểm, sự kiện..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl app-bg-main border app-border text-xs font-bold app-text-main focus:outline-none focus:border-blue-500/80 shadow-2xs transition-all"
               />
               <FiSearch className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             </div>
 
+            {/* Custom Venue Location Filter Dropdown */}
+            <div className="relative w-full md:w-72" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsVenueDropdownOpen((prev) => !prev)}
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-2 transition-all cursor-pointer shadow-2xs ${selectedVenueId !== 'ALL'
+                    ? 'bg-blue-600/10 border-blue-500 text-blue-600 dark:text-blue-400 ring-2 ring-blue-500/20'
+                    : 'app-bg-main border-app-border app-text-main hover:border-blue-500/50'
+                  }`}
+              >
+                <div className="flex items-center gap-2 truncate min-w-0">
+                  <FiMapPin className="w-4 h-4 text-blue-500 shrink-0" />
+                  <span className="truncate font-extrabold">
+                    {selectedVenueId === 'ALL'
+                      ? `Tất cả địa điểm (${dbVenues.length})`
+                      : selectedVenueId}
+                  </span>
+                </div>
+                <FiChevronDown
+                  className={`w-4 h-4 app-text-muted transition-transform duration-200 shrink-0 ${isVenueDropdownOpen ? 'rotate-180 text-blue-500' : ''
+                    }`}
+                />
+              </button>
+
+              {/* Custom Dropdown Menu Panel */}
+              {isVenueDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl app-bg-card border app-border shadow-2xl z-[100] p-2 space-y-1 max-h-64 overflow-y-auto overscroll-contain animate-in fade-in zoom-in-95 duration-150">
+                  {/* All Venues Option */}
+                  <div
+                    onClick={() => {
+                      setSelectedVenueId('ALL');
+                      setIsVenueDropdownOpen(false);
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl transition-all cursor-pointer text-xs ${selectedVenueId === 'ALL'
+                        ? 'bg-blue-600 text-white font-black shadow-xs'
+                        : 'app-text-main font-bold hover:bg-slate-500/10'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Tất cả địa điểm công cộng</span>
+                    </div>
+                    <span className="text-[10px] font-mono opacity-80 font-extrabold px-2 py-0.5 rounded-md bg-black/10">
+                      {dbVenues.length}
+                    </span>
+                  </div>
+
+                  {/* DB Public Venues List */}
+                  {dbVenues.map((v) => {
+                    const venueValue = String(v.name || v.id);
+                    const isSelected = selectedVenueId === venueValue;
+                    const templateCount = templates.filter((tpl) => {
+                      if (tpl.id.includes(String(v.id))) return true;
+                      if (tpl.address && v.address && tpl.address.toLowerCase().includes(v.address.toLowerCase().substring(0, 10))) return true;
+                      if (tpl.name && tpl.name.toLowerCase().includes((v.name || '').toLowerCase())) return true;
+                      return false;
+                    }).length || 3;
+
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => {
+                          setSelectedVenueId(venueValue);
+                          setIsVenueDropdownOpen(false);
+                        }}
+                        className={`flex items-center justify-between p-2.5 rounded-xl transition-all cursor-pointer ${isSelected
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'app-text-main hover:bg-slate-500/10'
+                          }`}
+                      >
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-xs truncate">{v.name}</span>
+                            {v.city && (
+                              <span
+                                className={`text-[9px] font-bold px-2 py-0.2 rounded-full font-mono shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-500/10 text-blue-500'
+                                  }`}
+                              >
+                                {v.city}
+                              </span>
+                            )}
+                          </div>
+                          {v.address && (
+                            <span
+                              className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'app-text-muted'
+                                }`}
+                            >
+                              {v.address}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-md ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              }`}
+                          >
+                            {templateCount} mẫu sơ đồ
+                          </span>
+                          {isSelected && <FiCheck className="w-4 h-4 text-white shrink-0" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* City Filter Pills */}
-            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 self-start md:self-auto shrink-0">
               <button
                 type="button"
                 onClick={() => setSelectedCity('ALL')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedCity === 'ALL'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${selectedCity === 'ALL'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                     : 'app-bg-main border app-border app-text-muted hover:app-text-main'
-                }`}
+                  }`}
               >
-                Tất cả TP
+                <FiGlobe className="w-3.5 h-3.5" />
+                <span>Tất cả TP</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedCity('TP. Hồ Chí Minh')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedCity === 'TP. Hồ Chí Minh'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${selectedCity === 'TP. Hồ Chí Minh'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                     : 'app-bg-main border app-border app-text-muted hover:app-text-main'
-                }`}
+                  }`}
               >
-                TP.HCM
+                <span>TP.HCM</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCity('Hà Nội')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${selectedCity === 'Hà Nội'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                    : 'app-bg-main border app-border app-text-muted hover:app-text-main'
+                  }`}
+              >
+                <span>Hà Nội</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Content Body: Split into Left Template List & Right Live Preview Panel */}
-        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0 max-h-[65vh]">
-          {/* Left Column: Template Cards List (7 Cols) */}
-          <div className="lg:col-span-7 p-4 overflow-y-auto space-y-3 border-b lg:border-b-0 lg:border-r app-border">
-            {filteredTemplates.length > 0 ? (
-              filteredTemplates.map((tpl) => {
-                const isSelected = selectedTemplateId === tpl.id;
-                const isPreviewing = previewTemplate?.id === tpl.id;
-
-                return (
-                  <div
-                    key={tpl.id}
-                    onClick={() => setPreviewTemplate(tpl)}
-                    className={`relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                      isPreviewing
-                        ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10 ring-2 ring-blue-500/40 shadow-md'
-                        : 'app-border app-bg-main hover:border-blue-500/40 hover:shadow-2xs'
-                    }`}
-                  >
-                    {isSelected && (
-                      <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-xs z-10">
-                        <FiCheck className="w-3 h-3" />
-                        Đã áp dụng
+        {/* Content Body: Split into Left Grouped Template List & Right Live Preview Panel */}
+        <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0">
+          {/* Left Column: Grouped Venue Template Cards List (7 Cols) */}
+          <div className="lg:col-span-7 p-4 overflow-y-auto overscroll-contain space-y-4 border-b lg:border-b-0 lg:border-r app-border h-full max-h-full">
+            {groupedVenues.length > 0 ? (
+              groupedVenues.map((group, gIdx) => (
+                <div key={gIdx} className="space-y-2.5 pb-2 border-b app-border last:border-b-0 last:pb-0">
+                  {/* Venue Location Group Header */}
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-blue-500/5 border border-blue-500/15">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center text-xs shrink-0 font-bold">
+                        🏢
                       </span>
-                    )}
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-black app-text-main truncate">{group.venueName}</h4>
+                        {group.address && (
+                          <p className="text-[10px] app-text-muted truncate">{group.address}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-extrabold font-mono shrink-0">
+                      {group.templates.length} mẫu sơ đồ
+                    </span>
+                  </div>
 
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h4 className="text-sm font-extrabold app-text-main flex items-center gap-2">
-                          {tpl.name}
-                          {isPreviewing && (
-                            <span className="px-2 py-0.2 rounded-md bg-blue-500/20 text-blue-500 text-[10px] font-mono font-bold">
-                              Đang xem trước
+                  {/* SeatMap Variant Cards for this Venue Location */}
+                  <div className="space-y-2 pl-2">
+                    {group.templates.map((tpl) => {
+                      const isSelected = selectedTemplateId === tpl.id;
+                      const isPreviewing = previewTemplate?.id === tpl.id;
+                      const variantTitle = tpl.name.includes(' - ') ? tpl.name.split(' - ').slice(1).join(' - ') : tpl.name;
+
+                      return (
+                        <div
+                          key={tpl.id}
+                          onClick={() => setPreviewTemplate(tpl)}
+                          className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${isPreviewing
+                              ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10 ring-2 ring-blue-500/40 shadow-md'
+                              : 'app-border app-bg-main hover:border-blue-500/40 hover:shadow-2xs'
+                            }`}
+                        >
+                          {isSelected && (
+                            <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-xs z-10">
+                              <FiCheck className="w-3 h-3" />
+                              Đã áp dụng
                             </span>
                           )}
-                        </h4>
-                        <p className="text-xs app-text-muted line-clamp-2 mt-1">{tpl.description}</p>
-                      </div>
-                    </div>
 
-                    <div className="mt-3 pt-2.5 border-t app-border flex items-center justify-between text-xs app-text-muted">
-                      <div className="flex items-center gap-3 text-[11px]">
-                        <span className="flex items-center gap-1 text-emerald-500 font-bold font-mono">
-                          <FiUsers className="w-3 h-3" />
-                          {(tpl.capacity || 2000).toLocaleString('vi-VN')} chỗ
-                        </span>
-                        <span className="flex items-center gap-1 font-mono">
-                          <FiLayers className="w-3 h-3 text-blue-500" />
-                          {Object.keys(tpl.zones || {}).length || 2} Khối zone
-                        </span>
-                      </div>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h5 className="text-xs font-extrabold app-text-main flex items-center gap-2">
+                                <span>{variantTitle}</span>
+                                {isPreviewing && (
+                                  <span className="px-2 py-0.2 rounded-md bg-blue-500/20 text-blue-500 text-[9px] font-mono font-bold">
+                                    Đang xem trước
+                                  </span>
+                                )}
+                              </h5>
+                              <p className="text-[11px] app-text-muted line-clamp-2 mt-1">{tpl.description}</p>
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewTemplate(tpl);
-                          }}
-                          className="px-2.5 py-1 rounded-xl app-bg-card border app-border text-[11px] font-bold app-text-main hover:border-blue-500/40 flex items-center gap-1 cursor-pointer"
-                        >
-                          <FiEye className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Xem trước</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectTemplate(tpl);
-                            onClose();
-                          }}
-                          className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
-                        >
-                          <FiCheckCircle className="w-3.5 h-3.5" />
-                          <span>Áp dụng mẫu</span>
-                        </button>
-                      </div>
-                    </div>
+                          <div className="mt-2.5 pt-2 border-t app-border flex items-center justify-between text-xs app-text-muted">
+                            <div className="flex items-center gap-3 text-[10px]">
+                              <span className="flex items-center gap-1 text-emerald-500 font-bold font-mono">
+                                <FiUsers className="w-3 h-3" />
+                                {(tpl.capacity || 2000).toLocaleString('vi-VN')} chỗ
+                              </span>
+                              <span className="flex items-center gap-1 font-mono">
+                                <FiLayers className="w-3 h-3 text-blue-500" />
+                                {Object.keys(tpl.zones || {}).length || 2} Khối zone
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewTemplate(tpl);
+                                }}
+                                className="px-2.5 py-1 rounded-lg app-bg-card border app-border text-[10px] font-bold app-text-main hover:border-blue-500/40 flex items-center gap-1 cursor-pointer"
+                              >
+                                <FiEye className="w-3 h-3 text-blue-500" />
+                                <span>Xem trước</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectTemplate(tpl);
+                                  onClose();
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-extrabold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                              >
+                                <FiCheckCircle className="w-3 h-3" />
+                                <span>Áp dụng mẫu</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })
+                </div>
+              ))
             ) : (
               <div className="p-10 text-center space-y-2 app-text-muted">
                 <p className="text-sm font-bold">Không tìm thấy địa điểm mẫu khớp với từ khóa.</p>
@@ -195,7 +429,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
           </div>
 
           {/* Right Column: Live Interactive SVG Map Preview (5 Cols) */}
-          <div className="lg:col-span-5 p-5 app-bg-main overflow-y-auto flex flex-col justify-between space-y-4">
+          <div className="lg:col-span-5 p-5 app-bg-main overflow-y-auto overscroll-contain flex flex-col justify-between space-y-4 h-full max-h-full">
             {previewTemplate ? (
               <div className="space-y-4 flex-1 flex flex-col">
                 <div className="flex items-center justify-between border-b app-border pb-3">
@@ -211,6 +445,40 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                     </span>
                   )}
                 </div>
+
+                {/* Venue Layout Switcher Bar for Same Location */}
+                {currentVenueGroupTemplates.length > 1 && (
+                  <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                        <FiLayers className="w-3.5 h-3.5" />
+                        Các mẫu sơ đồ khác của địa điểm này ({currentVenueGroupTemplates.length}):
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {currentVenueGroupTemplates.map((vTpl) => {
+                        const isActive = previewTemplate.id === vTpl.id;
+                        const vTitle = vTpl.name.includes(' - ')
+                          ? vTpl.name.split(' - ').slice(1).join(' - ')
+                          : vTpl.name;
+                        return (
+                          <button
+                            key={vTpl.id}
+                            type="button"
+                            onClick={() => setPreviewTemplate(vTpl)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${isActive
+                                ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-400/40'
+                                : 'app-bg-card border app-border app-text-main hover:border-blue-500/50'
+                              }`}
+                          >
+                            <span>{vTitle}</span>
+                            {isActive && <FiCheck className="w-3.5 h-3.5 text-white" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Live Canvas SVG Render of Template */}
                 <div className="relative w-full h-56 rounded-2xl bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
@@ -342,7 +610,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t app-border bg-slate-500/5 flex justify-end">
+        <div className="px-6 py-3 border-t app-border bg-slate-500/5 flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -354,4 +622,6 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

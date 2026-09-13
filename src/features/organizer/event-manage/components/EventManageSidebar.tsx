@@ -74,9 +74,14 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           icon: <FiEdit3 className="w-4.5 h-4.5 shrink-0" />,
         },
         {
-          label: "Sơ đồ ghế",
+          label: "Thiết kế sơ đồ ghế",
           path: `/organizer/events/${eventId}/manage/seating`,
           icon: <FiGrid className="w-4.5 h-4.5 shrink-0" />,
+        },
+        {
+          label: "Cài đặt hạng vé",
+          path: `/organizer/events/${eventId}/manage/ticket-assign`,
+          icon: <FaTicketAlt className="w-4 h-4 shrink-0" />,
         },
       ],
     },
@@ -95,16 +100,14 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
   return (
     <>
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen app-bg-card border-r app-border flex flex-col justify-between p-3.5 transition-all duration-300 ${
-          isCollapsed ? "w-20" : "w-64"
-        } ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen app-bg-card border-r app-border flex flex-col justify-between p-3.5 transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"
+          } ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
         <div className="space-y-4 overflow-y-auto no-scrollbar">
           {/* Header Brand & Collapse Toggle */}
           <div
-            className={`pb-3 border-b app-border flex ${
-              isCollapsed ? "flex-col items-center gap-2.5" : "items-center justify-between"
-            }`}
+            className={`pb-3 border-b app-border flex ${isCollapsed ? "flex-col items-center gap-2.5" : "items-center justify-between"
+              }`}
           >
             <Link
               to={PATHS.MY_EVENTS}
@@ -150,9 +153,8 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           <Link
             to={PATHS.MY_EVENTS}
             onClick={onCloseSidebar}
-            className={`flex items-center gap-3 text-xs font-bold app-text-muted hover:app-text-main transition-all group p-2.5 rounded-xl border app-border hover:bg-slate-100 dark:hover:bg-slate-800 ${
-              isCollapsed ? "justify-center" : ""
-            }`}
+            className={`flex items-center gap-3 text-xs font-bold app-text-muted hover:app-text-main transition-all group p-2.5 rounded-xl border app-border hover:bg-slate-100 dark:hover:bg-slate-800 ${isCollapsed ? "justify-center" : ""
+              }`}
             title="Quay lại Sự kiện của tôi"
           >
             <FiArrowLeft className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 transition-transform group-hover:-translate-x-1" />
@@ -202,13 +204,11 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
                         to={item.path}
                         onClick={onCloseSidebar}
                         title={isCollapsed ? item.label : undefined}
-                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          isCollapsed ? "justify-center px-0" : ""
-                        } ${
-                          isActive
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isCollapsed ? "justify-center px-0" : ""
+                          } ${isActive
                             ? "bg-blue-600 text-white shadow-xs"
                             : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                        }`}
+                          }`}
                       >
                         {item.icon}
                         {!isCollapsed && <span>{item.label}</span>}

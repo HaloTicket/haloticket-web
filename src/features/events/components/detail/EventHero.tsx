@@ -19,7 +19,8 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
   const displayPrice = priceValue !== undefined
     ? formatCurrency(priceValue)
     : rawPrice || translate("Miễn phí");
-  const displayDate = event.startTime ? formatDate(event.startTime) : event.datesSummary || translate("Sắp diễn ra");
+  const extraDaysCount = event.extraDaysCount || (event.showtimes && event.showtimes.length > 1 ? event.showtimes.length - 1 : 0);
+  const displayDate = event.datesSummary || (event.startTime ? formatDate(event.startTime) : translate("Sắp diễn ra"));
   const locationName = event.locationName || translate("Địa điểm chưa cập nhật");
   const posterImage = event.posterImage || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80";
 
@@ -62,13 +63,13 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
                 <div className="font-extrabold app-text-brand leading-tight">
                   {displayDate}
                 </div>
-                {event.extraDaysCount > 0 && (
+                {extraDaysCount > 0 && (
                   <button
                     type="button"
                     onClick={onBuyTicketsClick}
                     className="mt-1 inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-brand-primary/10 app-text-brand border border-brand-primary/20 hover:bg-brand-primary hover:text-white transition-colors cursor-pointer"
                   >
-                    +{event.extraDaysCount} {translate("ngày khác")}</button>
+                    +{extraDaysCount} {translate("ngày khác")}</button>
                 )}
               </div>
             </div>

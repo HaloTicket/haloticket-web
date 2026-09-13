@@ -10,10 +10,12 @@ import Step5PaymentInfo from "./components/create-event/Step5PaymentInfo";
 import NoticeModal from "./components/create-event/NoticeModal";
 import AddTicketModal from "./components/create-event/AddTicketModal";
 import SuccessSubmittedModal from "./components/create-event/SuccessSubmittedModal";
+import EkycRequiredModal from "./components/create-event/EkycRequiredModal";
 import { eventApi, type EventApiData } from "@/services/eventApi";
 import { organizerApi } from "@/services/organizerApi";
 import { mediaApi } from "@/services/mediaApi";
 import { getCachedUserProfile } from "@/services/userApi";
+import { ekycApi } from "@/services/ekycApi";
 import { formatDatetimeLocal } from "@/utils/formatters";
 
 interface DraftEventItem extends Partial<EventApiData> {
@@ -84,9 +86,25 @@ export const CreateEvent: React.FC = () => {
 
   // modals state
   const [showNoticeModal, setShowNoticeModal] = useState(true);
+  const [showEkycModal, setShowEkycModal] = useState(false);
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // eKYC check on mount
+  useEffect(() => {
+    let active = true;
+    ekycApi.getOrganizerEligibility()
+      .then((res) => {
+        if (active && !res.eligible) {
+          setShowEkycModal(true);
+        }
+      })
+      .catch(() => {
+        // endpoint offline/error
+      });
+    return () => { active = false; };
+  }, []);
 
   // active stepper step (1 to 5)
   const [currentStep, setCurrentStep] = useState(1);
@@ -942,6 +960,9 @@ export const CreateEvent: React.FC = () => {
 
       {/* Modal 1: notice */}
       {showNoticeModal && <NoticeModal onClose={() => setShowNoticeModal(false)} />}
+
+      {/* Modal eKYC required */}
+      <EkycRequiredModal isOpen={showEkycModal} onClose={() => setShowEkycModal(false)} />
 
       {/* Modal 2: create or edit ticket */}
       {showAddTicketModal && (

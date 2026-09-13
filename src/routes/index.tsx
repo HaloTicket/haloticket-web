@@ -28,6 +28,53 @@ import type { RegistrationData, RegistrationOtpData } from "@/features/auth/Regi
 import type { PasswordRecoveryRequest } from "@/features/auth/ForgotPassword";
 import type { PasswordResetData } from "@/features/auth/ResetPassword";
 
+// Tickets Feature
+import SelectTicket from "@/features/tickets/SelectTicket";
+import Checkout from "@/features/tickets/Checkout";
+import BookingSuccess from "@/features/tickets/BookingSuccess";
+import MyTickets from "@/features/tickets/MyTickets";
+import TicketDetail from "@/features/tickets/TicketDetail";
+
+// User Feature
+import Profile from "@/features/user/Profile";
+
+// Organizer Feature
+import CreateEvent from "@/features/organizer/CreateEvent";
+import MyEvents from "@/features/organizer/MyEvents";
+import OrganizerReports from "@/features/organizer/OrganizerReports";
+import OrganizerTerms from "@/features/organizer/OrganizerTerms";
+
+// Event Management Portal Feature
+import EventManageLayout from "@/layouts/EventManageLayout";
+import { EventOverview } from "@/features/organizer/event-manage/EventOverview";
+import { EventOrderList } from "@/features/organizer/event-manage/EventOrderList";
+import { EventCheckin } from "@/features/organizer/event-manage/EventCheckin";
+import { EventMembers } from "@/features/organizer/event-manage/EventMembers";
+import { EventVouchers } from "@/features/organizer/event-manage/EventVouchers";
+import { EventSeatingMap } from "@/features/organizer/event-manage/EventSeatingMap";
+import { EventSeatingAssigner } from "@/features/organizer/event-manage/EventSeatingAssigner";
+import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
+
+// Resale Feature
+import ResaleList from "@/features/resale/ResaleList";
+import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
+import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
+
+// Admin Feature
+import AdminDashboard from "@/features/admin/AdminDashboard";
+import EventApproval from "@/features/admin/EventApproval";
+import EkycApproval from "@/features/admin/EkycApproval";
+import ResaleManagement from "@/features/admin/ResaleManagement";
+import UserManagement from "@/features/admin/UserManagement";
+import CategoryConfig from "@/features/admin/CategoryConfig";
+import PaymentMonitoring from "@/features/admin/PaymentMonitoring";
+import SystemHealth from "@/features/admin/SystemHealth";
+import HomepageConfig from "@/features/admin/HomepageConfig";
+import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
+
+// Common / Error
+import NotFound from "@/features/common/NotFound";
+
 function checkIsAdmin(): boolean {
   const authed = getKeycloakSession().isAuthenticated();
   if (!authed) return false;
@@ -146,52 +193,6 @@ function AuthLoginRoute() { const handlers = AuthHandlers(); return <Login onSub
 function AuthRegisterRoute() { const handlers = AuthHandlers(); return <Register onSubmit={handlers.registerStart} onVerifyOtp={handlers.registerVerify} onResendOtp={handlers.registerResend} onGoogleLogin={handlers.googleLogin} />; }
 function AuthForgotRoute() { const handlers = AuthHandlers(); return <ForgotPassword onSubmit={handlers.forgotStart} onVerifyOtp={handlers.forgotVerify} onResendOtp={handlers.forgotResend} />; }
 function AuthResetRoute() { return <ResetPassword onSubmit={AuthHandlers().resetPassword} />; }
-
-// Tickets Feature
-import SelectTicket from "@/features/tickets/SelectTicket";
-import Checkout from "@/features/tickets/Checkout";
-import BookingSuccess from "@/features/tickets/BookingSuccess";
-import MyTickets from "@/features/tickets/MyTickets";
-import TicketDetail from "@/features/tickets/TicketDetail";
-
-// User Feature
-import Profile from "@/features/user/Profile";
-
-// Organizer Feature
-import CreateEvent from "@/features/organizer/CreateEvent";
-import MyEvents from "@/features/organizer/MyEvents";
-import OrganizerReports from "@/features/organizer/OrganizerReports";
-import OrganizerTerms from "@/features/organizer/OrganizerTerms";
-
-// Event Management Portal Feature
-import EventManageLayout from "@/layouts/EventManageLayout";
-import { EventOverview } from "@/features/organizer/event-manage/EventOverview";
-import { EventOrderList } from "@/features/organizer/event-manage/EventOrderList";
-import { EventCheckin } from "@/features/organizer/event-manage/EventCheckin";
-import { EventMembers } from "@/features/organizer/event-manage/EventMembers";
-import { EventVouchers } from "@/features/organizer/event-manage/EventVouchers";
-import { EventSeatingMap } from "@/features/organizer/event-manage/EventSeatingMap";
-import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
-
-// Resale Feature
-import ResaleList from "@/features/resale/ResaleList";
-import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
-import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
-
-// Admin Feature
-import AdminDashboard from "@/features/admin/AdminDashboard";
-import EventApproval from "@/features/admin/EventApproval";
-import EkycApproval from "@/features/admin/EkycApproval";
-import ResaleManagement from "@/features/admin/ResaleManagement";
-import UserManagement from "@/features/admin/UserManagement";
-import CategoryConfig from "@/features/admin/CategoryConfig";
-import PaymentMonitoring from "@/features/admin/PaymentMonitoring";
-import SystemHealth from "@/features/admin/SystemHealth";
-import HomepageConfig from "@/features/admin/HomepageConfig";
-import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
-
-// Common / Error
-import NotFound from "@/features/common/NotFound";
 
 export const router = createBrowserRouter([
   {
@@ -381,6 +382,10 @@ export const router = createBrowserRouter([
       {
         path: "seating",
         element: <EventSeatingMap />,
+      },
+      {
+        path: "ticket-assign",
+        element: <EventSeatingAssigner />,
       },
       {
         path: "edit",

@@ -81,12 +81,13 @@ export const getTierForZone = (
 // get ticket tier for seat
 export const getTierForSeat = (
     seat: Seat,
-    zones: Record<string, ZoneBlock>,
+    zones: Record<string, ZoneBlock> | ZoneBlock[] | undefined | null,
     tiers: SeatTier[]
 ): SeatTier | undefined => {
     const explicit = getTierById(tiers, seat.tierId);
     if (explicit) return explicit;
-    return getTierForZone(zones[seat.zoneId], tiers);
+    const zone = !zones ? undefined : Array.isArray(zones) ? zones.find((z) => z.id === seat.zoneId) : zones[seat.zoneId];
+    return getTierForZone(zone, tiers);
 };
 
 // get color for zone
@@ -238,9 +239,10 @@ export const isSeatInsideZone = (seat: { x: number; y: number }, zone: ZoneBlock
 // find matching zone for seat position
 export const findZoneForSeat = (
   seat: { x: number; y: number },
-  zones: Record<string, ZoneBlock>
+  zones: Record<string, ZoneBlock> | ZoneBlock[] | undefined | null
 ): string | null => {
-  for (const zone of Object.values(zones)) {
+  const zoneList = !zones ? [] : Array.isArray(zones) ? zones : Object.values(zones);
+  for (const zone of zoneList) {
     if (isSeatInsideZone(seat, zone)) {
       return zone.id;
     }
@@ -251,13 +253,15 @@ export const findZoneForSeat = (
 // reassign zones for seat array
 export const reassignSeatZones = (
   seats: Seat[],
-  zones: Record<string, ZoneBlock>
+  zones: Record<string, ZoneBlock> | ZoneBlock[] | undefined | null
 ): Seat[] => {
-  const zoneList = Object.values(zones);
+  const zoneList = !zones ? [] : Array.isArray(zones) ? zones : Object.values(zones);
   if (!zoneList.length) return seats;
 
-  return seats.map((seat) => {
-    const currentZone = zones[seat.zoneId];
+  return (seats || []).map((seat) => {
+    const currentZone = Array.isArray(zones)
+      ? zones.find((z) => z.id === seat.zoneId)
+      : zones?.[seat.zoneId];
     if (currentZone && isSeatInsideZone(seat, currentZone)) {
       return seat;
     }
@@ -274,34 +278,43 @@ export const generateSeatMapSVG = (doc: {
   canvasSettings?: CanvasSettings;
   stages?: any[];
   structures?: any[];
-  zones?: Record<string, ZoneBlock>;
+  zones?: Record<string, ZoneBlock> | ZoneBlock[];
   seats?: Seat[];
   ticketTiers?: SeatTier[];
+  name?: string;
 }): string => {
   const w = doc.canvasSettings?.width || 1500;
   const h = doc.canvasSettings?.height || 1050;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`;
-  svg += `<rect width="100%" height="100%" fill="#0f172a"/>`;
+  
+  // Background - Pure White
+  svg += `<rect width="100%" height="100%" fill="#ffffff"/>`;
+
+  // Event Name / Seat Map Title - Centered at top, large and clear
+  const titleText = (doc.name || 'SƠ ĐỒ PHÂN BỔ GHẾ SỰ KIỆN').toUpperCase();
+  svg += `<text x="${w / 2}" y="55" fill="#0f172a" font-size="28" font-weight="900" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">${titleText}</text>`;
+  svg += `<line x1="${w / 2 - 200}" y1="70" x2="${w / 2 + 200}" y2="70" stroke="#cbd5e1" stroke-width="2"/>`;
 
   // Draw Stages
   (doc.stages || []).forEach((stg) => {
     const rot = stg.rotation ? ` transform="rotate(${stg.rotation} ${stg.x + stg.width / 2} ${stg.y + stg.height / 2})"` : '';
-    svg += `<g${rot}><rect x="${stg.x}" y="${stg.y}" width="${stg.width}" height="${stg.height}" rx="12" fill="${stg.color || '#6366f1'}" stroke="#818cf8" stroke-width="2"/><text x="${stg.x + stg.width / 2}" y="${stg.y + stg.height / 2}" fill="#ffffff" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${stg.label || 'SÂN KHẤU'}</text></g>`;
+    svg += `<g${rot}><rect x="${stg.x}" y="${stg.y}" width="${stg.width}" height="${stg.height}" rx="12" fill="${stg.color || '#6366f1'}" stroke="#4f46e5" stroke-width="2"/><text x="${stg.x + stg.width / 2}" y="${stg.y + stg.height / 2}" fill="#ffffff" font-size="16" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="middle">${stg.label || 'SÂN KHẤU'}</text></g>`;
   });
 
   // Draw Zones
-  Object.values(doc.zones || {}).forEach((z) => {
+  const zoneList = !doc.zones ? [] : Array.isArray(doc.zones) ? doc.zones : Object.values(doc.zones);
+  zoneList.forEach((z) => {
     const rot = z.rotation ? ` transform="rotate(${z.rotation} ${z.x + z.width / 2} ${z.y + z.height / 2})"` : '';
     const color = z.color || '#3b82f6';
-    svg += `<g${rot}><rect x="${z.x}" y="${z.y}" width="${z.width}" height="${z.height}" rx="${z.curvature || 12}" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2"/><text x="${z.x + z.width / 2}" y="${z.y + 25}" fill="${color}" font-size="14" font-weight="bold" text-anchor="middle">${z.centerText || z.name}</text></g>`;
+    svg += `<g${rot}><rect x="${z.x}" y="${z.y}" width="${z.width}" height="${z.height}" rx="${z.curvature || 12}" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="2.5"/><text x="${z.x + z.width / 2}" y="${z.y + 28}" fill="${color}" font-size="14" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">${z.name || z.centerText}</text></g>`;
   });
 
   // Draw Seats
   (doc.seats || []).forEach((seat) => {
-    const zone = doc.zones?.[seat.zoneId];
+    const zone = Array.isArray(doc.zones) ? doc.zones.find((z) => z.id === seat.zoneId) : doc.zones?.[seat.zoneId];
     const tier = doc.ticketTiers?.find((t) => t.id === (seat.tierId || zone?.tierId));
     const seatColor = seat.color || tier?.color || zone?.color || '#3b82f6';
-    svg += `<circle cx="${seat.x}" cy="${seat.y}" r="12" fill="${seatColor}" stroke="#ffffff" stroke-width="1"/><text x="${seat.x}" y="${seat.y}" fill="#ffffff" font-size="9" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${seat.number}</text>`;
+    svg += `<circle cx="${seat.x}" cy="${seat.y}" r="12" fill="${seatColor}" stroke="#ffffff" stroke-width="1.5"/><text x="${seat.x}" y="${seat.y}" fill="#ffffff" font-size="9" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="middle">${seat.number}</text>`;
   });
 
   svg += `</svg>`;

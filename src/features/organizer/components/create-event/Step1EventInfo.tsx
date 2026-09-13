@@ -137,6 +137,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [mediaAltSource, setMediaAltSource] = useState("");
   const [mediaPoster, setMediaPoster] = useState("");
 
+  const [venueCategory, setVenueCategory] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [systemVenues, setSystemVenues] = useState<SystemVenue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<SystemVenue | null>(null);
   const [venueSearchQuery, setVenueSearchQuery] = useState("");
@@ -662,202 +663,300 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
           {locationType === "offline" && (
             <div className="space-y-4 pt-2">
-              {/* Smart System Venue Selector & Search */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                    <span className="text-rose-500">*</span> Chọn Địa điểm tổ chức có sẵn (Đã từng sử dụng):
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowNewVenueModal(true)}
-                    className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <FiPlus className="w-3.5 h-3.5" />
-                    <span>Tạo địa điểm mới</span>
-                  </button>
-                </div>
+              {/* Public vs Private Venue Type Selector */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVenueCategory("PUBLIC")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                    venueCategory === "PUBLIC"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                      : "app-bg-subnav app-text-muted app-border hover:app-text-main"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <FiGlobe className="w-4 h-4" />
+                    <span>Địa điểm công cộng (Cho thuê công khai)</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVenueCategory("PRIVATE")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                    venueCategory === "PRIVATE"
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                      : "app-bg-subnav app-text-muted app-border hover:app-text-main"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <FiLock className="w-4 h-4" />
+                    <span>Địa điểm cá nhân (Địa điểm riêng Ban tổ chức)</span>
+                  </span>
+                </button>
+              </div>
 
-                {/* Search & Select Input with Dropdown */}
-                <div className="relative">
-                  <div className="flex items-center gap-2 app-bg-subnav border app-border rounded-xl px-4 py-3 shadow-xs">
-                    <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
-                    <input
-                      type="text"
-                      value={venueSearchQuery || locationName}
-                      onFocus={() => setIsVenueDropdownOpen(true)}
-                      onChange={(e) => {
-                        setVenueSearchQuery(e.target.value);
-                        setLocationName(e.target.value);
-                        setIsVenueDropdownOpen(true);
-                      }}
-                      placeholder="Tìm địa điểm có sẵn (Ví dụ: Mỹ Đình, Hòa Bình, Phú Thọ...)"
-                      className="w-full bg-transparent app-text-main text-sm focus:outline-none placeholder-slate-400 font-medium"
-                    />
-                    {locationName && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocationName("");
-                          setSelectedVenue(null);
-                          setVenueSearchQuery("");
-                        }}
-                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                      >
-                        <FiX className="w-4 h-4" />
-                      </button>
-                    )}
+              {venueCategory === "PRIVATE" ? (
+                /* Private Location Form Fields */
+                <div className="p-5 rounded-2xl app-bg-subnav border app-border space-y-4 animate-in fade-in duration-200">
+                  <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-medium space-y-1">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <FiLock className="w-4 h-4 text-amber-600" />
+                      <span>Địa điểm cá nhân / Nội bộ ban tổ chức</span>
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Địa điểm này thuộc sở hữu/sử dụng riêng của ban tổ chức, không mở cho bên ngoài thuê.
+                    </p>
                   </div>
 
-                  {/* Dropdown Menu of System Venues */}
-                  {isVenueDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 z-50 app-bg-card border app-border rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto no-scrollbar space-y-1 animate-in fade-in zoom-in-95">
-                      <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider flex items-center justify-between border-b app-border pb-2">
-                        <span>Địa điểm tổ chức có sẵn ({filteredVenues.length})</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsVenueDropdownOpen(false)}
-                          className="text-xs text-blue-600 hover:underline cursor-pointer"
-                        >
-                          Đóng
-                        </button>
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold app-text-main">
+                        <span className="text-rose-500">*</span> Tên địa điểm cá nhân
+                      </label>
+                      <input
+                        type="text"
+                        value={locationName}
+                        onChange={(e) => setLocationName(e.target.value)}
+                        placeholder="VD: Hội trường Halo Studio, Sân riêng BTC..."
+                        className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                      />
+                    </div>
 
-                      {filteredVenues.length === 0 ? (
-                        <div className="p-4 text-center space-y-2">
-                          <p className="text-xs app-text-muted">Không tìm thấy địa điểm phù hợp</p>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold app-text-main">Tỉnh / Thành phố</label>
+                      <input
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="TP. Hồ Chí Minh / Hà Nội..."
+                        className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold app-text-main">Quận / Phường / Xã</label>
+                      <input
+                        type="text"
+                        value={ward}
+                        onChange={(e) => setWard(e.target.value)}
+                        placeholder="Phường Bến Nghé / Quận 1..."
+                        className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold app-text-main">
+                        <span className="text-rose-500">*</span> Địa chỉ chi tiết
+                      </label>
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Số nhà, tên đường, khu vực..."
+                        className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Smart System Public Venue Selector & Search */
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                        <span className="text-rose-500">*</span> Chọn Địa điểm công cộng có sẵn:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewVenueModal(true)}
+                        className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <FiPlus className="w-3.5 h-3.5" />
+                        <span>Khai báo địa điểm công cộng mới</span>
+                      </button>
+                    </div>
+
+                    {/* Search & Select Input with Dropdown */}
+                    <div className="relative">
+                      <div className="flex items-center gap-2 app-bg-subnav border app-border rounded-xl px-4 py-3 shadow-xs">
+                        <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
+                        <input
+                          type="text"
+                          value={venueSearchQuery || locationName}
+                          onFocus={() => setIsVenueDropdownOpen(true)}
+                          onChange={(e) => {
+                            setVenueSearchQuery(e.target.value);
+                            setLocationName(e.target.value);
+                            setIsVenueDropdownOpen(true);
+                          }}
+                          placeholder="Tìm địa điểm có sẵn (Ví dụ: Mỹ Đình, Hòa Bình, Phú Thọ...)"
+                          className="w-full bg-transparent app-text-main text-sm focus:outline-none placeholder-slate-400 font-medium"
+                        />
+                        {locationName && (
                           <button
                             type="button"
                             onClick={() => {
-                              setIsVenueDropdownOpen(false);
-                              setShowNewVenueModal(true);
+                              setLocationName("");
+                              setSelectedVenue(null);
+                              setVenueSearchQuery("");
                             }}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 cursor-pointer"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                           >
-                            + Khai báo địa điểm mới ngay
+                            <FiX className="w-4 h-4" />
                           </button>
-                        </div>
-                      ) : (
-                        filteredVenues.map((v) => (
-                          <div
-                            key={v.id}
-                            onClick={() => handleSelectVenue(v)}
-                            className="p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer space-y-1"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                                <FiMapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                <span>{v.name}</span>
-                              </span>
-                              {v.verified ? (
-                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                                  <FiCheckCircle className="w-3 h-3" /> Đã xác minh
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                                  <FiAlertCircle className="w-3 h-3 text-amber-500" /> Chưa xác minh
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] app-text-muted">{v.address}, {v.city}</p>
-                            <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 pt-0.5">
-                              <span className="flex items-center gap-1">
-                                <FiUsers className="w-3 h-3 text-indigo-500" /> Sức chứa: {v.capacity.toLocaleString()} khán giả
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <FiCalendar className="w-3 h-3 text-amber-500" /> {v.eventsHosted} sự kiện đã tổ chức
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {errors.locationName && (
-                  <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
-                    <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{errors.locationName}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Venue Info & Schedule Collision Indicator Box */}
-              {selectedVenue && (
-                <div className="p-4 rounded-2xl app-bg-subnav border app-border space-y-3 animate-in fade-in duration-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b app-border pb-3">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                          <FiBookmark className="w-4 h-4 text-blue-600" />
-                          <span>{selectedVenue.name}</span>
-                        </h4>
-                        {selectedVenue.verified ? (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
-                            Đã xác thực
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
-                            Địa điểm do BTC khai báo
-                          </span>
                         )}
                       </div>
-                      <p className="text-[11px] app-text-muted">
-                        {selectedVenue.address}, {selectedVenue.ward}, {selectedVenue.city}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center gap-2 text-xs font-semibold">
-                      <span className="px-2.5 py-1 rounded-lg app-bg-card border app-border text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <FiUsers className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>Sức chứa: {selectedVenue.capacity.toLocaleString()} ghế</span>
-                      </span>
-                    </div>
-                  </div>
+                      {/* Dropdown Menu of System Venues */}
+                      {isVenueDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 z-50 app-bg-card border app-border rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto no-scrollbar space-y-1 animate-in fade-in zoom-in-95">
+                          <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider flex items-center justify-between border-b app-border pb-2">
+                            <span>Địa điểm tổ chức có sẵn ({filteredVenues.length})</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsVenueDropdownOpen(false)}
+                              className="text-xs text-blue-600 hover:underline cursor-pointer"
+                            >
+                              Đóng
+                            </button>
+                          </div>
 
-                  {/* Real-time Schedule Collision Check Badge */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl app-bg-card border app-border">
-                    <div className="flex items-start gap-2.5">
-                      {selectedVenue.bookings.length > 0 ? (
-                        <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 shrink-0">
-                          <FiAlertCircle className="w-4 h-4" />
-                        </div>
-                      ) : (
-                        <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 shrink-0">
-                          <FiCheckCircle className="w-4 h-4" />
+                          {filteredVenues.length === 0 ? (
+                            <div className="p-4 text-center space-y-2">
+                              <p className="text-xs app-text-muted">Không tìm thấy địa điểm phù hợp</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsVenueDropdownOpen(false);
+                                  setShowNewVenueModal(true);
+                                }}
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 cursor-pointer flex items-center justify-center gap-1 mx-auto"
+                              >
+                                <FiPlus className="w-3.5 h-3.5" />
+                                <span>Khai báo địa điểm mới ngay</span>
+                              </button>
+                            </div>
+                          ) : (
+                            filteredVenues.map((v) => (
+                              <div
+                                key={v.id}
+                                onClick={() => handleSelectVenue(v)}
+                                className="p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer space-y-1"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                                    <FiMapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span>{v.name}</span>
+                                  </span>
+                                  {v.verified ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                                      <FiCheckCircle className="w-3 h-3" /> Đã xác minh
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                                      <FiAlertCircle className="w-3 h-3 text-amber-500" /> Chưa xác minh
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] app-text-muted">{v.address}, {v.city}</p>
+                                <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 pt-0.5">
+                                  <span className="flex items-center gap-1">
+                                    <FiUsers className="w-3 h-3 text-indigo-500" /> Sức chứa: {v.capacity.toLocaleString()} khán giả
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <FiCalendar className="w-3 h-3 text-amber-500" /> {v.eventsHosted} sự kiện đã tổ chức
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          )}
                         </div>
                       )}
-                      <div>
-                        <h5 className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                          <span>Trạng thái Lịch tổ chức tại Địa điểm:</span>
-                          {selectedVenue.bookings.length > 0 ? (
-                            <span className="text-amber-600 dark:text-amber-400">Đã có {selectedVenue.bookings.length} sự kiện đăng ký giữ chỗ</span>
-                          ) : (
-                            <span className="text-emerald-600 dark:text-emerald-400">Sẵn sàng (Chưa có lịch trùng)</span>
-                          )}
-                        </h5>
-                        <p className="text-[11px] app-text-muted mt-0.5">
-                          {selectedVenue.bookings.length > 0
-                            ? "Hệ thống khuyến nghị đối soát lịch để tránh trùng thời gian tổ chức với BTC khác."
-                            : "Địa điểm chưa bị giữ chỗ. Sự kiện của bạn đủ điều kiện duyệt tự động nhanh."}
-                        </p>
-                      </div>
                     </div>
 
-                    {selectedVenue.bookings.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowScheduleModal(true)}
-                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
-                      >
-                        <FiCalendar className="w-3.5 h-3.5" />
-                        <span>Xem lịch đăng ký</span>
-                      </button>
+                    {errors.locationName && (
+                      <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
+                        <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{errors.locationName}</span>
+                      </p>
                     )}
                   </div>
-                </div>
-              )}
+
+                  {/* Venue Info & Schedule Collision Indicator Box */}
+                  {selectedVenue && (
+                    <div className="p-4 rounded-2xl app-bg-subnav border app-border space-y-3 animate-in fade-in duration-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b app-border pb-3">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                              <FiBookmark className="w-4 h-4 text-blue-600" />
+                              <span>{selectedVenue.name}</span>
+                            </h4>
+                            {selectedVenue.verified ? (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                                Đã xác thực
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
+                                Địa điểm do BTC khai báo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] app-text-muted">
+                            {selectedVenue.address}, {selectedVenue.ward}, {selectedVenue.city}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs font-semibold">
+                          <span className="px-2.5 py-1 rounded-lg app-bg-card border app-border text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <FiUsers className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>Sức chứa: {selectedVenue.capacity.toLocaleString()} ghế</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Real-time Schedule Collision Check Badge */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl app-bg-card border app-border">
+                        <div className="flex items-start gap-2.5">
+                          {selectedVenue.bookings.length > 0 ? (
+                            <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 shrink-0">
+                              <FiAlertCircle className="w-4 h-4" />
+                            </div>
+                          ) : (
+                            <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 shrink-0">
+                              <FiCheckCircle className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div>
+                            <h5 className="text-xs font-bold app-text-main flex items-center gap-1.5">
+                              <span>Trạng thái Lịch tổ chức tại Địa điểm:</span>
+                              {selectedVenue.bookings.length > 0 ? (
+                                <span className="text-amber-600 dark:text-amber-400">Đã có {selectedVenue.bookings.length} sự kiện đăng ký giữ chỗ</span>
+                              ) : (
+                                <span className="text-emerald-600 dark:text-emerald-400">Sẵn sàng (Chưa có lịch trùng)</span>
+                              )}
+                            </h5>
+                            <p className="text-[11px] app-text-muted mt-0.5">
+                              {selectedVenue.bookings.length > 0
+                                ? "Hệ thống khuyến nghị đối soát lịch để tránh trùng thời gian tổ chức với BTC khác."
+                                : "Địa điểm chưa bị giữ chỗ. Sự kiện của bạn đủ điều kiện duyệt tự động nhanh."}
+                            </p>
+                          </div>
+                        </div>
+
+                        {selectedVenue.bookings.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowScheduleModal(true)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+                          >
+                            <FiCalendar className="w-3.5 h-3.5" />
+                            <span>Xem lịch đăng ký</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
               {/* Detailed Address Inputs Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
@@ -921,7 +1020,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
           )}
         </div>
-      </div>
+      )}
+    </div>
+  </div>
 
       {/* Event Description Rich Text Section */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-4">

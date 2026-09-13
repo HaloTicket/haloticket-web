@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FiZoomIn,
   FiZoomOut,
@@ -100,6 +101,106 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     }
   }, []);
 
+  // Mouse wheel interaction: Ctrl+Wheel to Zoom, Shift+Wheel to Scroll Horizontally
+  useEffect(() => {
+    const container = canvasRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        setZoomLevel((prev) => {
+          const delta = e.deltaY < 0 ? 10 : -10;
+          return Math.min(Math.max(prev + delta, 40), 200);
+        });
+      } else if (e.shiftKey) {
+        e.preventDefault();
+        container.scrollLeft += e.deltaY;
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // Global window listeners for marquee selection to ensure smooth, decisive drag selection & release
+  useEffect(() => {
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      if (!isSelectingMarquee.current || !canvasRef.current) return;
+      const scale = zoomLevel / 100;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = (e.clientX - rect.left + canvasRef.current.scrollLeft) / scale;
+      const y = (e.clientY - rect.top + canvasRef.current.scrollTop) / scale;
+
+      setSelectionBox((prev) => {
+        if (!prev) return null;
+        const boxMinX = Math.min(prev.startX, x);
+        const boxMaxX = Math.max(prev.startX, x);
+        const boxMinY = Math.min(prev.startY, y);
+        const boxMaxY = Math.max(prev.startY, y);
+
+        // Intersect Seats
+        const selectedInBox = seats
+          .filter((s) => s.x >= boxMinX && s.x <= boxMaxX && s.y >= boxMinY && s.y <= boxMaxY)
+          .map((s) => s.id);
+        setSelectedSeatIds(selectedInBox);
+
+        // Intersect Stage
+        const intersectedStage = stages.find(
+          (stg) =>
+            stg.x + stg.width >= boxMinX &&
+            stg.x <= boxMaxX &&
+            stg.y + stg.height >= boxMinY &&
+            stg.y <= boxMaxY
+        );
+        setSelectedStageId(intersectedStage ? intersectedStage.id : null);
+
+        // Intersect Structure
+        const intersectedStruct = structures.find(
+          (st) =>
+            st.x + st.width >= boxMinX &&
+            st.x <= boxMaxX &&
+            st.y + st.height >= boxMinY &&
+            st.y <= boxMaxY
+        );
+        setSelectedStructureId(intersectedStruct ? intersectedStruct.id : null);
+
+        // Intersect Zone
+        if (setSelectedZoneId) {
+          const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
+          const intersectedZone = zoneList.find(
+            (z) =>
+              z.x &&
+              z.y &&
+              z.width &&
+              z.height &&
+              z.x + z.width >= boxMinX &&
+              z.x <= boxMaxX &&
+              z.y + z.height >= boxMinY &&
+              z.y <= boxMaxY
+          );
+          setSelectedZoneId(intersectedZone ? intersectedZone.id : null);
+        }
+
+        return { ...prev, currentX: x, currentY: y };
+      });
+    };
+
+    const handleWindowPointerUp = () => {
+      if (isSelectingMarquee.current) {
+        isSelectingMarquee.current = false;
+        setSelectionBox(null);
+      }
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+    };
+  }, [zoomLevel, seats, stages, structures, zones, setSelectedSeatIds, setSelectedStageId, setSelectedStructureId, setSelectedZoneId]);
+
   // global keyboard listener for Ctrl+Z, Ctrl+Y, Delete, Backspace
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -152,33 +253,36 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     activeZoneId: string | null
   ) => {
     const seatMap = new Map<string, { x: number; y: number; rotation?: number }>();
-    const activeZone = activeZoneId ? zones[activeZoneId] : null;
 
-    seats.forEach((s) => {
+    (seats || []).forEach((s) => {
       const isTargetSeat =
-        activeSeatIds.includes(s.id) ||
-        (activeZoneId && s.zoneId === activeZoneId);
+        (activeSeatIds || []).includes(s.id) ||
+        (activeZoneId ? s.zoneId === activeZoneId : false);
       if (isTargetSeat) {
         seatMap.set(s.id, { x: s.x, y: s.y, rotation: s.rotation || 0 });
       }
     });
 
     const stageMap = new Map<string, { x: number; y: number; width: number; height: number }>();
-    if (activeStageId) {
+    if (activeStageId && stages) {
       const stg = stages.find((s) => s.id === activeStageId);
       if (stg) stageMap.set(stg.id, { x: stg.x, y: stg.y, width: stg.width, height: stg.height });
     }
 
     const structMap = new Map<string, { x: number; y: number; width: number; height: number }>();
-    if (activeStructId) {
+    if (activeStructId && structures) {
       const st = structures.find((s) => s.id === activeStructId);
       if (st) structMap.set(st.id, { x: st.x, y: st.y, width: st.width, height: st.height });
     }
 
     const zoneMap = new Map<string, { x: number; y: number; width: number; height: number }>();
-    if (activeZoneId && zones[activeZoneId]) {
-      const z = zones[activeZoneId];
-      zoneMap.set(z.id, { x: z.x || 100, y: z.y || 100, width: z.width || 800, height: z.height || 180 });
+    if (activeZoneId && zones) {
+      const z = Array.isArray(zones)
+        ? (zones as ZoneBlock[]).find((zn) => zn.id === activeZoneId)
+        : (zones as Record<string, ZoneBlock>)?.[activeZoneId];
+      if (z) {
+        zoneMap.set(z.id, { x: z.x || 100, y: z.y || 100, width: z.width || 800, height: z.height || 180 });
+      }
     }
 
     return { seatMap, stageMap, structMap, zoneMap };
@@ -513,7 +617,8 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
         // intersect Zone
         if (setSelectedZoneId) {
-          const intersectedZone = Object.values(zones).find(
+          const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
+          const intersectedZone = zoneList.find(
             (z) =>
               z.x &&
               z.y &&
@@ -735,7 +840,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
   return (
     <div
-      className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'fixed inset-4 z-50 rounded-3xl shadow-2xl ring-1 ring-blue-500/50' : 'min-h-[720px]'
+      className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'h-full min-h-[calc(100vh-140px)] rounded-xl border-none' : 'min-h-[720px]'
         }`}
     >
       {/* Top Floating Viewport Control Bar with z-10 (below header z-30) */}
@@ -871,7 +976,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
           )}
 
           {/* 0. Zone Area Container Boxes (Interactive & Draggable/Resizable/Rotatable) */}
-          {Object.values(zones).map((zone) => {
+          {(!zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>)).map((zone) => {
             if (!zone.x || !zone.y || !zone.width || !zone.height) return null;
             const isSelected = selectedZoneId === zone.id;
 
@@ -1125,7 +1230,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                             ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
                             : isAccessible
                               ? 'bg-purple-600/30 text-purple-300 border border-purple-500 shadow-sm'
-                              : 'text-white shadow-xs'
+                              : 'text-white border-2 border-white/90 shadow-md'
                   } ${isSelected
                     ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-900 scale-125 z-30 shadow-2xl'
                     : ''
@@ -1135,9 +1240,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   top: `${seat.y}px`,
                   backgroundColor:
                     !isCartItem && !isMaintenance && !isSold && !isBlocked && !isReserved && !isAccessible
-                      ? (seat.color || (tiers?.find((t) => t.id === (seat.tierId || zone.tierId))?.color?.startsWith('#')
-                          ? tiers?.find((t) => t.id === (seat.tierId || zone.tierId))?.color
-                          : undefined) || zone.color)
+                      ? (seat.color || zone.color || '#3b82f6')
                       : undefined,
                   transform: seat.rotation ? `rotate(${seat.rotation}deg)` : undefined,
                 }}

@@ -25,6 +25,7 @@ export const PATHS = {
   EVENT_MANAGE_MEMBERS: (id: string | number) => `/organizer/events/${id}/manage/members`,
   EVENT_MANAGE_VOUCHERS: (id: string | number) => `/organizer/events/${id}/manage/vouchers`,
   EVENT_MANAGE_SEATING: (id: string | number) => `/organizer/events/${id}/manage/seating`,
+  EVENT_MANAGE_TICKET_ASSIGN: (id: string | number) => `/organizer/events/${id}/manage/ticket-assign`,
   EVENT_MANAGE_EDIT: (id: string | number) => `/organizer/events/${id}/manage/edit`,
   ADMIN: "/admin",
   ADMIN_DASHBOARD: "/admin/dashboard",

@@ -346,9 +346,9 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
             </div>
 
-            {/* CHANGE ZONE TIER */}
+            {/* CHANGE ZONE CONTAINER */}
             <div className="space-y-1 pt-2 border-t app-border">
-              <label className="block text-[11px] font-bold app-text-muted uppercase">Đổi Hạng Vé (Zone)</label>
+              <label className="block text-[11px] font-bold app-text-muted uppercase">Đổi Khu Vực (Zone)</label>
               <select
                 value={selectedSeats[0]?.zoneId || ''}
                 onChange={(e) => onUpdateSeatProps({ zoneId: e.target.value })}
@@ -356,7 +356,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               >
                 {Object.values(zones).map((z) => (
                   <option key={z.id} value={z.id}>
-                    {z.name} ({getZonePrice(z).toLocaleString('vi-VN')}đ)
+                    {z.name}
                   </option>
                 ))}
               </select>
@@ -395,31 +395,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   placeholder="Mặc định lấy tên Zone (Ví dụ: KHU VIP A)"
                 />
               </div>
-
-              {/* Tier Binding */}
-              {effectiveTiers.length > 0 && (
-                <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Hạng Vé Sự Kiện Đính Kèm</label>
-                  <select
-                    value={selectedZone.tierId || ''}
-                    onChange={(e) => {
-                      const selectedTier = effectiveTiers.find((t) => t.id === e.target.value);
-                      onUpdateZoneProps(selectedZone.id, {
-                        tierId: e.target.value,
-                        price: selectedTier?.price ?? selectedZone.price,
-                      });
-                    }}
-                    className="w-full px-3 py-1.5 rounded-lg app-bg-card border app-border font-bold text-xs"
-                  >
-                    <option value="">-- Chọn Hạng vé --</option>
-                    {effectiveTiers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.price.toLocaleString('vi-VN')}đ)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {/* Independent Zone Color Selector */}
               <div className="pt-2 border-t app-border space-y-1.5">
@@ -773,16 +748,16 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           </div>
         )}
 
-        {/* ALWAYS VISIBLE LIST OF TIERS & ZONES */}
+        {/* ALWAYS VISIBLE LIST OF ZONES */}
         <div className="space-y-2.5 pt-3 border-t app-border">
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-[11px] app-text-main uppercase tracking-wider flex items-center gap-1.5">
-              <FiTag className="text-purple-500" />
-              <span>HẠNG VÉ & KHU VỰC ({Object.keys(zones).length})</span>
+              <FiTag className="text-cyan-500" />
+              <span>DANH SÁCH KHU VỰC ({Object.keys(zones).length})</span>
             </h3>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
             {Object.values(zones).map((z) => {
               const seatCountInZone = seats.filter((s) => s.zoneId === z.id).length;
               const isSelectedZone = selectedZoneId === z.id;
@@ -796,7 +771,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 truncate">
                       <span className="w-3 h-3 rounded-md flex-shrink-0" style={{ backgroundColor: z.color }} />
-                      <span className="font-bold text-xs app-text-main truncate group-hover:text-blue-500 transition-colors">
+                      <span className="font-bold text-xs app-text-main truncate group-hover:text-cyan-500 transition-colors">
                         {z.name}
                       </span>
                     </div>
@@ -804,10 +779,10 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-mono font-bold text-emerald-500">
-                      {getZonePrice(z).toLocaleString('vi-VN')} đ
+                    <span className="px-2 py-0.5 rounded-md app-bg-card border app-border text-[10px] font-bold text-slate-400">
+                      Khối Zone
                     </span>
-                    <span className="app-text-muted font-medium">
+                    <span className="app-text-muted font-bold">
                       {seatCountInZone} ghế
                     </span>
                   </div>

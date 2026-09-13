@@ -17,9 +17,11 @@ import {
   FiLoader
 } from "react-icons/fi";
 import PendingApprovalModal from "./components/PendingApprovalModal";
+import EkycRequiredModal from "./components/create-event/EkycRequiredModal";
 import { eventApi } from "@/services/eventApi";
 import { organizerApi } from "@/services/organizerApi";
 import { userApi, getCachedUserProfile } from "@/services/userApi";
+import { ekycApi } from "@/services/ekycApi";
 import { TablePagination } from "@/components/common/TablePagination";
 
 import type { UserProfile } from "@/types";
@@ -63,10 +65,23 @@ export const MyEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MyEventTab>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [showEkycModal, setShowEkycModal] = useState(false);
   const [eventsList, setEventsList] = useState<OrganizerEventItem[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [myOrganizerProfile, setMyOrganizerProfile] = useState<OrganizerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleCreateEventClick = async (e: React.MouseEvent) => {
+    try {
+      const eligibility = await ekycApi.getOrganizerEligibility();
+      if (eligibility && !eligibility.eligible) {
+        e.preventDefault();
+        setShowEkycModal(true);
+      }
+    } catch {
+      // If error or endpoint offline, proceed
+    }
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
@@ -238,6 +253,7 @@ export const MyEvents: React.FC = () => {
 
             <Link
               to="/organizer/create-event"
+              onClick={handleCreateEventClick}
               className="mt-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
             >
               <FiPlus className="w-4 h-4" />
@@ -407,6 +423,9 @@ export const MyEvents: React.FC = () => {
       {showPendingModal && (
         <PendingApprovalModal onClose={() => setShowPendingModal(false)} />
       )}
+
+      {/* Modal Popup: Yêu cầu xác thực eKYC */}
+      <EkycRequiredModal isOpen={showEkycModal} onClose={() => setShowEkycModal(false)} />
     </div>
   );
 };

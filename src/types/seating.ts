@@ -32,6 +32,12 @@ export interface SeatTier {
   description?: string;
   code?: string;
   isActive?: boolean;
+  isFree?: boolean;
+  totalQuantity?: number;
+  minPerOrder?: number;
+  maxPerOrder?: number;
+  startSaleDate?: string;
+  endSaleDate?: string;
 }
 
 export interface Seat {
@@ -218,6 +224,15 @@ export interface AddZoneConfig {
   borderStyle: 'dashed' | 'solid';
   shape?: 'rectangle' | 'rounded' | 'ellipse' | 'trapezoid' | 'diamond' | 'fan';
   type?: 'SEATED' | 'STANDING' | 'CURVED_ARC' | 'GALA_TABLES';
+  layoutType?: 'STANDING' | 'ROW' | 'MATRIX' | 'ARC' | 'GALA';
+  rowPrefix?: string;
+  rowCount?: number;
+  seatsPerRow?: number;
+  arcCount?: number;
+  arcRadius?: number;
+  tableCount?: number;
+  seatsPerTable?: number;
+  capacity?: number;
 }
 
 export interface ToolBarProps {
@@ -331,6 +346,7 @@ export interface TierManagerModalProps {
   onClose: () => void;
   tiers: SeatTier[];
   onSaveTiers?: (tiers: SeatTier[]) => void;
+  readOnly?: boolean;
 }
 
 export interface VenueTemplateModalProps {
@@ -344,13 +360,9 @@ export interface VenueTemplateModalProps {
 export interface ZoneGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  tiers: SeatTier[];
+  tiers?: SeatTier[];
   onGenerateZone: (
-    zoneName: string,
-    rowPrefix: string,
-    rowCount: number,
-    seatsPerRow: number,
-    tierId: string
+    config: AddZoneConfig | (string & any)
   ) => void;
 }
 
