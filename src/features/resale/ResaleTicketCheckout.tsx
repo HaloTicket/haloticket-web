@@ -4,7 +4,7 @@ import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MOCK_RESALE_EVENTS } from "@/mock/resaleData";
-import { FiChevronRight, FiCheckSquare, FiSquare, FiInfo, FiLayers } from "react-icons/fi";
+import { FiChevronRight, FiCheckSquare, FiSquare, FiInfo, FiLayers, FiCheck } from "react-icons/fi";
 
 export const ResaleTicketCheckout: React.FC = () => {
   useTranslation();
@@ -159,7 +159,7 @@ export const ResaleTicketCheckout: React.FC = () => {
                   <div className="shrink-0">
                     {isChecked ? (
                       <div className="w-6 h-6 rounded-lg gradient-btn text-white flex items-center justify-center font-bold shadow-sm">
-                        ✓
+                        <FiCheck className="w-4 h-4" />
                       </div>
                     ) : (
                       <div className="w-6 h-6 rounded-lg border-2 border-zinc-600 bg-zinc-800/40" />

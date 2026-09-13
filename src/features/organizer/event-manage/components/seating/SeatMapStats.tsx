@@ -6,6 +6,7 @@ import {
   FiLock,
   FiTool,
   FiPieChart,
+  FiCheck,
 } from 'react-icons/fi';
 import type { SeatMapStatsProps } from '@/types/seating';
 
@@ -102,7 +103,9 @@ export const SeatMapStats: React.FC<SeatMapStatsProps> = ({ seats, tiers = [], c
 
           <div className="flex justify-between py-1.5 border-b app-border">
             <span className="app-text-muted font-medium flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">✓</span>
+              <span className="w-3.5 h-3.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
+                <FiCheck className="w-4 h-4" />
+              </span>
               Đã bán (Sold):
             </span>
             <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{soldSeats}</span>

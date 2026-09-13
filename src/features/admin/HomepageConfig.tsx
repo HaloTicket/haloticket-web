@@ -749,7 +749,7 @@ export const HomepageConfig: React.FC = () => {
           {/* Success Banner Overlay when Published */}
           {publishSuccess && (
             <div className="bg-emerald-600 text-white text-center py-2 font-bold text-xs animate-in slide-in-from-top duration-150">
-              {translate("✓ Đã lưu và xuất bản cấu hình mới lên Trang chủ Client thành công!")} </div>
+              {translate("Đã lưu và xuất bản cấu hình mới lên Trang chủ Client thành công!")} </div>
           )}
 
           {/* Simulator Viewport Area */}

@@ -258,7 +258,7 @@ export function ImageUploadStep({
               <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
                 {description.split(",").map((hint) => (
                   <span key={hint} className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 border app-border">
-                    ✓ {hint.trim()}
+                    {hint.trim()}
                   </span>
                 ))}
               </div>

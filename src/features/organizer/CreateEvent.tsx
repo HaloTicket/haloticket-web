@@ -796,7 +796,7 @@ export const CreateEvent: React.FC = () => {
       {/* Toast Notification Banner for Draft Save */}
       {draftSavedToast && (
         <div className="fixed top-20 right-6 z-50 bg-blue-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top duration-300">
-          <span>✓ {translate(draftSavedToast)}</span>
+          <span>{translate(draftSavedToast)}</span>
         </div>
       )}
 

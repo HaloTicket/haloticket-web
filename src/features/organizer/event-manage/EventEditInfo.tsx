@@ -478,7 +478,7 @@ export const EventEditInfo: React.FC = () => {
     const currentSnap = getFormSnapshotString();
 
     if (initialSnapshot && currentSnap === initialSnapshot) {
-      showToast("ℹ️ Không có thông tin nào thay đổi. Hệ thống không lưu dữ liệu.", "info");
+      showToast("ℹKhông có thông tin nào thay đổi. Hệ thống không lưu dữ liệu.", "info");
       return;
     }
 
@@ -564,10 +564,10 @@ export const EventEditInfo: React.FC = () => {
       setInitialSnapshot(currentSnap);
 
       // 5. Show success Toast for Organizer
-      showToast("✓ Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin.", "success");
+      showToast("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin.", "success");
     } catch (err) {
       console.error("Failed to update event details:", err);
-      showToast("❌ Cập nhật thông tin thất bại, vui lòng thử lại.", "error");
+      showToast("Cập nhật thông tin thất bại, vui lòng thử lại.", "error");
     } finally {
       setIsSubmitting(false);
     }
