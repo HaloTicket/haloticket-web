@@ -1,0 +1,42 @@
+name: Frontend Web App CI/CD (Cloudflare Pages)
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+
+jobs:
+  build-and-deploy-frontend:
+    name: Build & Deploy React Vite App to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 & NPM Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type Check (TypeScript Validation)
+        run: npx tsc --noEmit
+
+      - name: Build Web App
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_KEYCLOAK_URL: ${{ secrets.VITE_KEYCLOAK_URL }}
+          VITE_KEYCLOAK_REALM: ${{ secrets.VITE_KEYCLOAK_REALM }}
+          VITE_KEYCLOAK_CLIENT_ID: ${{ secrets.VITE_KEYCLOAK_CLIENT_ID }}
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages via Wrangler Action
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 'haloticket-web'
+          directory: 'dist'
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
