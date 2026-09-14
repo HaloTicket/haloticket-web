@@ -13,7 +13,7 @@ import {
   FiChevronRight,
   FiCheck,
 } from 'react-icons/fi';
-import type { ZoneBlock, PropertyPanelProps } from '@/types/seating';
+import type { PropertyPanelProps } from '@/types/seating';
 
 const PALETTE_COLORS = [
   '#ec4899', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6',
@@ -32,8 +32,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   stages,
   structures,
   zones,
-  tiers,
-  availableTiers,
+  tiers: _tiers,
+  availableTiers: _availableTiers,
   onUpdateSeatProps,
   onUpdateStageProps,
   onUpdateStructureProps,
@@ -44,10 +44,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const [internalIsCollapsed, setInternalIsCollapsed] = useState<boolean>(false);
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const handleToggle = onToggleCollapse || (() => setInternalIsCollapsed((prev) => !prev));
-
-  const effectiveTiers = availableTiers || tiers || [];
-  // calculate zone price
-  const getZonePrice = (z: ZoneBlock) => z.price ?? effectiveTiers.find((t) => t.id === z.tierId)?.price ?? 0;
 
 
   const selectedSeats = seats.filter((s) => selectedSeatIds.includes(s.id));

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FiTag, FiCheck, FiCheckCircle } from "react-icons/fi";
-import type { SeatMapDocument, ZoneBlock, Seat } from "@/types/seating";
+import type { SeatMapDocument } from "@/types/seating";
 import type { TicketItem } from "@/types/organizer";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { formatCurrency } from "@/utils/formatters";

@@ -8,9 +8,6 @@ import {
   FiCheckCircle,
   FiCopy,
   FiDownload,
-  FiEdit3,
-  FiEye,
-  FiImage,
   FiLayers,
   FiSave,
   FiSend,
@@ -157,7 +154,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
-  const [isAttendeeMode, setIsAttendeeMode] = useState(false);
+  const [isAttendeeMode, _setIsAttendeeMode] = useState(false);
   const [attendeeCart, setAttendeeCart] = useState<Seat[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const studioRef = useRef<HTMLDivElement | null>(null);
@@ -998,7 +995,6 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     let nextSeats = seats;
     let nextStages = stages;
     let nextStructures = structures;
-    let nextZones = zones;
 
     if (selectedSeatIds.length) {
       nextSeats = seats.filter((seat) => !selectedSeatIds.includes(seat.id));
@@ -1200,29 +1196,6 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setIsTemplateModalOpen(false);
   };
 
-  const handleSaveAsTemplate = () => {
-    const name = window.prompt('Tên mẫu địa điểm / bố cục muốn lưu:');
-    if (!name?.trim()) return;
-    const template: VenueTemplate = {
-      id: `organizer_${Date.now()}`,
-      name: name.trim(),
-      description: 'Mẫu được sao chép từ Seat Map Studio. Hạng vé và giá không được lưu theo template.',
-      source: 'organizer',
-      updatedAt: new Date().toISOString(),
-      capacity: seats.length,
-      eventsHosted: 1,
-      rating: 5,
-      stages: safeClone(stages),
-      structures: safeClone(structures),
-      seats: seats.map((seat) => ({ ...safeClone(seat), tierId: undefined, status: seat.status === 'accessible' ? 'accessible' : 'available' })),
-      zones: Object.fromEntries(Object.entries(zones).map(([id, zone]) => [id, { ...safeClone(zone), tierId: undefined, price: undefined }])),
-      canvasSettings: safeClone(canvasSettings),
-    };
-    setTemplates((prev) => [template, ...prev]);
-    setSelectedTemplateId(template.id);
-    showToast('success', 'Đã lưu mẫu trong phiên làm việc hiện tại.');
-  };
-
   const handleClearCanvas = () => {
     setConfirmModal({
       isOpen: true,
@@ -1288,28 +1261,6 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       showToast('success', 'Đã nạp bản đồ từ JSON thành công.');
     } catch {
       showToast('error', 'JSON không đúng định dạng Seat Map v2.0.');
-    }
-  };
-
-  const handleSaveTiers = async (newTiers: SeatTier[]) => {
-    setBackendTiers(newTiers);
-    try {
-      const requests = newTiers.map((t) => ({
-        name: t.name,
-        price: t.price,
-        isFree: t.price === 0,
-        totalQuantity: 500,
-        minPerOrder: 1,
-        maxPerOrder: 10,
-        description: t.description || `Hạng vé ${t.name}`,
-      }));
-
-      await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
-      setAutoSaveStatus('Đã đồng bộ hạng vé vào CSDL!');
-      showToast('success', 'Đã đồng bộ thành công danh sách Hạng vé & Giá vé!');
-    } catch (err) {
-      console.warn('Lỗi khi đồng bộ hạng vé tới backend:', err);
-      showToast('error', 'Không thể kết nối CSDL để lưu Hạng vé!');
     }
   };
 

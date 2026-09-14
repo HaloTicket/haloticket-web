@@ -8,7 +8,7 @@ export default function Checkout() {
   const navigate = useNavigate();
 
   // load pending order data from localStorage or fallback
-  const [order, setOrder] = useState<BookingOrderData>(() => {
+  const [order, _setOrder] = useState<BookingOrderData>(() => {
     try {
       const saved = localStorage.getItem("haloticket_pending_order");
       if (saved) return JSON.parse(saved);

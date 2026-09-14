@@ -304,9 +304,13 @@ export const generateSeatMapSVG = (doc: {
   // Draw Zones
   const zoneList = !doc.zones ? [] : Array.isArray(doc.zones) ? doc.zones : Object.values(doc.zones);
   zoneList.forEach((z) => {
-    const rot = z.rotation ? ` transform="rotate(${z.rotation} ${z.x + z.width / 2} ${z.y + z.height / 2})"` : '';
+    const zX = z.x ?? 0;
+    const zY = z.y ?? 0;
+    const zW = z.width ?? 100;
+    const zH = z.height ?? 100;
+    const rot = z.rotation ? ` transform="rotate(${z.rotation} ${zX + zW / 2} ${zY + zH / 2})"` : '';
     const color = z.color || '#3b82f6';
-    svg += `<g${rot}><rect x="${z.x}" y="${z.y}" width="${z.width}" height="${z.height}" rx="${z.curvature || 12}" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="2.5"/><text x="${z.x + z.width / 2}" y="${z.y + 28}" fill="${color}" font-size="14" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">${z.name || z.centerText}</text></g>`;
+    svg += `<g${rot}><rect x="${zX}" y="${zY}" width="${zW}" height="${zH}" rx="${z.curvature || 12}" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="2.5"/><text x="${zX + zW / 2}" y="${zY + 28}" fill="${color}" font-size="14" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">${z.name || z.centerText || ''}</text></g>`;
   });
 
   // Draw Seats

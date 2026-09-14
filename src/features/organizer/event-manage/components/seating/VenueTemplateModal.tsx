@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiCheck, FiMapPin, FiUsers, FiLayers, FiSearch, FiCheckCircle, FiStar, FiCalendar, FiEye, FiFilter, FiChevronDown, FiGlobe } from 'react-icons/fi';
+import { FiX, FiCheck, FiMapPin, FiUsers, FiLayers, FiSearch, FiCheckCircle, FiEye, FiChevronDown, FiGlobe } from 'react-icons/fi';
 import type { VenueTemplate, VenueTemplateModalProps } from '@/types/seating';
 import type { VenueApiData } from '@/types';
 import { venueApi } from '@/services/venueApi';

@@ -144,7 +144,7 @@ export default function SelectTicket() {
   const handleZoneClick = (zone: any) => {
     const tier = ticketTypes.find((t) => t.id === zone.tierId);
     const price = zone.price ?? tier?.price ?? priceLegend.find((p) => p.name === zone.name)?.price ?? 2000000;
-    const currentQty = selectedTicketInfo?.zoneId === zone.id ? selectedTicketInfo.quantity : 1;
+    const currentQty = selectedTicketInfo?.zoneId === zone.id ? (selectedTicketInfo?.quantity ?? 1) : 1;
 
     setActiveZoneModal({
       ...zone,
@@ -405,7 +405,7 @@ export default function SelectTicket() {
                 {priceLegend.map((item, idx) => (
                   <div
                     key={idx}
-                    onClick={() => handleZoneClick({ id: item.id, name: item.name, price: item.price, color: item.color, tierId: item.tierId })}
+                    onClick={() => handleZoneClick({ id: item.id, name: item.name, price: item.price, color: item.color, tierId: 'tierId' in item ? item.tierId : undefined })}
                     className="flex items-center justify-between p-2.5 rounded-xl hover:app-bg-page cursor-pointer transition-colors border border-transparent hover:app-border"
                   >
                     <div className="flex items-center gap-3 min-w-0 pr-2">

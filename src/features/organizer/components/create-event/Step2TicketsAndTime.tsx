@@ -1,12 +1,9 @@
 import { formatCurrency } from "@/utils/formatters";
 import { useTranslation } from "react-i18next";
-import React, { useState } from "react";
-import { FiClock, FiCalendar, FiPlus, FiTrash2, FiEdit3, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark, FiLayers, FiTag, FiCheckCircle } from "react-icons/fi";
+import React from "react";
+import { FiClock, FiCalendar, FiPlus, FiTrash2, FiEdit3, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem, Step2Errors } from "@/types/organizer";
-import type { SeatMapDocument } from "@/types/seating";
-import { SeatMapDesigner } from "./SeatMapDesigner";
-import { SeatMapTicketAssigner } from "./SeatMapTicketAssigner";
 
 interface Step2TicketsAndTimeProps {
   startDate: string;
@@ -38,23 +35,6 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   onNext
 }) => {
   const { t: translate } = useTranslation();
-  const [seatMapMode, setSeatMapMode] = useState<"designer" | "assigner" | null>(null);
-  const [seatMapDocument, setSeatMapDocument] = useState<SeatMapDocument | null>(null);
-
-  const handleAssignTierToZone = (zoneId: string, ticketTierId: string) => {
-    if (!seatMapDocument) return;
-    const updatedZones = {
-      ...seatMapDocument.zones,
-      [zoneId]: {
-        ...seatMapDocument.zones[zoneId],
-        tierId: ticketTierId
-      }
-    };
-    setSeatMapDocument({
-      ...seatMapDocument,
-      zones: updatedZones
-    });
-  };
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Event Time Schedule */}

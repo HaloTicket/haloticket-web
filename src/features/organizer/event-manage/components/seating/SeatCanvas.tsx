@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import {
   FiZoomIn,
   FiZoomOut,
@@ -215,7 +214,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
       // Ctrl + Z (Undo)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
-        if (canUndo) onUndo();
+        if (canUndo && onUndo) onUndo();
       }
 
       // Ctrl + Y or Ctrl + Shift + Z (Redo)
@@ -224,7 +223,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
       ) {
         e.preventDefault();
-        if (canRedo) onRedo();
+        if (canRedo && onRedo) onRedo();
       }
 
       // delete or backspace (Delete selected)

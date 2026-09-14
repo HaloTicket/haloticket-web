@@ -198,7 +198,7 @@ export function EkycConfirmationStep({
       // Update user profile phone number
       try {
         await userApi.updateProfile({
-          fullName: legalName || userProfile?.fullName,
+          fullName: legalName || userProfile?.fullName || '',
           phoneNumber: fullPhone,
         });
       } catch (err) {
