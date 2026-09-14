@@ -32,11 +32,9 @@ jobs:
           VITE_KEYCLOAK_CLIENT_ID: ${{ secrets.VITE_KEYCLOAK_CLIENT_ID }}
         run: npm run build
 
-      - name: Deploy to Cloudflare Pages via Wrangler Action
-        uses: cloudflare/pages-action@v1
+      - name: Deploy to Cloudflare Pages via Wrangler
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: 'haloticket-web'
-          directory: 'dist'
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy dist --project-name=haloticket-web
