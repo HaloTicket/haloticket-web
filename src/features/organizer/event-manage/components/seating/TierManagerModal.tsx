@@ -45,6 +45,34 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setDescription('');
   };
 
+  const formatForDateTimeLocal = (dateVal?: any): string => {
+    if (!dateVal) return '';
+    if (Array.isArray(dateVal)) {
+      const [y, m, d, h = 0, min = 0] = dateVal;
+      const pad = (num: number) => String(num).padStart(2, '0');
+      return `${y}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(min)}`;
+    }
+    let str = String(dateVal).trim();
+    if (!str) return '';
+
+    str = str.replace(' ', 'T');
+    const match = str.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    if (match) {
+      return `${match[1]}T${match[2]}`;
+    }
+    const dateOnlyMatch = str.match(/^(\d{4}-\d{2}-\d{2})$/);
+    if (dateOnlyMatch) {
+      return `${dateOnlyMatch[1]}T00:00`;
+    }
+
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const pad = (num: number) => String(num).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    return '';
+  };
+
   const handleStartEdit = (tier: SeatTier) => {
     setEditingTierId(tier.id);
     setName(tier.name);
@@ -53,8 +81,8 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setTotalQuantity(tier.totalQuantity ?? 100);
     setMinPerOrder(tier.minPerOrder ?? 1);
     setMaxPerOrder(tier.maxPerOrder ?? 5);
-    setStartSaleDate(tier.startSaleDate ? tier.startSaleDate.replace(' ', 'T').slice(0, 16) : '');
-    setEndSaleDate(tier.endSaleDate ? tier.endSaleDate.replace(' ', 'T').slice(0, 16) : '');
+    setStartSaleDate(formatForDateTimeLocal(tier.startSaleDate));
+    setEndSaleDate(formatForDateTimeLocal(tier.endSaleDate));
     setDescription(tier.description || '');
   };
 
@@ -433,7 +461,10 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     </div>
   );
 
-  return createPortal(modalContent, document.body);
+  const portalTarget = typeof document !== 'undefined' ? (document.fullscreenElement || document.body) : null;
+  if (!portalTarget) return null;
+
+  return createPortal(modalContent, portalTarget);
 };
 
 export default TierManagerModal;

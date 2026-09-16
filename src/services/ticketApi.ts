@@ -76,4 +76,18 @@ export const ticketApi = {
       throw err;
     }
   },
+
+  // get realtime seat status map
+  getSeatStatus: async (eventId: string): Promise<Record<string, string>> => {
+    try {
+      const response: unknown = await axiosClient.get(`/tickets/seat-status?eventId=${eventId}`);
+      if (response && typeof response === "object") {
+        return response as Record<string, string>;
+      }
+      return {};
+    } catch (err) {
+      console.warn("Failed to fetch seat status:", err);
+      return {};
+    }
+  },
 };

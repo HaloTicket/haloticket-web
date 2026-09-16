@@ -131,7 +131,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               type="button"
               onClick={onCancel}
               disabled={isLoading}
-              className={`px-5 py-2.5 rounded-xl ${activeCancelBtn} disabled:opacity-50`}
+              className={`px-5 py-1.5 rounded-xl ${activeCancelBtn} disabled:opacity-50 text-sm font-extrabold`}
             >
               {cancelText}
             </button>
@@ -154,7 +154,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     </div>
   );
 
-  return createPortal(modalContent, document.body);
+  const portalTarget = typeof document !== 'undefined' ? (document.fullscreenElement || document.body) : null;
+  if (!portalTarget) return null;
+
+  return createPortal(modalContent, portalTarget);
 };
 
 export default ConfirmModal;

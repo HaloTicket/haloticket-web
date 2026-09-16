@@ -114,7 +114,12 @@ export const EventSeatingAssigner: React.FC = () => {
             name: t.name || "Vé Thường",
             price: t.price || 0,
             color: t.color || colors[idx % colors.length],
+            isFree: t.isFree ?? t.price === 0,
             totalQuantity: t.totalQuantity ?? 100,
+            minPerOrder: t.minPerOrder ?? 1,
+            maxPerOrder: t.maxPerOrder ?? 5,
+            startSaleDate: t.startSaleDate || undefined,
+            endSaleDate: t.endSaleDate || undefined,
             description: t.description || "",
           }));
           if (isMounted) {
@@ -124,12 +129,37 @@ export const EventSeatingAssigner: React.FC = () => {
 
         const effectiveLoadedTiers = mappedTiers.length ? mappedTiers : DEFAULT_EVENT_TICKET_TIERS;
 
-        // Fetch draft layout
+        // Fetch draft layout from backend
+        let doc: SeatMapDocument | null = null;
         const draftRes = await ticketApi.getSeatLayoutByEventId(activeEventId);
-        if (isMounted && draftRes?.draftJson) {
+
+        if (draftRes?.draftJson) {
           try {
-            const parsed = JSON.parse(draftRes.draftJson) as SeatMapDocument;
-            const rawZones = safeClone(parsed.zones || {});
+            doc = JSON.parse(draftRes.draftJson) as SeatMapDocument;
+          } catch (e) {
+            console.warn("Failed to parse backend draft layout json:", e);
+          }
+        }
+
+        // If backend draft is missing or empty, check localStorage draft
+        if (!doc || (!doc.zones && !doc.seats) || (Object.keys(doc.zones || {}).length === 0 && (doc.seats || []).length === 0)) {
+          const loadedEventTitle = ((eventRes as any)?.title as string) || eventName;
+          const localStr =
+            localStorage.getItem(`haloticket_seatmap_draft_${activeEventId}`) ||
+            localStorage.getItem(`haloticket_seatmap_draft_${loadedEventTitle}`) ||
+            localStorage.getItem(`haloticket_seatmap_draft_${eventName}`);
+          if (localStr) {
+            try {
+              doc = JSON.parse(localStr) as SeatMapDocument;
+            } catch (e) {
+              console.warn("Failed to parse localStorage seatmap draft:", e);
+            }
+          }
+        }
+
+        if (isMounted) {
+          if (doc) {
+            const rawZones = safeClone(doc.zones || {});
 
             // Pair zone.tierId with DB ticket type IDs (by ID match or Tier Name match)
             const syncedZones: Record<string, ZoneBlock> = {};
@@ -150,7 +180,7 @@ export const EventSeatingAssigner: React.FC = () => {
             });
 
             // If draftRes returns seatZones array from DB, use backend ticketTypeId if present
-            if (draftRes.zones && Array.isArray(draftRes.zones)) {
+            if (draftRes?.zones && Array.isArray(draftRes.zones)) {
               draftRes.zones.forEach((sz: any) => {
                 if (sz.id && syncedZones[sz.id] && sz.ticketTypeId) {
                   syncedZones[sz.id].tierId = sz.ticketTypeId;
@@ -159,22 +189,51 @@ export const EventSeatingAssigner: React.FC = () => {
             }
 
             setZones(syncedZones);
-            setSeats(safeClone(parsed.seats || []));
-            setStages(safeClone(parsed.stages || []));
-            setStructures(safeClone(parsed.structures || []));
-            if (parsed.canvasSettings) {
-              setCanvasSettings(parsed.canvasSettings);
+            setSeats(safeClone(doc.seats || []));
+            setStages(safeClone(doc.stages || []));
+            setStructures(safeClone(doc.structures || []));
+            if (doc.canvasSettings) {
+              setCanvasSettings(doc.canvasSettings);
             }
-          } catch (e) {
-            console.warn("Failed to parse draft layout json:", e);
+          } else if (draftRes?.zones && Array.isArray(draftRes.zones) && draftRes.zones.length > 0) {
+            // Construct zones from backend draftRes.zones array
+            const syncedZones: Record<string, ZoneBlock> = {};
+            draftRes.zones.forEach((z: any) => {
+              let parsedPoints = undefined;
+              if (z.points) {
+                if (typeof z.points === 'string') {
+                  try { parsedPoints = JSON.parse(z.points); } catch { parsedPoints = undefined; }
+                } else {
+                  parsedPoints = z.points;
+                }
+              }
+              syncedZones[z.id || `zone_${Date.now()}`] = {
+                id: z.id || `zone_${Date.now()}`,
+                name: z.name || 'Khu vực',
+                tierId: z.ticketTypeId || undefined,
+                shape: (z.shapeType || 'rectangle').toString().toLowerCase() as any,
+                color: z.colorCode || z.fillColor || '#3b82f6',
+                fillColor: z.fillColor || z.colorCode || '#3b82f6',
+                strokeColor: z.strokeColor || '#2563eb',
+                curvature: z.curvature ?? 16,
+                x: z.x ?? 100,
+                y: z.y ?? 100,
+                width: z.width ?? 300,
+                height: z.height ?? 180,
+                rotation: z.rotation ?? 0,
+                points: parsedPoints,
+                capacity: z.capacity,
+              };
+            });
+            setZones(syncedZones);
+          } else {
+            // Fallback template layout only if no draft exists anywhere
+            const sample = PRESET_TEMPLATES[0];
+            setZones(safeClone(sample.zones || {}));
+            setSeats(safeClone(sample.seats || []));
+            setStages(safeClone(sample.stages || []));
+            setStructures(safeClone(sample.structures || []));
           }
-        } else {
-          // Fallback template layout
-          const sample = PRESET_TEMPLATES[0];
-          setZones(safeClone(sample.zones || {}));
-          setSeats(safeClone(sample.seats || []));
-          setStages(safeClone(sample.stages || []));
-          setStructures(safeClone(sample.structures || []));
         }
       } catch (err) {
         console.error("Error loading seating assigner data:", err);
@@ -329,7 +388,12 @@ export const EventSeatingAssigner: React.FC = () => {
             name: t.name || "Vé Thường",
             price: t.price || 0,
             color: t.color || colors[idx % colors.length],
+            isFree: t.isFree ?? t.price === 0,
             totalQuantity: t.totalQuantity ?? 100,
+            minPerOrder: t.minPerOrder ?? 1,
+            maxPerOrder: t.maxPerOrder ?? 5,
+            startSaleDate: t.startSaleDate || undefined,
+            endSaleDate: t.endSaleDate || undefined,
             description: t.description || "",
           }));
           setBackendTiers(syncedTiers);
@@ -806,9 +870,48 @@ export const EventSeatingAssigner: React.FC = () => {
         isOpen={isTierModalOpen}
         onClose={() => setIsTierModalOpen(false)}
         tiers={effectiveTiers}
-        onSaveTiers={(newTiers) => {
-          setBackendTiers(newTiers);
-          showToast("success", "Đã cập nhật danh sách Hạng vé!");
+        onSaveTiers={async (newTiers) => {
+          try {
+            const requests = newTiers.map((t) => ({
+              id: t.id.startsWith("tier_") ? undefined : t.id,
+              eventId: activeEventId,
+              name: t.name,
+              price: t.price,
+              isFree: t.isFree ?? t.price === 0,
+              totalQuantity: t.totalQuantity ?? 100,
+              minPerOrder: t.minPerOrder ?? 1,
+              maxPerOrder: t.maxPerOrder ?? 5,
+              startSaleDate: t.startSaleDate,
+              endSaleDate: t.endSaleDate,
+              description: t.description,
+            }));
+            const responseTiers = await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
+            if (responseTiers && responseTiers.length > 0) {
+              const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
+              const mapped: SeatTier[] = responseTiers.map((t: any, idx: number) => ({
+                id: t.id || `tier_${Date.now()}_${idx}`,
+                name: t.name || "Vé Thường",
+                price: t.price || 0,
+                color: t.color || colors[idx % colors.length],
+                isFree: t.isFree ?? t.price === 0,
+                totalQuantity: t.totalQuantity ?? 100,
+                minPerOrder: t.minPerOrder ?? 1,
+                maxPerOrder: t.maxPerOrder ?? 5,
+                startSaleDate: t.startSaleDate || undefined,
+                endSaleDate: t.endSaleDate || undefined,
+                description: t.description || "",
+              }));
+              setBackendTiers(mapped);
+              showToast("success", "Đã lưu và đồng bộ danh sách Hạng vé xuống CSDL!");
+            } else {
+              setBackendTiers(newTiers);
+              showToast("success", "Đã cập nhật danh sách Hạng vé!");
+            }
+          } catch (err) {
+            console.error("Lỗi đồng bộ hạng vé:", err);
+            setBackendTiers(newTiers);
+            showToast("error", "Lỗi kết nối CSDL khi đồng bộ hạng vé!");
+          }
         }}
       />
 

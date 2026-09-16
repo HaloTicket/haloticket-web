@@ -100,14 +100,38 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             </div>
 
             {/* CTA Button */}
-            <button
-              type="button"
-              onClick={onBuyTicketsClick}
-              className="w-full py-2.5 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
-            >
-              <FaTicketAlt className="w-3.5 h-3.5" />
-              <span>{translate("Mua vé ngay")}</span>
-            </button>
+            {(() => {
+              const now = new Date();
+              const saleStart = event.ticketSaleStartDate ? new Date(event.ticketSaleStartDate) : null;
+              const saleEnd = event.ticketSaleEndDate ? new Date(event.ticketSaleEndDate) : null;
+
+              let isClosed = false;
+              let buttonText = translate("Mua vé ngay");
+
+              if (saleStart && now < saleStart) {
+                isClosed = true;
+                buttonText = `Mở bán lúc ${saleStart.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} ${saleStart.toLocaleDateString("vi-VN")}`;
+              } else if (saleEnd && now > saleEnd) {
+                isClosed = true;
+                buttonText = translate("Đã hết hạn bán vé");
+              }
+
+              return (
+                <button
+                  type="button"
+                  disabled={isClosed}
+                  onClick={onBuyTicketsClick}
+                  className={`w-full py-2.5 font-extrabold text-xs md:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
+                    isClosed
+                      ? "bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed shadow-none"
+                      : "gradient-btn text-white"
+                  }`}
+                >
+                  <FaTicketAlt className="w-3.5 h-3.5" />
+                  <span>{buttonText}</span>
+                </button>
+              );
+            })()}
           </div>
         </div>
 

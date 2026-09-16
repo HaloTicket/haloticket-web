@@ -97,6 +97,8 @@ export interface ZoneBlock {
   name: string;
   price?: number;
   tierId?: string;
+  minPerOrder?: number;
+  maxPerOrder?: number;
   color: string;
   fillColor?: string;
   strokeColor?: string;

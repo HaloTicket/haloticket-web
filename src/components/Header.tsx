@@ -181,8 +181,10 @@ export const Header: React.FC = () => {
     { label: "Blog", path: "/blog" },
   ];
 
+  const isBookingFlow = location.pathname.includes("select-ticket") || location.pathname.includes("checkout");
+
   return (
-    <header className="sticky top-0 z-50 app-bg-header border-b app-border transition-colors duration-300">
+    <header className={`${isBookingFlow ? 'relative z-30' : 'sticky top-0 z-50'} app-bg-header border-b app-border transition-colors duration-300`}>
       {/* Top Header Bar */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo */}

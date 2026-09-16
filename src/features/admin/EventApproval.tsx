@@ -62,12 +62,13 @@ export const EventApproval: React.FC = () => {
   const [searchParams] = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
 
-  const [activeTab, setActiveTab] = useState<"PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
+  const [activeTab, setActiveTab] = useState<"PENDING" | "UPDATE_PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<ApprovalEventItem | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("Hình ảnh poster/banner không đạt tiêu chuẩn bản quyền");
   const [rejectNotes, setRejectNotes] = useState("");
+  const [flaggedFields, setFlaggedFields] = useState<string[]>(["posterImage"]);
   const [isLoading, setIsLoading] = useState(true);
 
   // pagination state
@@ -212,7 +213,12 @@ export const EventApproval: React.FC = () => {
       prev.map((item) => (item.id === selectedEvent.id ? { ...item, eventApprovalStatus: "REJECTED" } : item))
     );
 
-    const res = await eventApi.rejectEvent(selectedEvent.id, rejectReason, rejectNotes);
+    const notesPayload = JSON.stringify({
+      flaggedFields,
+      noteText: rejectNotes,
+    });
+
+    const res = await eventApi.rejectEvent(selectedEvent.id, rejectReason, notesPayload);
     if (res) {
       showToast(`${translate("Đã TỪ CHỐI phê duyệt sự kiện")} "${selectedEvent.title}"!`, "info");
     }
@@ -257,7 +263,7 @@ export const EventApproval: React.FC = () => {
           <div>
             <h2 className="text-base font-bold app-text-main flex items-center gap-2">
               <FiCheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>{translate("Kiểm Duyệt Yêu Cầu Đăng Tải Sự Kiện")}</span>
+              <span>{translate("Kiểm Duyệt Yêu Cầu Đăng Tải & Cập Nhật Sự Kiện")}</span>
             </h2>
             <p className="text-xs app-text-muted mt-0.5">
               {translate("Đánh giá hồ sơ pháp lý, địa điểm, hạng vé và thông tin Ban Tổ Chức trước khi công khai mở bán vé.")}
@@ -277,8 +283,8 @@ export const EventApproval: React.FC = () => {
 
         {/* Tab Filters */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 app-bg-subnav p-1 rounded-lg border border-slate-200 dark:border-slate-800 w-full sm:w-auto">
-            {(["PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((tab) => (
+          <div className="flex items-center gap-1.5 app-bg-subnav p-1 rounded-lg border border-slate-200 dark:border-slate-800 w-full sm:w-auto flex-wrap">
+            {(["PENDING", "UPDATE_PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -293,12 +299,14 @@ export const EventApproval: React.FC = () => {
               >
                 <span>
                   {tab === "PENDING"
-                    ? translate("Chờ duyệt")
-                    : tab === "APPROVED"
-                      ? translate("Đã duyệt")
-                      : tab === "REJECTED"
-                        ? translate("Bị từ chối")
-                        : translate("Tất cả")}
+                    ? translate("Chờ duyệt mới")
+                    : tab === "UPDATE_PENDING"
+                      ? translate("Cần xem xét cập nhật")
+                      : tab === "APPROVED"
+                        ? translate("Đã duyệt")
+                        : tab === "REJECTED"
+                          ? translate("Bị từ chối")
+                          : translate("Tất cả")}
                 </span>
               </button>
             ))}
@@ -331,8 +339,8 @@ export const EventApproval: React.FC = () => {
                 <th className="py-3 px-4 w-[18%]">{translate("Thể loại & Địa điểm")}</th>
                 <th className="py-3 px-4 w-[22%]">{translate("Thời gian diễn ra")}</th>
                 <th className="py-3 px-4 w-[11%]">{translate("Giá vé từ")}</th>
-                <th className="py-3 px-4 w-[12%] text-center">{translate("Trạng thái duyệt")}</th>
-                <th className="py-3 px-4 w-[13%] text-right">{translate("Thao tác Admin")}</th>
+                <th className="py-3 px-4 w-[14%] text-center">{translate("Trạng thái duyệt")}</th>
+                <th className="py-3 px-4 w-[11%] text-right">{translate("Thao tác Admin")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -392,13 +400,17 @@ export const EventApproval: React.FC = () => {
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[11px] font-extrabold border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-1">
                             <FiCheckCircle className="w-3 h-3" /> {translate("Đã phê duyệt")}
                           </span>
+                        ) : status === "UPDATE_PENDING" ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[11px] font-extrabold border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1 animate-pulse">
+                            <FiRefreshCw className="w-3 h-3 animate-spin" /> {translate("Cần xem xét cập nhật")}
+                          </span>
                         ) : status === "REJECTED" ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-[11px] font-extrabold border border-rose-200 dark:border-rose-800 inline-flex items-center gap-1">
                             <FiXCircle className="w-3 h-3" /> {translate("Bị từ chối")}
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[11px] font-extrabold border border-amber-200 dark:border-amber-800 inline-flex items-center gap-1 animate-pulse">
-                            <FiAlertTriangle className="w-3 h-3" /> {translate("Chờ phê duyệt")}
+                            <FiAlertTriangle className="w-3 h-3" /> {translate("Chờ phê duyệt mới")}
                           </span>
                         )}
                       </td>
@@ -622,7 +634,11 @@ export const EventApproval: React.FC = () => {
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5 active:scale-95"
               >
                 <FiCheckCircle className="w-4 h-4" />
-                <span>{translate("Phê duyệt sự kiện ngay")}</span>
+                <span>
+                  {selectedEvent.eventApprovalStatus === "UPDATE_PENDING"
+                    ? translate("Phê duyệt cập nhật ngay")
+                    : translate("Phê duyệt sự kiện ngay")}
+                </span>
               </button>
             </div>
           </div>
@@ -632,14 +648,14 @@ export const EventApproval: React.FC = () => {
       {/* Reject Confirmation Modal */}
       {showRejectModal && selectedEvent && (
         <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 my-4 max-h-[90vh] overflow-y-auto no-scrollbar">
             <div className="flex items-center gap-2.5 text-rose-500">
               <FiAlertTriangle className="w-5 h-5 shrink-0" />
               <h3 className="text-base font-extrabold app-text-main">{translate("Từ chối duyệt sự kiện")}</h3>
             </div>
 
             <p className="text-xs app-text-muted leading-relaxed">
-              {translate("Bạn đang từ chối duyệt sự kiện")} <strong className="app-text-main">"{selectedEvent.title}"</strong>. {translate("Vui lòng chọn lý do để hệ thống tự động gửi thông báo cho Ban Tổ Chức.")}
+              {translate("Bạn đang từ chối duyệt sự kiện")} <strong className="app-text-main">"{selectedEvent.title}"</strong>. {translate("Đánh dấu các mục thông tin không đạt và nhập ghi chú để gửi về cho Ban Tổ Chức sửa đổi.")}
             </p>
 
             <div className="space-y-3">
@@ -656,11 +672,45 @@ export const EventApproval: React.FC = () => {
                 <option value="Khác" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{translate("Lý do khác...")}</option>
               </select>
 
+              {/* Checkbox Checklist for Section Flagging */}
+              <div className="space-y-2 p-3.5 rounded-xl app-bg-subnav border border-slate-200 dark:border-slate-800">
+                <label className="text-xs font-extrabold app-text-main block">{translate("Đánh dấu các mục không chấp nhận (Bôi đỏ phía BTC):")}</label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { id: "posterImage", label: "Poster & Banner" },
+                    { id: "title", label: "Tên & Mô tả sự kiện" },
+                    { id: "dates", label: "Thời gian diễn ra" },
+                    { id: "tickets", label: "Danh sách Hạng vé" },
+                    { id: "location", label: "Địa điểm sự kiện" },
+                    { id: "paymentInfo", label: "Thông tin thanh toán / MST" },
+                  ].map((field) => {
+                    const isChecked = flaggedFields.includes(field.id);
+                    return (
+                      <label key={field.id} className="flex items-center gap-2 cursor-pointer font-semibold app-text-main text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFlaggedFields((prev) => [...prev, field.id]);
+                            } else {
+                              setFlaggedFields((prev) => prev.filter((f) => f !== field.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded accent-rose-600"
+                        />
+                        <span>{field.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
               <textarea
                 rows={3}
                 value={rejectNotes}
                 onChange={(e) => setRejectNotes(e.target.value)}
-                placeholder={translate("Nhập ghi chú hướng dẫn BTC khắc phục...")}
+                placeholder={translate("Nhập ghi chú hướng dẫn BTC chi tiết những mục cần sửa đổi...")}
                 className="w-full app-bg-subnav app-text-main text-xs rounded-xl p-3 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-rose-500"
               />
             </div>

@@ -441,7 +441,10 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
     </div>
   );
 
-  return createPortal(modalContent, document.body);
+  const portalTarget = typeof document !== 'undefined' ? (document.fullscreenElement || document.body) : null;
+  if (!portalTarget) return null;
+
+  return createPortal(modalContent, portalTarget);
 };
 
 export default ZoneGeneratorModal;

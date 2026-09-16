@@ -66,6 +66,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     currentX: number;
     currentY: number;
   } | null>(null);
+  const selectionBoxRef = useRef<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
 
   const isSelectingMarquee = useRef<boolean>(false);
 
@@ -92,25 +93,104 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     initialZones: Map<string, { x: number; y: number; width: number; height: number }>;
   } | null>(null);
 
-  // auto-center scrollbar on mount
+  const getBoundingBox = () => {
+    const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
+    const stageList = stages || [];
+    const structureList = structures || [];
+    const seatList = seats || [];
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    zoneList.forEach((z) => {
+      if (z.x != null && z.y != null) {
+        minX = Math.min(minX, z.x);
+        minY = Math.min(minY, z.y);
+        maxX = Math.max(maxX, z.x + (z.width || 200));
+        maxY = Math.max(maxY, z.y + (z.height || 150));
+      }
+    });
+
+    stageList.forEach((s) => {
+      if (s.x != null && s.y != null) {
+        minX = Math.min(minX, s.x);
+        minY = Math.min(minY, s.y);
+        maxX = Math.max(maxX, s.x + (s.width || 300));
+        maxY = Math.max(maxY, s.y + (s.height || 100));
+      }
+    });
+
+    structureList.forEach((st) => {
+      if (st.x != null && st.y != null) {
+        minX = Math.min(minX, st.x);
+        minY = Math.min(minY, st.y);
+        maxX = Math.max(maxX, st.x + (st.width || 100));
+        maxY = Math.max(maxY, st.y + (st.height || 100));
+      }
+    });
+
+    seatList.forEach((st) => {
+      if (st.x != null && st.y != null) {
+        minX = Math.min(minX, st.x);
+        minY = Math.min(minY, st.y);
+        maxX = Math.max(maxX, st.x + 30);
+        maxY = Math.max(maxY, st.y + 30);
+      }
+    });
+
+    if (minX === Infinity) {
+      minX = 0;
+      maxX = 1200;
+      minY = 0;
+      maxY = 800;
+    }
+
+    return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+  };
+
+  // Auto-fit zoom calculation for Attendee Mode based on tight content bounding box
   useEffect(() => {
-    if (canvasRef.current) {
+    if (isAttendeeMode && canvasRef.current) {
+      const bbox = getBoundingBox();
+      const el = canvasRef.current;
+      const padding = 50;
+      const contentW = bbox.width + padding * 2;
+      const contentH = bbox.height + padding * 2;
+
+      const fitZoomW = Math.floor((el.clientWidth / contentW) * 100);
+      const fitZoomH = Math.floor((el.clientHeight / contentH) * 100);
+      const fitZoom = Math.min(fitZoomW, fitZoomH);
+      const clampedZoom = Math.min(Math.max(fitZoom, 35), 85);
+
+      setZoomLevel(clampedZoom);
+
+      setTimeout(() => {
+        if (canvasRef.current) {
+          const scale = clampedZoom / 100;
+          const targetX = Math.max(0, (bbox.minX - padding) * scale);
+          const targetY = Math.max(0, (bbox.minY - padding) * scale);
+          canvasRef.current.scrollLeft = targetX;
+          canvasRef.current.scrollTop = targetY;
+        }
+      }, 60);
+    } else if (canvasRef.current) {
       const el = canvasRef.current;
       el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
     }
-  }, []);
+  }, [isAttendeeMode, zones, seats, stages, structures]);
 
   // Mouse wheel interaction: Ctrl+Wheel to Zoom, Shift+Wheel to Scroll Horizontally
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
 
+    let rafId: number | null = null;
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        setZoomLevel((prev) => {
-          const delta = e.deltaY < 0 ? 10 : -10;
-          return Math.min(Math.max(prev + delta, 40), 200);
+        const delta = e.deltaY < 0 ? 10 : -10;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          setZoomLevel((prev) => Math.min(Math.max(prev + delta, 40), 200));
         });
       } else if (e.shiftKey) {
         e.preventDefault();
@@ -119,75 +199,79 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // Global window listeners for marquee selection to ensure smooth, decisive drag selection & release
   useEffect(() => {
     const handleWindowPointerMove = (e: PointerEvent) => {
-      if (!isSelectingMarquee.current || !canvasRef.current) return;
+      if (!isSelectingMarquee.current || !canvasRef.current || !selectionBoxRef.current) return;
       const scale = zoomLevel / 100;
       const rect = canvasRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left + canvasRef.current.scrollLeft) / scale;
       const y = (e.clientY - rect.top + canvasRef.current.scrollTop) / scale;
 
-      setSelectionBox((prev) => {
-        if (!prev) return null;
-        const boxMinX = Math.min(prev.startX, x);
-        const boxMaxX = Math.max(prev.startX, x);
-        const boxMinY = Math.min(prev.startY, y);
-        const boxMaxY = Math.max(prev.startY, y);
+      const prev = selectionBoxRef.current;
+      const nextBox = { ...prev, currentX: x, currentY: y };
+      selectionBoxRef.current = nextBox;
+      setSelectionBox(nextBox);
 
-        // Intersect Seats
-        const selectedInBox = seats
-          .filter((s) => s.x >= boxMinX && s.x <= boxMaxX && s.y >= boxMinY && s.y <= boxMaxY)
-          .map((s) => s.id);
-        setSelectedSeatIds(selectedInBox);
+      const boxMinX = Math.min(prev.startX, x);
+      const boxMaxX = Math.max(prev.startX, x);
+      const boxMinY = Math.min(prev.startY, y);
+      const boxMaxY = Math.max(prev.startY, y);
 
-        // Intersect Stage
-        const intersectedStage = stages.find(
-          (stg) =>
-            stg.x + stg.width >= boxMinX &&
-            stg.x <= boxMaxX &&
-            stg.y + stg.height >= boxMinY &&
-            stg.y <= boxMaxY
+      // Intersect Seats
+      const selectedInBox = seats
+        .filter((s) => s.x >= boxMinX && s.x <= boxMaxX && s.y >= boxMinY && s.y <= boxMaxY)
+        .map((s) => s.id);
+      setSelectedSeatIds(selectedInBox);
+
+      // Intersect Stage
+      const intersectedStage = stages.find(
+        (stg) =>
+          stg.x + stg.width >= boxMinX &&
+          stg.x <= boxMaxX &&
+          stg.y + stg.height >= boxMinY &&
+          stg.y <= boxMaxY
+      );
+      setSelectedStageId(intersectedStage ? intersectedStage.id : null);
+
+      // Intersect Structure
+      const intersectedStruct = structures.find(
+        (st) =>
+          st.x + st.width >= boxMinX &&
+          st.x <= boxMaxX &&
+          st.y + st.height >= boxMinY &&
+          st.y <= boxMaxY
+      );
+      setSelectedStructureId(intersectedStruct ? intersectedStruct.id : null);
+
+      // Intersect Zone
+      if (setSelectedZoneId) {
+        const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
+        const intersectedZone = zoneList.find(
+          (z) =>
+            z.x &&
+            z.y &&
+            z.width &&
+            z.height &&
+            z.x + z.width >= boxMinX &&
+            z.x <= boxMaxX &&
+            z.y + z.height >= boxMinY &&
+            z.y <= boxMaxY
         );
-        setSelectedStageId(intersectedStage ? intersectedStage.id : null);
-
-        // Intersect Structure
-        const intersectedStruct = structures.find(
-          (st) =>
-            st.x + st.width >= boxMinX &&
-            st.x <= boxMaxX &&
-            st.y + st.height >= boxMinY &&
-            st.y <= boxMaxY
-        );
-        setSelectedStructureId(intersectedStruct ? intersectedStruct.id : null);
-
-        // Intersect Zone
-        if (setSelectedZoneId) {
-          const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
-          const intersectedZone = zoneList.find(
-            (z) =>
-              z.x &&
-              z.y &&
-              z.width &&
-              z.height &&
-              z.x + z.width >= boxMinX &&
-              z.x <= boxMaxX &&
-              z.y + z.height >= boxMinY &&
-              z.y <= boxMaxY
-          );
-          setSelectedZoneId(intersectedZone ? intersectedZone.id : null);
-        }
-
-        return { ...prev, currentX: x, currentY: y };
-      });
+        setSelectedZoneId(intersectedZone ? intersectedZone.id : null);
+      }
     };
 
     const handleWindowPointerUp = () => {
       if (isSelectingMarquee.current) {
         isSelectingMarquee.current = false;
+        selectionBoxRef.current = null;
         setSelectionBox(null);
       }
     };
@@ -299,7 +383,9 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     onCanvasClickPosition?.({ x: Math.round(x), y: Math.round(y) });
 
     isSelectingMarquee.current = true;
-    setSelectionBox({ startX: x, startY: y, currentX: x, currentY: y });
+    const startBox = { startX: x, startY: y, currentX: x, currentY: y };
+    selectionBoxRef.current = startBox;
+    setSelectionBox(startBox);
 
     if (!e.shiftKey && !e.ctrlKey) {
       setSelectedSeatIds([]);
@@ -581,12 +667,13 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
       const x = (e.clientX - rect.left + canvasRef.current.scrollLeft) / scale;
       const y = (e.clientY - rect.top + canvasRef.current.scrollTop) / scale;
 
-      setSelectionBox((prev) => {
-        if (!prev) return null;
-        const boxMinX = Math.min(prev.startX, x);
-        const boxMaxX = Math.max(prev.startX, x);
-        const boxMinY = Math.min(prev.startY, y);
-        const boxMaxY = Math.max(prev.startY, y);
+      setSelectionBox((prev) => (prev ? { ...prev, currentX: x, currentY: y } : null));
+
+      if (selectionBox) {
+        const boxMinX = Math.min(selectionBox.startX, x);
+        const boxMaxX = Math.max(selectionBox.startX, x);
+        const boxMinY = Math.min(selectionBox.startY, y);
+        const boxMaxY = Math.max(selectionBox.startY, y);
 
         // Intersect Seats
         const selectedInBox = seats
@@ -630,9 +717,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
           );
           setSelectedZoneId(intersectedZone ? intersectedZone.id : null);
         }
-
-        return { ...prev, currentX: x, currentY: y };
-      });
+      }
       return;
     }
 
@@ -839,7 +924,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
   return (
     <div
-      className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'h-full min-h-[calc(100vh-140px)] rounded-xl border-none' : 'min-h-[720px]'
+      className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'h-full min-h-[calc(100vh-140px)] rounded-xl border-none' : 'h-full min-h-[500px]'
         }`}
     >
       {/* Top Floating Viewport Control Bar with z-10 (below header z-30) */}
@@ -888,7 +973,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
               onClick={() => setGridSnap((prev) => !prev)}
               className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${gridSnap
                 ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                : 'app-bg-main border-app-border app-text-muted hover:app-text-main'
+                : 'app-bg-main border app-border app-text-muted hover:app-text-main'
                 }`}
               title="Bật/Tắt hít lưới tọa độ"
             >
@@ -928,17 +1013,41 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             <FiRotateCcw className="w-4 h-4" />
           </button>
 
-          <div className="w-px h-5 app-border bg-slate-700 mx-1" />
-
           {/* Full-Screen Studio Expand Toggle */}
-          <button
-            type="button"
-            onClick={onToggleFullscreen}
-            className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 text-xs font-bold transition-all cursor-pointer"
-            title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình Studio'}
+          {!isAttendeeMode && (
+            <>
+              <div className="w-px h-5 app-border bg-slate-700 mx-1" />
+              <button
+                type="button"
+                onClick={onToggleFullscreen}
+                className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 text-xs font-bold transition-all cursor-pointer"
+                title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình Studio'}
+              >
+                {isFullscreen ? <FiMinimize2 className="w-4 h-4" /> : <FiMaximize2 className="w-4 h-4" />}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Top Legend Bar */}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b app-border bg-slate-500/5 text-xs app-text-muted font-semibold z-10">
+        <span className="text-[11px] font-black uppercase app-text-sub tracking-wider">Khu vực:</span>
+        {(!zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>)).map((z) => (
+          <div
+            key={z.id}
+            onClick={() => onSelectZoneAttendee?.(z)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg app-bg-main border app-border cursor-pointer hover:border-blue-500/50 transition-colors"
           >
-            {isFullscreen ? <FiMinimize2 className="w-4 h-4" /> : <FiMaximize2 className="w-4 h-4" />}
-          </button>
+            <span className="w-3 h-3 rounded-full shrink-0 border border-black/20" style={{ backgroundColor: z.color }} />
+            <span className="font-extrabold app-text-main text-[11px]">{z.name}</span>
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5 ml-auto text-[11px]">
+          <span className="w-3.5 h-3.5 rounded bg-rose-500/20 border border-rose-500 text-rose-400 flex items-center justify-center text-[9px]">
+            <FiTool className="w-2.5 h-2.5" />
+          </span>
+          <span>Bảo trì / Hư hỏng</span>
         </div>
       </div>
 
@@ -1286,21 +1395,6 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         </div>
       </div>
 
-      {/* Legend Footer */}
-      <div className="flex flex-wrap items-center justify-center gap-6 p-3 border-t app-border bg-slate-500/5 text-xs app-text-muted font-semibold">
-        {Object.values(zones).map((z) => (
-          <div key={z.id} className="flex items-center gap-2">
-            <span className="w-3.5 h-3.5 rounded-full shadow-xs" style={{ backgroundColor: z.color }} />
-            <span>{z.name}</span>
-          </div>
-        ))}
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded bg-rose-500/20 border border-rose-500 text-rose-400 flex items-center justify-center text-[9px]">
-            <FiTool className="w-2.5 h-2.5" />
-          </span>
-          <span>Bảo trì / Ghế hư</span>
-        </div>
-      </div>
     </div>
   );
 };

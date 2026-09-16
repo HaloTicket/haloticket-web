@@ -325,9 +325,6 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                   {/* Venue Location Group Header */}
                   <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-blue-500/5 border border-blue-500/15">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center text-xs shrink-0 font-bold">
-                        🏢
-                      </span>
                       <div className="min-w-0">
                         <h4 className="text-xs font-black app-text-main truncate">{group.venueName}</h4>
                         {group.address && (
@@ -623,5 +620,8 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     </div>
   );
 
-  return createPortal(modalContent, document.body);
+  const portalTarget = typeof document !== 'undefined' ? (document.fullscreenElement || document.body) : null;
+  if (!portalTarget) return null;
+
+  return createPortal(modalContent, portalTarget);
 };

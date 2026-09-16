@@ -89,6 +89,17 @@ export const eventApi = {
     }
   },
 
+  // update existing event details in DB
+  updateEvent: async (id: string, data: Record<string, unknown>): Promise<unknown> => {
+    try {
+      const response: unknown = await axiosClient.put(`/events/${id}`, data);
+      return response;
+    } catch (err) {
+      console.error("Failed to update event in DB:", err);
+      return null;
+    }
+  },
+
   // get list approval events
   getApprovalEvents: async (status: string = "ALL"): Promise<Record<string, unknown>[]> => {
     try {

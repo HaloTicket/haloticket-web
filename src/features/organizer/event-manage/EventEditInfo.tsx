@@ -64,6 +64,9 @@ export const EventEditInfo: React.FC = () => {
   // EVENT STATUS & INITIAL SNAPSHOT (For change detection)
   const [eventStatus, setEventStatus] = useState<string>("PENDING");
   const [initialSnapshot, setInitialSnapshot] = useState<string>("");
+  const [rejectionReasonText, setRejectionReasonText] = useState<string>("");
+  const [rejectionNotesText, setRejectionNotesText] = useState<string>("");
+  const [rejectedFields, setRejectedFields] = useState<string[]>([]);
 
   // FORM STATE
   // step 1: event info
@@ -168,8 +171,8 @@ export const EventEditInfo: React.FC = () => {
         if (currentUserId) {
           try {
             const [pRes, oRes] = await Promise.all([
-              organizerApi.getPayoutAccount(currentUserId),
-              organizerApi.getOrganizerProfile(currentUserId)
+              organizerApi.getPayoutAccount(currentUserId).catch(() => null),
+              organizerApi.getOrganizerProfile(currentUserId).catch(() => null)
             ]);
             payoutAccount = pRes;
             orgProfile = oRes;
@@ -322,6 +325,29 @@ export const EventEditInfo: React.FC = () => {
 
         const loadedStatus = (ev.status || ev.approvalStatus || ev.eventApprovalStatus || "PENDING").toUpperCase();
         setEventStatus(loadedStatus);
+
+        const loadedReason = ev.rejectionReason || "";
+        const loadedNotesRaw = ev.rejectionNotes || "";
+        let loadedRejectedFields: string[] = [];
+        let noteTextParsed = loadedNotesRaw;
+
+        if (loadedNotesRaw && loadedNotesRaw.trim().startsWith("{")) {
+          try {
+            const parsed = JSON.parse(loadedNotesRaw);
+            if (Array.isArray(parsed.flaggedFields)) {
+              loadedRejectedFields = parsed.flaggedFields;
+            }
+            if (parsed.noteText) {
+              noteTextParsed = parsed.noteText;
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        setRejectionReasonText(loadedReason);
+        setRejectionNotesText(noteTextParsed);
+        setRejectedFields(loadedRejectedFields);
 
         // Update React Form States with authentic data from backend services
         setTitle(loadedTitle);
@@ -607,13 +633,21 @@ export const EventEditInfo: React.FC = () => {
                   ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
                   : eventStatus === "APPROVED"
                   ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                  : eventStatus === "UPDATE_PENDING"
+                  ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+                  : eventStatus === "REJECTED"
+                  ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
                   : "bg-slate-500/10 text-slate-400 border-slate-500/20"
               }`}
             >
               {eventStatus === "PENDING"
                 ? "Chờ duyệt (PENDING)"
+                : eventStatus === "UPDATE_PENDING"
+                ? "Chờ duyệt cập nhật (UPDATE PENDING)"
                 : eventStatus === "APPROVED"
                 ? "Đã duyệt (APPROVED)"
+                : eventStatus === "REJECTED"
+                ? "Bị từ chối (REJECTED)"
                 : eventStatus}
             </span>
           </div>
@@ -635,6 +669,36 @@ export const EventEditInfo: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Prominent Rejection Alert Callout Banner if Event Status is REJECTED */}
+      {eventStatus === "REJECTED" && (
+        <div className="p-5 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-400 space-y-2.5 animate-in fade-in">
+          <div className="flex items-center gap-2 font-extrabold text-sm md:text-base">
+            <FiAlertCircle className="w-5 h-5 shrink-0 text-rose-500" />
+            <span>Sự kiện đã bị từ chối phê duyệt!</span>
+          </div>
+          {rejectionReasonText && (
+            <p className="text-xs font-semibold">
+              <strong>Lý do chính từ chối:</strong> {rejectionReasonText}
+            </p>
+          )}
+          {rejectionNotesText && (
+            <p className="text-xs">
+              <strong>Ghi chú hướng dẫn từ Admin:</strong> {rejectionNotesText}
+            </p>
+          )}
+          {rejectedFields.length > 0 && (
+            <div className="pt-2 border-t border-rose-500/20 text-xs font-bold flex items-center gap-2 flex-wrap">
+              <span>Các mục bị Admin đánh dấu lỗi (cần chỉnh sửa):</span>
+              {rejectedFields.map((f) => (
+                <span key={f} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[11px] uppercase font-mono shadow-xs">
+                  {f === "posterImage" ? "Poster & Banner" : f === "title" ? "Tên & Mô tả" : f === "dates" ? "Thời gian" : f === "tickets" ? "Danh sách Hạng vé" : f === "location" ? "Địa điểm" : "Thanh toán"}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stepper Navigation Bar */}
       <CreateEventStepper

@@ -15,12 +15,38 @@ interface RawNotification {
   [key: string]: unknown;
 }
 
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudioCtx) {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtx) {
+      sharedAudioCtx = new AudioCtx();
+    }
+  }
+  if (sharedAudioCtx && sharedAudioCtx.state === "suspended") {
+    void sharedAudioCtx.resume();
+  }
+  return sharedAudioCtx;
+}
+
+if (typeof window !== "undefined") {
+  const unlockAudio = () => {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      void ctx.resume();
+    }
+  };
+  window.addEventListener("click", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
+}
+
 // synthesize a pleasant bell chime using Web Audio API
 export async function playNotificationChime() {
   try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    const ctx = getAudioContext();
+    if (!ctx) return;
     if (ctx.state === "suspended") {
       await ctx.resume();
     }

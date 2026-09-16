@@ -287,6 +287,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             name: t.name,
             price: t.price || 0,
             color: colors[idx % colors.length],
+            isFree: t.isFree ?? t.price === 0,
+            totalQuantity: t.totalQuantity ?? 100,
+            minPerOrder: t.minPerOrder ?? 1,
+            maxPerOrder: t.maxPerOrder ?? 5,
+            startSaleDate: t.startSaleDate || undefined,
+            endSaleDate: t.endSaleDate || undefined,
             description: t.description || undefined,
           }));
           setBackendTiers(mappedTiers);
@@ -378,6 +384,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         });
 
         // Save locally for instant recovery
+        localStorage.setItem(`haloticket_seatmap_draft_${activeEventId}`, JSON.stringify(payload));
         localStorage.setItem(`haloticket_seatmap_draft_${eventName}`, JSON.stringify(payload));
 
         const zonesPayload = Object.entries(zones).map(([zId, z]) => {

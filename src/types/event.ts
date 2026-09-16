@@ -54,6 +54,8 @@ export interface EventDetailData {
   minPrice: string | number;
   startTime?: string;
   endTime?: string;
+  ticketSaleStartDate?: string;
+  ticketSaleEndDate?: string;
   posterImage: string;
   datesSummary: string;
   extraDaysCount: number;
