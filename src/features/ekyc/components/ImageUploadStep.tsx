@@ -11,7 +11,7 @@ import {
   FiArrowRight,
   FiCrop,
   FiEdit2,
-  FiCreditCard,
+  FiUploadCloud,
 } from "react-icons/fi";
 import { type ImageMetadata } from "@/utils/imageUtils";
 import { CropModal } from "./CropModal";
@@ -232,23 +232,19 @@ export function ImageUploadStep({
           <div className="space-y-4">
             <label
               htmlFor={inputId}
-              className="block relative rounded-xl border-2 border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-900/40 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/20 dark:hover:bg-blue-950/20 transition-all p-6 sm:p-8 cursor-pointer text-center group"
+              className="block relative rounded-2xl border-2 border-dashed border-blue-400/80 dark:border-blue-500/70 bg-blue-50/15 dark:bg-blue-950/15 hover:border-blue-600 dark:hover:border-blue-400 hover:bg-blue-50/35 dark:hover:bg-blue-950/25 transition-all duration-200 p-6 sm:p-8 cursor-pointer text-center group"
             >
-              <div className="py-6 sm:py-8 space-y-4 max-w-sm mx-auto">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60 mx-auto flex items-center justify-center group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                  <FiCreditCard className="w-6 h-6" />
+              <div className="py-6 sm:py-8 space-y-3.5 max-w-md mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/25 mx-auto flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-700 transition-all duration-200">
+                  <FiUploadCloud className="w-7 h-7" />
                 </div>
 
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={openFilePicker}
-                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all cursor-pointer pointer-events-none"
-                  >
-                    {t("Chọn ảnh từ thiết bị")}
-                  </button>
-                  <p className="text-[11px] app-text-muted pt-2">
-                    {t("Ảnh JPG hoặc PNG • Tối đa 10 MB")}
+                <div className="space-y-1.5">
+                  <h4 className="text-base sm:text-lg font-bold app-text-main group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {t("Bấm để tải ảnh ")}{label}
+                  </h4>
+                  <p className="text-xs app-text-muted">
+                    {t("Hỗ trợ định dạng JPG, PNG · Tối đa 10 MB · Có thể cắt sau khi chọn")}
                   </p>
                 </div>
               </div>
