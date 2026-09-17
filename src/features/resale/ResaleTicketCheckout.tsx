@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
-import type { TicketListing } from "@/types/marketplace";
+import type { ResaleReservation, TicketListing } from "@/types/marketplace";
 
 const money = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
@@ -16,6 +16,8 @@ export const ResaleTicketCheckout = () => {
   const [event, setEvent] = useState<Record<string, unknown> | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
+  const [reserving, setReserving] = useState(false);
+  const [reservation, setReservation] = useState<ResaleReservation | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -58,9 +60,25 @@ export const ResaleTicketCheckout = () => {
         <span>Tôi đã kiểm tra thông tin vé và đồng ý với điều khoản mua vé bán lại của HaloTicket.</span>
       </label>
 
-      <button type="button" disabled={!agreed} onClick={() => navigate(`/checkout/resale/${listing.id}`)}
+      {reservation && (
+        <div role="status" className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          Vé đã được giữ cho bạn đến {new Intl.DateTimeFormat("vi-VN", { timeStyle: "short" }).format(new Date(reservation.reservationExpiresAt))}.
+          Mã giao dịch: <strong>{reservation.transactionId}</strong>
+        </div>
+      )}
+      <button type="button" disabled={!agreed || reserving || Boolean(reservation)} onClick={async () => {
+        setReserving(true);
+        setError("");
+        try {
+          setReservation(await marketplaceApi.reserveListing(listing.id));
+        } catch {
+          setError("Không thể giữ vé. Vé có thể vừa được người khác chọn.");
+        } finally {
+          setReserving(false);
+        }
+      }}
         className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-4 font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
-        <FiCheckCircle /> Tiếp tục · {money(listing.price)}
+        <FiCheckCircle /> {reserving ? "Đang giữ vé…" : reservation ? "Đã giữ vé" : `Giữ vé · ${money(listing.price)}`}
       </button>
     </main>
   );

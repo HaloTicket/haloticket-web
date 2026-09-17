@@ -4,6 +4,7 @@ import type {
   MarketplacePage,
   MarketplaceSagaResponse,
   ResaleEventSummary,
+  ResaleReservation,
   ResaleEligibility,
   TicketListing,
 } from "@/types/marketplace";
@@ -24,6 +25,13 @@ export const marketplaceApi = {
 
   getListing: (listingId: string) =>
     axiosClient.get<unknown, TicketListing>(`/marketplace/listings/${encodeURIComponent(listingId)}`),
+
+  reserveListing: (listingId: string, idempotencyKey = newIdempotencyKey()) =>
+    axiosClient.post<unknown, ResaleReservation>(
+      `/marketplace/listings/${encodeURIComponent(listingId)}/reserve`,
+      null,
+      { headers: { "Idempotency-Key": idempotencyKey } },
+    ),
 
   getResaleEligibility: (ticketId: string) =>
     axiosClient.get<unknown, ResaleEligibility>(`/marketplace/tickets/${encodeURIComponent(ticketId)}/resale-eligibility`),

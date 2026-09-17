@@ -50,6 +50,15 @@ export interface ResaleEventSummary {
   minPrice: number;
 }
 
+export interface ResaleReservation {
+  transactionId: string;
+  listingId: string;
+  status: "PENDING_PAYMENT";
+  amount: number;
+  currency: string;
+  reservationExpiresAt: string;
+}
+
 export interface GiftTicketRequest {
   ticketId: string;
   recipientEmail: string;
