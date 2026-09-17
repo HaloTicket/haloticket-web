@@ -17,6 +17,7 @@ import {
 import { FaTicketAlt, FaMicrochip } from "react-icons/fa";
 import { FiCreditCard, FiChevronDown } from "react-icons/fi";
 import { ImageUploadStep } from "./components/ImageUploadStep";
+import { FaceCaptureStep } from "./components/FaceCaptureStep";
 import { ReviewSubmitStep } from "./components/ReviewSubmitStep";
 import { EkycConfirmationStep } from "./components/EkycConfirmationStep";
 import { userApi, type UserProfile } from "@/services/userApi";
@@ -38,21 +39,21 @@ export default function EkycVerification() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [files, setFiles] = useState<(File | null)[]>([null, null]);
-  const [previews, setPreviews] = useState<(string | null)[]>([null, null]);
-  const [metadatas, setMetadatas] = useState<(ImageMetadata | null)[]>([null, null]);
+  const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
+  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null]);
+  const [metadatas, setMetadatas] = useState<(ImageMetadata | null)[]>([null, null, null]);
   const [rotatingIndex, setRotatingIndex] = useState<number | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [uploadVersion, setUploadVersion] = useState(0);
   const inFlight = useRef(false);
-  const previewUrls = useRef<(string | null)[]>([null, null]);
+  const previewUrls = useRef<(string | null)[]>([null, null, null]);
 
   // Reset inFlight on unmount to prevent stale lock across hot-reloads
   useEffect(() => {
     return () => { inFlight.current = false; };
   }, []);
 
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   useEffect(() => {
     let active = true;
@@ -62,7 +63,7 @@ export default function EkycVerification() {
         const val = ekycRes.value;
         setStatus(val);
         if (val.status === "APPROVED") {
-          setCurrentStep(4);
+          setCurrentStep(5);
         }
       } else {
         setError("Không thể tải trạng thái xác minh từ hệ thống đối soát.");
@@ -130,6 +131,27 @@ export default function EkycVerification() {
     });
   };
 
+  /** Called by FaceCaptureStep after webcam photo is captured */
+  const handleFaceCapture = (file: File, url: string) => {
+    setError("");
+    if (previewUrls.current[2]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[2]!);
+    previewUrls.current[2] = url;
+    setFiles((c) => [c[0], c[1], file]);
+    setPreviews((c) => [c[0], c[1], url]);
+    void readImageMetadata(file).then((meta) => {
+      setMetadatas((c) => [c[0], c[1], meta]);
+    });
+  };
+
+  /** Called by FaceCaptureStep when retaking portrait */
+  const handleFaceRetake = () => {
+    if (previewUrls.current[2]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[2]!);
+    previewUrls.current[2] = null;
+    setFiles((c) => [c[0], c[1], null]);
+    setPreviews((c) => [c[0], c[1], null]);
+    setMetadatas((c) => [c[0], c[1], null]);
+  };
+
   const handleRotate = async (index: number, degrees: number) => {
     const currentFile = files[index];
     if (!currentFile || busy || rotatingIndex !== null) return;
@@ -156,7 +178,7 @@ export default function EkycVerification() {
   };
 
   async function submit() {
-    if (inFlight.current || !consent || !files[0] || !files[1]) {
+    if (inFlight.current || !consent || !files[0] || !files[1] || !files[2]) {
       return;
     }
     inFlight.current = true;
@@ -166,7 +188,7 @@ export default function EkycVerification() {
     try {
       const session = await ekycApi.startSession(true, "2026.1");
       if (Date.parse(session.expiresAt) <= Date.now()) throw new Error("Expired session");
-      const verifyResult = await ekycApi.verify(session.sessionId, files[0]!, files[1]!);
+      const verifyResult = await ekycApi.verify(session.sessionId, files[0]!, files[1]!, files[2]!);
       const finalStatus = verifyResult;
       setStatus(finalStatus);
 
@@ -180,12 +202,18 @@ export default function EkycVerification() {
           setError("VNPT không nhận diện ảnh là CCCD gắn chip. Vui lòng kiểm tra đúng mặt trước, mặt sau và chụp đủ bốn góc thẻ.");
         } else if (verifyResult.reasonCode === "DOCUMENT_INVALID") {
           setError("VNPT đã đọc được CCCD nhưng phát hiện cảnh báo về dữ liệu, chất lượng ảnh hoặc tính hợp lệ. Vui lòng chụp lại rõ nét, đủ bốn góc và đúng hai mặt của cùng một CCCD.");
+        } else if (verifyResult.reasonCode === "FACE_LIVENESS_FAILED") {
+          setError("Khuôn mặt không vượt qua kiểm tra người thật (Face Liveness). Vui lòng nhìn thẳng camera và đảm bảo đủ ánh sáng.");
+        } else if (verifyResult.reasonCode === "FACE_MATCH_FAILED") {
+          setError("Khuôn mặt không khớp với ảnh trên CCCD. Vui lòng chụp lại khuôn mặt rõ ràng, không đeo kính hoặc phụ kiện.");
+        } else if (verifyResult.reasonCode === "FACE_MULTIPLE_DETECTED") {
+          setError("Phát hiện nhiều hơn 1 khuôn mặt trong khung hình. Vui lòng chụp một mình trong khung hình camera.");
         } else if (verifyResult.reasonCode === "PROVIDER_REJECTED") {
           setError("VNPT từ chối hồ sơ. Vui lòng kiểm tra chất lượng ảnh và thử lại.");
         } else if (verifyResult.reasonCode) {
           setError(`Xác minh bị từ chối: ${verifyResult.reasonCode}. Vui lòng kiểm tra lại giấy tờ.`);
         } else {
-          setError("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và thử lại.");
+          setError("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và ảnh chân dung rồi thử lại.");
         }
         // Don't reset form for rejected cases - let user retry
         inFlight.current = false;
@@ -201,18 +229,18 @@ export default function EkycVerification() {
       }
 
       setParams((prev) => { const next = new URLSearchParams(prev); next.delete("mode"); return next; });
-      setFiles([null, null]);
+      setFiles([null, null, null]);
       previewUrls.current.forEach((url) => { if (url) URL.revokeObjectURL(url); });
-      previewUrls.current = [null, null];
-      setPreviews([null, null]);
-      setMetadatas([null, null]);
+      previewUrls.current = [null, null, null];
+      setPreviews([null, null, null]);
+      setMetadatas([null, null, null]);
       setConsent(false);
       setUploadVersion((v) => v + 1);
-      // Show success message based on returned status and switch to step 4
+      // Show success message based on returned status and switch to step 5
       if (finalStatus.status === "APPROVED") {
         void userApi.getProfile().then(setUserProfile);
-        setSuccessMessage("Xác minh CCCD thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền.");
-        setCurrentStep(4);
+        setSuccessMessage("Xác minh CCCD & Khuôn mặt thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền.");
+        setCurrentStep(5);
       } else if (finalStatus.status === "PENDING") {
         setSuccessMessage("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút).");
         setCurrentStep(1);
@@ -222,7 +250,7 @@ export default function EkycVerification() {
       const apiMsg = axiosErr.response?.data?.message || axiosErr.response?.data?.error;
       if (apiMsg === "EKYC_ATTEMPT_LIMIT") {
         setError("Không thể hoàn tất xác minh: Bạn đã vượt quá số lần thử cho phép trong ngày. Vui lòng thử lại sau.");
-      } else if (apiMsg && (apiMsg.includes("Loại giấy tờ") || apiMsg.includes("Vui lòng") || apiMsg.includes("CCCD"))) {
+      } else if (apiMsg && (apiMsg.includes("Loại giấy tờ") || apiMsg.includes("Vui lòng") || apiMsg.includes("CCCD") || apiMsg.includes("khuôn mặt") || apiMsg.includes("Face"))) {
         setError(apiMsg);
       } else if (apiMsg) {
         setError(`Không thể hoàn tất xác minh (${apiMsg}). Vui lòng kiểm tra lại giấy tờ và gửi lại.`);
@@ -235,7 +263,7 @@ export default function EkycVerification() {
     }
   }
 
-  const activateStep = (step: 1 | 2 | 3 | 4) => {
+  const activateStep = (step: 1 | 2 | 3 | 4 | 5) => {
     setCurrentStep(step);
   };
 
@@ -245,12 +273,14 @@ export default function EkycVerification() {
     } else if (currentStep === 2) {
       setCurrentStep(3);
     } else if (currentStep === 3) {
+      setCurrentStep(4);
+    } else if (currentStep === 4) {
       if (status?.status === "APPROVED") {
-        setCurrentStep(4);
+        setCurrentStep(5);
       } else {
         void submit();
       }
-    } else if (currentStep === 4) {
+    } else if (currentStep === 5) {
       navigate(returnUrl);
     }
   };
@@ -323,15 +353,17 @@ export default function EkycVerification() {
               {[
                 { step: 1 as const, title: t("Mặt trước CCCD") },
                 { step: 2 as const, title: t("Mặt sau CCCD") },
-                { step: 3 as const, title: t("Đối soát VNPT") },
-                { step: 4 as const, title: t("Xác nhận thông tin") },
+                { step: 3 as const, title: t("Chụp khuôn mặt") },
+                { step: 4 as const, title: t("Đối soát VNPT") },
+                { step: 5 as const, title: t("Xác nhận thông tin") },
               ].map(({ step, title }) => {
                 const isApproved = status?.status === "APPROVED";
                 const isCompleted =
                   (step === 1 && (Boolean(files[0]) || (isApproved && params.get("mode") !== "update"))) ||
                   (step === 2 && (Boolean(files[1]) || (isApproved && params.get("mode") !== "update"))) ||
-                  (step === 3 && isApproved) ||
-                  (step === 4 && isApproved && params.get("mode") !== "update");
+                  (step === 3 && (Boolean(files[2]) || (isApproved && params.get("mode") !== "update"))) ||
+                  (step === 4 && isApproved) ||
+                  (step === 5 && isApproved && params.get("mode") !== "update");
                 const isActive = currentStep === step;
 
                 return (
@@ -339,7 +371,7 @@ export default function EkycVerification() {
                     key={step}
                     type="button"
                     onClick={() => {
-                      if (step === 4) {
+                      if (step === 5) {
                         if (!isApproved) return;
                         setParams((prev) => {
                           const next = new URLSearchParams(prev);
@@ -355,8 +387,8 @@ export default function EkycVerification() {
                       }
                       activateStep(step);
                     }}
-                    disabled={step === 4 && !isApproved}
-                    className={`relative flex items-center gap-2.5 py-1.5 pb-2.5 whitespace-nowrap cursor-pointer transition-all shrink-0 ${step === 4 && !isApproved ? "opacity-50 cursor-not-allowed" : "hover:opacity-95"
+                    disabled={step === 5 && !isApproved}
+                    className={`relative flex items-center gap-2.5 py-1.5 pb-2.5 whitespace-nowrap cursor-pointer transition-all shrink-0 ${step === 5 && !isApproved ? "opacity-50 cursor-not-allowed" : "hover:opacity-95"
                       }`}
                   >
                     <div
@@ -404,7 +436,7 @@ export default function EkycVerification() {
                 disabled={busy}
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/25 cursor-pointer inline-flex items-center gap-1.5 active:scale-98"
               >
-                <span>{currentStep === 4 ? t("Hoàn tất") : t("Tiếp tục")}</span>
+                <span>{currentStep === 5 ? t("Hoàn tất") : t("Tiếp tục")}</span>
               </button>
             </div>
           </div>
@@ -634,12 +666,14 @@ export default function EkycVerification() {
                   <h3 className="text-base sm:text-lg font-bold app-text-main">
                     {currentStep === 1 && t("1. Tải lên Mặt trước CCCD gắn chip")}
                     {currentStep === 2 && t("2. Tải lên Mặt sau CCCD (Chip & Mã MRZ)")}
-                    {currentStep === 3 && t("3. Đối soát & Gửi xác minh VNPT AI")}
+                    {currentStep === 3 && t("3. Chụp ảnh khuôn mặt (Face Liveness)")}
+                    {currentStep === 4 && t("4. Đối soát & Gửi xác minh VNPT AI")}
                   </h3>
                   <p className="text-xs app-text-muted mt-0.5">
                     {currentStep === 1 && t("Chụp rõ nét mặt trước thẻ CCCD gắn chip, đảm bảo thấy rõ ảnh và số định danh 12 số.")}
                     {currentStep === 2 && t("Chụp rõ mặt sau chứa chip vi mạch điện tử và 3 dòng mã ký tự quang học MRZ.")}
-                    {currentStep === 3 && t("Xem lại hai mặt CCCD, đồng ý điều khoản và gửi VNPT bóc tách thông tin.")}
+                    {currentStep === 3 && t("Nhìn thẳng vào camera và chụp ảnh chân dung trực tiếp để xác thực người thật.")}
+                    {currentStep === 4 && t("Xem lại hồ sơ 3 ảnh, đồng ý điều khoản và gửi VNPT bóc tách thông tin & đối soát.")}
                   </p>
                 </div>
 
@@ -678,23 +712,37 @@ export default function EkycVerification() {
                     onRotate={(i, d) => void handleRotate(i, d)}
                     prevLabel="Quay lại bước 1"
                     onPrev={() => setCurrentStep(1)}
-                    nextLabel="Sang bước 3: Kiểm tra thông tin"
+                    nextLabel="Sang bước 3: Chụp khuôn mặt"
                     onNext={() => setCurrentStep(3)}
                   />
                 </div>
 
+                {/* TAB 3: Chụp khuôn mặt */}
                 <div className={currentStep === 3 ? "block" : "hidden"}>
+                  <FaceCaptureStep
+                    file={files[2]}
+                    previewUrl={previews[2]}
+                    onCapture={handleFaceCapture}
+                    onRetake={handleFaceRetake}
+                    onPrev={() => setCurrentStep(2)}
+                    onNext={() => setCurrentStep(4)}
+                    returnUrl={returnUrl}
+                  />
+                </div>
+
+                {/* TAB 4: Đối soát & Gửi xác minh */}
+                <div className={currentStep === 4 ? "block" : "hidden"}>
                   <ReviewSubmitStep
-                    previews={[previews[0], previews[1]]}
-                    metadatas={[metadatas[0], metadatas[1]]}
-                    files={[files[0], files[1]]}
+                    previews={previews}
+                    metadatas={metadatas}
+                    files={files}
                     rotatingIndex={rotatingIndex}
                     consent={consent}
                     busy={busy}
                     onConsentChange={setConsent}
                     onRotate={(i, d) => void handleRotate(i, d)}
-                    onGoToStep={setCurrentStep}
-                    onPrev={() => setCurrentStep(2)}
+                    onGoToStep={(s) => setCurrentStep(s as 1 | 2 | 3 | 4 | 5)}
+                    onPrev={() => setCurrentStep(3)}
                     returnUrl={returnUrl}
                   />
                 </div>
