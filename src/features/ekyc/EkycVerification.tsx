@@ -720,6 +720,7 @@ export default function EkycVerification() {
                 {/* TAB 3: Chụp khuôn mặt */}
                 <div className={currentStep === 3 ? "block" : "hidden"}>
                   <FaceCaptureStep
+                    isActive={currentStep === 3}
                     file={files[2]}
                     previewUrl={previews[2]}
                     onCapture={handleFaceCapture}

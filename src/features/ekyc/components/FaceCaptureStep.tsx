@@ -22,6 +22,7 @@ interface FaceCaptureStepProps {
   onNext: () => void;
   onPrev: () => void;
   returnUrl: string;
+  isActive?: boolean;
 }
 
 export function FaceCaptureStep({
@@ -32,6 +33,7 @@ export function FaceCaptureStep({
   onNext,
   onPrev,
   returnUrl,
+  isActive = true,
 }: FaceCaptureStepProps) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -60,14 +62,23 @@ export function FaceCaptureStep({
         throw new Error("Trình duyệt không hỗ trợ truy cập camera.");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch {
+        // Fallback to basic video constraint for external PC webcams without facingMode
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -81,7 +92,7 @@ export function FaceCaptureStep({
       const error = err as { name?: string; message?: string };
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         setCameraError(
-          "Quyền truy cập Camera bị từ chối. Vui lòng cho phép quyền Camera trên thanh địa chỉ trình duyệt hoặc quét mã QR để mở trên điện thoại."
+          "Quyền truy cập Camera bị từ chối hoặc chưa được cấp. Vui lòng bấm 'Cấp quyền & Bật Camera' bên dưới, cho phép trên thanh địa chỉ trình duyệt, hoặc quét mã QR để mở trên điện thoại."
         );
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
         setCameraError(
@@ -97,7 +108,7 @@ export function FaceCaptureStep({
   }, [stopCamera]);
 
   useEffect(() => {
-    if (!file && !previewUrl) {
+    if (isActive && !file && !previewUrl) {
       void startCamera();
     } else {
       stopCamera();
@@ -105,7 +116,7 @@ export function FaceCaptureStep({
     return () => {
       stopCamera();
     };
-  }, [file, previewUrl, startCamera, stopCamera]);
+  }, [isActive, file, previewUrl, startCamera, stopCamera]);
 
   const handleCapture = () => {
     const video = videoRef.current;
@@ -245,15 +256,15 @@ export function FaceCaptureStep({
                   <button
                     type="button"
                     onClick={() => void startCamera()}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/25"
                   >
-                    <FiRefreshCw className="w-4 h-4" />
-                    <span>{t("Thử lại Camera")}</span>
+                    <FiCamera className="w-4 h-4" />
+                    <span>{t("Cấp quyền & Bật Camera")}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowQrModal(true)}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/25"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <FiSmartphone className="w-4 h-4" />
                     <span>{t("Quét mã QR sang điện thoại")}</span>
