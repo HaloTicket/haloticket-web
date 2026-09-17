@@ -41,7 +41,8 @@ export default function TicketDetail() {
         quantity: 1,
         totalAmount: item.price || 0,
         purchaseDate: item.issuedAt || undefined,
-        status: item.status === "USED" ? "ATTENDED" : ["REVOKED", "CANCELLED"].includes(item.status || "") ? "CANCELLED" : "UPCOMING",
+        rawStatus: item.status || "VALID",
+        status: item.status === "USED" ? "USED" : ["REVOKED", "CANCELLED"].includes(item.status || "") ? "CANCELLED" : "UPCOMING",
         qrCode: item.qrCode || undefined,
       });
     }).catch(() => { if (active) setLoadError("Không thể tải vé từ hệ thống."); });

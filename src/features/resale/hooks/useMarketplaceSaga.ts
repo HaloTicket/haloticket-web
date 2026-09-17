@@ -4,7 +4,7 @@ import type { MarketplaceSagaResponse } from "@/types/marketplace";
 
 const terminalStates = new Set(["COMPLETED", "FAILED", "COMPENSATED"]);
 
-export function useMarketplaceSaga(sagaId?: string) {
+export function useMarketplaceSaga(sagaId?: string, options?: { stopOnWaitingRecipient?: boolean }) {
   const [saga, setSaga] = useState<MarketplaceSagaResponse | null>(null);
   const [loading, setLoading] = useState(Boolean(sagaId));
   const [error, setError] = useState<unknown>(null);
@@ -27,7 +27,8 @@ export function useMarketplaceSaga(sagaId?: string) {
         if (cancelled) return;
         setSaga(result);
         setLoading(false);
-        if (!terminalStates.has(result.state)) {
+        const reachedGiftHandoff = options?.stopOnWaitingRecipient && result.state === "WAITING_RECIPIENT";
+        if (!terminalStates.has(result.state) && !reachedGiftHandoff) {
           timer = setTimeout(poll, delay);
           delay = Math.min(delay * 2, 10000);
         }
@@ -44,7 +45,7 @@ export function useMarketplaceSaga(sagaId?: string) {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [sagaId]);
+  }, [sagaId, options?.stopOnWaitingRecipient]);
 
   return { saga, loading, error };
 }
