@@ -267,24 +267,6 @@ export default function EkycVerification() {
     setCurrentStep(step);
   };
 
-  const handleNextAction = () => {
-    if (currentStep === 1) {
-      setCurrentStep(2);
-    } else if (currentStep === 2) {
-      setCurrentStep(3);
-    } else if (currentStep === 3) {
-      setCurrentStep(4);
-    } else if (currentStep === 4) {
-      if (status?.status === "APPROVED") {
-        setCurrentStep(5);
-      } else {
-        void submit();
-      }
-    } else if (currentStep === 5) {
-      navigate(returnUrl);
-    }
-  };
-
   return (
     <div className="app-bg-page app-text-main py-8 sm:py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-500 selection:text-white">
       <div className="max-w-2xl w-full mx-auto space-y-5">
