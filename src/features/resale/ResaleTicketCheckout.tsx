@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import { paymentApi } from "@/services/paymentApi";
 import type { ResaleReservation, TicketListing } from "@/types/marketplace";
 
 const money = (value: number) =>
@@ -18,6 +19,8 @@ export const ResaleTicketCheckout = () => {
   const [error, setError] = useState("");
   const [reserving, setReserving] = useState(false);
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "MOMO" | "ZALOPAY">("VNPAY");
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -65,6 +68,38 @@ export const ResaleTicketCheckout = () => {
           Vé đã được giữ cho bạn đến {new Intl.DateTimeFormat("vi-VN", { timeStyle: "short" }).format(new Date(reservation.reservationExpiresAt))}.
           Mã giao dịch: <strong>{reservation.transactionId}</strong>
         </div>
+      )}
+      {reservation && (
+        <fieldset className="mt-5">
+          <legend className="mb-3 text-sm font-bold app-text-main">Phương thức thanh toán</legend>
+          <div className="grid grid-cols-3 gap-3">
+            {(["VNPAY", "MOMO", "ZALOPAY"] as const).map((method) => (
+              <label key={method} className="cursor-pointer rounded-xl border app-border p-3 text-center text-sm font-semibold app-text-main">
+                <input type="radio" className="sr-only" checked={paymentMethod === method} onChange={() => setPaymentMethod(method)} />
+                <span className={paymentMethod === method ? "text-brand-primary" : ""}>{method}</span>
+              </label>
+            ))}
+          </div>
+          <button type="button" disabled={paying} onClick={async () => {
+            setPaying(true);
+            try {
+              const payment = await marketplaceApi.startResalePayment(reservation.transactionId);
+              const orderInfo = `Mua vé bán lại ${String(event?.title ?? "")}`;
+              const url = paymentMethod === "MOMO"
+                ? await paymentApi.createMoMoUrl(payment.amount, orderInfo, payment.transactionId)
+                : paymentMethod === "ZALOPAY"
+                  ? await paymentApi.createZaloPayUrl(payment.amount, orderInfo, payment.transactionId)
+                  : await paymentApi.createVnPayUrl(payment.amount, orderInfo, payment.transactionId);
+              if (!url) throw new Error("PAYMENT_URL_UNAVAILABLE");
+              window.location.assign(url);
+            } catch {
+              setError("Không thể khởi tạo thanh toán. Vui lòng thử lại trước khi hết thời gian giữ vé.");
+              setPaying(false);
+            }
+          }} className="mt-4 w-full rounded-xl bg-brand-primary px-5 py-4 font-bold text-white disabled:opacity-50">
+            {paying ? "Đang chuyển đến cổng thanh toán…" : `Thanh toán ${money(reservation.amount)}`}
+          </button>
+        </fieldset>
       )}
       <button type="button" disabled={!agreed || reserving || Boolean(reservation)} onClick={async () => {
         setReserving(true);

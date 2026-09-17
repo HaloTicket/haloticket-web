@@ -59,6 +59,13 @@ export interface ResaleReservation {
   reservationExpiresAt: string;
 }
 
+export interface ResalePaymentInitiation {
+  transactionId: string;
+  amount: number;
+  currency: string;
+  expiresAt: string;
+}
+
 export interface GiftTicketRequest {
   ticketId: string;
   recipientEmail: string;
