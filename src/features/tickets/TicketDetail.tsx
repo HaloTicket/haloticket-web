@@ -10,47 +10,8 @@ import {
 } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import { type TicketItem, downloadTicketAsImage } from "./MyTickets";
-
-const SAMPLE_TICKETS: Record<string, TicketItem> = {
-  "booking-demo-001": {
-    id: "booking-demo-001",
-    bookingCode: "HT-849201",
-    eventId: "e1",
-    eventTitle: "GRAND CONCERT - HALOTICKET LIVE 2026",
-    eventTime: "19:30 - 23:30, 20/10/2026",
-    eventLocation: "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
-    eventPoster: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
-    ticketTypeName: "Vé VIP (Standing)",
-    quantity: 2,
-    totalAmount: 4000000,
-    customerName: "Trần Long Vũ",
-    customerPhone: "0915020803",
-    customerEmail: "vutkd23405@gmail.com",
-    paymentMethod: "SEPAY (VietQR 24/7)",
-    purchaseDate: "2026-09-17T16:00:00.000Z",
-    status: "UPCOMING",
-    qrCode: "HALOTICKET-HT-849201",
-  },
-  "booking-demo-002": {
-    id: "booking-demo-002",
-    bookingCode: "HT-629104",
-    eventId: "e2",
-    eventTitle: "NHẠC HỘI MÙA HÈ - SUMMER MUSIC FEST",
-    eventTime: "18:00 - 22:00, 15/08/2026",
-    eventLocation: "Nhà thi đấu Phú Thọ, TP. Hồ Chí Minh",
-    eventPoster: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-    ticketTypeName: "Khán đài A (Nồi ngồi)",
-    quantity: 1,
-    totalAmount: 1200000,
-    customerName: "Trần Long Vũ",
-    customerPhone: "0915020803",
-    customerEmail: "vutkd23405@gmail.com",
-    paymentMethod: "VNPAY",
-    purchaseDate: "2026-08-10T14:30:00.000Z",
-    status: "ATTENDED",
-    qrCode: "HALOTICKET-HT-629104",
-  },
-};
+import { ticketApi } from "@/services/ticketApi";
+import { eventApi } from "@/services/eventApi";
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
@@ -58,50 +19,38 @@ export default function TicketDetail() {
 
   const [ticket, setTicket] = useState<TicketItem | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     if (!id) return;
-
-    try {
-      const saved = localStorage.getItem("haloticket_my_tickets");
-      if (saved) {
-        const parsed: TicketItem[] = JSON.parse(saved);
-        const found = parsed.find((t) => t.id === id || t.bookingCode === id);
-        if (found) {
-          setTicket(found);
-          return;
-        }
-      }
-    } catch {
-      // fallback below
-    }
-
-    if (SAMPLE_TICKETS[id]) {
-      setTicket(SAMPLE_TICKETS[id]);
-    } else {
-      // fallback default ticket
+    let active = true;
+    setLoadError(null);
+    ticketApi.getMyTicket(id).then(async (item) => {
+      if (!active) return;
+      const event = await eventApi.getEventById(item.eventId);
       setTicket({
-        id: id,
-        bookingCode: id.startsWith("HT-") ? id : `HT-${id.substring(0, 6)}`,
-        eventTitle: "HALOTICKET 2026 - EVENT CONCERT",
-        eventTime: "19:00 - 23:59, 20/09/2026",
-        eventLocation: "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
-        eventPoster: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
-        ticketTypeName: "Vé VIP (Standing)",
+        id: item.id,
+        bookingCode: item.bookingCode || item.id,
+        eventId: item.eventId,
+        eventTitle: String(event?.title || `Sự kiện ${item.eventId}`),
+        eventTime: event?.startTime ? new Date(String(event.startTime)).toLocaleString("vi-VN") : "Chưa cập nhật lịch",
+        eventLocation: String(event?.locationName || event?.address || "Đang cập nhật"),
+        eventPoster: String(event?.posterImage || event?.bannerUrl || ""),
+        ticketTypeName: item.ticketTypeName || "Vé điện tử",
         quantity: 1,
-        totalAmount: 2000000,
-        customerName: "Trần Long Vũ",
-        customerPhone: "0915020803",
-        customerEmail: "vutkd23405@gmail.com",
-        paymentMethod: "SEPAY (VietQR 24/7)",
-        purchaseDate: new Date().toISOString(),
-        status: "UPCOMING",
-        qrCode: `HALOTICKET-${id}`,
+        totalAmount: item.price || 0,
+        purchaseDate: item.issuedAt || undefined,
+        status: item.status === "USED" ? "ATTENDED" : ["REVOKED", "CANCELLED"].includes(item.status || "") ? "CANCELLED" : "UPCOMING",
+        qrCode: item.qrCode || undefined,
       });
-    }
+    }).catch(() => { if (active) setLoadError("Không thể tải vé từ hệ thống."); });
+    return () => { active = false; };
   }, [id]);
 
+  if (loadError) {
+    return <div className="w-full flex-1 app-bg-page flex items-center justify-center min-h-[450px] text-rose-600">{loadError}</div>;
+  }
   if (!ticket) {
     return (
       <div className="w-full flex-1 app-bg-page flex items-center justify-center min-h-[450px]">

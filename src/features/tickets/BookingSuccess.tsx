@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FiCheckCircle, FiHome } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import { formatCurrency } from "@/utils/formatters";
+import { ticketApi } from "@/services/ticketApi";
 
 export default function BookingSuccess() {
   const navigate = useNavigate();
@@ -10,14 +11,14 @@ export default function BookingSuccess() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
-    try {
-      const tickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
-      if (tickets.length > 0) {
-        setLastTicket(tickets[0]);
-      }
-    } catch {
-      // ignore
-    }
+    ticketApi.getMyTickets().then((tickets) => {
+      if (tickets.length > 0) setLastTicket({
+        ...tickets[0],
+        eventTitle: tickets[0].eventId ? `Sự kiện ${tickets[0].eventId}` : "Sự kiện HaloTicket",
+        quantity: 1,
+        totalAmount: tickets[0].price || 0,
+      });
+    }).catch(() => undefined);
   }, []);
 
   return (

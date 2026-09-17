@@ -285,6 +285,7 @@ export default function Checkout() {
   // final order submission after recipient info confirmation
   const handleFinalPaymentSubmit = async (recipientData: RecipientInfoData) => {
     try {
+      void recipientData;
       setIsSubmitting(true);
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
       const seatIds = order.zoneId ? [order.zoneId] : [];
@@ -299,27 +300,6 @@ export default function Checkout() {
       const bookingId = bookingRes?.id || `booking_${Date.now()}`;
       const bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
       setActiveBookingId(bookingId);
-
-      // Save to my_tickets cache
-      const confirmedTicket = {
-        id: bookingId,
-        bookingCode,
-        eventTitle: order.eventTitle,
-        eventTime: order.eventTime,
-        eventLocation: order.eventLocation,
-        ticketTypeName: order.ticketTypeName,
-        quantity: order.quantity,
-        totalAmount: finalTotalAmount,
-        customerName: recipientData.recipientName || fullName,
-        customerPhone: recipientData.phone || phoneOrCccd,
-        customerEmail: recipientData.email || email,
-        shippingAddress: `${recipientData.address}, ${recipientData.ward}, ${recipientData.city}`,
-        paymentMethod: selectedPaymentMethod,
-        purchaseDate: new Date().toISOString(),
-        qrCode: `HALOTICKET-${bookingId}`,
-      };
-      const existingMyTickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
-      localStorage.setItem("haloticket_my_tickets", JSON.stringify([confirmedTicket, ...existingMyTickets]));
 
       // Option 1: VNPay gateway
       if (selectedPaymentMethod === "vnpay") {

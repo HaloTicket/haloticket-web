@@ -13,6 +13,10 @@ export const ticketApi = {
     return Array.isArray(response) ? (response as OwnedTicketApiResponse[]) : [];
   },
 
+  getMyTicket: async (ticketId: string): Promise<OwnedTicketApiResponse> => {
+    return axiosClient.get<unknown, OwnedTicketApiResponse>(`/tickets/${encodeURIComponent(ticketId)}`);
+  },
+
   // get ticket types for an event
   getTicketTypesByEventId: async (eventId: string): Promise<TicketTypeApiResponse[]> => {
     try {
