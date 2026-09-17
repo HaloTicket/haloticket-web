@@ -28,7 +28,6 @@ interface FaceCaptureStepProps {
 export function FaceCaptureStep({
   onCapture,
   previewUrl,
-  file,
   onRetake,
   onNext,
   onPrev,
@@ -84,7 +83,7 @@ export function FaceCaptureStep({
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
+        await videoRef.current.play().catch(() => { });
       }
       setCameraLoading(false);
     } catch (err: unknown) {
