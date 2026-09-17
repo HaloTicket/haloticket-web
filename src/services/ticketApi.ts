@@ -4,9 +4,15 @@ import type {
   TicketTypeApiResponse,
   SeatLayoutApiRequest,
   SeatLayoutApiResponse,
+  OwnedTicketApiResponse,
 } from "@/types";
 
 export const ticketApi = {
+  getMyTickets: async (): Promise<OwnedTicketApiResponse[]> => {
+    const response = await axiosClient.get<unknown, unknown>("/tickets/mine");
+    return Array.isArray(response) ? (response as OwnedTicketApiResponse[]) : [];
+  },
+
   // get ticket types for an event
   getTicketTypesByEventId: async (eventId: string): Promise<TicketTypeApiResponse[]> => {
     try {

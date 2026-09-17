@@ -21,6 +21,8 @@ function QrCodeIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 import { formatCurrency } from "@/utils/formatters";
+import { ticketApi } from "@/services/ticketApi";
+import { eventApi } from "@/services/eventApi";
 
 export interface TicketItem {
   id: string;
@@ -41,47 +43,6 @@ export interface TicketItem {
   status?: "UPCOMING" | "ATTENDED" | "CANCELLED" | string;
   qrCode?: string;
 }
-
-const SAMPLE_TICKETS: TicketItem[] = [
-  {
-    id: "booking-demo-001",
-    bookingCode: "HT-849201",
-    eventId: "e1",
-    eventTitle: "GRAND CONCERT - HALOTICKET LIVE 2026",
-    eventTime: "19:30 - 23:30, 20/10/2026",
-    eventLocation: "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
-    eventPoster: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
-    ticketTypeName: "Vé VIP (Standing)",
-    quantity: 2,
-    totalAmount: 4000000,
-    customerName: "Trần Long Vũ",
-    customerPhone: "0915020803",
-    customerEmail: "vutkd23405@gmail.com",
-    paymentMethod: "SEPAY (VietQR 24/7)",
-    purchaseDate: "2026-09-17T16:00:00.000Z",
-    status: "UPCOMING",
-    qrCode: "HALOTICKET-HT-849201",
-  },
-  {
-    id: "booking-demo-002",
-    bookingCode: "HT-629104",
-    eventId: "e2",
-    eventTitle: "NHẠC HỘI MÙA HÈ - SUMMER MUSIC FEST",
-    eventTime: "18:00 - 22:00, 15/08/2026",
-    eventLocation: "Nhà thi đấu Phú Thọ, TP. Hồ Chí Minh",
-    eventPoster: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-    ticketTypeName: "Khán đài A (Nồi ngồi)",
-    quantity: 1,
-    totalAmount: 1200000,
-    customerName: "Trần Long Vũ",
-    customerPhone: "0915020803",
-    customerEmail: "vutkd23405@gmail.com",
-    paymentMethod: "VNPAY",
-    purchaseDate: "2026-08-10T14:30:00.000Z",
-    status: "ATTENDED",
-    qrCode: "HALOTICKET-HT-629104",
-  },
-];
 
 // canvas image export helper function
 export function downloadTicketAsImage(ticket: TicketItem) {
@@ -227,6 +188,8 @@ interface MyTicketsProps {
 
 export default function MyTickets({ embedded = false }: MyTicketsProps) {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ALL" | "UPCOMING" | "ATTENDED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -239,20 +202,35 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       window.scrollTo(0, 0);
     }
 
-    // load tickets from localStorage or fallback to sample tickets
-    try {
-      const saved = localStorage.getItem("haloticket_my_tickets");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTickets(parsed);
-          return;
-        }
-      }
-    } catch {
-      // fallback below
-    }
-    setTickets(SAMPLE_TICKETS);
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
+    ticketApi.getMyTickets().then(async (items) => {
+      if (!active) return;
+      const eventIds = [...new Set(items.map((item) => item.eventId).filter(Boolean))];
+      const eventEntries = await Promise.all(eventIds.map(async (eventId) => [eventId, await eventApi.getEventById(eventId)] as const));
+      const eventMap = new Map(eventEntries);
+      setTickets(items.map((item) => ({
+        id: item.id,
+        bookingCode: item.bookingCode || item.id,
+        eventId: item.eventId,
+        eventTitle: String(eventMap.get(item.eventId)?.title || `Sự kiện ${item.eventId}`),
+        eventTime: eventMap.get(item.eventId)?.startTime ? new Date(String(eventMap.get(item.eventId)?.startTime)).toLocaleString("vi-VN") : "Chưa cập nhật lịch",
+        eventLocation: String(eventMap.get(item.eventId)?.locationName || eventMap.get(item.eventId)?.address || "Đang cập nhật"),
+        eventPoster: String(eventMap.get(item.eventId)?.posterImage || eventMap.get(item.eventId)?.bannerUrl || ""),
+        ticketTypeName: item.ticketTypeName || "Vé điện tử",
+        quantity: 1,
+        totalAmount: item.price || 0,
+        purchaseDate: item.issuedAt || undefined,
+        status: item.status === "USED" ? "ATTENDED" : ["REVOKED", "CANCELLED"].includes(item.status || "") ? "CANCELLED" : "UPCOMING",
+        qrCode: item.qrCode || undefined,
+      })));
+    }).catch(() => {
+      if (active) setLoadError("Không thể tải vé từ hệ thống. Vui lòng thử lại sau.");
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
   }, [embedded]);
 
   const filteredTickets = tickets.filter((t) => {
@@ -416,8 +394,11 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
           </div>
         )}
 
-        {/* Ticket List Cards Grid */}
-        {filteredTickets.length > 0 ? (
+        {loading ? (
+          <div className="app-bg-card border app-border rounded-3xl p-12 text-center app-text-sub">Đang tải vé từ hệ thống…</div>
+        ) : loadError ? (
+          <div className="app-bg-card border border-rose-300 rounded-3xl p-12 text-center text-rose-600">{loadError}</div>
+        ) : filteredTickets.length > 0 ? (
           <div className="grid grid-cols-1 gap-4">
             {filteredTickets.map((ticket) => (
               <div
