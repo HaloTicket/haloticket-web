@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ekycApi } from "@/services/ekycApi";
 import { PATHS } from "@/routes/paths";
 import { EKYC_STATUS_LABELS, type EkycStatusResponse } from "@/types/ekyc";
 import {
-  FiShield,
   FiCheckCircle,
   FiAlertCircle,
   FiRefreshCw,
@@ -13,9 +12,10 @@ import {
   FiArrowLeft,
   FiClock,
   FiInfo,
+  FiCreditCard,
+  FiChevronDown,
 } from "react-icons/fi";
 import { FaTicketAlt, FaMicrochip } from "react-icons/fa";
-import { FiCreditCard, FiChevronDown } from "react-icons/fi";
 import { ImageUploadStep } from "./components/ImageUploadStep";
 import { FaceCaptureStep } from "./components/FaceCaptureStep";
 import { ReviewSubmitStep } from "./components/ReviewSubmitStep";
@@ -25,7 +25,6 @@ import { rotateImageFile, readImageMetadata, type ImageMetadata } from "@/utils/
 
 export default function EkycVerification() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const returnUrl =
     params.get("returnUrl") === PATHS.CREATE_EVENT
