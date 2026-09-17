@@ -585,7 +585,7 @@ export function EkycConfirmationStep({
             className="mt-0.5 w-4 h-4 rounded border app-border text-blue-600 focus:ring-0 cursor-pointer accent-blue-600"
           />
           <span className="text-xs app-text-muted leading-relaxed">
-            {t("Tôi cam kết những thông tin cung cấp là đúng sự thật và xin chịu mọi trách nhiệm trước Pháp luật.")}
+            {t("Tôi xác nhận các thông tin cung cấp là chính xác và đồng ý với Điều khoản của HaloTicket.")}
           </span>
         </label>
 
