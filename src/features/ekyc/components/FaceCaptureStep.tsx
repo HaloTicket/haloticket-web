@@ -40,7 +40,8 @@ export function FaceCaptureStep({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [cameraLoading, setCameraLoading] = useState(true);
+  const [cameraStarted, setCameraStarted] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -107,16 +108,16 @@ export function FaceCaptureStep({
     }
   }, [stopCamera]);
 
+  // When inactive (navigating away from Step 3), immediately turn off camera and reset state
   useEffect(() => {
-    if (isActive && !file && !previewUrl) {
-      void startCamera();
-    } else {
+    if (!isActive) {
       stopCamera();
+      setCameraStarted(false);
     }
     return () => {
       stopCamera();
     };
-  }, [isActive, file, previewUrl, startCamera, stopCamera]);
+  }, [isActive, stopCamera]);
 
   const handleCapture = () => {
     const video = videoRef.current;
@@ -235,8 +236,74 @@ export function FaceCaptureStep({
               </button>
             </div>
           </div>
+        ) : !cameraStarted && !cameraError ? (
+          /* State 2: Pre-capture Permission & Confirmation Screen */
+          <div className="relative w-full h-full flex flex-col items-center justify-center p-8 sm:p-12 text-center space-y-6 max-w-lg mx-auto animate-in fade-in">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-3xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto shadow-xl shadow-blue-500/10">
+                <FiCamera className="w-10 h-10" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold border-2 border-slate-950">
+                <FiShield className="w-3 h-3" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+                {t("Bước 3: Sinh trắc học khuôn mặt")}
+              </span>
+              <h3 className="text-lg sm:text-xl font-black text-white">
+                {t("Chụp ảnh chân dung xác thực")}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-md mx-auto">
+                {t("Hệ thống cần quyền mở Camera để kiểm tra người thật (Face Liveness) và đối soát với CCCD. Bạn vui lòng bấm nút bên dưới để cấp quyền và mở camera.")}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 w-full max-w-sm text-left text-xs text-slate-400 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+              <div className="flex items-center gap-2">
+                <FiCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{t("Chụp trực tiếp webcam")}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FiCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{t("Bảo mật & mã hóa VNPT")}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FiCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{t("Không lưu trữ video")}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FiCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{t("Hỗ trợ quét bằng mobile")}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setCameraStarted(true);
+                  void startCamera();
+                }}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-black text-sm shadow-xl shadow-blue-500/30 inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-95"
+              >
+                <FiCamera className="w-5 h-5" />
+                <span>{t("Bật Camera & Bắt đầu chụp")}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowQrModal(true)}
+                className="w-full sm:w-auto px-5 py-3.5 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <FiSmartphone className="w-4 h-4" />
+                <span>{t("Chụp trên điện thoại")}</span>
+              </button>
+            </div>
+          </div>
         ) : (
-          /* State 2: Live Camera Feed or Error State */
+          /* State 3: Live Camera Feed or Error State */
           <div className="relative w-full h-full flex flex-col items-center justify-center">
             {cameraError ? (
               <div className="p-8 text-center space-y-5 max-w-md animate-in fade-in">
@@ -255,7 +322,10 @@ export function FaceCaptureStep({
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => void startCamera()}
+                    onClick={() => {
+                      setCameraStarted(true);
+                      void startCamera();
+                    }}
                     className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/25"
                   >
                     <FiCamera className="w-4 h-4" />
@@ -311,7 +381,7 @@ export function FaceCaptureStep({
       </div>
 
       {/* Camera Action Buttons (Only when live camera is running) */}
-      {!previewUrl && !cameraError && (
+      {!previewUrl && !cameraError && cameraStarted && (
         <div className="flex flex-col items-center justify-center gap-3">
           <button
             type="button"
@@ -325,14 +395,27 @@ export function FaceCaptureStep({
             <span>{t("Chụp ảnh chân dung")}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setShowQrModal(true)}
-            className="text-xs app-text-muted hover:app-text-main inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1"
-          >
-            <FiSmartphone className="w-3.5 h-3.5 text-blue-500" />
-            <span>{t("Không có webcam? Quét mã QR để chụp bằng điện thoại")}</span>
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                stopCamera();
+                setCameraStarted(false);
+              }}
+              className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-1 transition-colors cursor-pointer py-1"
+            >
+              ✕ {t("Tắt Camera")}
+            </button>
+            <span className="text-slate-600">·</span>
+            <button
+              type="button"
+              onClick={() => setShowQrModal(true)}
+              className="text-xs app-text-muted hover:app-text-main inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1"
+            >
+              <FiSmartphone className="w-3.5 h-3.5 text-blue-500" />
+              <span>{t("Quét mã QR để chụp bằng điện thoại")}</span>
+            </button>
+          </div>
         </div>
       )}
 
