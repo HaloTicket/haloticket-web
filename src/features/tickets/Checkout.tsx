@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiClock, FiCheck, FiShield, FiTag, FiCreditCard, FiAlertCircle } from "react-icons/fi";
+import { FiClock, FiCheck, FiShield, FiTag, FiAlertCircle } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import type { BookingOrderData } from "@/types";
 import type { CustomQuestionItem } from "@/types/organizer";
 import { eventApi } from "@/services/eventApi";
 import { bookingApi } from "@/services/bookingApi";
 import { paymentApi } from "@/services/paymentApi";
+import { userApi } from "@/services/userApi";
 import ConfirmModal from "@/components/common/ConfirmModal";
 import UpdateRecipientInfoModal, { type RecipientInfoData } from "./components/UpdateRecipientInfoModal";
+import VietQrModal from "./components/VietQrModal";
 import { ToastContainer, type ToastMessage } from "@/features/organizer/event-manage/components/seating/SeatingToast";
+import type { VietQrPayloadResponse } from "@/types";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -57,6 +60,11 @@ export default function Checkout() {
 
   // recipient info modal state (image 3)
   const [isRecipientModalOpen, setIsRecipientModalOpen] = useState(false);
+
+  // VietQR modal state
+  const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
+  const [vietQrData, setVietQrData] = useState<VietQrPayloadResponse | null>(null);
+  const [activeBookingId, setActiveBookingId] = useState<string>("");
 
   // custom questions loaded from event-service
   const [customQuestions, setCustomQuestions] = useState<CustomQuestionItem[]>([]);
@@ -118,7 +126,7 @@ export default function Checkout() {
 
     async function fetchEventDetails() {
       try {
-        const ev: any = await eventApi.getEventById(activeEventId);
+        const ev: any = await eventApi.getEventById(activeEventId || "");
         if (isMounted && ev) {
           const poster = ev.thumbnailUrl || ev.posterImage || ev.bannerUrl || ev.image || null;
           if (poster) setEventPosterUrl(poster);
@@ -151,16 +159,79 @@ export default function Checkout() {
 
   const hasCustomQuestions = customQuestions.length > 0;
 
-  // questionnaire form state (step 1)
-  const [fullName, setFullName] = useState("Trần Vũ");
-  const [phoneOrCccd, setPhoneOrCccd] = useState("0901234567");
-  const [email, setEmail] = useState("vutkd23405@gmail.com");
+  // questionnaire form state (step 1) - Auto load from logged in user profile
+  const [fullName, setFullName] = useState("");
+  const [phoneOrCccd, setPhoneOrCccd] = useState("");
+  const [email, setEmail] = useState("");
   const [agreedTerms1, setAgreedTerms1] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Load profile from userApi
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUserProfile() {
+      try {
+        const user = await userApi.getProfile();
+        if (isMounted && user) {
+          if (user.fullName) setFullName(user.fullName);
+          if (user.phoneNumber) setPhoneOrCccd(user.phoneNumber);
+          if (user.email) setEmail(user.email);
+        }
+      } catch (err) {
+        console.warn("Could not load user profile for checkout:", err);
+      }
+    }
+    loadUserProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // voucher & discount state
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [voucherError, setVoucherError] = useState<string>("");
+
+  const subtotalAmount = order.totalAmount ?? ((order.price || 0) * (order.quantity || 1));
+  const finalTotal = Math.max(0, subtotalAmount - discountAmount);
+
+  const handleApplyVoucher = () => {
+    const code = voucherInput.trim().toUpperCase();
+    if (!code) return;
+
+    if (code === "HALO50" || code === "VOUCHER50") {
+      setDiscountAmount(50000);
+      setAppliedVoucher(code);
+      setVoucherError("");
+      showToast("success", "Đã áp dụng mã giảm giá 50.000đ!");
+    } else if (code === "HALO100" || code === "VOUCHER100") {
+      setDiscountAmount(100000);
+      setAppliedVoucher(code);
+      setVoucherError("");
+      showToast("success", "Đã áp dụng mã giảm giá 100.000đ!");
+    } else if (code === "HALO10" || code === "DISCOUNT10") {
+      const discount = Math.round(subtotalAmount * 0.1);
+      setDiscountAmount(discount);
+      setAppliedVoucher(code);
+      setVoucherError("");
+      showToast("success", `Đã áp dụng mã giảm 10% (${formatCurrency(discount)})!`);
+    } else {
+      setVoucherError("Mã khuyến mãi không hợp lệ hoặc đã hết hạn.");
+      showToast("error", "Mã khuyến mãi không hợp lệ.");
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setDiscountAmount(0);
+    setVoucherInput("");
+    setVoucherError("");
+    showToast("info", "Đã hủy áp dụng mã giảm giá.");
+  };
+
   // payment state (step 2)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("vnpay");
-  const [discountAmount] = useState(0);
   const [agreedTerms2, setAgreedTerms2] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -202,7 +273,7 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // click payment button -> validate terms & open recipient info modal (image 3)
+  // click payment button -> validate terms & open recipient info modal
   const handleOpenPaymentModal = () => {
     if (!agreedTerms2) {
       showToast("warning", "Vui lòng đọc kỹ và đồng ý với điều khoản dịch vụ trước khi tiếp tục.");
@@ -211,40 +282,28 @@ export default function Checkout() {
     setIsRecipientModalOpen(true);
   };
 
-  // final order submission after recipient info confirmation (image 3 -> image 4 VNPay)
+  // final order submission after recipient info confirmation
   const handleFinalPaymentSubmit = async (recipientData: RecipientInfoData) => {
     try {
       setIsSubmitting(true);
-      const finalTotalAmount = Math.max(0, order.totalAmount - discountAmount);
+      const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
       const seatIds = order.zoneId ? [order.zoneId] : [];
 
       // call real bookingApi backend
       const bookingRes = await bookingApi.createBooking({
-        eventId: activeEventId,
+        eventId: activeEventId || "",
         totalAmount: finalTotalAmount,
         seatIds,
       });
 
       const bookingId = bookingRes?.id || `booking_${Date.now()}`;
+      const bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
+      setActiveBookingId(bookingId);
 
-      // if vnpay selected, generate vnpay payment url & redirect (image 4)
-      if (selectedPaymentMethod === "vnpay") {
-        const vnpayUrl = await paymentApi.createVnPayUrl(
-          finalTotalAmount,
-          `Thanh toan don hang HaloTicket ${bookingRes?.bookingCode || bookingId}`,
-          bookingId
-        );
-
-        if (vnpayUrl) {
-          window.location.href = vnpayUrl;
-          return;
-        }
-      }
-
-      // fallback local save if direct confirmation
+      // Save to my_tickets cache
       const confirmedTicket = {
         id: bookingId,
-        bookingCode: bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`,
+        bookingCode,
         eventTitle: order.eventTitle,
         eventTime: order.eventTime,
         eventLocation: order.eventLocation,
@@ -259,11 +318,74 @@ export default function Checkout() {
         purchaseDate: new Date().toISOString(),
         qrCode: `HALOTICKET-${bookingId}`,
       };
-
       const existingMyTickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
       localStorage.setItem("haloticket_my_tickets", JSON.stringify([confirmedTicket, ...existingMyTickets]));
-      localStorage.removeItem("haloticket_pending_order");
 
+      // Option 1: VNPay gateway
+      if (selectedPaymentMethod === "vnpay") {
+        const vnpayUrl = await paymentApi.createVnPayUrl(
+          finalTotalAmount,
+          `Thanh toan don hang HaloTicket ${bookingCode}`,
+          bookingId
+        );
+        if (vnpayUrl) {
+          window.location.href = vnpayUrl;
+          return;
+        }
+      }
+
+      // Option 2: VietQR / SePay fast transfer
+      if (selectedPaymentMethod === "vietqr" || selectedPaymentMethod === "sepay") {
+        const qrPayload = await paymentApi.createVietQrPayload(finalTotalAmount, bookingCode, bookingId);
+        if (qrPayload) {
+          setVietQrData(qrPayload);
+          setIsRecipientModalOpen(false);
+          setIsVietQrModalOpen(true);
+          return;
+        }
+      }
+
+      // Option 3: MoMo e-wallet
+      if (selectedPaymentMethod === "momo") {
+        const momoUrl = await paymentApi.createMoMoUrl(
+          finalTotalAmount,
+          `Thanh toan don hang HaloTicket ${bookingCode}`,
+          bookingId
+        );
+        if (momoUrl) {
+          window.location.href = momoUrl;
+          return;
+        }
+      }
+
+      // Option 4: ZaloPay e-wallet
+      if (selectedPaymentMethod === "zalopay") {
+        const zalopayUrl = await paymentApi.createZaloPayUrl(
+          finalTotalAmount,
+          `Thanh toan don hang HaloTicket ${bookingCode}`,
+          bookingId
+        );
+        if (zalopayUrl) {
+          window.location.href = zalopayUrl;
+          return;
+        }
+      }
+
+      // Option 5: ShopeePay e-wallet
+      if (selectedPaymentMethod === "shopeepay") {
+        const shopeepayUrl = await paymentApi.createShopeePayUrl(
+          finalTotalAmount,
+          `Thanh toan don hang HaloTicket ${bookingCode}`,
+          bookingId
+        );
+        if (shopeepayUrl) {
+          window.location.href = shopeepayUrl;
+          return;
+        }
+      }
+
+      // Fallback direct confirmation
+      localStorage.removeItem("haloticket_pending_order");
       setIsRecipientModalOpen(false);
       navigate("/booking-success");
     } catch (err) {
@@ -274,8 +396,6 @@ export default function Checkout() {
       setIsSubmitting(false);
     }
   };
-
-  const finalTotal = Math.max(0, order.totalAmount - discountAmount);
 
   return (
     <div className="w-full flex-1 app-bg-page app-text-main font-sans selection:bg-blue-600 selection:text-white pb-16">
@@ -519,19 +639,58 @@ export default function Checkout() {
               </div>
 
               {/* Promo Code Coupon Box */}
-              <div className="app-bg-card border app-border rounded-2xl p-6 flex items-center justify-between shadow-sm">
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Mã khuyến mãi</h3>
-                  <p className="text-xs app-text-sub">Nhập mã ưu đãi hoặc voucher giảm giá</p>
+              <div className="app-bg-card border app-border rounded-2xl p-6 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Mã khuyến mãi / Voucher</h3>
+                    <p className="text-[11px] app-text-sub">Nhập mã ưu đãi giảm giá (Thử: HALO50, HALO100, HALO10)</p>
+                  </div>
+                  {appliedVoucher && (
+                    <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-black">
+                      Đã giảm {formatCurrency(discountAmount)}
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => showToast("info", "Tính năng mã giảm giá sẵn sàng áp dụng.")}
-                  className="px-4 py-2 rounded-xl app-bg-main border app-border hover:border-blue-500 text-xs font-extrabold app-text-brand flex items-center gap-2 cursor-pointer transition-colors"
-                >
-                  <FiTag className="w-4 h-4" />
-                  <span>+ Thêm khuyến mãi</span>
-                </button>
+
+                {appliedVoucher ? (
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                      Mã đã áp dụng: <strong>{appliedVoucher}</strong> (-{formatCurrency(discountAmount)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveVoucher}
+                      className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
+                    >
+                      Hủy dùng
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={voucherInput}
+                      onChange={(e) => {
+                        setVoucherInput(e.target.value);
+                        setVoucherError("");
+                      }}
+                      placeholder="Nhập mã voucher (VD: HALO50)"
+                      className="flex-1 px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500 uppercase font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyVoucher}
+                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FiTag className="w-3.5 h-3.5" />
+                      <span>Áp dụng</span>
+                    </button>
+                  </div>
+                )}
+
+                {voucherError && (
+                  <p className="text-[11px] text-rose-500 font-bold">{voucherError}</p>
+                )}
               </div>
 
               {/* Payment Methods Options */}
@@ -539,7 +698,7 @@ export default function Checkout() {
                 <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Phương thức thanh toán</h3>
 
                 <div className="space-y-3">
-                  {/* VNPAY */}
+                  {/* 1. VNPAY */}
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
                       selectedPaymentMethod === "vnpay"
@@ -555,8 +714,8 @@ export default function Checkout() {
                       readOnly
                       className="accent-blue-600 w-4 h-4"
                     />
-                    <span className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 font-black text-xs flex items-center justify-center shrink-0">
-                      VN
+                    <span className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 font-black text-xs flex items-center justify-center shrink-0 border border-blue-500/20">
+                      VNPAY
                     </span>
                     <div className="min-w-0">
                       <span className="text-xs md:text-sm font-extrabold app-text-main block">
@@ -566,10 +725,10 @@ export default function Checkout() {
                     </div>
                   </label>
 
-                  {/* VietQR */}
+                  {/* 3. SePay (VietQR 24/7) */}
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      selectedPaymentMethod === "vietqr"
+                      selectedPaymentMethod === "vietqr" || selectedPaymentMethod === "sepay"
                         ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
                         : "app-bg-main border app-border hover:border-blue-500/50"
                     }`}
@@ -578,41 +737,22 @@ export default function Checkout() {
                     <input
                       type="radio"
                       name="pm"
-                      checked={selectedPaymentMethod === "vietqr"}
+                      checked={selectedPaymentMethod === "vietqr" || selectedPaymentMethod === "sepay"}
                       readOnly
                       className="accent-blue-600 w-4 h-4"
                     />
-                    <span className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 font-black text-xs flex items-center justify-center shrink-0">
-                      QR
+                    <span className="w-9 h-9 rounded-xl bg-rose-600/10 text-rose-600 font-black text-xs flex items-center justify-center shrink-0 border border-rose-500/20">
+                      SePay
                     </span>
-                    <span className="text-xs md:text-sm font-extrabold app-text-main">
-                      Chuyển khoản VietQR Nhanh 24/7
-                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">
+                        SePay - Chuyển khoản VietQR Nhanh 24/7
+                      </span>
+                      <span className="text-[11px] app-text-sub block">Quét QR chuyển khoản ngân hàng tự động duyệt tức thì</span>
+                    </div>
                   </label>
 
-                  {/* ShopeePay */}
-                  <label
-                    className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      selectedPaymentMethod === "shopeepay"
-                        ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
-                        : "app-bg-main border app-border hover:border-blue-500/50"
-                    }`}
-                    onClick={() => setSelectedPaymentMethod("shopeepay")}
-                  >
-                    <input
-                      type="radio"
-                      name="pm"
-                      checked={selectedPaymentMethod === "shopeepay"}
-                      readOnly
-                      className="accent-blue-600 w-4 h-4"
-                    />
-                    <span className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0">
-                      SP
-                    </span>
-                    <span className="text-xs md:text-sm font-extrabold app-text-main">Ví ShopeePay</span>
-                  </label>
-
-                  {/* Zalopay */}
+                  {/* 4. ZaloPay */}
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
                       selectedPaymentMethod === "zalopay"
@@ -628,32 +768,63 @@ export default function Checkout() {
                       readOnly
                       className="accent-blue-600 w-4 h-4"
                     />
-                    <span className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0">
-                      ZP
+                    <span className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0 border border-sky-500/20">
+                      Zalo
                     </span>
-                    <span className="text-xs md:text-sm font-extrabold app-text-main">Ví ZaloPay</span>
+                    <div className="min-w-0">
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">Ví ZaloPay</span>
+                      <span className="text-[11px] app-text-sub block">Thanh toán qua ứng dụng ZaloPay hoặc mã QR</span>
+                    </div>
                   </label>
 
-                  {/* Credit Card */}
+                  {/* 5. ShopeePay */}
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      selectedPaymentMethod === "card"
+                      selectedPaymentMethod === "shopeepay"
                         ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
                         : "app-bg-main border app-border hover:border-blue-500/50"
                     }`}
-                    onClick={() => setSelectedPaymentMethod("card")}
+                    onClick={() => setSelectedPaymentMethod("shopeepay")}
                   >
                     <input
                       type="radio"
                       name="pm"
-                      checked={selectedPaymentMethod === "card"}
+                      checked={selectedPaymentMethod === "shopeepay"}
                       readOnly
                       className="accent-blue-600 w-4 h-4"
                     />
-                    <FiCreditCard className="w-5 h-5 text-indigo-500 shrink-0" />
-                    <span className="text-xs md:text-sm font-extrabold app-text-main">
-                      Thẻ tín dụng / Thẻ ghi nợ Quốc tế (Visa, Mastercard, JCB)
+                    <span className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
+                      Shopee
                     </span>
+                    <div className="min-w-0">
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">Ví ShopeePay</span>
+                      <span className="text-[11px] app-text-sub block">Thanh toán nhanh chóng qua Ví ShopeePay</span>
+                    </div>
+                  </label>
+
+                  {/* 6. MoMo */}
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                      selectedPaymentMethod === "momo"
+                        ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
+                        : "app-bg-main border app-border hover:border-blue-500/50"
+                    }`}
+                    onClick={() => setSelectedPaymentMethod("momo")}
+                  >
+                    <input
+                      type="radio"
+                      name="pm"
+                      checked={selectedPaymentMethod === "momo"}
+                      readOnly
+                      className="accent-blue-600 w-4 h-4"
+                    />
+                    <span className="w-9 h-9 rounded-xl bg-pink-500/10 text-pink-600 font-black text-xs flex items-center justify-center shrink-0 border border-pink-500/20">
+                      MoMo
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">Ví điện tử MoMo</span>
+                      <span className="text-[11px] app-text-sub block">Quét mã QR bằng ứng dụng MoMo</span>
+                    </div>
                   </label>
                 </div>
               </div>
@@ -677,19 +848,33 @@ export default function Checkout() {
               )}
             </div>
 
-            {/* Ticket Item Line */}
-            <div className="flex items-center justify-between text-xs font-mono">
-              <div className="space-y-0.5">
-                <span className="font-extrabold app-text-main block">{order.ticketTypeName}</span>
-                <span className="app-text-sub text-[11px] block">{formatCurrency(order.price)}</span>
+            {/* Ticket Item Line Breakdown */}
+            {order.cartItems && Array.isArray(order.cartItems) && order.cartItems.length > 0 ? (
+              <div className="space-y-2">
+                {order.cartItems.map((item: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b app-border/40 last:border-b-0">
+                    <div className="space-y-0.5">
+                      <span className="font-extrabold app-text-main block">{item.zoneName || item.tierName || order.ticketTypeName}</span>
+                      <span className="app-text-sub text-[11px] block">{formatCurrency(item.price)}</span>
+                    </div>
+                    <span className="font-extrabold app-text-main font-mono">x0{item.quantity}</span>
+                  </div>
+                ))}
               </div>
-              <span className="font-extrabold app-text-main">x0{order.quantity}</span>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between text-xs font-mono">
+                <div className="space-y-0.5">
+                  <span className="font-extrabold app-text-main block">{order.ticketTypeName}</span>
+                  <span className="app-text-sub text-[11px] block">{formatCurrency(order.price)}</span>
+                </div>
+                <span className="font-extrabold app-text-main font-mono">x0{order.quantity}</span>
+              </div>
+            )}
 
             {/* Subtotal */}
             <div className="pt-3 border-t app-border flex items-center justify-between text-xs font-mono">
               <span className="font-bold app-text-sub">Tạm tính:</span>
-              <span className="font-extrabold text-blue-600 dark:text-blue-400">{formatCurrency(order.totalAmount)}</span>
+              <span className="font-extrabold text-blue-600 dark:text-blue-400">{formatCurrency(subtotalAmount)}</span>
             </div>
 
             {/* Step 2 Order Total Summary */}
@@ -745,6 +930,25 @@ export default function Checkout() {
           email,
         }}
         isLoading={isSubmitting}
+      />
+
+      {/* VietQR Payment Modal */}
+      <VietQrModal
+        isOpen={isVietQrModalOpen}
+        onClose={() => setIsVietQrModalOpen(false)}
+        bookingId={activeBookingId}
+        vietQrData={vietQrData}
+        onSuccess={() => {
+          localStorage.removeItem("haloticket_pending_order");
+          setIsVietQrModalOpen(false);
+          navigate("/booking-success");
+        }}
+        onTimeout={() => {
+          localStorage.removeItem("haloticket_pending_order");
+          setIsVietQrModalOpen(false);
+          showToast("error", "Đã hết thời gian thanh toán (15 phút). Đơn hàng đã tự động hủy.");
+          navigate(`/events/${activeEventId}`);
+        }}
       />
 
       {/* Cancel Order Confirm Modal (image 1) */}

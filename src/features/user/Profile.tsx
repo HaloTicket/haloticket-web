@@ -9,6 +9,7 @@ import { userApi, type UserProfile, type UserProfileUpdateRequest } from "@/serv
 import { ekycApi } from "@/services/ekycApi";
 import { EKYC_STATUS_LABELS, type EkycStatusResponse } from "@/types/ekyc";
 import { getKeycloakSession } from "@/services/keycloakSession";
+import MyTickets from "@/features/tickets/MyTickets";
 import {
   FiUser,
   FiMail,
@@ -42,8 +43,10 @@ export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "info";
 
-  const [activeTab, setActiveTab] = useState<"info" | "security" | "membership" | "ekyc">(
-    initialTab === "ekyc"
+  const [activeTab, setActiveTab] = useState<"info" | "security" | "membership" | "ekyc" | "tickets">(
+    initialTab === "tickets"
+      ? "tickets"
+      : initialTab === "ekyc"
       ? "ekyc"
       : initialTab === "membership"
       ? "membership"
@@ -155,7 +158,7 @@ export default function Profile() {
     };
   }, [navigate]);
 
-  const handleTabChange = (tab: "info" | "security" | "membership" | "ekyc") => {
+  const handleTabChange = (tab: "info" | "security" | "membership" | "ekyc" | "tickets") => {
     setActiveTab(tab);
     setSearchParams(tab === "info" ? {} : { tab });
     setSaveSuccess(false);
@@ -398,13 +401,18 @@ export default function Profile() {
               )}
             </button>
 
-            <Link
-              to={PATHS.MY_TICKETS}
-              className="shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold app-text-main transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 lg:w-full"
+            <button
+              type="button"
+              onClick={() => handleTabChange("tickets")}
+              className={`shrink-0 flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-colors cursor-pointer lg:w-full ${
+                activeTab === "tickets"
+                  ? "bg-blue-600 text-white"
+                  : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
             >
-              <FaTicketAlt className="w-4 h-4 text-purple-500" />
+              <FaTicketAlt className={`w-4 h-4 ${activeTab === "tickets" ? "text-white" : "text-purple-500"}`} />
               <span>{translate("Vé của tôi")}</span>
-            </Link>
+            </button>
 
             <div className="hidden lg:block my-1 border-t app-border" />
 
@@ -1058,6 +1066,13 @@ export default function Profile() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 5: VÉ CỦA TÔI */}
+          {activeTab === "tickets" && (
+            <div className="animate-in fade-in">
+              <MyTickets embedded />
             </div>
           )}
         </div>

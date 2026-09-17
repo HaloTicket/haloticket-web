@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiPlus, FiMinus, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2, FiClock } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
@@ -213,7 +213,7 @@ export default function SelectTicket() {
           setSeatStatusMap(statusData);
         }
       }
-    }, 10000);
+    }, 3000);
 
     return () => {
       isMounted = false;
@@ -397,7 +397,7 @@ export default function SelectTicket() {
       expiresAt,
     };
 
-    localStorage.setItem("halotticket_pending_order", JSON.stringify(bookingPayload));
+    localStorage.setItem("haloticket_pending_order", JSON.stringify(bookingPayload));
     navigate(`/checkout?eventId=${id}&qty=${cartTotalTickets}`);
   };
 
@@ -442,7 +442,7 @@ export default function SelectTicket() {
       {/* Error Toast Alert */}
       {errorMessage && (
         <div className="bg-rose-500/10 border-b border-rose-500/30 text-rose-500 px-6 py-2.5 text-xs font-extrabold flex items-center justify-between z-30 animate-in fade-in duration-200">
-          <span>⚠️ {errorMessage}</span>
+          <span>{errorMessage}</span>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
@@ -465,25 +465,25 @@ export default function SelectTicket() {
             tiers={ticketTypes}
             canvasSettings={seatMap?.canvasSettings || { width: 1500, height: 1050, gridSize: 20, snapEnabled: true, showGrid: true }}
             selectedSeatIds={[]}
-            setSelectedSeatIds={() => {}}
+            setSelectedSeatIds={() => { }}
             selectedStageId={null}
-            setSelectedStageId={() => {}}
+            setSelectedStageId={() => { }}
             selectedStructureId={null}
-            setSelectedStructureId={() => {}}
+            setSelectedStructureId={() => { }}
             selectedZoneId={activeZoneModal?.id || null}
             setSelectedZoneId={(zId) => {
               if (zId && seatMap?.zones?.[zId]) {
                 handleZoneClick(seatMap.zones[zId]);
               }
             }}
-            onUpdateSeats={() => {}}
-            onUpdateStages={() => {}}
-            onUpdateStructures={() => {}}
-            onUpdateZones={() => {}}
-            onDeleteSelected={() => {}}
+            onUpdateSeats={() => { }}
+            onUpdateStages={() => { }}
+            onUpdateStructures={() => { }}
+            onUpdateZones={() => { }}
+            onDeleteSelected={() => { }}
             isAttendeeMode={true}
             attendeeCart={[]}
-            onToggleAttendeeSeat={() => {}}
+            onToggleAttendeeSeat={() => { }}
             onSelectZoneAttendee={(zone) => {
               handleZoneClick(zone);
             }}
@@ -601,14 +601,13 @@ export default function SelectTicket() {
                           name: item.name,
                           price: item.price,
                           color: item.color,
-                          tierId: item.tierId,
+                          tierId: (item as any).tierId,
                         })
                       }
-                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer hover:shadow-xs group ${
-                        inCartItem
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer hover:shadow-xs group ${inCartItem
                           ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30"
                           : "app-bg-main border app-border hover:border-blue-500/50"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-2">
                         <span

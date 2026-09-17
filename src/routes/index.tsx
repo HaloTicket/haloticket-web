@@ -33,7 +33,7 @@ import type { PasswordResetData } from "@/features/auth/ResetPassword";
 import SelectTicket from "@/features/tickets/SelectTicket";
 import Checkout from "@/features/tickets/Checkout";
 import BookingSuccess from "@/features/tickets/BookingSuccess";
-import MyTickets from "@/features/tickets/MyTickets";
+import PaymentCallback from "@/features/tickets/PaymentCallback";
 import TicketDetail from "@/features/tickets/TicketDetail";
 
 // User Feature
@@ -207,6 +207,10 @@ export const router = createBrowserRouter([
         path: PATHS.BOOKING_SUCCESS,
         element: <BookingSuccess />,
       },
+      {
+        path: PATHS.PAYMENT_CALLBACK,
+        element: <PaymentCallback />,
+      },
     ],
   },
 
@@ -252,12 +256,8 @@ export const router = createBrowserRouter([
         element: <ResaleTicketCheckout />,
       },
       {
-        path: PATHS.MY_TICKETS,
-        element: (
-          <ProtectedRoute>
-            <MyTickets />
-          </ProtectedRoute>
-        ),
+        path: "/my-tickets",
+        element: <Navigate to="/profile?tab=tickets" replace />,
       },
       {
         path: "/my-tickets/:id",

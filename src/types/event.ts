@@ -123,7 +123,7 @@ export interface ApprovalEventItem {
   posterImage?: string;
   bannerUrl?: string;
   galleryImages?: string[];
-  eventApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED";
+  eventApprovalStatus?: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | "UPDATE_PENDING" | string;
   eventStatus?: string;
   submittedAt?: string;
   createdAt?: string;

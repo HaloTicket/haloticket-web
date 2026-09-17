@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiCheck, FiMapPin, FiUser, FiPhone, FiMail, FiFileText } from 'react-icons/fi';
+import { FiX, FiCheck } from 'react-icons/fi';
 
 export interface RecipientInfoData {
   recipientName: string;
@@ -64,6 +64,17 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
   const [ward, setWard] = useState('Phường Bến Nghé');
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
+
+  React.useEffect(() => {
+    if (initialData && isOpen) {
+      if (initialData.fullName) setRecipientName(initialData.fullName);
+      if (initialData.phone) {
+        const rawPhone = initialData.phone.replace(/^\+84\s*/, '');
+        setPhone(rawPhone);
+      }
+      if (initialData.email) setEmail(initialData.email);
+    }
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 

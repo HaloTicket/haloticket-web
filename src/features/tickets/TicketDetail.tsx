@@ -1,14 +1,269 @@
-import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  FiArrowLeft,
+  FiCalendar,
+  FiMapPin,
+  FiDownload,
+  FiCopy,
+  FiCheck,
+} from "react-icons/fi";
+import { formatCurrency } from "@/utils/formatters";
+import { type TicketItem, downloadTicketAsImage } from "./MyTickets";
+
+const SAMPLE_TICKETS: Record<string, TicketItem> = {
+  "booking-demo-001": {
+    id: "booking-demo-001",
+    bookingCode: "HT-849201",
+    eventId: "e1",
+    eventTitle: "GRAND CONCERT - HALOTICKET LIVE 2026",
+    eventTime: "19:30 - 23:30, 20/10/2026",
+    eventLocation: "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+    eventPoster: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
+    ticketTypeName: "Vé VIP (Standing)",
+    quantity: 2,
+    totalAmount: 4000000,
+    customerName: "Trần Long Vũ",
+    customerPhone: "0915020803",
+    customerEmail: "vutkd23405@gmail.com",
+    paymentMethod: "SEPAY (VietQR 24/7)",
+    purchaseDate: "2026-09-17T16:00:00.000Z",
+    status: "UPCOMING",
+    qrCode: "HALOTICKET-HT-849201",
+  },
+  "booking-demo-002": {
+    id: "booking-demo-002",
+    bookingCode: "HT-629104",
+    eventId: "e2",
+    eventTitle: "NHẠC HỘI MÙA HÈ - SUMMER MUSIC FEST",
+    eventTime: "18:00 - 22:00, 15/08/2026",
+    eventLocation: "Nhà thi đấu Phú Thọ, TP. Hồ Chí Minh",
+    eventPoster: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
+    ticketTypeName: "Khán đài A (Nồi ngồi)",
+    quantity: 1,
+    totalAmount: 1200000,
+    customerName: "Trần Long Vũ",
+    customerPhone: "0915020803",
+    customerEmail: "vutkd23405@gmail.com",
+    paymentMethod: "VNPAY",
+    purchaseDate: "2026-08-10T14:30:00.000Z",
+    status: "ATTENDED",
+    qrCode: "HALOTICKET-HT-629104",
+  },
+};
 
 export default function TicketDetail() {
-  useTranslation();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [ticket, setTicket] = useState<TicketItem | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (!id) return;
+
+    try {
+      const saved = localStorage.getItem("haloticket_my_tickets");
+      if (saved) {
+        const parsed: TicketItem[] = JSON.parse(saved);
+        const found = parsed.find((t) => t.id === id || t.bookingCode === id);
+        if (found) {
+          setTicket(found);
+          return;
+        }
+      }
+    } catch {
+      // fallback below
+    }
+
+    if (SAMPLE_TICKETS[id]) {
+      setTicket(SAMPLE_TICKETS[id]);
+    } else {
+      // fallback default ticket
+      setTicket({
+        id: id,
+        bookingCode: id.startsWith("HT-") ? id : `HT-${id.substring(0, 6)}`,
+        eventTitle: "HALOTICKET 2026 - EVENT CONCERT",
+        eventTime: "19:00 - 23:59, 20/09/2026",
+        eventLocation: "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+        eventPoster: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
+        ticketTypeName: "Vé VIP (Standing)",
+        quantity: 1,
+        totalAmount: 2000000,
+        customerName: "Trần Long Vũ",
+        customerPhone: "0915020803",
+        customerEmail: "vutkd23405@gmail.com",
+        paymentMethod: "SEPAY (VietQR 24/7)",
+        purchaseDate: new Date().toISOString(),
+        status: "UPCOMING",
+        qrCode: `HALOTICKET-${id}`,
+      });
+    }
+  }, [id]);
+
+  if (!ticket) {
+    return (
+      <div className="w-full flex-1 app-bg-page flex items-center justify-center min-h-[450px]">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const qrCodeString = ticket.qrCode || `HALOTICKET-${ticket.bookingCode || ticket.id}`;
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(qrCodeString);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold">{translate("Trang Chi Tiết Vé #")}{id}</h1>
+    <div className="w-full flex-1 app-bg-page app-text-main font-sans selection:bg-blue-600 selection:text-white pb-20">
+      {/* Top Header Bar */}
+      <div className="bg-slate-950 text-white border-b border-slate-800 py-6 px-6 md:px-16 shadow-lg">
+        <div className="max-w-[1240px] mx-auto flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate("/my-tickets")}
+            className="flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <FiArrowLeft className="w-4 h-4" />
+            <span>Quay lại tủ vé</span>
+          </button>
+
+          <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black">
+            ✔ ĐÃ THANH TOÁN & CẤP VÉ
+          </span>
+        </div>
+      </div>
+
+      {/* Main Ticket Layout */}
+      <div className="max-w-4xl mx-auto px-6 mt-8 space-y-8">
+        {/* Pass Card Component */}
+        <div className="app-bg-card border app-border rounded-3xl overflow-hidden shadow-2xl space-y-0">
+          {/* Header Banner */}
+          <div className="relative h-48 md:h-56 bg-slate-900 overflow-hidden">
+            {ticket.eventPoster && (
+              <img
+                src={ticket.eventPoster}
+                alt={ticket.eventTitle}
+                className="w-full h-full object-cover filter brightness-75"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+            <div className="absolute bottom-6 left-6 right-6 text-white space-y-1">
+              <span className="px-3 py-1 rounded-xl bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider">
+                VÉ ĐIỆN TỬ CHÍNH THỨC
+              </span>
+              <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight drop-shadow-md">
+                {ticket.eventTitle}
+              </h1>
+            </div>
+          </div>
+
+          {/* Ticket Body Content Grid */}
+          <div className="p-6 md:p-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            {/* Left Info Column */}
+            <div className="md:col-span-7 space-y-6">
+              {/* Event Time & Venue */}
+              <div className="space-y-3 pb-6 border-b app-border">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-500">
+                    Thời gian diễn ra
+                  </span>
+                  <p className="text-sm font-bold flex items-center gap-2 app-text-main">
+                    <FiCalendar className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>{ticket.eventTime}</span>
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-indigo-500">
+                    Địa điểm tổ chức
+                  </span>
+                  <p className="text-sm font-bold flex items-center gap-2 app-text-main">
+                    <FiMapPin className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span>{ticket.eventLocation}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Ticket Category & Buyer Info */}
+              <div className="grid grid-cols-2 gap-4 pb-6 border-b app-border text-xs">
+                <div className="space-y-1">
+                  <span className="app-text-sub font-bold block">Hạng vé</span>
+                  <span className="font-extrabold text-blue-500 text-sm block">
+                    {ticket.ticketTypeName}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="app-text-sub font-bold block">Số lượng vé</span>
+                  <span className="font-extrabold app-text-main text-sm block font-mono">
+                    {ticket.quantity} vé
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="app-text-sub font-bold block">Người nhận vé</span>
+                  <span className="font-extrabold app-text-main block">
+                    {ticket.customerName || "Trần Long Vũ"}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="app-text-sub font-bold block">Tổng tiền</span>
+                  <span className="font-extrabold text-emerald-500 text-sm block font-mono">
+                    {formatCurrency(ticket.totalAmount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Booking Code Banner */}
+              <div className="p-4 rounded-2xl app-bg-main border app-border space-y-1">
+                <span className="text-[11px] font-extrabold app-text-sub block">MÃ ĐƠN HÀNG:</span>
+                <span className="font-mono font-black text-base text-blue-600 dark:text-blue-400">
+                  {ticket.bookingCode}
+                </span>
+              </div>
+            </div>
+
+            {/* Right Column: QR Code Display Card */}
+            <div className="md:col-span-5 flex flex-col items-center justify-center space-y-4 p-6 rounded-3xl app-bg-main border app-border text-center">
+              <div className="w-56 h-56 bg-white rounded-2xl p-3 shadow-xl border border-slate-200 flex items-center justify-center overflow-hidden">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+                    qrCodeString
+                  )}`}
+                  alt="QR Code Check-in"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-black uppercase text-blue-500">MÃ CHUYÊN CHECK-IN VÀO CỔNG</p>
+                <div className="flex items-center justify-center gap-2 font-mono text-xs font-bold app-text-main">
+                  <span>{qrCodeString}</span>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="p-1 rounded hover:bg-blue-500/10 text-blue-600 cursor-pointer"
+                  >
+                    {copiedCode ? <FiCheck className="text-emerald-500" /> : <FiCopy />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => downloadTicketAsImage(ticket)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <FiDownload className="w-4 h-4" />
+                <span>Xuất Vé Dạng Hình Ảnh (.PNG)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -10,7 +10,7 @@ export const PATHS = {
   RESET_PASSWORD: "/reset-password",
   CHECKOUT: "/checkout",
   BOOKING_SUCCESS: "/booking-success",
-  MY_TICKETS: "/my-tickets",
+  MY_TICKETS: "/profile?tab=tickets",
   TICKET_DETAIL: (id: string | number) => `/my-tickets/${id}`,
   PROFILE: "/profile",
   EKYC: "/ekyc",
@@ -39,5 +39,6 @@ export const PATHS = {
   ADMIN_SYSTEM_HEALTH: "/admin/system-health",
   ADMIN_HOMEPAGE_CONFIG: "/admin/homepage-config",
   ADMIN_VENUES_MANAGEMENT: "/admin/venues",
+  PAYMENT_CALLBACK: "/payment/callback",
   NOT_FOUND: "*",
 };
