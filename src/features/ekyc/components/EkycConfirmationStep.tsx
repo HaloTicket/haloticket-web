@@ -44,6 +44,13 @@ const POPULAR_BANKS = [
 
 const PAYOUT_STORAGE_KEY = "haloticket_payout_bank";
 
+function maskDocumentNumber(num: string) {
+  if (!num) return "—";
+  const cleaned = num.trim();
+  if (cleaned.length < 8) return cleaned;
+  return cleaned.slice(0, 6) + "****" + cleaned.slice(-2);
+}
+
 function getVerifiedBirthDate(status: EkycStatusResponse): string {
   if (status.status === "APPROVED" && status.birthDate?.trim()) {
     return status.birthDate.trim();
@@ -261,7 +268,7 @@ export function EkycConfirmationStep({
           <div className="flex justify-between items-center">
             <span className="app-text-muted">{t("Số CCCD đối soát:")}</span>
             <span className="font-mono font-bold app-text-main">
-              {documentNumber}
+              {maskDocumentNumber(documentNumber)}
             </span>
           </div>
         </div>
@@ -270,14 +277,14 @@ export function EkycConfirmationStep({
           <button
             type="button"
             onClick={() => navigate(returnUrl || PATHS.PROFILE)}
-            className="w-full py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+            className="w-full py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
           >
             <span>{t("Hoàn tất và quay lại")}</span>
             <FiArrowRight className="w-4 h-4" />
           </button>
           <Link
             to={returnUrl}
-            className="w-full py-3 rounded-2xl border app-border text-xs font-semibold app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            className="w-full py-2.5 rounded-lg border app-border text-xs font-semibold app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
           >
             {t("Về trang cá nhân")}
           </Link>
@@ -380,7 +387,7 @@ export function EkycConfirmationStep({
                     type="text"
                     readOnly
                     disabled
-                    value={documentNumber}
+                    value={maskDocumentNumber(documentNumber)}
                     className="w-full rounded-xl app-bg-subnav border app-border px-3.5 py-2.5 text-xs sm:text-sm font-mono font-bold app-text-muted cursor-not-allowed select-none"
                   />
                 </div>
@@ -597,11 +604,11 @@ export function EkycConfirmationStep({
           </div>
         )}
 
-        {/* Submit Button - HaloTicket Primary Blue */}
+        {/* Submit Button - Solid Blue */}
         <button
           type="submit"
           disabled={submitting || !agreed}
-          className="w-full py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+          className="w-full py-3.5 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold text-sm shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
         >
           {submitting ? (
             <>

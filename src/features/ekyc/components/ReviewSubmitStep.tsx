@@ -6,7 +6,6 @@ import {
   FiRotateCw,
   FiArrowLeft,
   FiArrowRight,
-  FiShield,
   FiCreditCard,
   FiCamera,
 } from "react-icons/fi";
@@ -45,72 +44,83 @@ export function ReviewSubmitStep({
   const sides = [
     {
       index: 0,
-      label: t("Mặt trước CCCD"),
+      label: t("CCCD mặt trước"),
       goToStep: () => onGoToStep(1),
       icon: <FiCreditCard className="w-4 h-4 text-blue-500" />,
-      spinnerColor: "text-blue-400",
-      changeLabel: files[0] ? t("Thay đổi ảnh mặt trước") : t("Tải ảnh mặt trước ngay"),
-      noImageText: t("Chưa tải ảnh mặt trước"),
+      changeLabel: t("Thay đổi"),
+      noImageText: t("Chưa có ảnh mặt trước"),
       canRotate: true,
     },
     {
       index: 1,
-      label: t("Mặt sau CCCD"),
+      label: t("CCCD mặt sau"),
       goToStep: () => onGoToStep(2),
       icon: <FiCreditCard className="w-4 h-4 text-blue-500" />,
-      spinnerColor: "text-blue-400",
-      changeLabel: files[1] ? t("Thay đổi ảnh mặt sau") : t("Tải ảnh mặt sau ngay"),
-      noImageText: t("Chưa tải ảnh mặt sau"),
+      changeLabel: t("Thay đổi"),
+      noImageText: t("Chưa có ảnh mặt sau"),
       canRotate: true,
     },
     {
       index: 2,
-      label: t("Chân dung Camera"),
+      label: t("Khuôn mặt"),
       goToStep: () => onGoToStep(3),
       icon: <FiCamera className="w-4 h-4 text-blue-500" />,
-      spinnerColor: "text-blue-400",
-      changeLabel: files[2] ? t("Chụp lại ảnh khuôn mặt") : t("Chụp ảnh khuôn mặt ngay"),
-      noImageText: t("Chưa chụp ảnh khuôn mặt"),
+      changeLabel: t("Chụp lại"),
+      noImageText: t("Chưa chụp ảnh"),
       canRotate: false,
     },
   ] as const;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="space-y-5">
+      {/* Step Header */}
+      <div className="space-y-1">
+        <h3 className="text-base sm:text-lg font-bold app-text-main">
+          {t("Kiểm tra thông tin")}
+        </h3>
+        <p className="text-xs sm:text-sm app-text-muted">
+          {t("Xem lại hình ảnh giấy tờ và khuôn mặt trước khi gửi xác minh.")}
+        </p>
+      </div>
+
+      {/* 3 Review Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {sides.map((side) => {
           const preview = previews[side.index];
           const meta = metadatas[side.index];
           const hasFile = Boolean(files[side.index]);
 
           return (
-            <div key={side.index} className="p-4 rounded-2xl border app-border app-bg-page space-y-3 flex flex-col justify-between">
-              <div className="space-y-3">
+            <div
+              key={side.index}
+              className="p-3.5 rounded-xl border app-border app-bg-card space-y-2.5 flex flex-col justify-between"
+            >
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold app-text-main flex items-center gap-1.5">
                     {side.icon}
                     <span>{side.label}</span>
                   </span>
                   {hasFile ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       {side.canRotate && meta?.isPortrait && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                          {t("Cần xoay")}
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold">
+                          {t("Ảnh dọc")}
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
                         <FiCheck className="w-3 h-3 stroke-[3]" />
-                        <span>{side.canRotate ? t("Sẵn sàng") : t("Đã chụp")}</span>
+                        <span>{t("Đã tải")}</span>
                       </span>
                     </div>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
-                      {t("Chưa có ảnh")}
+                    <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[11px] font-semibold">
+                      {t("Chưa có")}
                     </span>
                   )}
                 </div>
 
-                <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-slate-950 border app-border flex items-center justify-center">
+                <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-950 border app-border flex items-center justify-center">
                   {preview ? (
                     <img src={preview} alt={`Ảnh ${side.label}`} className="w-full h-full object-contain" />
                   ) : (
@@ -118,18 +128,18 @@ export function ReviewSubmitStep({
                   )}
                   {rotatingIndex === side.index && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
-                      <FiRefreshCw className={`w-6 h-6 animate-spin ${side.spinnerColor}`} />
+                      <FiRefreshCw className="w-5 h-5 animate-spin text-blue-400" />
                     </div>
                   )}
                 </div>
 
                 {hasFile && side.canRotate && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => onRotate(side.index, -90)}
                       disabled={rotatingIndex !== null}
-                      className="flex-1 py-1.5 px-2 rounded-lg border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      className="flex-1 py-1 px-1.5 rounded-md border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-medium text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
                     >
                       <FiRotateCcw className="w-3 h-3" />
                       <span>{t("Xoay trái")}</span>
@@ -138,7 +148,7 @@ export function ReviewSubmitStep({
                       type="button"
                       onClick={() => onRotate(side.index, 90)}
                       disabled={rotatingIndex !== null}
-                      className="flex-1 py-1.5 px-2 rounded-lg border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      className="flex-1 py-1 px-1.5 rounded-md border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-medium text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
                     >
                       <FiRotateCw className="w-3 h-3" />
                       <span>{t("Xoay phải")}</span>
@@ -150,7 +160,7 @@ export function ReviewSubmitStep({
               <button
                 type="button"
                 onClick={side.goToStep}
-                className="w-full py-2 rounded-xl border app-border text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center cursor-pointer app-text-main mt-2"
+                className="w-full py-1.5 rounded-lg border app-border text-xs font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center cursor-pointer app-text-main mt-1"
               >
                 {side.changeLabel}
               </button>
@@ -159,51 +169,40 @@ export function ReviewSubmitStep({
         })}
       </div>
 
-      {/* Information Notice */}
-      <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs app-text-muted space-y-1.5">
-        <div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300">
-          <FiShield className="w-4 h-4 text-blue-500" />
-          <span>{t("Quy trình đối soát VNPT eKYC AI")}</span>
-        </div>
-        <p className="leading-relaxed">
-          {t("Hệ thống VNPT AI sẽ đồng thời bóc tách dữ liệu CCCD gắn chip, kiểm tra người thật (Face Liveness) và so khớp khuôn mặt giữa chân dung camera với thẻ CCCD để kích hoạt quyền Nhà tổ chức.")}
-        </p>
-      </div>
-
-      {/* Legal Consent Checkbox */}
-      <label className="flex min-h-11 items-start gap-3 text-xs sm:text-sm p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border app-border cursor-pointer hover:bg-slate-100/60 transition-colors">
+      {/* Consent Checkbox */}
+      <label className="flex items-start gap-3 text-xs sm:text-sm p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/40 border app-border cursor-pointer hover:bg-slate-100/60 transition-colors">
         <input
           type="checkbox"
-          className="mt-0.5 size-4.5 rounded text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer"
+          className="mt-0.5 size-4 rounded text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer accent-blue-600"
           checked={consent}
           disabled={busy}
           onChange={(e) => onConsentChange(e.target.checked)}
         />
         <span className="app-text-muted leading-relaxed">
-          {t("Tôi đồng ý gửi ảnh Căn cước công dân và ảnh khuôn mặt để HaloTicket bóc tách, xác thực người thật và đối soát qua VNPT eKYC (phiên bản đồng ý 2026.1).")}
+          {t("Tôi đồng ý sử dụng thông tin và hình ảnh trên để xác minh danh tính.")}
         </span>
       </label>
 
-      {/* Navigation & Submit Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+      {/* Submit Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t app-border">
         <button
           type="button"
           onClick={onPrev}
-          className="px-5 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center gap-2 cursor-pointer app-text-main order-2 sm:order-1"
+          className="px-4 py-2 rounded-lg border app-border text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center gap-1.5 cursor-pointer app-text-main order-2 sm:order-1"
         >
           <FiArrowLeft className="w-4 h-4" />
-          <span>{t("Quay lại chụp khuôn mặt")}</span>
+          <span>{t("Quay lại")}</span>
         </button>
 
         <button
           type="submit"
-          className="w-full sm:w-auto min-h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-8 py-3.5 font-bold text-white text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98 order-1 sm:order-2"
+          className="w-full sm:w-auto min-h-11 rounded-lg bg-blue-600 hover:bg-blue-700 px-6 py-2.5 font-bold text-white text-xs sm:text-sm shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98 order-1 sm:order-2"
           disabled={!consent || !files[0] || !files[1] || !files[2] || busy}
         >
           {busy ? (
             <>
               <FiRefreshCw className="w-4 h-4 animate-spin" />
-              <span>{t("Đang bóc tách & đối soát VNPT…")}</span>
+              <span>{t("Đang xử lý xác minh…")}</span>
             </>
           ) : (
             <>
@@ -214,8 +213,8 @@ export function ReviewSubmitStep({
         </button>
       </div>
 
-      {/* Back to profile link */}
-      <div className="text-center">
+      {/* Back to Profile Link */}
+      <div className="text-center pt-1">
         <Link to={returnUrl} className="text-xs app-text-muted hover:app-text-main">
           ← {t("Về hồ sơ")}
         </Link>
