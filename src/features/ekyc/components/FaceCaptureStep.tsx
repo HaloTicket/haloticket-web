@@ -108,11 +108,10 @@ export function FaceCaptureStep({
     }
   }, [stopCamera]);
 
-  // When inactive (navigating away from Step 3), immediately turn off camera and reset state
+  // When component unmounts or becomes inactive, stop any active camera hardware stream
   useEffect(() => {
     if (!isActive) {
       stopCamera();
-      setCameraStarted(false);
     }
     return () => {
       stopCamera();
@@ -152,8 +151,17 @@ export function FaceCaptureStep({
     );
   };
 
+  const isCameraRunning = Boolean(isActive && cameraStarted);
+
+  const handlePrev = () => {
+    stopCamera();
+    setCameraStarted(false);
+    onPrev();
+  };
+
   const handleRetakeClick = () => {
     onRetake();
+    setCameraStarted(true);
     void startCamera();
   };
 
@@ -236,7 +244,7 @@ export function FaceCaptureStep({
               </button>
             </div>
           </div>
-        ) : !cameraStarted && !cameraError ? (
+        ) : !isCameraRunning && !cameraError ? (
           /* State 2: Pre-capture Permission & Confirmation Screen */
           <div className="relative w-full h-full flex flex-col items-center justify-center p-8 sm:p-12 text-center space-y-6 max-w-lg mx-auto animate-in fade-in">
             <div className="relative">
@@ -381,7 +389,7 @@ export function FaceCaptureStep({
       </div>
 
       {/* Camera Action Buttons (Only when live camera is running) */}
-      {!previewUrl && !cameraError && cameraStarted && (
+      {!previewUrl && !cameraError && isCameraRunning && (
         <div className="flex flex-col items-center justify-center gap-3">
           <button
             type="button"
@@ -445,7 +453,7 @@ export function FaceCaptureStep({
       <div className="flex items-center justify-between pt-2">
         <button
           type="button"
-          onClick={onPrev}
+          onClick={handlePrev}
           className="px-5 py-2.5 rounded-xl border app-border text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center gap-2 cursor-pointer app-text-main"
         >
           <FiArrowLeft className="w-4 h-4" />
