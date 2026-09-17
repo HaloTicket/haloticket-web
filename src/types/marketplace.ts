@@ -30,15 +30,24 @@ export interface MarketplaceSagaResponse {
 export interface TicketListing {
   id: string;
   ticketId: string;
-  sellerId: string;
   eventId?: string | null;
+  ticketTypeName?: string | null;
+  section?: string | null;
+  row?: string | null;
+  seat?: string | null;
   price: number;
   originalPrice?: number | null;
   minPriceSnapshot?: number | null;
   maxPriceSnapshot?: number | null;
-  status: "ACTIVE" | "SOLD" | "CANCELLED" | "EXPIRED";
+  status: "ACTIVE" | "RESERVED" | "SOLD" | "CANCELLED" | "EXPIRED";
   expiresAt?: string | null;
   publishedAt?: string | null;
+}
+
+export interface ResaleEventSummary {
+  eventId: string;
+  activeListings: number;
+  minPrice: number;
 }
 
 export interface GiftTicketRequest {

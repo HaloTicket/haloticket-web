@@ -1,98 +1,129 @@
-import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
-import React, { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { FiCalendar, FiMapPin, FiSearch } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { MOCK_RESALE_EVENTS } from "@/mock/resaleData";
-import { FiSearch, FiCalendar, FiTag } from "react-icons/fi";
 
-export const ResaleList: React.FC = () => {
-  useTranslation();
+import { eventApi } from "@/services/eventApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
+import type { ResaleEventSummary } from "@/types/marketplace";
+
+type ResaleEvent = ResaleEventSummary & {
+  title: string;
+  startTime?: string;
+  locationName?: string;
+  posterImage?: string;
+};
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
+
+const formatDate = (value?: string) =>
+  value
+    ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "long", timeStyle: "short" }).format(new Date(value))
+    : "Thời gian đang cập nhật";
+
+export const ResaleList = () => {
   const navigate = useNavigate();
+  const [events, setEvents] = useState<ResaleEvent[]>([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, left: 0 });
+    let active = true;
+
+    const load = async () => {
+      try {
+        const summaries = await marketplaceApi.getResaleEvents();
+        const resolved = await Promise.all(
+          summaries.map(async (summary) => {
+            const event = await eventApi.getEventById(summary.eventId);
+            return {
+              ...summary,
+              title: String(event?.title ?? "Sự kiện"),
+              startTime: event?.startTime ? String(event.startTime) : undefined,
+              locationName: event?.locationName ? String(event.locationName) : undefined,
+              posterImage: event?.posterImage ? String(event.posterImage) : undefined,
+            };
+          }),
+        );
+        if (active) setEvents(resolved);
+      } catch {
+        if (active) setError("Không thể tải vé bán lại. Vui lòng thử lại sau.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  return (
-    <div className="w-full transition-colors duration-300 pb-16">
-      {/* Hero Promo Banner */}
-      <div className="w-full bg-blue-600 dark:bg-blue-700 py-12 md:py-16 px-4 text-center relative overflow-hidden shadow-xl mb-8">
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+  const visibleEvents = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("vi");
+    return normalized
+      ? events.filter((event) => event.title.toLocaleLowerCase("vi").includes(normalized))
+      : events;
+  }, [events, query]);
 
-        <div className="container mx-auto relative z-10 max-w-4xl">
-          <span className="px-4 py-1.5 rounded-full bg-white/20 text-white font-black text-xs md:text-sm uppercase tracking-widest backdrop-blur-md mb-3 inline-block border border-white/30">
-            {translate("Sàn Nhượng Vé Chính Thức")}</span>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-md mb-3">
-            {translate("Resale Ticket • VÉ BÁN LẠI")}</h1>
-          <p className="text-white/90 text-sm md:text-base max-w-xl mx-auto font-medium">
-            {translate("Mua lại vé chính chủ an toàn, nhanh chóng và bảo mật 100% qua nền tảng HaloTicket")}</p>
-        </div>
+  return (
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+      <header className="mb-8 max-w-3xl">
+        <p className="mb-2 text-sm font-semibold text-brand-primary">SÀN VÉ HALOTICKET</p>
+        <h1 className="text-3xl font-bold tracking-tight app-text-main sm:text-4xl">Vé bán lại</h1>
+        <p className="mt-3 text-base leading-7 app-text-muted">
+          Vé được xác thực bởi HaloTicket. Khi giao dịch hoàn tất, mã vé cũ sẽ bị vô hiệu hóa và người mua nhận mã mới.
+        </p>
+      </header>
+
+      <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="relative block w-full sm:max-w-md">
+          <span className="sr-only">Tìm sự kiện</span>
+          <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 app-text-muted" aria-hidden />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Tìm theo tên sự kiện"
+            className="w-full rounded-xl border app-border app-bg-card py-3 pl-10 pr-4 text-sm app-text-main outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
+          />
+        </label>
+        {!loading && !error && <p className="text-sm app-text-muted">{events.length} sự kiện có vé bán lại</p>}
       </div>
 
-      {/* Main Content Container */}
-      <div className="container mx-auto px-4 md:px-8">
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 app-bg-card p-4 rounded-2xl border app-border shadow-md">
-          <div className="relative w-full sm:w-96 md:w-[480px]">
-            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 app-text-muted" />
-            <input
-              type="text"
-              placeholder={translate("Nhập tên sự kiện bán lại...")}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border app-border text-sm app-text-main focus:outline-none focus:border-brand-primary"
-            />
-          </div>
+      {loading && <div className="rounded-xl border app-border app-bg-card p-8 text-center app-text-muted">Đang tải vé bán lại…</div>}
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {!loading && !error && visibleEvents.length === 0 && (
+        <div className="rounded-xl border app-border app-bg-card p-8 text-center app-text-muted">Không tìm thấy sự kiện phù hợp.</div>
+      )}
 
-          <div className="flex items-center gap-3 text-xs md:text-sm font-bold app-text-muted">
-            <span>{translate("Tổng cộng:")}<strong className="app-text-brand">{MOCK_RESALE_EVENTS.length}</strong> {translate("sự kiện")}</span>
-          </div>
-        </div>
-
-        {/* Grid of Resale Events */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {MOCK_RESALE_EVENTS.map((ev) => (
-            <div
-              key={ev.id}
-              onClick={() => navigate(`/resale-ticket/${ev.id}`)}
-              className="group app-bg-card rounded-2xl overflow-hidden border app-border hover:border-brand-primary transition-all duration-300 shadow-md hover:shadow-2xl cursor-pointer flex flex-col justify-between"
-            >
-              {/* Image Container */}
-              <div className="relative aspect-[16/9] overflow-hidden bg-slate-950">
-                <img
-                  src={ev.posterImage}
-                  alt={ev.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-
-                {/* Status Badge */}
-                {ev.isEnded ? (
-                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[10px] font-black bg-amber-500 text-slate-950 shadow-md">
-                    {translate("Đã diễn ra")}</span>
-                ) : (
-                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[10px] font-black gradient-btn text-white shadow-md flex items-center gap-1">
-                    <FiTag className="w-3 h-3" />
-                    {ev.availableListingsCount} {translate("vé bán lại")}</span>
-                )}
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Danh sách sự kiện có vé bán lại">
+        {visibleEvents.map((event) => (
+          <button
+            key={event.eventId}
+            type="button"
+            onClick={() => navigate(`/resale-ticket/${event.eventId}`)}
+            className="group overflow-hidden rounded-2xl border app-border app-bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+          >
+            <div className="aspect-[16/9] bg-slate-100 dark:bg-slate-800">
+              {event.posterImage && <img src={event.posterImage} alt="" className="h-full w-full object-cover" />}
+            </div>
+            <div className="p-5">
+              <h2 className="line-clamp-2 text-lg font-bold app-text-main group-hover:text-brand-primary">{event.title}</h2>
+              <div className="mt-4 space-y-2 text-sm app-text-muted">
+                <p className="flex items-start gap-2"><FiCalendar className="mt-0.5 shrink-0" />{formatDate(event.startTime)}</p>
+                <p className="flex items-start gap-2"><FiMapPin className="mt-0.5 shrink-0" />{event.locationName || "Địa điểm đang cập nhật"}</p>
               </div>
-
-              {/* Card Details */}
-              <div className="p-4 flex flex-col justify-between flex-1">
-                <div>
-                  <h3 className="font-extrabold text-sm md:text-base app-text-main line-clamp-2 leading-snug mb-3 group-hover:app-text-brand transition-colors">
-                    {translate(ev.title)}
-                  </h3>
-                </div>
-
-                {/* Enlarged Date Display */}
-                <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center gap-2 text-sm md:text-base font-extrabold app-text-brand">
-                  <FiCalendar className="w-4 h-4 shrink-0" />
-                  <span>{ev.datesSummary}</span>
-                </div>
+              <div className="mt-5 flex items-end justify-between gap-4 border-t app-border pt-4">
+                <span className="text-sm font-medium app-text-muted">{event.activeListings} vé đang bán</span>
+                <span className="font-bold text-brand-primary">Từ {formatCurrency(event.minPrice)}</span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
+          </button>
+        ))}
+      </section>
+    </main>
   );
 };
 

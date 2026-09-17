@@ -3,6 +3,7 @@ import type {
   GiftTicketRequest,
   MarketplacePage,
   MarketplaceSagaResponse,
+  ResaleEventSummary,
   ResaleEligibility,
   TicketListing,
 } from "@/types/marketplace";
@@ -13,6 +14,17 @@ const newIdempotencyKey = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export const marketplaceApi = {
+  getResaleEvents: () =>
+    axiosClient.get<unknown, ResaleEventSummary[]>("/marketplace/events"),
+
+  getEventListings: (eventId: string, page = 0, size = 20) =>
+    axiosClient.get<unknown, MarketplacePage<TicketListing>>(
+      `/marketplace/events/${encodeURIComponent(eventId)}/listings?page=${page}&size=${size}`,
+    ),
+
+  getListing: (listingId: string) =>
+    axiosClient.get<unknown, TicketListing>(`/marketplace/listings/${encodeURIComponent(listingId)}`),
+
   getResaleEligibility: (ticketId: string) =>
     axiosClient.get<unknown, ResaleEligibility>(`/marketplace/tickets/${encodeURIComponent(ticketId)}/resale-eligibility`),
 

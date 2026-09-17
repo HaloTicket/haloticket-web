@@ -1,210 +1,68 @@
-import { formatCurrency } from "@/utils/formatters";
-import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
-import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import { MOCK_RESALE_EVENTS } from "@/mock/resaleData";
-import { FiChevronRight, FiCheckSquare, FiSquare, FiInfo, FiLayers, FiCheck } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { FiArrowLeft, FiCheckCircle, FiShield } from "react-icons/fi";
+import { useNavigate, useParams } from "react-router-dom";
 
-export const ResaleTicketCheckout: React.FC = () => {
-  useTranslation();
-  const { eventId, ticketId } = useParams<{ eventId: string; ticketId: string }>();
+import { eventApi } from "@/services/eventApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
+import type { TicketListing } from "@/types/marketplace";
+
+const money = (value: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+
+export const ResaleTicketCheckout = () => {
+  const { eventId = "", ticketId = "" } = useParams();
+  const navigate = useNavigate();
+  const [listing, setListing] = useState<TicketListing | null>(null);
+  const [event, setEvent] = useState<Record<string, unknown> | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, left: 0 });
+    Promise.all([marketplaceApi.getListing(ticketId), eventApi.getEventById(eventId)])
+      .then(([listingData, eventData]) => { setListing(listingData); setEvent(eventData); })
+      .catch(() => setError("Vé này không còn khả dụng hoặc đã được người khác mua."));
   }, [eventId, ticketId]);
 
-  const resaleEvent = MOCK_RESALE_EVENTS.find((e) => e.id === eventId) || MOCK_RESALE_EVENTS[0];
-  const listing = resaleEvent.listings?.find((l) => l.id === ticketId) || resaleEvent.listings[0];
-
-  // Selected seats state
-  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>(
-    listing.seats.filter((s) => s.isSelected).map((s) => s.id)
-  );
-
-  // Terms agreement checkbox state
-  const [isAgreed, setIsAgreed] = useState<boolean>(true);
-
-  const toggleSeat = (id: string) => {
-    if (selectedSeatIds.includes(id)) {
-      setSelectedSeatIds(selectedSeatIds.filter((item) => item !== id));
-    } else {
-      setSelectedSeatIds([...selectedSeatIds, id]);
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (selectedSeatIds.length === listing.seats.length) {
-      setSelectedSeatIds([]);
-    } else {
-      setSelectedSeatIds(listing.seats.map((s) => s.id));
-    }
-  };
-
-  // Calculate total price
-  const totalPriceNumber = selectedSeatIds.length * (listing.priceValue || 2499000);
-  const totalPriceFormatted = formatCurrency(totalPriceNumber);
+  if (error) return <main className="mx-auto max-w-3xl px-4 py-12"><p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</p></main>;
+  if (!listing) return <main className="mx-auto max-w-3xl px-4 py-12 text-center app-text-muted">Đang tải thông tin vé…</main>;
 
   return (
-    <div className="w-full transition-colors duration-300 pb-20">
-      <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center gap-2 text-xs md:text-sm app-text-muted mb-6 font-medium">
-          <Link to="/" className="hover:app-text-main transition-colors">
-            {translate("Trang chủ")}</Link>
-          <FiChevronRight className="w-3.5 h-3.5" />
-          <Link to="/resale-ticket" className="hover:app-text-main transition-colors">
-            {translate("Vé bán lại")}</Link>
-          <FiChevronRight className="w-3.5 h-3.5" />
-          <span className="app-text-main font-bold">{translate("Chi tiết vé")}</span>
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:py-12">
+      <button onClick={() => navigate(`/resale-ticket/${eventId}`)} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold app-text-muted hover:text-brand-primary">
+        <FiArrowLeft /> Quay lại danh sách vé
+      </button>
+      <h1 className="text-3xl font-bold app-text-main">Kiểm tra vé bán lại</h1>
+      <p className="mt-2 app-text-muted">Xác nhận đúng thông tin trước khi tiếp tục thanh toán.</p>
+
+      <section className="mt-8 overflow-hidden rounded-2xl border app-border app-bg-card">
+        <div className="border-b app-border p-6">
+          <p className="text-sm font-semibold text-brand-primary">VÉ ĐƯỢC HALOTICKET XÁC THỰC</p>
+          <h2 className="mt-2 text-xl font-bold app-text-main">{String(event?.title ?? "Sự kiện")}</h2>
         </div>
+        <dl className="grid grid-cols-2 gap-y-4 p-6 text-sm">
+          <dt className="app-text-muted">Loại vé</dt><dd className="text-right font-semibold app-text-main">{listing.ticketTypeName || "Vé sự kiện"}</dd>
+          <dt className="app-text-muted">Khu vực</dt><dd className="text-right font-semibold app-text-main">{listing.section || "—"}</dd>
+          <dt className="app-text-muted">Hàng / ghế</dt><dd className="text-right font-semibold app-text-main">{[listing.row, listing.seat].filter(Boolean).join(" · ") || "—"}</dd>
+          <dt className="app-text-muted">Giá vé</dt><dd className="text-right text-lg font-bold text-brand-primary">{money(listing.price)}</dd>
+        </dl>
+      </section>
 
-        {/* Page Main Title */}
-        <h1 className="text-2xl md:text-3xl font-extrabold app-text-main tracking-tight mb-6">
-          {translate("Danh sách vé bán lại")}</h1>
-
-        {/* Event Summary Card */}
-        <div className="app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-lg mb-8 space-y-3">
-          <div className="text-sm md:text-base font-extrabold app-text-main flex items-center justify-between">
-            <div>
-              <span className="app-text-muted mr-2 font-normal">{translate("Sự kiện:")}</span>
-              <span>{translate(resaleEvent.title)}</span>
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="button"
-              onClick={() => alert(translate("Chính sách & Quy định tham gia sự kiện Bán lại vé"))}
-              className="text-xs md:text-sm font-bold app-text-brand hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <FiInfo className="w-4 h-4" />
-              <span>{translate("Xem quy định tham gia sự kiện")}</span>
-            </button>
-          </div>
-
-          <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 text-xs md:text-sm app-text-main font-semibold">
-            <span className="app-text-muted mr-2 font-normal">{translate("Suất diễn:")}</span>
-            <span>{listing.showtimeStr}</span>
-          </div>
-        </div>
-
-        {/* Ticket Selection Container */}
-        <div className="mb-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg md:text-xl font-extrabold app-text-main flex items-center gap-2">
-              <span>{translate("Chọn vé")}</span>
-            </h2>
-
-            <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 uppercase">
-              {listing.isRetail ? translate("Bán lẻ") : translate("Không bán lẻ")}
-            </span>
-          </div>
-
-          {/* Tier Name Header */}
-          <div className="flex items-center gap-2 text-base md:text-lg font-extrabold app-text-main">
-            <FiLayers className="w-5 h-5 app-text-brand" />
-            <span>{listing.tierName}</span>
-          </div>
-
-          {/* Select All Bar */}
-          <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/90 border app-border flex items-center justify-between text-xs md:text-sm font-bold app-text-main">
-            <span>{translate("Đã chọn")}{" "}{selectedSeatIds.length}/{listing.seats.length}</span>
-
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="flex items-center gap-2 cursor-pointer hover:app-text-brand transition-colors"
-            >
-              <span>{translate("Chọn tất cả")}</span>
-              {selectedSeatIds.length === listing.seats.length ? (
-                <FiCheckSquare className="w-5 h-5 app-text-brand" />
-              ) : (
-                <FiSquare className="w-5 h-5 app-text-muted" />
-              )}
-            </button>
-          </div>
-
-          {/* Individual Seat Cards List */}
-          <div className="space-y-3">
-            {listing.seats.map((seat) => {
-              const isChecked = selectedSeatIds.includes(seat.id);
-              return (
-                <div
-                  key={seat.id}
-                  onClick={() => toggleSeat(seat.id)}
-                  className={`p-4 rounded-2xl border transition-all duration-300 flex items-center justify-between gap-4 cursor-pointer shadow-md ${isChecked
-                      ? "app-bg-card border-brand-primary ring-1 ring-brand-primary/30"
-                      : "app-bg-card border-slate-200 dark:border-zinc-800 opacity-80"
-                    }`}
-                >
-                  <div className="space-y-1 text-xs md:text-sm">
-                    <div className="font-extrabold app-text-main">
-                      <span className="app-text-muted font-normal mr-2">{translate("Khu vực:")}</span>
-                      <span>{seat.section}</span>
-                    </div>
-
-                    <div className="font-extrabold app-text-main">
-                      <span className="app-text-muted font-normal mr-2">{translate("Hàng ghế:")}</span>
-                      <span>{seat.seatRow}</span>
-                    </div>
-
-                    <div className="font-black app-text-brand">
-                      <span className="app-text-muted font-normal mr-2">{translate("Giá bán mỗi vé:")}</span>
-                      <span>{seat.price}</span>
-                    </div>
-                  </div>
-
-                  {/* Selection Checkbox */}
-                  <div className="shrink-0">
-                    {isChecked ? (
-                      <div className="w-6 h-6 rounded-lg gradient-btn text-white flex items-center justify-center font-bold shadow-sm">
-                        <FiCheck className="w-4 h-4" />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-lg border-2 border-zinc-600 bg-zinc-800/40" />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Terms Agreement Checkbox */}
-        <div className="mb-8 p-4 rounded-2xl bg-zinc-100/60 dark:bg-zinc-800/40 border app-border">
-          <label className="flex items-start gap-3 text-xs md:text-sm font-semibold app-text-main cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isAgreed}
-              onChange={(e) => setIsAgreed(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-blue-600 cursor-pointer"
-            />
-            <span className="leading-relaxed">
-              {translate("Tôi đã đọc, hiểu, đồng ý và cam kết tuân thủ các")}{" "}{" "}
-              <span className="app-text-brand font-extrabold hover:underline">
-                {translate("Quy định sử dụng tính năng Bán lại vé")}</span>{" "}
-              {translate("trên HaloTicket.")}</span>
-          </label>
-        </div>
-
-        {/* Bottom Action Checkout Button */}
-        <button
-          type="button"
-          disabled={selectedSeatIds.length === 0 || !isAgreed}
-          onClick={() => {
-            alert(translate("Xác nhận thanh toán mua vé bán lại: Tổng cộng {{total}}", { total: totalPriceFormatted }));
-          }}
-          className={`w-full py-4 font-black text-base md:text-lg rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${selectedSeatIds.length > 0 && isAgreed
-              ? "gradient-btn text-white hover:scale-[1.01] active:scale-98 cursor-pointer"
-              : "bg-zinc-700 text-zinc-400 cursor-not-allowed opacity-60"
-            }`}
-        >
-          <span>{translate("Tiếp tục -")}{totalPriceFormatted}</span>
-          <span className="text-xl">»</span>
-        </button>
+      <div className="mt-5 rounded-xl border app-border bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-900 dark:text-slate-300">
+        <p className="flex gap-2 font-semibold"><FiShield className="mt-0.5 text-brand-primary" />Giao dịch an toàn qua HaloTicket</p>
+        <p className="mt-2 pl-6">Sau khi thanh toán và chuyển quyền thành công, QR của chủ cũ bị vô hiệu hóa và bạn nhận QR mới.</p>
       </div>
-    </div>
+
+      <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border app-border p-4 text-sm app-text-main">
+        <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-blue-600" />
+        <span>Tôi đã kiểm tra thông tin vé và đồng ý với điều khoản mua vé bán lại của HaloTicket.</span>
+      </label>
+
+      <button type="button" disabled={!agreed} onClick={() => navigate(`/checkout/resale/${listing.id}`)}
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-4 font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+        <FiCheckCircle /> Tiếp tục · {money(listing.price)}
+      </button>
+    </main>
   );
 };
 
