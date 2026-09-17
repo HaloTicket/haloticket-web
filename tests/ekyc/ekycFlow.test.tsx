@@ -29,22 +29,22 @@ describe("real eKYC API", () => {
     await expect(ekycApi.getStatus()).rejects.toThrow("503");
     await expect(ekycApi.getOrganizerEligibility()).rejects.toThrow("503");
     await expect(ekycApi.startSession(true, "2026.1")).rejects.toThrow("503");
-    await expect(ekycApi.verify("id", file(), file())).rejects.toThrow("503");
+    await expect(ekycApi.verify("id", file(), file(), file())).rejects.toThrow("503");
   });
   it("rejects malformed approval and eligibility responses", async () => {
     get.mockResolvedValue({});
     await expect(ekycApi.getStatus()).rejects.toThrow();
     await expect(ekycApi.getOrganizerEligibility()).rejects.toThrow();
   });
-  it("sends both document images without JSON content type", async () => {
+  it("sends document and face images without JSON content type", async () => {
     post.mockResolvedValue({ status: "PENDING" });
-    const front = file(), back = file();
-    expect(await ekycApi.verify("id", front, back)).toEqual({ status: "PENDING" });
+    const front = file(), back = file(), face = file();
+    expect(await ekycApi.verify("id", front, back, face)).toEqual({ status: "PENDING" });
     const [url, payload, config] = post.mock.calls[0];
     expect(url).toBe("/users/me/ekyc/sessions/id/verify");
     expect((payload as FormData).get("frontImage")).toBe(front);
     expect((payload as FormData).get("backImage")).toBe(back);
-    expect((payload as FormData).has("faceImage")).toBe(false);
+    expect((payload as FormData).get("faceImage")).toBe(face);
     expect(config?.headers?.["Content-Type"]).toBeUndefined();
   });
 });
