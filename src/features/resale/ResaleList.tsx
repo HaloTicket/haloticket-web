@@ -21,6 +21,23 @@ const formatDate = (value?: string) =>
     ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "long", timeStyle: "short" }).format(new Date(value))
     : "Thời gian đang cập nhật";
 
+function SkeletonCard() {
+  return (
+    <div className="animate-pulse overflow-hidden rounded-2xl border app-border app-bg-card" aria-hidden="true">
+      <div className="aspect-[16/9] bg-slate-200 dark:bg-slate-700" />
+      <div className="p-5 space-y-3">
+        <div className="h-5 w-3/4 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        <div className="h-3 w-1/2 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        <div className="h-3 w-2/3 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        <div className="mt-4 flex justify-between">
+          <div className="h-4 w-20 rounded-lg bg-slate-200 dark:bg-slate-700" />
+          <div className="h-4 w-24 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const ResaleList = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<ResaleEvent[]>([]);
@@ -92,10 +109,39 @@ export const ResaleList = () => {
         {!loading && !error && <p className="text-sm app-text-muted">{events.length} sự kiện có vé bán lại</p>}
       </div>
 
-      {loading && <div className="rounded-xl border app-border app-bg-card p-8 text-center app-text-muted">Đang tải vé bán lại…</div>}
+      {loading && (
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Đang tải">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </section>
+      )}
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       {!loading && !error && visibleEvents.length === 0 && (
-        <div className="rounded-xl border app-border app-bg-card p-8 text-center app-text-muted">Không tìm thấy sự kiện phù hợp.</div>
+        <div className="rounded-2xl border app-border app-bg-card p-12 text-center">
+          <p className="text-lg font-bold app-text-main">
+            {query ? "Không tìm thấy sự kiện phù hợp" : "Hiện chưa có vé bán lại."}
+          </p>
+          <p className="mt-2 text-sm app-text-muted">
+            {query
+              ? `Không có sự kiện nào khớp với "${query}".`
+              : "Khi có người đăng bán, vé sẽ hiển thị tại đây."}
+          </p>
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="mt-5 rounded-xl border app-border px-4 py-2 text-sm font-semibold app-text-main hover:bg-slate-500/10"
+            >
+              Xóa bộ lọc
+            </button>
+          ) : (
+            <a
+              href="/events"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline"
+            >
+              Khám phá sự kiện →
+            </a>
+          )}
+        </div>
       )}
 
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Danh sách sự kiện có vé bán lại">
