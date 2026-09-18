@@ -194,7 +194,7 @@ export default function TicketDetail() {
                 <div className="space-y-1">
                   <span className="app-text-sub font-bold block">Hạng vé</span>
                   <span className="font-extrabold text-blue-500 text-sm block">
-                    {ticket.ticketTypeName}
+                    {ticket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (match, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)}
                   </span>
                 </div>
                 <div className="space-y-1">
