@@ -194,25 +194,25 @@ export default function EkycVerification() {
       // If rejected, show error message from verifyResult
       if (verifyResult.status === "REJECTED") {
         if (verifyResult.reasonCode === "OCR_DATA_INCOMPLETE") {
-          setError("Không đọc được đầy đủ thông tin từ CCCD. Vui lòng chụp rõ nét hơn.");
+          setError(t("Không đọc được đầy đủ thông tin từ CCCD. Vui lòng chụp rõ nét hơn."));
         } else if (verifyResult.reasonCode === "DOCUMENT_EXPIRED") {
-          setError("CCCD đã hết hạn. Vui lòng sử dụng giấy tờ còn hiệu lực.");
+          setError(t("CCCD đã hết hạn. Vui lòng sử dụng giấy tờ còn hiệu lực."));
         } else if (verifyResult.reasonCode === "DOCUMENT_TYPE_INVALID") {
-          setError("VNPT không nhận diện ảnh là CCCD gắn chip. Vui lòng kiểm tra đúng mặt trước, mặt sau và chụp đủ bốn góc thẻ.");
+          setError(t("VNPT không nhận diện ảnh là CCCD gắn chip. Vui lòng kiểm tra đúng mặt trước, mặt sau và chụp đủ bốn góc thẻ."));
         } else if (verifyResult.reasonCode === "DOCUMENT_INVALID") {
-          setError("VNPT đã đọc được CCCD nhưng phát hiện cảnh báo về dữ liệu, chất lượng ảnh hoặc tính hợp lệ. Vui lòng chụp lại rõ nét, đủ bốn góc và đúng hai mặt của cùng một CCCD.");
+          setError(t("VNPT đã đọc được CCCD nhưng phát hiện cảnh báo về dữ liệu, chất lượng ảnh hoặc tính hợp lệ. Vui lòng chụp lại rõ nét, đủ bốn góc và đúng hai mặt của cùng một CCCD."));
         } else if (verifyResult.reasonCode === "FACE_LIVENESS_FAILED") {
-          setError("Khuôn mặt không vượt qua kiểm tra người thật (Face Liveness). Vui lòng nhìn thẳng camera và đảm bảo đủ ánh sáng.");
+          setError(t("Khuôn mặt không vượt qua kiểm tra người thật (Face Liveness). Vui lòng nhìn thẳng camera và đảm bảo đủ ánh sáng."));
         } else if (verifyResult.reasonCode === "FACE_MATCH_FAILED") {
-          setError("Khuôn mặt không khớp với ảnh trên CCCD. Vui lòng chụp lại khuôn mặt rõ ràng, không đeo kính hoặc phụ kiện.");
+          setError(t("Khuôn mặt không khớp với ảnh trên CCCD. Vui lòng chụp lại khuôn mặt rõ ràng, không đeo kính hoặc phụ kiện."));
         } else if (verifyResult.reasonCode === "FACE_MULTIPLE_DETECTED") {
-          setError("Phát hiện nhiều hơn 1 khuôn mặt trong khung hình. Vui lòng chụp một mình trong khung hình camera.");
+          setError(t("Phát hiện nhiều hơn 1 khuôn mặt trong khung hình. Vui lòng chụp một mình trong khung hình camera."));
         } else if (verifyResult.reasonCode === "PROVIDER_REJECTED") {
-          setError("VNPT từ chối hồ sơ. Vui lòng kiểm tra chất lượng ảnh và thử lại.");
+          setError(t("VNPT từ chối hồ sơ. Vui lòng kiểm tra chất lượng ảnh và thử lại."));
         } else if (verifyResult.reasonCode) {
-          setError(`Xác minh bị từ chối: ${verifyResult.reasonCode}. Vui lòng kiểm tra lại giấy tờ.`);
+          setError(t("Xác minh bị từ chối: {{code}}. Vui lòng kiểm tra lại giấy tờ.", { code: verifyResult.reasonCode }));
         } else {
-          setError("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và ảnh chân dung rồi thử lại.");
+          setError(t("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và ảnh chân dung rồi thử lại."));
         }
         // Don't reset form for rejected cases - let user retry
         inFlight.current = false;
@@ -221,7 +221,7 @@ export default function EkycVerification() {
       }
 
       if (verifyResult.status === "PENDING") {
-        setSuccessMessage("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút).");
+        setSuccessMessage(t("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút)."));
         inFlight.current = false;
         setBusy(false);
         return;
@@ -238,23 +238,23 @@ export default function EkycVerification() {
       // Show success message based on returned status and switch to step 5
       if (finalStatus.status === "APPROVED") {
         void userApi.getProfile().then(setUserProfile);
-        setSuccessMessage("Xác minh CCCD & Khuôn mặt thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền.");
+        setSuccessMessage(t("Xác minh CCCD & Khuôn mặt thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền."));
         setCurrentStep(5);
       } else if (finalStatus.status === "PENDING") {
-        setSuccessMessage("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút).");
+        setSuccessMessage(t("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút)."));
         setCurrentStep(1);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
       const apiMsg = axiosErr.response?.data?.message || axiosErr.response?.data?.error;
       if (apiMsg === "EKYC_ATTEMPT_LIMIT") {
-        setError("Không thể hoàn tất xác minh: Bạn đã vượt quá số lần thử cho phép trong ngày. Vui lòng thử lại sau.");
+        setError(t("Không thể hoàn tất xác minh: Bạn đã vượt quá số lần thử cho phép trong ngày. Vui lòng thử lại sau."));
       } else if (apiMsg && (apiMsg.includes("Loại giấy tờ") || apiMsg.includes("Vui lòng") || apiMsg.includes("CCCD") || apiMsg.includes("khuôn mặt") || apiMsg.includes("Face"))) {
         setError(apiMsg);
       } else if (apiMsg) {
-        setError(`Không thể hoàn tất xác minh (${apiMsg}). Vui lòng kiểm tra lại giấy tờ và gửi lại.`);
+        setError(t("Không thể hoàn tất xác minh ({{msg}}). Vui lòng kiểm tra lại giấy tờ và gửi lại.", { msg: apiMsg }));
       } else {
-        setError("Không thể hoàn tất xác minh. Vui lòng kiểm tra lại kết nối và độ rõ nét của ảnh, sau đó gửi lại.");
+        setError(t("Không thể hoàn tất xác minh. Vui lòng kiểm tra lại kết nối và độ rõ nét của ảnh, sau đó gửi lại."));
       }
     } finally {
       inFlight.current = false;
@@ -398,12 +398,12 @@ export default function EkycVerification() {
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border app-border space-y-3 text-xs sm:text-sm">
                 <h4 className="font-bold app-text-main flex items-center gap-2">
                   <FiInfo className="w-4 h-4 text-blue-500 shrink-0" />
-                  <span>Gợi ý khắc phục nhanh:</span>
+                  <span>{t("Gợi ý khắc phục nhanh:")}</span>
                 </h4>
                 <ul className="space-y-2 text-xs app-text-muted list-disc list-inside">
-                  <li>Kiểm tra kết nối mạng Internet và thử lại.</li>
-                  <li>Bấm nút <strong>"Thử lại"</strong> bên dưới để hệ thống khởi tạo lại phiên kết nối.</li>
-                  <li>Hoặc tải lại trang sau ít phút nếu máy chủ đang bảo trì định kỳ.</li>
+                  <li>{t("Kiểm tra kết nối mạng Internet và thử lại.")}</li>
+                  <li>{t("Bấm nút \"Thử lại\" bên dưới để hệ thống khởi tạo lại phiên kết nối.")}</li>
+                  <li>{t("Hoặc tải lại trang sau ít phút nếu máy chủ đang bảo trì định kỳ.")}</li>
                 </ul>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t app-border">
@@ -411,7 +411,7 @@ export default function EkycVerification() {
                   to={returnUrl}
                   className="w-full sm:w-auto px-5 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center order-3 sm:order-1"
                 >
-                  Về hồ sơ
+                  {t("Về hồ sơ")}
                 </Link>
                 <button
                   type="button"
@@ -419,7 +419,7 @@ export default function EkycVerification() {
                   onClick={() => { setLoading(true); setError(""); setRefresh((v) => v + 1); }}
                 >
                   <FiRefreshCw className="w-4 h-4" />
-                  <span>Thử lại</span>
+                  <span>{t("Thử lại")}</span>
                 </button>
               </div>
             </div>
@@ -430,7 +430,7 @@ export default function EkycVerification() {
             <div role="status" className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
               <FiCheckCircle className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
               <div className="flex-1 space-y-0.5">
-                <span className="font-bold">Thành công:</span>
+                <span className="font-bold">{t("Thành công:")}</span>
                 <p>{successMessage}</p>
               </div>
               <button
@@ -449,7 +449,7 @@ export default function EkycVerification() {
             <div role="alert" className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
               <FiAlertCircle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
               <div className="flex-1 space-y-0.5">
-                <span className="font-bold">Lỗi xác minh:</span>
+                <span className="font-bold">{t("Lỗi xác minh:")}</span>
                 <p>{error}</p>
               </div>
             </div>
@@ -477,7 +477,7 @@ export default function EkycVerification() {
                 <details className="group">
                   <summary className="text-xs font-bold text-slate-500 hover:app-text-main cursor-pointer list-none inline-flex items-center gap-1.5 py-2 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
                     <FiCreditCard className="w-4 h-4 text-blue-500" />
-                    <span>Xem thẻ CCCD điện tử đã đối soát</span>
+                    <span>{t("Xem thẻ CCCD điện tử đã đối soát")}</span>
                     <FiChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
                   </summary>
                   <div className="mt-4 text-left space-y-4">
@@ -490,7 +490,7 @@ export default function EkycVerification() {
                           </div>
                           <div>
                             <span className="text-[11px] font-extrabold uppercase text-blue-300 block leading-none">HaloTicket Identity</span>
-                            <span className="text-[9px] text-slate-400">Đã xác minh bởi VNPT eKYC</span>
+                            <span className="text-[9px] text-slate-400">{t("Đã xác minh bởi VNPT eKYC")}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">
@@ -500,20 +500,20 @@ export default function EkycVerification() {
                       </div>
                       <div className="grid grid-cols-2 gap-4 py-4">
                         <div>
-                          <span className="text-[9px] uppercase font-bold text-slate-400 block">Họ và tên</span>
+                          <span className="text-[9px] uppercase font-bold text-slate-400 block">{t("Họ và tên")}</span>
                           <p className="text-sm font-extrabold uppercase text-white truncate">{status.legalName || "—"}</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-[9px] uppercase font-bold text-slate-400 block">Số CCCD</span>
+                          <span className="text-[9px] uppercase font-bold text-slate-400 block">{t("Số CCCD")}</span>
                           <p className="text-xs font-mono font-extrabold text-blue-400">{status.documentNumber || "—"}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t border-white/10 text-[10px] text-slate-400">
                         <div className="flex items-center gap-1 text-emerald-400">
                           <FiCheckCircle className="w-3.5 h-3.5" />
-                          <span>Hợp lệ & Không sửa đổi</span>
+                          <span>{t("Hợp lệ & Không sửa đổi")}</span>
                         </div>
-                        <span>Cập nhật: {status.verifiedAt ? new Date(status.verifiedAt).toLocaleDateString("vi-VN") : "Hôm nay"}</span>
+                        <span>{t("Cập nhật:")} {status.verifiedAt ? new Date(status.verifiedAt).toLocaleDateString("vi-VN") : t("Hôm nay")}</span>
                       </div>
                     </div>
                   </div>
@@ -534,16 +534,16 @@ export default function EkycVerification() {
               <div className="space-y-2 max-w-lg mx-auto">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-300 dark:border-amber-800">
                   <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                  <span role="status">{EKYC_STATUS_LABELS.PENDING}</span>
+                  <span role="status">{t(EKYC_STATUS_LABELS.PENDING)}</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold app-text-main">Hồ sơ đang được đối soát</h2>
+                <h2 className="text-xl sm:text-2xl font-extrabold app-text-main">{t("Hồ sơ đang được đối soát")}</h2>
                 <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
-                  Hồ sơ đang chờ kết quả xác minh. Bạn có thể kiểm tra lại trạng thái sau.
+                  {t("Hồ sơ đang chờ kết quả xác minh. Bạn có thể kiểm tra lại trạng thái sau.")}
                 </p>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border app-border max-w-md mx-auto text-xs app-text-muted space-y-1">
-                <p>⏱️ Thời gian xử lý trung bình: <strong>5 - 15 phút</strong></p>
-                <p>📧 Kết quả phê duyệt sẽ được thông báo trực tiếp qua Email của bạn.</p>
+                <p>⏱️ {t("Thời gian xử lý trung bình: 5 - 15 phút")}</p>
+                <p>📧 {t("Kết quả phê duyệt sẽ được thông báo trực tiếp qua Email của bạn.")}</p>
               </div>
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
@@ -552,13 +552,13 @@ export default function EkycVerification() {
                   onClick={() => { setError(""); setRefresh((v) => v + 1); }}
                 >
                   <FiRefreshCw className="w-4 h-4" />
-                  <span>Kiểm tra trạng thái</span>
+                  <span>{t("Kiểm tra trạng thái")}</span>
                 </button>
                 <Link
                   to={returnUrl}
                   className="w-full sm:w-auto px-6 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center"
                 >
-                  Về hồ sơ
+                  {t("Về hồ sơ")}
                 </Link>
               </div>
             </div>

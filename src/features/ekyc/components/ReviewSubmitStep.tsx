@@ -126,7 +126,7 @@ export function ReviewSubmitStep({
                   {preview ? (
                     <img
                       src={preview}
-                      alt={`Ảnh ${side.label}`}
+                      alt={t("Ảnh {{label}}", { label: side.label })}
                       className="w-full h-full object-contain select-none"
                     />
                   ) : (
