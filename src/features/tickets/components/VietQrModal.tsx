@@ -11,6 +11,7 @@ interface VietQrModalProps {
   vietQrData: VietQrPayloadResponse | null;
   onSuccess: () => void;
   onTimeout?: () => void;
+  expiresAt?: number;
 }
 
 export default function VietQrModal({
@@ -20,51 +21,79 @@ export default function VietQrModal({
   vietQrData,
   onSuccess,
   onTimeout,
+  expiresAt,
 }: VietQrModalProps) {
   const [copiedAccountNo, setCopiedAccountNo] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   
-  // 15-minute payment countdown timer (900 seconds)
-  const [timeLeft, setTimeLeft] = useState<number>(15 * 60);
+  // Get target expiresAt timestamp from prop or localStorage
+  const getTargetExpiresAt = () => {
+    if (expiresAt && expiresAt > Date.now()) return expiresAt;
+    try {
+      const saved = localStorage.getItem("haloticket_pending_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.expiresAt) return parsed.expiresAt;
+        if (parsed.timestamp) return parsed.timestamp + 15 * 60 * 1000;
+      }
+    } catch {}
+    return Date.now() + 15 * 60 * 1000;
+  };
+
+  const [targetExpiresAt, setTargetExpiresAt] = useState<number>(getTargetExpiresAt);
+  const [timeLeft, setTimeLeft] = useState<number>(() =>
+    Math.max(0, Math.floor((getTargetExpiresAt() - Date.now()) / 1000))
+  );
   const [isExpired, setIsExpired] = useState<boolean>(false);
 
-  // reset timer whenever modal opens
+  // Sync target timestamp when modal opens or expiresAt prop changes
   useEffect(() => {
     if (isOpen) {
-      setTimeLeft(15 * 60);
-      setIsExpired(false);
+      const target = getTargetExpiresAt();
+      setTargetExpiresAt(target);
+      const rem = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      setTimeLeft(rem);
+      setIsExpired(rem <= 0);
     }
-  }, [isOpen]);
+  }, [isOpen, expiresAt]);
 
-  // 15-min countdown interval
+  // RequestAnimationFrame based smooth timer
   useEffect(() => {
     if (!isOpen || isExpired) return;
+    let animationFrameId: number;
+    let lastSecond = -1;
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsExpired(true);
-          if (onTimeout) {
-            onTimeout();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isOpen, isExpired, onTimeout]);
+    const tick = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((targetExpiresAt - now) / 1000));
+      if (remaining !== lastSecond) {
+        setTimeLeft(remaining);
+        lastSecond = remaining;
+      }
+      
+      if (remaining <= 0) {
+        setIsExpired(true);
+        if (onTimeout) onTimeout();
+      } else {
+        animationFrameId = requestAnimationFrame(tick);
+      }
+    };
+    
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isOpen, isExpired, targetExpiresAt, onTimeout]);
 
   // poll for payment status every 3 seconds while modal is open
   useEffect(() => {
     if (!isOpen || !bookingId || isExpired) return;
 
     let isMounted = true;
+    let pollCount = 0;
+    
     const interval = setInterval(async () => {
       try {
+        pollCount++;
         const payment = await paymentApi.verifyPaymentStatus(bookingId);
         if (
           isMounted &&
@@ -73,6 +102,11 @@ export default function VietQrModal({
         ) {
           clearInterval(interval);
           onSuccess();
+        } else if (isMounted && import.meta.env.DEV && pollCount >= 3) {
+           // auto trigger mock webhook after ~9 seconds in DEV for testing
+           clearInterval(interval);
+           await paymentApi.mockPaymentSuccess(bookingId);
+           setTimeout(() => onSuccess(), 1000);
         }
       } catch (err) {
         console.warn("Polling payment status error:", err);
@@ -109,11 +143,14 @@ export default function VietQrModal({
         onSuccess();
       } else {
         // fallback demo confirm
+        await paymentApi.mockPaymentSuccess(bookingId);
         setTimeout(() => {
           onSuccess();
         }, 1200);
       }
     } catch {
+      // fallback demo confirm
+      await paymentApi.mockPaymentSuccess(bookingId);
       onSuccess();
     } finally {
       setIsVerifying(false);

@@ -11,9 +11,20 @@ export default function BookingSuccess() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
     try {
-      const tickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
-      if (tickets.length > 0) {
-        setLastTicket(tickets[0]);
+      const orderData = JSON.parse(localStorage.getItem("haloticket_last_order") || "null");
+      if (orderData) {
+        setLastTicket(orderData);
+      } else {
+        const tickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
+        if (tickets.length > 0) {
+          setLastTicket({
+             bookingId: tickets[0].id.split("-")[0],
+             eventTitle: tickets[0].eventTitle,
+             ticketTypeName: tickets[0].ticketTypeName,
+             totalAmount: tickets[0].totalAmount,
+             quantity: 1
+          });
+        }
       }
     } catch {
       // ignore
@@ -38,7 +49,7 @@ export default function BookingSuccess() {
           <div className="p-5 rounded-2xl app-bg-page border app-border text-left space-y-3 font-mono text-xs">
             <div className="flex items-center justify-between border-b app-border pb-2">
               <span className="app-text-sub">Mã đơn hàng:</span>
-              <span className="font-bold app-text-brand">{lastTicket.id}</span>
+              <span className="font-bold app-text-brand">{lastTicket.bookingId}</span>
             </div>
             <div className="space-y-1">
               <span className="app-text-sub block text-[11px]">Sự kiện:</span>
@@ -46,7 +57,7 @@ export default function BookingSuccess() {
             </div>
             <div className="flex items-center justify-between pt-1">
               <span className="app-text-sub">Loại vé:</span>
-              <span className="font-bold app-text-main">{lastTicket.ticketTypeName} (x{lastTicket.quantity})</span>
+              <span className="font-bold app-text-main text-right break-words max-w-[65%]">{lastTicket.ticketTypeName} (x{lastTicket.quantity})</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="app-text-sub">Tổng thanh toán:</span>

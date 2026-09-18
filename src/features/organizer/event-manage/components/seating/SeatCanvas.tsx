@@ -52,6 +52,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   isFullscreen = false,
   onToggleFullscreen,
   onCanvasClickPosition,
+  seatStatusMap = {},
 }) => {
   const getZonePrice = (zone?: ZoneBlock | Partial<ZoneBlock>) => zone?.price ?? tiers?.find((t) => t.id === zone?.tierId)?.price ?? 0;
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -398,7 +399,19 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   // pointer down for seats
   const handlePointerDownSeat = (e: React.PointerEvent, seat: Seat) => {
     if (isAttendeeMode) {
-      if (onToggleAttendeeSeat && seat.status === 'available') {
+      e.stopPropagation();
+      const statusFromMap = seatStatusMap ? seatStatusMap[seat.id] : undefined;
+      const isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
+      const isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
+      const isBlocked = seat.status === 'blocked' || seat.status === 'maintenance';
+
+      if (isSold) {
+        alert("Ghế này đã được bán.");
+      } else if (isHolding) {
+        alert("Ghế này đang được người khác giữ hoặc chờ thanh toán, vui lòng thử lại sau ít phút.");
+      } else if (isBlocked) {
+        alert("Ghế này hiện đang bị khóa.");
+      } else if (onToggleAttendeeSeat) {
         onToggleAttendeeSeat(seat);
       }
       return;
@@ -494,6 +507,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   const handlePointerDownZone = (e: React.PointerEvent, zone: ZoneBlock) => {
     if (isAttendeeMode) {
       e.stopPropagation();
+      const zoneSeatsCount = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone)).length;
+      if (zoneSeatsCount > 0) {
+        // Seated zone: Do NOT open zone modal on container click! Seats must be clicked directly.
+        return;
+      }
       onSelectZoneAttendee?.(zone);
       return;
     }
@@ -1107,7 +1125,31 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
             // Fill Opacity
             const fillOpacity = zone.fillOpacity ?? 0.25;
-            const zoneSeatsCount = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone)).length;
+            const zoneSeats = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone));
+            const zoneSeatsCount = zoneSeats.length;
+
+            let isZoneSoldOut = false;
+            if (isAttendeeMode) {
+              if (zoneSeatsCount > 0) {
+                const soldOrHeld = zoneSeats.filter((s) => {
+                  const st = seatStatusMap[s.id] || s.status;
+                  return st === 'sold' || st === 'SOLD' || st === 'HELD' || st === 'HOLDING';
+                }).length;
+                if (soldOrHeld === zoneSeatsCount) {
+                  isZoneSoldOut = true;
+                }
+              } else {
+                const totalCap = zone.capacity || 100;
+                const soldOrHeldCount = Object.entries(seatStatusMap).filter(
+                  ([k, v]) => (k === zone.id || k.startsWith(zone.id + "_") || k.includes(zone.id)) && (v === 'SOLD' || v === 'HELD' || v === 'HOLDING')
+                ).length;
+                if (totalCap - soldOrHeldCount <= 0 && soldOrHeldCount > 0) {
+                  isZoneSoldOut = true;
+                }
+              }
+            }
+
+            const activeColor = isZoneSoldOut ? '#475569' : zone.color;
 
             return (
               <div
@@ -1117,15 +1159,15 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   } ${isSelected
                     ? 'ring-4 ring-teal-400 ring-offset-2 ring-offset-slate-900 z-20 shadow-xl'
                     : 'z-0'
-                  } ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  } ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                 style={{
                   left: `${zone.x}px`,
                   top: `${zone.y}px`,
                   width: `${zone.width}px`,
                   height: `${zone.height}px`,
-                  borderColor: zone.color,
-                  backgroundColor: zone.color,
-                  opacity: 1,
+                  borderColor: activeColor,
+                  backgroundColor: activeColor,
+                  opacity: isZoneSoldOut ? 0.6 : 1,
                   borderRadius: borderRadius,
                   clipPath: clipPath,
                   transform: zone.rotation ? `rotate(${zone.rotation}deg)` : undefined,
@@ -1136,22 +1178,25 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 <div
                   data-zone-header="true"
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-br-xl rounded-tl-xl text-[11px] font-extrabold uppercase shadow-xs tracking-wider cursor-grab active:cursor-grabbing backdrop-blur-xs relative z-10"
-                  style={{ backgroundColor: zone.color, color: '#ffffff' }}
+                  style={{ backgroundColor: activeColor, color: '#ffffff' }}
                 >
                   <span>{zone.name}</span>
+                  {isZoneSoldOut && (
+                    <span className="bg-rose-600 text-white text-[9px] px-1.5 py-0.2 rounded font-mono">HẾT VÉ</span>
+                  )}
                 </div>
 
                 {/* Center Label & Info inside Zone */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center z-10">
                   <span className="text-sm md:text-base font-black uppercase tracking-widest drop-shadow-md text-white">
-                    {zone.centerText || zone.name}
+                    {isZoneSoldOut ? `${zone.name} (ĐÃ HẾT VÉ)` : (zone.centerText || zone.name)}
                   </span>
                   <span className="text-xs font-extrabold font-mono text-white/90 drop-shadow-sm mt-0.5">
                     {tiers?.find((t) => t.id === zone.tierId)?.name || 'Hạng vé chưa gán'} • {getZonePrice(zone).toLocaleString('vi-VN')} đ
                   </span>
                   {zoneSeatsCount === 0 && zone.capacity && (
                     <span className="text-[10px] font-bold text-white/90 bg-black/40 px-2.5 py-0.5 rounded-full mt-1 border border-white/20 font-mono">
-                      Khối đứng: {zone.capacity} vé
+                      Khối đứng: {zone.capacity} vé {isZoneSoldOut ? '(Hết vé)' : ''}
                     </span>
                   )}
                 </div>
@@ -1305,10 +1350,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             const isSelected = selectedSeatIds.includes(seat.id);
             const isCartItem = attendeeCart.some((s) => s.id === seat.id);
 
+            const statusFromMap = seatStatusMap ? seatStatusMap[seat.id] : undefined;
             let isMaintenance = seat.status === 'maintenance';
             let isBlocked = seat.status === 'blocked';
-            let isSold = seat.status === 'sold';
-            let isReserved = seat.status === 'reserved';
+            let isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
+            let isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
             let isAccessible = seat.status === 'accessible';
 
             // Shape Styling
@@ -1325,17 +1371,17 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
               <div
                 key={seat.id}
                 onPointerDown={(e) => handlePointerDownSeat(e, seat)}
-                className={`absolute w-8.5 h-8.5 ${shapeClass} font-mono text-[11px] font-extrabold flex items-center justify-center transition-transform duration-75 group shadow-xs ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+                className={`absolute w-8.5 h-8.5 ${shapeClass} font-mono text-[11px] font-extrabold flex items-center justify-center transition-transform duration-75 group shadow-xs ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : (isSold || isHolding) ? 'cursor-not-allowed' : 'cursor-pointer'
                   } ${isCartItem
                     ? 'bg-emerald-500 text-white ring-4 ring-emerald-400 scale-125 z-40 shadow-xl'
                     : isMaintenance
                       ? 'bg-rose-500/20 text-rose-400 border border-rose-500/80 ring-1 ring-rose-500/40'
                       : isSold
-                        ? 'bg-slate-700/50 text-slate-500 border border-slate-700 opacity-50 cursor-not-allowed'
+                        ? 'bg-slate-700 text-slate-400 border border-slate-600 opacity-60 cursor-not-allowed'
                         : isBlocked
                           ? 'bg-slate-800 text-slate-500 border border-slate-700'
-                          : isReserved
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                          : isHolding
+                            ? 'bg-amber-500 text-white border-2 border-amber-300 ring-2 ring-amber-400/80 animate-pulse'
                             : isAccessible
                               ? 'bg-purple-600/30 text-purple-300 border border-purple-500 shadow-sm'
                               : 'text-white border-2 border-white/90 shadow-md'
@@ -1347,7 +1393,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   left: `${seat.x}px`,
                   top: `${seat.y}px`,
                   backgroundColor:
-                    !isCartItem && !isMaintenance && !isSold && !isBlocked && !isReserved && !isAccessible
+                    !isCartItem && !isMaintenance && !isSold && !isBlocked && !isHolding && !isAccessible
                       ? (seat.color || zone.color || '#3b82f6')
                       : undefined,
                   transform: seat.rotation ? `rotate(${seat.rotation}deg)` : undefined,
@@ -1359,8 +1405,8 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <FiTool className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
                 ) : isBlocked ? (
                   <FiLock className="w-3.5 h-3.5 text-slate-400" />
-                ) : isReserved ? (
-                  <span className="text-[9px] font-black">BTC</span>
+                ) : isHolding ? (
+                  <span className="text-[9px] font-black">GIỮ</span>
                 ) : isSold ? (
                   'X'
                 ) : (
@@ -1372,9 +1418,14 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <div className="px-3 py-1.5 bg-slate-950 text-white text-[11px] rounded-xl shadow-2xl border border-slate-700 whitespace-nowrap space-y-0.5">
                     <div className="font-extrabold flex items-center gap-1.5">
                       <span>Ghế {seat.row}-{seat.number}</span>
-                      {isMaintenance && (
-                        <span className="px-1.5 py-0.2 rounded bg-rose-600 text-white text-[9px]">
-                          BẢO TRÌ/HƯ HỎNG
+                      {isHolding && (
+                        <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-mono">
+                          ĐANG GIỮ VÉ (15p)
+                        </span>
+                      )}
+                      {isSold && (
+                        <span className="px-1.5 py-0.2 rounded bg-slate-600 text-white text-[9px] font-mono">
+                          ĐÃ BÁN
                         </span>
                       )}
                     </div>

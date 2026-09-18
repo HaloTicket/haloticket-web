@@ -37,4 +37,22 @@ export const bookingApi = {
       return false;
     }
   },
+
+  holdSeat: async (request: { eventId: string; seatId: string; userId: string }): Promise<boolean> => {
+    try {
+      await axiosClient.post("/seats/hold", request);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  releaseSeat: async (request: { eventId: string; seatId: string; userId: string }): Promise<boolean> => {
+    try {
+      await axiosClient.post("/seats/release", request);
+      return true;
+    } catch {
+      return false;
+    }
+  },
 };

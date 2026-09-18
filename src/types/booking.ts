@@ -26,6 +26,8 @@ export interface BookingItem {
 export interface BookingCreateRequest {
   eventId: string;
   customerId?: string;
+  customerEmail?: string;
+  customerName?: string;
   voucherId?: string;
   totalAmount: number;
   seatIds?: string[];
