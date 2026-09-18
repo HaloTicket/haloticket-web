@@ -1,110 +1,64 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import { paymentApi } from "@/services/paymentApi";
 
 vi.mock("@/services/marketplaceApi");
 vi.mock("@/services/eventApi");
 vi.mock("@/services/paymentApi");
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
+afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-function renderCheckout(eventId = "e1", ticketId = "l1") {
+const listing = { id: "listing-1", ticketId: "ticket-1", price: 250000, quantity: 1, ticketTypeName: "GA", status: "ACTIVE" };
+const reservation = {
+  transactionId: "transaction-1", listingId: "listing-1", status: "PENDING_PAYMENT",
+  amount: 250000, currency: "VND", reservationExpiresAt: new Date(Date.now() + 600000).toISOString(),
+};
+
+function renderCheckout() {
+  vi.mocked(marketplaceApi.getListing).mockResolvedValue(listing as any);
+  vi.mocked(eventApi.getEventById).mockResolvedValue({ title: "Event X", customQuestions: [] } as any);
+  vi.mocked(marketplaceApi.reserveListing).mockResolvedValue(reservation as any);
   return render(
-    <MemoryRouter initialEntries={[`/resale-ticket/${eventId}/ticket/${ticketId}`]}>
-      <Routes>
-        <Route path="/resale-ticket/:eventId/ticket/:ticketId" element={<ResaleTicketCheckout />} />
-      </Routes>
-    </MemoryRouter>
+    <MemoryRouter initialEntries={["/resale-ticket/event-1/ticket/listing-1"]}>
+      <Routes><Route path="/resale-ticket/:eventId/ticket/:ticketId" element={<ResaleTicketCheckout />} /></Routes>
+    </MemoryRouter>,
   );
 }
 
-describe("ResaleTicketCheckout", () => {
-  it("renders ticket info and disabled Giữ vé until terms agreed", async () => {
-    vi.mocked(marketplaceApi.getListing).mockResolvedValue({
-      id: "l1",
-      ticketId: "t1",
-      price: 250000,
-      originalPrice: 300000,
-      minPriceSnapshot: 240000,
-      maxPriceSnapshot: 360000,
-      ticketTypeName: "GA",
-      status: "ACTIVE",
-    } as any);
-    vi.mocked(eventApi.getEventById).mockResolvedValue({
-      title: "Event X",
-    } as any);
-
+describe("ResaleTicketCheckout payment contract", () => {
+  it("uses the marketplace transaction as the payment booking id", async () => {
+    vi.mocked(marketplaceApi.startResalePayment).mockResolvedValue({
+      transactionId: "transaction-1", amount: 250000, currency: "VND", expiresAt: reservation.reservationExpiresAt,
+    });
+    vi.mocked(paymentApi.createVnPayUrl).mockResolvedValue(undefined as any);
     renderCheckout();
 
-    await waitFor(() => expect(screen.getAllByText("Event X").length).toBeGreaterThanOrEqual(1));
-    expect(screen.getByText(/GA/)).toBeInTheDocument();
-    expect(screen.getByText(/80%.*120%.*giá gốc/i)).toBeInTheDocument();
-    const btn = screen.getByRole("button", { name: /Vui lòng chọn vé/i });
-    expect(btn).toBeDisabled();
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Tôi đã đọc và đồng ý/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Tiếp tục" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Thanh toán" }));
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn tất cả" }));
-    expect(screen.getByRole("button", { name: /đồng ý điều khoản/i })).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Quy định sử dụng/i }));
-    expect(screen.getByRole("button", { name: /Tiếp tục/i })).not.toBeDisabled();
+    await waitFor(() => expect(marketplaceApi.startResalePayment).toHaveBeenCalledWith("transaction-1"));
+    expect(paymentApi.createVnPayUrl).toHaveBeenCalledWith(250000, expect.any(String), "transaction-1");
   });
 
-  it("shows reservation info and payment method selector after reserving", async () => {
-    vi.mocked(marketplaceApi.getListing).mockResolvedValue({
-      id: "l1",
-      ticketId: "t1",
-      price: 250000,
-      ticketTypeName: "GA",
-      status: "ACTIVE",
-    } as any);
-    vi.mocked(eventApi.getEventById).mockResolvedValue({
-      title: "Event X",
-      customQuestions: [
-        { id: "q1", title: "Bạn đã đọc điều khoản sự kiện?", type: "checkbox", isRequired: true },
-      ],
-    } as any);
-    vi.mocked(marketplaceApi.reserveListing).mockResolvedValue({
-      transactionId: "txn-1",
-      listingId: "l1",
-      status: "PENDING_PAYMENT",
-      amount: 250000,
-      currency: "VND",
-      reservationExpiresAt: new Date(Date.now() + 900000).toISOString(),
-    } as any);
-
+  it("stops before the gateway when marketplace cannot start payment", async () => {
+    vi.mocked(marketplaceApi.startResalePayment).mockRejectedValue({ response: { status: 404 } });
     renderCheckout();
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("checkbox", { name: "Chọn tất cả" }),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn tất cả" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /Quy định sử dụng/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Tiếp tục/i }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Tôi đã đọc và đồng ý/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Tiếp tục" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Thanh toán" }));
 
-    await waitFor(() => expect(screen.getByText(/Bảng câu hỏi/i)).toBeInTheDocument());
-    expect(screen.queryByRole("heading", { name: "Chọn vé" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Vé đã được giữ tạm thời thành công/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Tiến trình mua vé bán lại")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Event X" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Thông tin đặt vé" })).toBeInTheDocument();
-    expect(screen.getByText("Hoàn tất đặt vé trong")).toBeInTheDocument();
-    const continueButton = screen.getByRole("button", { name: "Tiếp tục" });
-    expect(continueButton).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Bạn đã đọc điều khoản/i }));
-    expect(continueButton).not.toBeDisabled();
-    expect(screen.queryByText("VNPAY")).not.toBeInTheDocument();
-    fireEvent.click(continueButton);
-    expect(screen.getByText("VNPAY")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Thanh toán" })).toBeInTheDocument();
+    expect(await screen.findByText(/Không thể khởi tạo thanh toán/i)).toBeInTheDocument();
+    expect(paymentApi.createVnPayUrl).not.toHaveBeenCalled();
   });
 });

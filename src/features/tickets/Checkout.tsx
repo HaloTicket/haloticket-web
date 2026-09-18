@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiClock, FiCheck, FiShield, FiTag, FiAlertCircle } from "react-icons/fi";
+import { FiClock, FiCheck, FiShield, FiTag, FiAlertCircle, FiArrowLeft } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import type { BookingOrderData } from "@/types";
 import type { CustomQuestionItem } from "@/types/organizer";
@@ -8,9 +8,10 @@ import { eventApi } from "@/services/eventApi";
 import { bookingApi } from "@/services/bookingApi";
 import { paymentApi } from "@/services/paymentApi";
 import { userApi } from "@/services/userApi";
-import ConfirmModal from "@/components/common/ConfirmModal";
+import { CancelOrderModal } from "@/features/resale/components/CancelOrderModal";
 import UpdateRecipientInfoModal, { type RecipientInfoData } from "./components/UpdateRecipientInfoModal";
 import VietQrModal from "./components/VietQrModal";
+import TicketHoldTimeoutModal from "@/features/resale/components/TicketHoldTimeoutModal";
 import { ToastContainer, type ToastMessage } from "@/features/organizer/event-manage/components/seating/SeatingToast";
 import type { VietQrPayloadResponse } from "@/types";
 
@@ -20,7 +21,7 @@ export default function Checkout() {
   const eventIdParam = searchParams.get("eventId");
 
   // load pending order data from localStorage or fallback
-  const [order] = useState<BookingOrderData & { eventPoster?: string | null; cartItems?: any[] }>(() => {
+  const [order] = useState<BookingOrderData & { eventPoster?: string | null; cartItems?: Array<Record<string, unknown>> }>(() => {
     try {
       const saved = localStorage.getItem("haloticket_pending_order");
       if (saved) return JSON.parse(saved);
@@ -28,24 +29,21 @@ export default function Checkout() {
       // ignore
     }
     return {
-      eventId: eventIdParam || "e1",
-      eventTitle: "HALOTICKET 2026 - EVENT CONCERT",
-      eventTime: "19:00 - 23:59, 20/09/2026",
-      eventLocation: "Sân vận động Quốc gia Mỹ Đình",
-      ticketTypeName: "Vé VIP (Standing)",
-      price: 2000000,
+      eventId: eventIdParam || "event-1",
+      eventTitle: "Sự kiện HaloTicket",
+      eventTime: "19:00, 20/12/2026",
+      eventLocation: "Địa điểm sự kiện HaloTicket",
+      ticketTypeName: "Vé tiêu chuẩn",
       quantity: 1,
-      totalAmount: 2000000,
-      eventPoster: null,
+      price: 0,
+      totalAmount: 0,
     };
   });
 
-  const activeEventId = eventIdParam || order.eventId;
+  const activeEventId = order.eventId || eventIdParam;
 
-  // flow step: 1 = Info & Questions, 2 = Payment
-  const [step, setStep] = useState<1 | 2>(1);
-
-  // toasts state
+  // step navigation: 1 = Customer Info Form & Questionnaire, 2 = Payment Methods & Summary
+  const [step, setStep] = useState<number>(1);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const showToast = (type: "success" | "error" | "warning" | "info", text: string) => {
     const id = `toast_${Date.now()}_${Math.random()}`;
@@ -55,7 +53,7 @@ export default function Checkout() {
     }, 4000);
   };
 
-  // browser back button cancel confirmation modal state (image 1)
+  // cancel order confirmation modal state (image 1)
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
 
   // recipient info modal state (image 3)
@@ -69,10 +67,11 @@ export default function Checkout() {
   // custom questions loaded from event-service
   const [customQuestions, setCustomQuestions] = useState<CustomQuestionItem[]>([]);
   const [eventPosterUrl, setEventPosterUrl] = useState<string | null>(order.eventPoster || null);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
 
   // 15-minute countdown timer
   const [timeLeft, setTimeLeft] = useState<number>(14 * 60 + 50);
+  const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -83,6 +82,7 @@ export default function Checkout() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          setIsTimeoutModalOpen(true);
           return 0;
         }
         return prev - 1;
@@ -126,9 +126,9 @@ export default function Checkout() {
 
     async function fetchEventDetails() {
       try {
-        const ev: any = await eventApi.getEventById(activeEventId || "");
+        const ev = (await eventApi.getEventById(activeEventId || "")) as Record<string, unknown> | null;
         if (isMounted && ev) {
-          const poster = ev.thumbnailUrl || ev.posterImage || ev.bannerUrl || ev.image || null;
+          const poster = (ev.thumbnailUrl || ev.posterImage || ev.bannerUrl || ev.image || null) as string | null;
           if (poster) setEventPosterUrl(poster);
 
           // Parse customQuestions from backend
@@ -395,6 +395,14 @@ export default function Checkout() {
         <div className="relative z-10 max-w-[1240px] mx-auto px-6 md:px-16 py-8 md:py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCancelConfirmModal(true)}
+                className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer mr-1 border border-white/10"
+              >
+                <FiArrowLeft className="w-3.5 h-3.5" />
+                <span>Quay lại sự kiện</span>
+              </button>
               <span className="px-3.5 py-1 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-wider shadow-sm">
                 {step === 1
                   ? hasCustomQuestions
@@ -444,9 +452,19 @@ export default function Checkout() {
           {/* STEP 1: INFORMATIONAL FORM & CUSTOM QUESTIONNAIRE */}
           {step === 1 && (
             <div className="space-y-6">
-              <h2 className="text-base md:text-lg font-black app-text-main uppercase tracking-wider flex items-center gap-2">
-                <span>{hasCustomQuestions ? "BẢNG CÂU HỎI THÔNG TIN VÉ" : "THÔNG TIN KHÁCH HÀNG NHẬN VÉ"}</span>
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base md:text-lg font-black app-text-main uppercase tracking-wider flex items-center gap-2">
+                  <span>{hasCustomQuestions ? "BẢNG CÂU HỎI THÔNG TIN VÉ" : "THÔNG TIN KHÁCH HÀNG NHẬN VÉ"}</span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowCancelConfirmModal(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition cursor-pointer"
+                >
+                  <FiArrowLeft />
+                  <span>Chọn lại vé</span>
+                </button>
+              </div>
 
               <div className="app-bg-card border app-border rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
                 {formError && (
@@ -530,16 +548,18 @@ export default function Checkout() {
                         {/* Render Input Control based on question type */}
                         {q.type === "select" || q.type === "dropdown" ? (
                           <select
-                            value={answers[q.id] || ""}
+                            value={typeof answers[q.id] === "string" ? (answers[q.id] as string) : ""}
                             onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                             className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
                           >
                             <option value="">-- Chọn câu trả lời --</option>
-                            {(q as any).options?.map((opt: string, oIdx: number) => (
-                              <option key={oIdx} value={opt}>
-                                {opt}
-                              </option>
-                            )) || (
+                            {Array.isArray(q.options) ? (
+                              q.options.map((opt: string, oIdx: number) => (
+                                <option key={oIdx} value={opt}>
+                                  {opt}
+                                </option>
+                              ))
+                            ) : (
                               <>
                                 <option value="Đồng ý">Đồng ý</option>
                                 <option value="Khác">Khác</option>
@@ -559,7 +579,7 @@ export default function Checkout() {
                         ) : (
                           <input
                             type="text"
-                            value={answers[q.id] || ""}
+                            value={typeof answers[q.id] === "string" ? (answers[q.id] as string) : ""}
                             onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                             placeholder="Nhập câu trả lời của bạn..."
                             className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
@@ -817,7 +837,15 @@ export default function Checkout() {
           <div className="app-bg-card app-text-main rounded-3xl p-6 border app-border shadow-xl space-y-5 sticky top-24">
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Thông tin đặt vé</h3>
-              {step === 2 && (
+              {step === 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelConfirmModal(true)}
+                  className="text-xs font-bold text-blue-500 hover:underline cursor-pointer"
+                >
+                  Chọn lại vé
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={() => setStep(1)}
@@ -831,15 +859,24 @@ export default function Checkout() {
             {/* Ticket Item Line Breakdown */}
             {order.cartItems && Array.isArray(order.cartItems) && order.cartItems.length > 0 ? (
               <div className="space-y-2">
-                {order.cartItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b app-border/40 last:border-b-0">
-                    <div className="space-y-0.5">
-                      <span className="font-extrabold app-text-main block">{item.zoneName || item.tierName || order.ticketTypeName}</span>
-                      <span className="app-text-sub text-[11px] block">{formatCurrency(item.price)}</span>
+                {order.cartItems.map((item, idx: number) => {
+                  const itemRecord = item as Record<string, unknown>;
+                  return (
+                    <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b app-border/40 last:border-b-0">
+                      <div className="space-y-0.5">
+                        <span className="font-extrabold app-text-main block">
+                          {String(itemRecord.zoneName || itemRecord.tierName || order.ticketTypeName)}
+                        </span>
+                        <span className="app-text-sub text-[11px] block">
+                          {formatCurrency(Number(itemRecord.price || 0))}
+                        </span>
+                      </div>
+                      <span className="font-extrabold app-text-main font-mono">
+                        x0{String(itemRecord.quantity || 1)}
+                      </span>
                     </div>
-                    <span className="font-extrabold app-text-main font-mono">x0{item.quantity}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex items-center justify-between text-xs font-mono">
@@ -932,31 +969,28 @@ export default function Checkout() {
       />
 
       {/* Cancel Order Confirm Modal (image 1) */}
-      {showCancelConfirmModal && (
-        <ConfirmModal
-          isOpen={showCancelConfirmModal}
-          title="Hủy đơn hàng?"
-          type="danger"
-          confirmText="Hủy đơn"
-          cancelText="Ở lại"
-          confirmButtonVariant="px-5 py-1.5 rounded-xl border border-rose-500/40 text-rose-500 hover:bg-rose-500/10 app-bg-card font-extrabold shadow-none cursor-pointer"
-          cancelButtonVariant="px-5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold shadow-md cursor-pointer"
-          onConfirm={() => {
-            localStorage.removeItem("haloticket_pending_order");
-            setShowCancelConfirmModal(false);
-            navigate(`/events/${activeEventId}`);
-          }}
-          onCancel={() => setShowCancelConfirmModal(false)}
-        >
-          <div className="space-y-3 text-xs font-semibold app-text-main">
-            <p className="font-extrabold text-sm">Bạn có chắc chắn muốn tiếp tục?</p>
-            <ul className="list-disc pl-5 space-y-1 app-text-sub font-medium leading-relaxed">
-              <li>Bạn sẽ mất vị trí mình đã lựa chọn.</li>
-              <li>Đơn hàng đang trong quá trình thanh toán hoặc đã thanh toán thành công cũng có thể bị huỷ.</li>
-            </ul>
-          </div>
-        </ConfirmModal>
-      )}
+      <CancelOrderModal
+        open={showCancelConfirmModal}
+        onCancelOrder={() => {
+          localStorage.removeItem("haloticket_pending_order");
+          setShowCancelConfirmModal(false);
+          navigate(`/events/${activeEventId}`);
+        }}
+        onStay={() => setShowCancelConfirmModal(false)}
+      />
+
+      {/* Modal hết thời gian giữ vé (Ảnh 1) */}
+      <TicketHoldTimeoutModal
+        open={isTimeoutModalOpen}
+        onReset={() => {
+          localStorage.removeItem("haloticket_pending_order");
+          setIsTimeoutModalOpen(false);
+          navigate(`/events/${activeEventId}`);
+        }}
+        title="Hết thời gian giữ vé!"
+        message="Đã hết thời gian giữ vé. Vui lòng đặt lại vé mới."
+        buttonText="Đặt vé mới"
+      />
     </div>
   );
 }

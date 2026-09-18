@@ -1,14 +1,33 @@
-import { useEffect, useState } from "react";
-import { FiAlertTriangle, FiArrowLeft, FiCalendar, FiCheckCircle, FiClock, FiMapPin, FiShield, FiX } from "react-icons/fi";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FiAlertTriangle,
+  FiArrowLeft,
+  FiCalendar,
+  FiChevronsRight,
+  FiCopy,
+  FiMapPin,
+  FiMinus,
+  FiPlus,
+  FiShield,
+  FiX,
+} from "react-icons/fi";
+import { useNavigate, useParams } from "react-router-dom";
 
+import TicketHoldTimeoutModal from "./components/TicketHoldTimeoutModal";
+import { CancelOrderModal } from "./components/CancelOrderModal";
+import VietQrModal from "@/features/tickets/components/VietQrModal";
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { paymentApi } from "@/services/paymentApi";
+import type { VietQrPayloadResponse } from "@/types";
 import type { ResaleReservation, TicketListing } from "@/types/marketplace";
 
 const money = (value: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
 
 const formatDateTime = (value?: unknown) => {
   if (!value) return "19:00, Hôm nay";
@@ -26,72 +45,118 @@ const formatDateTime = (value?: unknown) => {
   }
 };
 
-type CheckoutStep = "select" | "reserve" | "payment";
+const getListingCode = (l: TicketListing & { ticketCode?: string | null }) => {
+  if (l.ticketCode) return l.ticketCode;
+  const numOnly = String(l.id).replace(/\D/g, "");
+  return `RSL${(numOnly || "758250945").slice(-9).padEnd(9, "0")}`;
+};
 
-function ReservationSummary({
-  ticketTier,
-  quantity,
-  price,
-  totalAmount,
-  actionLabel,
-  actionDisabled,
-  actionLoading,
-  onAction,
+export interface NormalizedCustomQuestion {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  isRequired: boolean;
+  options: string[];
+}
+
+type CheckoutStep = "reserve" | "payment";
+
+
+
+/**
+ * Modal thông báo khi người bán bấm tiếp tục mua vé của chính mình
+ */
+function OwnerListingModal({
+  open,
+  onClose,
+  onBackToList,
 }: {
-  ticketTier: string;
-  quantity: number;
-  price: number;
-  totalAmount: number;
-  actionLabel: "Tiếp tục" | "Thanh toán";
-  actionDisabled?: boolean;
-  actionLoading?: boolean;
-  onAction: () => void;
+  open: boolean;
+  onClose: () => void;
+  onBackToList: () => void;
 }) {
+  if (!open) return null;
+
   return (
-    <aside className="h-fit rounded-xl border app-border app-bg-card p-5 shadow-sm lg:sticky lg:top-6" aria-label="Thông tin đặt vé">
-      <h2 className="border-b app-border pb-3 text-lg font-bold app-text-main">Thông tin đặt vé</h2>
-      <div className="mt-4 flex items-start justify-between gap-4 text-sm">
-        <div>
-          <p className="font-semibold app-text-main">{ticketTier}</p>
-          <p className="mt-1 text-xs app-text-muted">{money(price)} / vé</p>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+    >
+      <div className="w-full max-w-sm rounded-3xl bg-white p-6 sm:p-7 text-slate-900 shadow-2xl dark:bg-zinc-900 dark:text-white border border-slate-100 dark:border-zinc-800 animate-in zoom-in-95 duration-150 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-500">
+          <FiAlertTriangle className="h-7 w-7" />
         </div>
-        <p className="font-semibold app-text-main">{String(quantity).padStart(2, "0")}</p>
+
+        <h3 className="text-lg font-black text-slate-900 dark:text-white">
+          Vé do chính bạn đăng bán
+        </h3>
+
+        <p className="mt-2.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          Hệ thống HaloTicket không cho phép người bán tự mua vé do chính mình đăng bán. Vui lòng đăng nhập tài khoản khác nếu muốn kiểm tra luồng thanh toán mua vé bán lại.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 py-3 px-4 text-sm font-bold text-white transition cursor-pointer shadow-sm"
+          >
+            Quay lại danh sách vé
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-xl border app-border app-bg-card hover:bg-slate-100 dark:hover:bg-zinc-800 py-2.5 px-4 text-xs font-semibold app-text-muted transition cursor-pointer"
+          >
+            Đóng thông báo
+          </button>
+        </div>
       </div>
-      <div className="mt-4 flex items-center justify-between border-t app-border pt-4 text-sm">
-        <span className="font-semibold app-text-main">Tạm tính {quantity} vé</span>
-        <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{money(totalAmount)}</span>
-      </div>
-      <button
-        type="button"
-        disabled={actionDisabled || actionLoading}
-        onClick={onAction}
-        className="mt-5 w-full rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700"
-      >
-        {actionLoading ? "Đang xử lý…" : actionLabel}
-      </button>
-    </aside>
+    </div>
   );
 }
 
 export const ResaleTicketCheckout = () => {
   const { eventId = "", ticketId = "" } = useParams();
   const navigate = useNavigate();
+
   const [listing, setListing] = useState<TicketListing | null>(null);
   const [event, setEvent] = useState<Record<string, unknown> | null>(null);
-  const [agreed, setAgreed] = useState(false);
-  const [selected, setSelected] = useState(false);
   const [error, setError] = useState("");
   const [reserving, setReserving] = useState(false);
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
-  const [step, setStep] = useState<CheckoutStep>("select");
-  const [customQuestions, setCustomQuestions] = useState<Array<Record<string, any>>>([]);
-  const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
+  const [step, setStep] = useState<CheckoutStep>("reserve");
+
+  // Countdown timer: 10 minutes initial duration
+  const [secondsRemaining, setSecondsRemaining] = useState(10 * 60);
+  const [hasExpired, setHasExpired] = useState(false);
+
+  // Per-ticket questionnaire state: Map of ticketIndex (0..quantity-1) to answers
+  const [ticketAgreed, setTicketAgreed] = useState<Record<number, boolean>>({});
+  const [ticketAnswers, setTicketAnswers] = useState<Record<number, Record<string, string | boolean>>>({});
+  const [collapsedTickets, setCollapsedTickets] = useState<Record<number, boolean>>({});
   const [questionError, setQuestionError] = useState("");
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "MOMO" | "ZALOPAY">("VNPAY");
+
+  // Modals state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellingHold, setCancellingHold] = useState(false);
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [isOwnerDetected, setIsOwnerDetected] = useState(false);
+
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "VIETQR" | "MOMO" | "ZALOPAY" | "SHOPEEPAY">("VNPAY");
   const [paying, setPaying] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [vietQrData, setVietQrData] = useState<VietQrPayloadResponse | null>(null);
+  const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
+  const [activeBookingId, setActiveBookingId] = useState<string>("");
 
+  // Ref to prevent duplicate reservation calls on mount
+  const hasAttemptedReserveRef = useRef(false);
+
+  // Fetch listing & event
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
     Promise.all([marketplaceApi.getListing(ticketId), eventApi.getEventById(eventId)])
@@ -102,36 +167,110 @@ export const ResaleTicketCheckout = () => {
       .catch(() => setError("Vé này không còn khả dụng hoặc đã được người khác mua."));
   }, [eventId, ticketId]);
 
-  useEffect(() => {
-    const rawQuestions = event?.customQuestions ?? event?.questions;
-    if (Array.isArray(rawQuestions)) {
-      setCustomQuestions(rawQuestions.filter((item): item is Record<string, any> => Boolean(item && typeof item === "object")));
-      return;
-    }
-    if (typeof rawQuestions === "string") {
+  // Normalize customQuestions from event using useMemo to avoid setState inside effect
+  const customQuestions = useMemo<NormalizedCustomQuestion[]>(() => {
+    const raw = event?.customQuestions ?? event?.questions;
+    let list: Array<Record<string, unknown>> = [];
+    if (Array.isArray(raw)) {
+      list = raw.filter((it): it is Record<string, unknown> => Boolean(it && typeof it === "object"));
+    } else if (typeof raw === "string") {
       try {
-        const parsed = JSON.parse(rawQuestions);
-        setCustomQuestions(Array.isArray(parsed) ? parsed : []);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) list = parsed;
       } catch {
-        setCustomQuestions([]);
+        list = [];
       }
-      return;
     }
-    setCustomQuestions([]);
+    return list.map((q, idx) => ({
+      id: String(q.id ?? q._id ?? q.key ?? `q_${idx}`),
+      title: String(q.title ?? `Câu hỏi ${idx + 1}`),
+      description: q.description ? String(q.description) : "",
+      type: String(q.type ?? "text").toLowerCase(),
+      isRequired: q.isRequired === true || q.isRequired === "true" || q.required === true || q.required === "true",
+      options: Array.isArray(q.options) ? q.options.map(String) : [],
+    }));
   }, [event]);
 
+  const isMyListing = listing?.ownedByCurrentUser === true || isOwnerDetected;
+  const quantity = listing?.quantity || 1;
+
+  // Auto-reserve on mount when listing is loaded (only if not own listing)
   useEffect(() => {
-    if (!reservation) return;
-    const update = () => setSecondsRemaining(Math.max(0, Math.floor((new Date(reservation.reservationExpiresAt).getTime() - Date.now()) / 1000)));
-    update();
-    const timer = window.setInterval(update, 1000);
-    return () => window.clearInterval(timer);
-  }, [reservation]);
+    if (!listing || reservation || isMyListing || hasAttemptedReserveRef.current) return;
+    hasAttemptedReserveRef.current = true;
 
-  const isMyListing = listing?.ownedByCurrentUser === true;
+    let isMounted = true;
+    marketplaceApi
+      .reserveListing(listing.id)
+      .then((r) => {
+        if (isMounted) {
+          setReservation(r);
+          setStep("reserve");
+        }
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        const axiosErr = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+        const status = axiosErr?.response?.status;
+        const msg = axiosErr?.response?.data?.message || axiosErr?.message || "";
 
-  const handleReserve = async () => {
-    if (!listing) return;
+        if (status === 409 && msg.includes("BUYER_IS_SELLER")) {
+          setIsOwnerDetected(true);
+        } else if (status === 409) {
+          setError("Không thể giữ vé. Vé có thể đã được người khác chọn hoặc đang trong phiên thanh toán.");
+        } else {
+          setError("Không thể giữ vé lúc này. Vui lòng thử lại sau.");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [listing, reservation, isMyListing]);
+
+  // Intercept browser back button when holding ticket (popstate)
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      window.history.pushState(null, "", window.location.href);
+      setShowCancelModal(true);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Release reservation hold (nhả lock distributed) and return to event listings
+  const handleCancelHoldAndLeave = async () => {
+    setCancellingHold(true);
+    try {
+      if (listing?.id) {
+        await marketplaceApi.cancelReservation(listing.id);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCancellingHold(false);
+      setShowCancelModal(false);
+      navigate(`/resale-ticket/${eventId}`);
+    }
+  };
+
+  const handleSelectDifferentTicket = () => {
+    if (hasExpired) {
+      navigate(`/resale-ticket/${eventId}`);
+      return;
+    }
+    setShowCancelModal(true);
+  };
+
+  // Manual reserve retry handler if needed
+  const handleManualReserve = async () => {
+    if (!listing || reserving || isMyListing) return;
     setReserving(true);
     setError("");
     try {
@@ -144,7 +283,7 @@ export const ResaleTicketCheckout = () => {
       const msg = axiosErr?.response?.data?.message || axiosErr?.message || "";
 
       if (status === 409 && msg.includes("BUYER_IS_SELLER")) {
-        setError("Bạn không thể mua lại vé do chính mình đăng bán. Vui lòng đăng nhập tài khoản khác.");
+        setShowOwnerModal(true);
       } else if (status === 409) {
         setError("Không thể giữ vé. Vé có thể đã được người khác chọn hoặc đang trong phiên thanh toán.");
       } else {
@@ -155,51 +294,227 @@ export const ResaleTicketCheckout = () => {
     }
   };
 
-  const handlePayment = async () => {
-    if (!reservation) return;
-    setPaying(true);
-    setError("");
-    try {
-      const payment = await marketplaceApi.startResalePayment(reservation.transactionId);
-      const info = `Mua vé bán lại ${String(event?.title ?? "")}`;
-      const url =
-        paymentMethod === "MOMO"
-          ? await paymentApi.createMoMoUrl(payment.amount, info, payment.transactionId)
-          : paymentMethod === "ZALOPAY"
-            ? await paymentApi.createZaloPayUrl(payment.amount, info, payment.transactionId)
-            : await paymentApi.createVnPayUrl(payment.amount, info, payment.transactionId);
-      if (!url) throw new Error("NO_URL");
-      window.location.assign(url);
-    } catch {
-      setError("Không thể khởi tạo thanh toán. Vui lòng thử lại.");
-      setPaying(false);
-    }
+  // Countdown timer: updates seconds remaining and triggers timeout modal on 0
+  useEffect(() => {
+    const updateCountdown = () => {
+      if (reservation?.reservationExpiresAt) {
+        const expiresAt = new Date(reservation.reservationExpiresAt).getTime();
+        const diff = Math.floor((expiresAt - Date.now()) / 1000);
+        if (diff <= 0) {
+          setSecondsRemaining(0);
+          setHasExpired(true);
+          return;
+        }
+        setSecondsRemaining(diff);
+      } else {
+        setSecondsRemaining((prev) => {
+          if (prev <= 1) {
+            setHasExpired(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }
+    };
+
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [reservation?.reservationExpiresAt]);
+
+  // Clone answers from ticket 1 to another ticket
+  const copyFromTicket1 = (targetIndex: number) => {
+    setTicketAgreed((prev) => ({
+      ...prev,
+      [targetIndex]: Boolean(prev[0]),
+    }));
+    setTicketAnswers((prev) => ({
+      ...prev,
+      [targetIndex]: { ...(prev[0] || {}) },
+    }));
   };
 
+  const toggleTicketCollapse = (index: number) => {
+    setCollapsedTickets((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
+  // Helper to test if a question is answered
+  const isQuestionAnswered = (val: unknown) => {
+    if (val === undefined || val === null) return false;
+    if (typeof val === "string") return val.trim().length > 0;
+    if (typeof val === "boolean") return val;
+    return true;
+  };
+
+  // Check if all required answers and T&C agreements are filled
+  const allQuestionsAnswered = useMemo(() => {
+    if (quantity <= 0) return false;
+    for (let i = 0; i < quantity; i++) {
+      if (!ticketAgreed[i]) return false;
+      for (const q of customQuestions) {
+        if (q.isRequired) {
+          const val = ticketAnswers[i]?.[q.id];
+          if (!isQuestionAnswered(val)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }, [quantity, ticketAgreed, ticketAnswers, customQuestions]);
+
   const handleContinueToPayment = () => {
-    const requiredQuestion = customQuestions.find((question) => {
-      if (!question.isRequired) return false;
-      const answer = answers[String(question.id ?? "")];
-      return answer === undefined || answer === "" || answer === false;
-    });
-    if (requiredQuestion) {
-      setQuestionError(`Vui lòng trả lời câu hỏi bắt buộc: "${String(requiredQuestion.title ?? "của sự kiện")}"`);
+    if (isMyListing) {
+      setShowOwnerModal(true);
       return;
+    }
+
+    for (let i = 0; i < quantity; i++) {
+      if (!ticketAgreed[i]) {
+        setQuestionError(`Vui lòng đồng ý điều khoản chương trình cho vé ${i + 1}`);
+        return;
+      }
+      for (const q of customQuestions) {
+        if (q.isRequired) {
+          const val = ticketAnswers[i]?.[q.id];
+          if (!isQuestionAnswered(val)) {
+            setQuestionError(`Vui lòng trả lời câu hỏi bắt buộc: "${q.title}" cho vé ${i + 1}`);
+            return;
+          }
+        }
+      }
     }
     setQuestionError("");
     setStep("payment");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handlePayment = useCallback(async () => {
+    if (isMyListing) {
+      setShowOwnerModal(true);
+      return;
+    }
+
+    if (!listing) return;
+    setPaying(true);
+    setError("");
+
+    try {
+      // Marketplace transaction is the source of truth for payment and the ownership-transfer Saga.
+      const activeReservation = reservation ?? await marketplaceApi.reserveListing(listing.id);
+      if (!reservation) setReservation(activeReservation);
+      const paymentInitiation = await marketplaceApi.startResalePayment(activeReservation.transactionId);
+      const currentTxId = paymentInitiation.transactionId;
+      const totalAmount = paymentInitiation.amount;
+      const orderInfo = `Mua ve ban lai ${String(event?.title ?? listing.id)}`;
+      const bookingCode = getListingCode(listing);
+      const bookingId = currentTxId;
+      setActiveBookingId(bookingId);
+
+      const currentEventTitle = String(event?.title ?? "Sự kiện HaloTicket");
+      const currentTicketTier = listing.ticketTypeName || listing.section || "VIP";
+
+      // Save order metadata to localStorage for booking-success page
+      try {
+        localStorage.setItem(
+          "haloticket_pending_order",
+          JSON.stringify({
+            kind: "RESALE",
+            bookingId,
+            eventId,
+            eventTitle: currentEventTitle,
+            ticketTypeName: currentTicketTier,
+            quantity,
+            totalAmount,
+            createdAt: new Date().toISOString(),
+          })
+        );
+      } catch {
+        // ignore
+      }
+
+      // Option 1: VietQR / SePay fast transfer
+      if (paymentMethod === "VIETQR") {
+        try {
+          const qrPayload = await paymentApi.createVietQrPayload(totalAmount, bookingCode, bookingId);
+          if (qrPayload) {
+            setVietQrData(qrPayload);
+            setIsVietQrModalOpen(true);
+            setPaying(false);
+            return;
+          }
+        } catch (qrErr) {
+          throw new Error("Không thể khởi tạo VietQR", { cause: qrErr });
+        }
+      }
+
+      // Option 2: VNPay Gateway
+      if (paymentMethod === "VNPAY") {
+        const vnpayUrl = await paymentApi.createVnPayUrl(totalAmount, orderInfo, bookingId);
+        if (vnpayUrl) {
+          window.location.assign(vnpayUrl);
+          return;
+        }
+      }
+
+      // Option 3: MoMo Wallet
+      if (paymentMethod === "MOMO") {
+        const momoUrl = await paymentApi.createMoMoUrl(totalAmount, orderInfo, bookingId);
+        if (momoUrl) {
+          window.location.assign(momoUrl);
+          return;
+        }
+      }
+
+      // Option 4: ZaloPay Wallet
+      if (paymentMethod === "ZALOPAY") {
+        const zalopayUrl = await paymentApi.createZaloPayUrl(totalAmount, orderInfo, bookingId);
+        if (zalopayUrl) {
+          window.location.assign(zalopayUrl);
+          return;
+        }
+      }
+
+      // Option 5: ShopeePay Wallet
+      if (paymentMethod === "SHOPEEPAY") {
+        const shopeepayUrl = await paymentApi.createShopeePayUrl(totalAmount, orderInfo, bookingId);
+        if (shopeepayUrl) {
+          window.location.assign(shopeepayUrl);
+          return;
+        }
+      }
+
+      throw new Error("Cổng thanh toán không trả về liên kết thanh toán");
+    } catch (err) {
+      console.error("Payment initiation error:", err);
+      setError("Không thể khởi tạo thanh toán. Vé vẫn được giữ cho bạn, vui lòng thử lại.");
+    } finally {
+      setPaying(false);
+    }
+  }, [
+    isMyListing,
+    listing,
+    reservation,
+    quantity,
+    event,
+    eventId,
+    paymentMethod,
+    navigate,
+  ]);
+
   if (error && !listing) {
     return (
       <main className="min-h-screen app-bg-page app-text-main px-4 py-12">
-        <div className="mx-auto max-w-2xl rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-300">
-          <p role="alert" className="font-medium">{error}</p>
+        <div className="mx-auto max-w-2xl rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-300">
+          <p role="alert" className="font-medium text-base">
+            {error}
+          </p>
           <button
             type="button"
             onClick={() => navigate(`/resale-ticket/${eventId}`)}
-            className="mt-4 inline-flex items-center gap-2 text-sm text-blue-400 hover:underline"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-500 hover:underline cursor-pointer"
           >
             <FiArrowLeft /> Quay lại danh sách vé
           </button>
@@ -212,520 +527,589 @@ export const ResaleTicketCheckout = () => {
     return (
       <main className="min-h-screen app-bg-page app-text-main px-4 py-12 text-center">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        <p className="mt-3 text-sm text-slate-400">Đang tải thông tin vé…</p>
+        <p className="mt-3 text-sm app-text-muted">Đang tải thông tin vé…</p>
       </main>
     );
   }
 
   const eventTitle = String(event?.title ?? "Sự kiện HaloTicket");
   const eventTime = formatDateTime(event?.startTime);
-  const ticketTier = listing.ticketTypeName || "Vé sự kiện";
-
-  // Business rule:
-  // 1 vé -> Bán lẻ
-  // 2 vé trở lên + yêu cầu mua cả 2 (allowRetail === false) -> Không bán lẻ
-  // 2 vé trở lên + không yêu cầu mua hết -> Bán lẻ
-  const quantity = listing.quantity || 1;
-  const isRetail = quantity <= 1 || listing.allowRetail !== false;
+  const eventLocation = String(event?.venueName ?? event?.location ?? event?.address ?? "Địa điểm sẽ được cập nhật");
+  const eventPoster = String(
+    event?.bannerUrl ||
+    event?.bannerImage ||
+    event?.posterImage ||
+    event?.thumbnailUrl ||
+    event?.coverImage ||
+    event?.imageUrl ||
+    ""
+  );
+  const ticketTier = listing.ticketTypeName || listing.section || "VIP";
   const totalAmount = listing.price * quantity;
-  const originalPrice = listing.originalPrice ?? null;
-  const minPrice = listing.minPriceSnapshot ?? null;
-  const maxPrice = listing.maxPriceSnapshot ?? null;
-  const policyRange = originalPrice && minPrice != null && maxPrice != null
-    ? `${Math.round((minPrice / originalPrice) * 100)}%–${Math.round((maxPrice / originalPrice) * 100)}% giá gốc`
-    : null;
-  const stepTitle = step === "select" ? "Chọn vé bán lại" : step === "reserve" ? "Giữ vé bán lại" : "Thanh toán vé bán lại";
+
   const timerMinutes = String(Math.floor(secondsRemaining / 60)).padStart(2, "0");
   const timerSeconds = String(secondsRemaining % 60).padStart(2, "0");
-  const requiredQuestionsAnswered = customQuestions.every((question) => {
-    if (!question.isRequired) return true;
-    const answer = answers[String(question.id ?? "")];
-    return answer !== undefined && answer !== "" && answer !== false;
-  });
-
-  if (reservation) {
-    const eventLocation = String(event?.venueName ?? event?.location ?? event?.address ?? "Địa điểm sẽ được cập nhật");
-    const eventPoster = String(event?.posterImage ?? event?.bannerUrl ?? event?.imageUrl ?? "");
-
-    return (
-      <div className="min-h-screen bg-slate-50 app-text-main dark:bg-slate-950">
-        <section
-          className="relative overflow-hidden bg-slate-950 text-white"
-          style={eventPoster ? { backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.96), rgba(15,23,42,.78)), url(${eventPoster})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}
-        >
-          <div className="mx-auto grid min-h-[230px] max-w-6xl items-center gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_190px] lg:py-9">
-            <div>
-              <h1 className="max-w-4xl text-2xl font-bold leading-tight sm:text-3xl">{eventTitle}</h1>
-              <div className="mt-5 h-px max-w-4xl bg-white/35" />
-              <div className="mt-5 space-y-3 text-sm font-semibold sm:text-base">
-                <p className="flex items-center gap-3"><FiCalendar className="text-xl" />{eventTime}</p>
-                <p className="flex items-center gap-3"><FiMapPin className="text-xl" />{eventLocation}</p>
-              </div>
-            </div>
-            <div className="w-fit rounded-xl border border-white/30 bg-slate-900/70 p-4 backdrop-blur-sm lg:justify-self-end">
-              <p className="text-sm text-slate-200">Hoàn tất đặt vé trong</p>
-              <div className="mt-4 flex items-center gap-2 font-mono text-xl font-bold" aria-label={`Còn lại ${timerMinutes} phút ${timerSeconds} giây`}>
-                <span className="rounded-lg bg-rose-500 px-3 py-2 text-white">{timerMinutes}</span>
-                <span>:</span>
-                <span className="rounded-lg bg-rose-500 px-3 py-2 text-white">{timerSeconds}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
-          <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="min-w-0">
-              {step === "reserve" ? (
-                <>
-                  {customQuestions.length > 0 && (
-                    <h2 className="mb-6 text-xl font-bold uppercase text-emerald-600 dark:text-emerald-400">Bảng câu hỏi</h2>
-                  )}
-                  <div className="mb-5 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-300">
-                    <FiAlertTriangle className="shrink-0" />
-                    <span>Không hỗ trợ xuất hóa đơn cho vé bán lại</span>
-                  </div>
-
-                  {customQuestions.length > 0 ? (
-                    <section className="space-y-4" aria-label="Bảng câu hỏi sự kiện">
-                      {customQuestions.map((question, index) => {
-                        const id = String(question.id ?? index);
-                        const type = String(question.type ?? "text").toLowerCase();
-                        const title = String(question.title ?? "Câu hỏi");
-                        return (
-                          <div key={id} className="overflow-hidden rounded-xl border app-border app-bg-card shadow-sm">
-                            <div className="border-b app-border bg-slate-50 px-5 py-4 font-bold text-emerald-600 dark:bg-slate-800/70 dark:text-emerald-400">{ticketTier}</div>
-                            <div className="p-5">
-                              <label className="block text-sm font-semibold app-text-main">
-                                {title}{question.isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
-                              </label>
-                              {question.description && <p className="mt-1 text-xs app-text-muted">{String(question.description)}</p>}
-                              <div className="mt-4">
-                                {type === "checkbox" ? (
-                                  <label className="flex cursor-pointer items-center gap-3 text-sm app-text-main">
-                                    <input type="checkbox" aria-label={title} checked={answers[id] === true} onChange={(e) => setAnswers((current) => ({ ...current, [id]: e.target.checked }))} className="h-5 w-5 accent-blue-600" />
-                                    <span>Tôi đã đọc và đồng ý</span>
-                                  </label>
-                                ) : type === "select" || type === "dropdown" ? (
-                                  <select aria-label={title} value={String(answers[id] ?? "")} onChange={(e) => setAnswers((current) => ({ ...current, [id]: e.target.value }))} className="w-full rounded-lg border app-border app-bg-page px-3 py-3 text-sm app-text-main">
-                                    <option value="">Chọn câu trả lời</option>
-                                    {(Array.isArray(question.options) ? question.options : []).map((option: unknown) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
-                                  </select>
-                                ) : (
-                                  <input aria-label={title} value={String(answers[id] ?? "")} onChange={(e) => setAnswers((current) => ({ ...current, [id]: e.target.value }))} placeholder="Điền câu trả lời của bạn" className="w-full rounded-lg border app-border app-bg-page px-3 py-3 text-sm app-text-main" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {questionError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{questionError}</p>}
-                    </section>
-                  ) : (
-                    <div className="rounded-xl border app-border app-bg-card p-5 text-sm app-text-muted">Sự kiện không yêu cầu thêm thông tin từ người mua.</div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button type="button" onClick={() => setStep("reserve")} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400"><FiArrowLeft /> Quay lại</button>
-                  <fieldset className="rounded-xl border app-border app-bg-card p-5 shadow-sm">
-                    <legend className="px-1 text-lg font-bold app-text-main">Phương thức thanh toán</legend>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      {(["VNPAY", "MOMO", "ZALOPAY"] as const).map((method) => (
-                        <label key={method} className={`cursor-pointer rounded-lg border px-4 py-5 text-center transition ${paymentMethod === method ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300" : "app-border app-text-muted"}`}>
-                          <input type="radio" className="sr-only" checked={paymentMethod === method} onChange={() => setPaymentMethod(method)} />
-                          <span className="font-bold">{method}</span>
-                          <span className="mt-1 block text-xs font-normal">Cổng thanh toán</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  {error && <div role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">{error}</div>}
-                </>
-              )}
-            </div>
-
-            <ReservationSummary
-              ticketTier={ticketTier}
-              quantity={quantity}
-              price={listing.price}
-              totalAmount={totalAmount}
-              actionLabel={step === "reserve" ? "Tiếp tục" : "Thanh toán"}
-              actionDisabled={secondsRemaining === 0 || (step === "reserve" && !requiredQuestionsAnswered)}
-              actionLoading={paying}
-              onAction={step === "reserve" ? handleContinueToPayment : handlePayment}
-            />
-          </div>
-          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-500"><FiShield className="text-blue-500" />Giao dịch được bảo đảm bởi HaloTicket</div>
-        </main>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen app-bg-page app-text-main">
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        {/* Breadcrumb */}
-        <nav className="mb-4 flex items-center gap-2 text-xs app-text-muted">
-          <Link to="/" className="hover:text-blue-600 dark:hover:text-blue-400">Trang chủ</Link>
-          <span>&gt;</span>
-          <Link to="/resale-ticket" className="hover:text-blue-600 dark:hover:text-blue-400">Vé bán lại</Link>
-          <span>&gt;</span>
-          <Link to={`/resale-ticket/${eventId}`} className="hover:text-blue-600 dark:hover:text-blue-400">Chi tiết vé</Link>
-        </nav>
+    <div className="min-h-screen app-bg-page app-text-main pb-16 transition-colors font-sans">
+      {/* Top Banner with event banner background (ticketbox style) */}
+      <section className="relative overflow-hidden border-b app-border bg-slate-950 text-white shadow-xl">
+        {/* Background Banner Image with blur */}
+        <div
+          className="absolute inset-0 bg-cover bg-center filter blur-md scale-105"
+          style={{
+            backgroundImage: `url(${eventPoster || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&q=80"})`,
+          }}
+        />
+        {/* Dark overlay backdrop to maintain high text contrast */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
 
-        {/* Page Title */}
-        <h1 className="mb-2 text-xl font-bold app-text-main sm:text-2xl">{stepTitle}</h1>
-        <div className="mb-6 h-px w-full border-t app-border" />
+        <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 sm:px-6">
+          {/* Back button on top banner */}
+          <button
+            type="button"
+            onClick={handleSelectDifferentTicket}
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-200 hover:text-white transition cursor-pointer mb-4 bg-white/10 hover:bg-white/20 border border-white/15 px-3.5 py-1.5 rounded-xl backdrop-blur-xs w-fit"
+          >
+            <FiArrowLeft className="text-sm" />
+            <span>Quay lại danh sách vé</span>
+          </button>
 
-        {/* Event summary card */}
-        <div className="mb-6 rounded-xl border app-border app-bg-card p-4 shadow-sm sm:p-5">
-          <div className="space-y-1">
-            <div className="text-sm">
-              <span className="text-slate-400 mr-2">Sự kiện</span>
-              <span className="font-bold app-text-main">{eventTitle}</span>
-            </div>
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowRulesModal(true)}
-                className="text-xs text-blue-400 hover:text-blue-300 hover:underline inline-flex items-center gap-1 font-medium"
-              >
-                Xem quy định tham gia sự kiện
-              </button>
-            </div>
-          </div>
-          <div className="my-3.5 border-t app-border" />
-          <div className="text-sm">
-            <span className="text-slate-400 mr-2">Suất diễn</span>
-            <span className="font-medium app-text-main">{eventTime}</span>
-          </div>
-          {policyRange && (
-            <p className="mt-3 text-xs app-text-muted">Biên độ giá resale: <strong className="app-text-main">{policyRange}</strong></p>
-          )}
-        </div>
-
-        {reservation && (
-          <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/50 dark:bg-rose-950/20 sm:px-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-300">Hoàn tất đặt vé trong</p>
-              <p className="mt-1 text-xs app-text-muted">Vé được giữ riêng cho bạn trong thời gian này.</p>
-            </div>
-            <div className="flex items-center gap-1 font-mono text-xl font-bold text-rose-600 dark:text-rose-300" aria-label={`Còn lại ${timerMinutes} phút ${timerSeconds} giây`}>
-              <span className="rounded-lg bg-rose-500 px-2.5 py-1.5 text-white">{timerMinutes}</span>
-              <span>:</span>
-              <span className="rounded-lg bg-rose-500 px-2.5 py-1.5 text-white">{timerSeconds}</span>
-            </div>
-          </div>
-        )}
-
-        <nav aria-label="Tiến trình mua vé bán lại" className="mb-6 grid grid-cols-3 gap-2 text-center text-xs">
-          {["Chọn vé", "Giữ vé", "Thanh toán"].map((label, index) => {
-            const current = index === (step === "select" ? 0 : step === "reserve" ? 1 : 2);
-            return (
-              <div key={label} className={`border-b-2 pb-2 font-semibold ${current ? "border-blue-600 text-blue-600 dark:text-blue-400" : "border-slate-200 text-slate-400 dark:border-slate-800"}`}>
-                {index + 1}. {label}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Left: Event Details (Directly on blurred banner like Ticketbox) */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-black text-white sm:text-2xl lg:text-3xl leading-snug drop-shadow-md">
+                {eventTitle}
+              </h1>
+              <div className="my-3.5 h-px max-w-xl bg-white/20" />
+              <div className="space-y-2 text-sm text-slate-200 font-medium">
+                <p className="flex items-center gap-2.5">
+                  <FiCalendar className="text-white text-base shrink-0 opacity-90" />
+                  <span>{eventTime}</span>
+                </p>
+                <p className="flex items-center gap-2.5">
+                  <FiMapPin className="text-white text-base shrink-0 opacity-90" />
+                  <span>{eventLocation}</span>
+                </p>
               </div>
-            );
-          })}
-        </nav>
+            </div>
 
-        {/* Warning if current user is the seller */}
-        {isMyListing && (
-          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-start gap-3">
-            <FiAlertTriangle className="text-lg shrink-0 mt-0.5 text-amber-400" />
-            <div>
-              <p className="font-semibold text-amber-200">Đây là vé do chính bạn đăng bán</p>
-              <p className="mt-1 text-xs text-amber-300/80">
-                Hệ thống HaloTicket không cho phép người bán tự mua vé của chính mình. Vui lòng đăng nhập tài khoản khác nếu muốn kiểm tra luồng thanh toán mua vé bán lại.
+            {/* Right: Countdown timer card (Ticketbox style) */}
+            <div className="w-fit rounded-2xl border border-white/10 bg-black/40 p-4 sm:p-5 backdrop-blur-md shadow-2xl shrink-0 self-start md:self-auto">
+              <p className="text-xs sm:text-sm font-semibold text-slate-200 text-center mb-2.5">
+                Hoàn tất đặt vé trong
               </p>
-            </div>
-          </div>
-        )}
-
-        <div className="mb-5 flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-          <FiAlertTriangle className="shrink-0" />
-          <span>Không hỗ trợ xuất hóa đơn cho vé bán lại.</span>
-        </div>
-
-        {step === "select" && (
-        /* Section: Chọn vé */
-        <div className="mb-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold app-text-main sm:text-lg">Chọn vé</h2>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
-                isRetail ? "bg-blue-600 text-white" : "bg-indigo-600 text-white"
-              }`}
-            >
-              {isRetail ? "Bán lẻ" : "Không bán lẻ"}
-            </span>
-          </div>
-
-          {/* Ticket Tier Header with Icon */}
-          <div className="mb-3 flex items-center gap-2 text-sm font-bold app-text-main sm:text-base">
-            <span className="text-base text-blue-400">🎟️</span>
-            <span>{ticketTier}</span>
-          </div>
-
-          <div className="mb-3 flex items-center justify-between rounded-lg border app-border app-bg-card px-4 py-2.5 text-xs app-text-muted">
-            <span>Đã chọn {selected ? quantity : 0}/{quantity}</span>
-            <label className="inline-flex cursor-pointer items-center gap-2">
-              <span>Chọn tất cả</span>
-              <input aria-label="Chọn tất cả" type="checkbox" checked={selected} onChange={(e) => setSelected(e.target.checked)} className="h-4 w-4 rounded accent-blue-600" />
-            </label>
-          </div>
-
-          {/* Ticket Detail Card */}
-          <label className={`block cursor-pointer rounded-xl border app-bg-card p-4 shadow-sm transition sm:p-5 ${selected ? "border-blue-500 ring-2 ring-blue-500/15" : "app-border"}`}>
-            <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1.5 text-sm">
-              <div className="flex items-center">
-                <span className="text-slate-400 w-28 shrink-0">Khu vực:</span>
-                <span className="font-medium app-text-main">{listing.section || "Khu vực chung"}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-slate-400 w-28 shrink-0">Hàng ghế:</span>
-                <span className="font-medium app-text-main">
-                  {[listing.row ? `Hàng ${listing.row}` : "", listing.seat ? `Ghế ${listing.seat}` : ""].filter(Boolean).join(" - ") || "Vé tự do"}
+              <div
+                className="flex items-center justify-center gap-2 font-mono"
+                aria-label={`Còn lại ${timerMinutes} phút ${timerSeconds} giây`}
+              >
+                <span className="flex h-11 w-12 sm:h-12 sm:w-14 items-center justify-center rounded-xl bg-rose-600 text-2xl font-black text-white shadow-md">
+                  {timerMinutes}
+                </span>
+                <span className="text-2xl font-black text-white">:</span>
+                <span className="flex h-11 w-12 sm:h-12 sm:w-14 items-center justify-center rounded-xl bg-rose-600 text-2xl font-black text-white shadow-md">
+                  {timerSeconds}
                 </span>
               </div>
-              <div className="flex items-center">
-                <span className="text-slate-400 w-28 shrink-0">Số lượng:</span>
-                <span className="font-medium app-text-main">{quantity} vé</span>
-              </div>
-              <div className="flex items-center pt-1">
-                <span className="text-slate-400 w-28 shrink-0">Giá bán mỗi vé:</span>
-                <span className="text-blue-400 font-bold text-base sm:text-lg">{money(listing.price)}</span>
-              </div>
             </div>
-              <input aria-label={`Chọn ${ticketTier}`} type="checkbox" checked={selected} onChange={(e) => setSelected(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 rounded accent-blue-600" />
-            </div>
-          </label>
+          </div>
         </div>
+      </section>
+
+      {/* Main Content Layout (2 Columns: Left Questionnaire, Right Sticky Summary) */}
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        {reservation && error && (
+          <div role="alert" className="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+            {error}
+          </div>
         )}
-
-        {/* Step 1: Terms Agreement & Reserve CTA */}
-        {!reservation ? (
-          <div className="space-y-6">
-            <div className="rounded-xl border app-border app-bg-card p-4">
-              <label className="flex cursor-pointer items-start gap-3 text-xs app-text-main sm:text-sm">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded accent-blue-600 cursor-pointer"
-                />
-                <span className="leading-relaxed">
-                  Tôi đã đọc, hiểu, đồng ý và cam kết tuân thủ các{" "}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowRulesModal(true);
-                    }}
-                    className="text-blue-400 font-medium hover:underline inline"
-                  >
-                    Quy định sử dụng tính năng Bán lại vé
-                  </button>{" "}
-                  trên HaloTicket.
-                </span>
-              </label>
-            </div>
-
-            {error && (
-              <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300 flex items-start gap-2">
-                <FiAlertTriangle className="text-lg shrink-0 mt-0.5 text-red-400" />
-                <span>{error}</span>
-              </div>
-            )}
-
+        {/* Retry button if auto-reserve failed and user is not owner */}
+        {!reservation && !isMyListing && error && (
+          <div className="mb-6 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5 text-sm text-rose-700 dark:text-rose-200 flex items-center justify-between gap-4">
+            <span>{error}</span>
             <button
               type="button"
-              disabled={!selected || !agreed || reserving || isMyListing}
-              onClick={handleReserve}
-              className={`w-full py-3.5 px-6 rounded-lg text-base font-bold flex items-center justify-center gap-2 transition shadow-lg ${
-                selected && agreed && !isMyListing && !reserving
-                  ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-blue-600/25"
-                  : "bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed"
-              }`}
+              disabled={reserving}
+              onClick={handleManualReserve}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 shrink-0"
             >
-              {reserving ? (
-                "Đang giữ vé…"
-              ) : isMyListing ? (
-                "Không thể mua vé của chính bạn"
-              ) : agreed ? (
-                "Tiếp tục"
-              ) : (
-                selected ? "Vui lòng đồng ý điều khoản" : "Vui lòng chọn vé"
-              )}
+              {reserving ? "Đang thử lại…" : "Thử giữ vé lại"}
             </button>
           </div>
-        ) : step === "reserve" ? (
-          /* Step 2: Reservation */
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="space-y-6">
-              <div
-              role="status"
-              className="rounded-xl border border-blue-500/40 bg-blue-950/30 p-5 text-sm text-blue-200 shadow-md"
-              >
-              <div className="flex items-center gap-2 font-bold text-base text-blue-400">
-                <FiCheckCircle className="text-xl shrink-0" />
-                <span>Vé đã được giữ tạm thời thành công!</span>
-              </div>
-              <p className="mt-2 text-xs text-slate-300">
-                Mã giao dịch: <strong className="text-white font-mono">{(reservation as ResaleReservation).transactionId}</strong>
-              </p>
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-300">
-                <FiClock className="shrink-0" />
-                <span>
-                  Hết hạn giữ vé lúc:{" "}
-                  <strong>
-                    {new Intl.DateTimeFormat("vi-VN", { timeStyle: "medium" }).format(
-                      new Date((reservation as ResaleReservation).reservationExpiresAt)
-                    )}
-                  </strong>{" "}
-                  (khoảng 15 phút)
-                </span>
-              </div>
-              </div>
+        )}
 
-              {customQuestions.length > 0 && (
-              <section aria-labelledby="resale-questions-title" className="space-y-4">
-                <h2 id="resale-questions-title" className="text-base font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">BẢNG CÂU HỎI</h2>
-                <div className="space-y-4 rounded-xl border app-border app-bg-card p-5 shadow-sm">
-                  {customQuestions.map((question, index) => {
-                    const id = String(question.id ?? index);
-                    const type = String(question.type ?? "text").toLowerCase();
-                    const title = String(question.title ?? "Câu hỏi");
+        <div className="grid items-start gap-8 lg:grid-cols-12">
+          {/* Left Column: BẢNG CÂU HỎI or PAYMENT FORM */}
+          <div className="lg:col-span-8 space-y-6">
+            {step === "reserve" ? (
+              <>
+                {/* Section Title & Back action */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    BẢNG CÂU HỎI
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={handleSelectDifferentTicket}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition cursor-pointer"
+                  >
+                    <FiArrowLeft />
+                    <span>Chọn lại vé</span>
+                  </button>
+                </div>
+
+                {/* Notice: Không hỗ trợ xuất hoá đơn cho Vé bán lại */}
+                <div className="flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 rounded-xl">
+                  <FiAlertTriangle className="shrink-0 text-base" />
+                  <span>Không hỗ trợ xuất hoá đơn cho Vé bán lại</span>
+                </div>
+
+                {/* Per-ticket questionnaire accordion cards (Image 3) */}
+                <div className="space-y-4">
+                  {Array.from({ length: quantity }).map((_, ticketIdx) => {
+                    const isCollapsed = collapsedTickets[ticketIdx] === true;
                     return (
-                      <div key={id} className="space-y-2 rounded-lg border app-border app-bg-page p-4">
-                        <label className="block text-sm font-semibold app-text-main">
-                          {title}{question.isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
-                        </label>
-                        {question.description && <p className="text-xs app-text-muted">{String(question.description)}</p>}
-                        {type === "checkbox" ? (
-                          <label className="flex cursor-pointer items-center gap-2 text-sm app-text-main">
-                            <input
-                              type="checkbox"
-                              aria-label={title}
-                              checked={answers[id] === true}
-                              onChange={(event) => setAnswers((current) => ({ ...current, [id]: event.target.checked }))}
-                              className="h-4 w-4 rounded accent-blue-600"
-                            />
-                            <span>Tôi đã đọc và đồng ý</span>
-                          </label>
-                        ) : type === "select" || type === "dropdown" ? (
-                          <select
-                            aria-label={title}
-                            value={String(answers[id] ?? "")}
-                            onChange={(event) => setAnswers((current) => ({ ...current, [id]: event.target.value }))}
-                            className="w-full rounded-lg border app-border app-bg-card px-3 py-2.5 text-sm app-text-main"
-                          >
-                            <option value="">Chọn câu trả lời</option>
-                            {(Array.isArray(question.options) ? question.options : []).map((option: unknown) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
-                          </select>
-                        ) : (
-                          <input
-                            aria-label={title}
-                            value={String(answers[id] ?? "")}
-                            onChange={(event) => setAnswers((current) => ({ ...current, [id]: event.target.value }))}
-                            placeholder="Nhập câu trả lời của bạn"
-                            className="w-full rounded-lg border app-border app-bg-card px-3 py-2.5 text-sm app-text-main"
-                          />
+                      <div
+                        key={ticketIdx}
+                        className="overflow-hidden rounded-2xl border app-border app-bg-card shadow-sm"
+                      >
+                        {/* Header Bar: Tier name on left, "Sao chép từ bảng 1" & toggle on right */}
+                        <div className="flex items-center justify-between border-b app-border app-bg-subnav px-5 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-blue-600 dark:text-blue-400 text-base uppercase tracking-wider">
+                              {ticketTier}
+                            </span>
+                            {quantity > 1 && (
+                              <span className="rounded bg-black/10 dark:bg-white/10 px-2 py-0.5 text-xs font-semibold app-text-muted">
+                                Vé {ticketIdx + 1}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {ticketIdx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => copyFromTicket1(ticketIdx)}
+                                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-black/10 dark:bg-white/10 px-3 py-1.5 text-xs font-semibold app-text-main transition hover:bg-black/20 dark:hover:bg-white/20"
+                              >
+                                <FiCopy className="text-xs" />
+                                <span>Sao chép từ bảng 1</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => toggleTicketCollapse(ticketIdx)}
+                              className="rounded p-1 app-text-muted hover:app-text-main cursor-pointer transition"
+                              aria-label={isCollapsed ? "Mở rộng bảng câu hỏi" : "Thu gọn bảng câu hỏi"}
+                            >
+                              {isCollapsed ? <FiPlus className="text-lg" /> : <FiMinus className="text-lg" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Body Questions: Visible when not collapsed */}
+                        {!isCollapsed && (
+                          <div className="p-5 sm:p-6 space-y-6 app-bg-card">
+                            {/* Standard T&C Question (Exact replica of Image 3) */}
+                            <div className="space-y-2">
+                              <p className="text-sm font-bold app-text-main leading-relaxed">
+                                Bạn đã đọc và hoàn toàn đồng ý "Điều khoản và điều kiện" của chương trình?{" "}
+                                <span className="text-rose-500">*</span>
+                              </p>
+                              <p className="text-xs app-text-muted">
+                                Have you read and fully agree with T&C of the event
+                              </p>
+                              <div className="mt-3">
+                                <label className="flex cursor-pointer items-center gap-3 text-sm font-medium app-text-main hover:opacity-90">
+                                  <input
+                                    type="checkbox"
+                                    checked={ticketAgreed[ticketIdx] === true}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setTicketAgreed((prev) => ({
+                                        ...prev,
+                                        [ticketIdx]: checked,
+                                      }));
+                                    }}
+                                    className="h-5 w-5 rounded accent-blue-600 cursor-pointer"
+                                  />
+                                  <span>Tôi đã đọc và đồng ý / I have read and agree</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            {/* Additional custom event questions if any */}
+                            {customQuestions.map((question) => {
+                              const qId = question.id;
+                              const currentVal = ticketAnswers[ticketIdx]?.[qId];
+
+                              return (
+                                <div key={qId} className="border-t app-border pt-5 space-y-2">
+                                  <label className="block text-sm font-bold app-text-main">
+                                    {question.title}
+                                    {question.isRequired && <span className="text-rose-500 ml-1">*</span>}
+                                  </label>
+                                  {question.description && <p className="text-xs app-text-muted">{question.description}</p>}
+                                  <div className="mt-2">
+                                    {question.type === "checkbox" ? (
+                                      <label className="flex cursor-pointer items-center gap-3 text-sm app-text-main">
+                                        <input
+                                          type="checkbox"
+                                          checked={currentVal === true}
+                                          onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            setTicketAnswers((prev) => ({
+                                              ...prev,
+                                              [ticketIdx]: { ...(prev[ticketIdx] || {}), [qId]: checked },
+                                            }));
+                                          }}
+                                          className="h-5 w-5 rounded accent-blue-600 cursor-pointer"
+                                        />
+                                        <span>Đồng ý</span>
+                                      </label>
+                                    ) : question.type === "select" || question.type === "dropdown" ? (
+                                      <select
+                                        value={String(currentVal ?? "")}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setTicketAnswers((prev) => ({
+                                            ...prev,
+                                            [ticketIdx]: { ...(prev[ticketIdx] || {}), [qId]: val },
+                                          }));
+                                        }}
+                                        className="w-full rounded-xl border app-border app-bg-page px-4 py-3 text-sm app-text-main outline-none focus:border-blue-500"
+                                      >
+                                        <option value="">-- Chọn câu trả lời --</option>
+                                        {question.options.map((opt) => (
+                                          <option key={opt} value={opt}>
+                                            {opt}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        value={String(currentVal ?? "")}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setTicketAnswers((prev) => ({
+                                            ...prev,
+                                            [ticketIdx]: { ...(prev[ticketIdx] || {}), [qId]: val },
+                                          }));
+                                        }}
+                                        placeholder="Nhập câu trả lời của bạn"
+                                        className="w-full rounded-xl border app-border app-bg-page px-4 py-3 text-sm app-text-main placeholder:text-slate-400 outline-none focus:border-blue-500"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     );
                   })}
-                  {questionError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{questionError}</p>}
                 </div>
-              </section>
+
+                {questionError && (
+                  <div role="alert" className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-300 font-medium">
+                    {questionError}
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Payment step */
+              <div className="space-y-6">
+                <button
+                  type="button"
+                  onClick={() => setStep("reserve")}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                >
+                  <FiArrowLeft /> Quay lại bảng câu hỏi
+                </button>
+
+                <fieldset className="rounded-2xl border app-border app-bg-card p-6 shadow-sm">
+                  <legend className="px-2 text-base font-black app-text-main">Phương thức thanh toán</legend>
+                  <div className="mt-4 space-y-3">
+                    {/* 1. VNPAY */}
+                    <label
+                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        paymentMethod === "VNPAY"
+                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-page border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setPaymentMethod("VNPAY")}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        checked={paymentMethod === "VNPAY"}
+                        onChange={() => setPaymentMethod("VNPAY")}
+                        className="accent-blue-600 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-600 font-black text-xs flex items-center justify-center shrink-0 border border-blue-500/20">
+                        VNPay
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-extrabold app-text-main block">
+                          Cổng VNPAY (Thẻ ATM nội địa / Mã QR Ngân hàng / Internet Banking)
+                        </span>
+                        <span className="text-xs app-text-muted block">Hỗ trợ tất cả ngân hàng tại Việt Nam</span>
+                      </div>
+                    </label>
+
+                    {/* 2. VietQR / SePay */}
+                    <label
+                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        paymentMethod === "VIETQR"
+                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-page border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setPaymentMethod("VIETQR")}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        checked={paymentMethod === "VIETQR"}
+                        onChange={() => setPaymentMethod("VIETQR")}
+                        className="accent-blue-600 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="w-10 h-10 rounded-xl bg-rose-600/10 text-rose-600 font-black text-xs flex items-center justify-center shrink-0 border border-rose-500/20">
+                        VietQR
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-extrabold app-text-main block">
+                          SePay - Chuyển khoản VietQR Nhanh 24/7
+                        </span>
+                        <span className="text-xs app-text-muted block">Quét QR chuyển khoản ngân hàng tự động duyệt tức thì</span>
+                      </div>
+                    </label>
+
+                    {/* 3. MoMo */}
+                    <label
+                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        paymentMethod === "MOMO"
+                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-page border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setPaymentMethod("MOMO")}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        checked={paymentMethod === "MOMO"}
+                        onChange={() => setPaymentMethod("MOMO")}
+                        className="accent-blue-600 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 font-black text-xs flex items-center justify-center shrink-0 border border-pink-500/20">
+                        MoMo
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-extrabold app-text-main block">Ví MoMo</span>
+                        <span className="text-xs app-text-muted block">Thanh toán tức thì qua ứng dụng ví MoMo</span>
+                      </div>
+                    </label>
+
+                    {/* 4. ZaloPay */}
+                    <label
+                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        paymentMethod === "ZALOPAY"
+                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-page border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setPaymentMethod("ZALOPAY")}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        checked={paymentMethod === "ZALOPAY"}
+                        onChange={() => setPaymentMethod("ZALOPAY")}
+                        className="accent-blue-600 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0 border border-sky-500/20">
+                        Zalo
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-extrabold app-text-main block">Ví ZaloPay</span>
+                        <span className="text-xs app-text-muted block">Thanh toán qua ứng dụng ZaloPay hoặc mã QR</span>
+                      </div>
+                    </label>
+
+                    {/* 5. ShopeePay */}
+                    <label
+                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        paymentMethod === "SHOPEEPAY"
+                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-page border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setPaymentMethod("SHOPEEPAY")}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        checked={paymentMethod === "SHOPEEPAY"}
+                        onChange={() => setPaymentMethod("SHOPEEPAY")}
+                        className="accent-blue-600 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
+                        Shopee
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-extrabold app-text-main block">Ví ShopeePay</span>
+                        <span className="text-xs app-text-muted block">Thanh toán qua ứng dụng ví ShopeePay</span>
+                      </div>
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
             )}
-
-              <button
-              type="button"
-              disabled={secondsRemaining === 0 || reserving || !requiredQuestionsAnswered}
-              onClick={handleContinueToPayment}
-              className="w-full rounded-lg bg-blue-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Tiếp tục
-              </button>
-            </div>
-            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} actionLabel="Tiếp tục" actionDisabled={!requiredQuestionsAnswered} onAction={handleContinueToPayment} />
           </div>
-        ) : (
-          /* Step 3: Payment */
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between rounded-xl border app-border app-bg-card px-4 py-3 text-sm">
-              <span className="app-text-muted">Vé đã giữ cho bạn</span>
-              <button type="button" onClick={() => setStep("reserve")} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">Quay lại giữ vé</button>
+
+          {/* Right Column: Sticky "Thông tin đặt vé" Card (Exact Replica of Image 3 with Website Colors) */}
+          <aside className="lg:col-span-4 lg:sticky lg:top-6" aria-label="Thông tin đặt vé">
+            <div className="rounded-2xl border app-border app-bg-card p-5 sm:p-6 shadow-md app-text-main">
+              {/* Card Header: "Thông tin đặt vé" on left, "Chọn lại vé" on right */}
+              <div className="flex items-center justify-between border-b app-border pb-3.5">
+                <h2 className="text-base font-black app-text-main">Thông tin đặt vé</h2>
+                <button
+                  type="button"
+                  onClick={handleSelectDifferentTicket}
+                  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                >
+                  Chọn lại vé
+                </button>
               </div>
 
-              <fieldset className="rounded-xl border app-border app-bg-card p-5 shadow-sm">
-              <legend className="mb-3 text-base font-bold app-text-main">Phương thức thanh toán</legend>
-              <div className="grid grid-cols-3 gap-3">
-                {(["VNPAY", "MOMO", "ZALOPAY"] as const).map((m) => (
-                  <label
-                    key={m}
-                    className={`cursor-pointer rounded-xl border p-4 text-center text-sm font-bold transition flex flex-col items-center justify-center gap-1 ${
-                      paymentMethod === m
-                        ? "border-blue-500 bg-blue-500/10 text-blue-400 shadow-sm"
-                        : "app-border app-bg-page app-text-muted hover:border-blue-300 dark:hover:border-blue-700"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      className="sr-only"
-                      checked={paymentMethod === m}
-                      onChange={() => setPaymentMethod(m)}
-                    />
-                    <span className="text-base">{m}</span>
-                    <span className="text-[11px] font-normal text-slate-500">Cổng thanh toán</span>
-                  </label>
-                ))}
-              </div>
-              </fieldset>
+              {/* Table details: "Loại vé" & "Số lượng" */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-xs font-bold app-text-muted">
+                  <span>Loại vé</span>
+                  <span>Số lượng</span>
+                </div>
 
-              {error && (
-              <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
-                {error}
-              </div>
-            )}
+                <div className="mt-2.5 flex items-start justify-between text-sm">
+                  <div>
+                    <p className="font-black app-text-main">{ticketTier}</p>
+                    <p className="mt-0.5 text-xs app-text-muted">{money(listing.price)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black app-text-main">{String(quantity).padStart(2, "0")}</p>
+                    <p className="mt-0.5 text-xs app-text-muted">{money(totalAmount)}</p>
+                  </div>
+                </div>
 
-              <button
-              type="button"
-              disabled={paying}
-              onClick={handlePayment}
-              className="w-full py-3.5 px-6 rounded-lg text-base font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition shadow-lg shadow-blue-600/25 disabled:opacity-50"
-            >
-              {paying ? "Đang chuyển đến cổng thanh toán…" : "Thanh toán"}
-              </button>
+                {/* Dashed divider */}
+                <div className="my-4 border-t border-dashed app-border" />
+
+                {/* Total amount in bold brand blue / theme */}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold app-text-main">Tạm tính {quantity} ghế</span>
+                  <span className="text-lg font-black text-blue-600 dark:text-blue-400">{money(totalAmount)}</span>
+                </div>
+
+                {/* Helper notice - only show when questions are not answered and not owner */}
+                {step === "reserve" && !allQuestionsAnswered && !isMyListing && (
+                  <p className="mt-4 text-center text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    Vui lòng trả lời tất cả câu hỏi để tiếp tục
+                  </p>
+                )}
+
+                {/* CTA Button: Blue brand button "Tiếp tục »" */}
+                <button
+                  type="button"
+                  disabled={
+                    hasExpired ||
+                    paying ||
+                    reserving ||
+                    (step === "reserve" && !allQuestionsAnswered && !isMyListing)
+                  }
+                  onClick={() => {
+                    if (step === "reserve") {
+                      handleContinueToPayment();
+                    } else {
+                      void handlePayment();
+                    }
+                  }}
+                  className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 px-6 text-base font-black text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 disabled:shadow-none"
+                >
+                  <span>
+                    {paying
+                      ? "Đang xử lý…"
+                      : reserving
+                        ? "Đang giữ vé…"
+                        : step === "reserve"
+                          ? "Tiếp tục"
+                          : "Thanh toán"}
+                  </span>
+                  {!paying && !reserving && <FiChevronsRight className="text-lg" />}
+                </button>
+              </div>
             </div>
-            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} actionLabel="Thanh toán" actionLoading={paying} onAction={handlePayment} />
-          </div>
-        )}
 
-        {/* Security badge footer */}
-        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-500">
-          <FiShield className="text-blue-500 text-sm" />
-          <span>Giao dịch an toàn được bảo đảm bởi HaloTicket Marketplace Guarantee</span>
+            {/* Trust badge */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs app-text-muted">
+              <FiShield className="text-blue-500 text-sm" />
+              <span>Giao dịch được bảo đảm bởi HaloTicket Marketplace</span>
+            </div>
+          </aside>
         </div>
       </main>
 
+      {/* Modal xác nhận Hủy đơn hàng khi back hoặc click Chọn lại vé (Khớp ảnh) */}
+      <CancelOrderModal
+        open={showCancelModal}
+        onStay={() => setShowCancelModal(false)}
+        onCancelOrder={handleCancelHoldAndLeave}
+        cancelling={cancellingHold}
+      />
+
+      {/* Modal cảnh báo khi người bán bấm mua vé của chính mình */}
+      <OwnerListingModal
+        open={showOwnerModal}
+        onClose={() => setShowOwnerModal(false)}
+        onBackToList={() => navigate(`/resale-ticket/${eventId}`)}
+      />
+
+      {/* Modal hết thời gian giữ vé (Ảnh 1) */}
+      <TicketHoldTimeoutModal
+        open={hasExpired}
+        onReset={() => navigate(`/resale-ticket/${eventId}`)}
+        title="Hết thời gian giữ vé!"
+        message="Đã hết thời gian giữ vé. Vui lòng đặt lại vé mới."
+        buttonText="Đặt vé mới"
+      />
+
+      {/* VietQR Payment Modal */}
+      <VietQrModal
+        isOpen={isVietQrModalOpen}
+        onClose={() => setIsVietQrModalOpen(false)}
+        bookingId={activeBookingId}
+        vietQrData={vietQrData}
+        onSuccess={() => {
+          setIsVietQrModalOpen(false);
+          navigate("/booking-success");
+        }}
+        onTimeout={() => {
+          setIsVietQrModalOpen(false);
+          setHasExpired(true);
+        }}
+      />
+
       {/* Resale Rules Modal */}
       {showRulesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border app-border app-bg-card p-6 shadow-2xl app-text-main">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border app-border app-bg-card p-6 app-text-main shadow-2xl">
             <div className="flex items-center justify-between border-b app-border pb-4">
               <h3 className="flex items-center gap-2 text-lg font-bold app-text-main">
-                <FiShield className="text-blue-400" />
+                <FiShield className="text-blue-500" />
                 Quy định Mua bán vé bán lại
               </h3>
               <button
                 type="button"
                 onClick={() => setShowRulesModal(false)}
-                className="rounded-lg p-1 app-text-muted hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+                className="rounded-lg p-1 app-text-muted hover:app-text-main"
               >
                 <FiX className="text-xl" />
               </button>
@@ -751,7 +1135,7 @@ export const ResaleTicketCheckout = () => {
               <button
                 type="button"
                 onClick={() => setShowRulesModal(false)}
-                className="w-full rounded-lg bg-blue-600 py-2.5 font-bold text-white hover:bg-blue-700 transition"
+                className="w-full rounded-xl bg-blue-600 py-2.5 font-bold text-white hover:bg-blue-700 transition cursor-pointer"
               >
                 Đã hiểu và đồng ý
               </button>

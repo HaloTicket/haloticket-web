@@ -5,20 +5,54 @@ import { FaTicketAlt } from "react-icons/fa";
 import { formatCurrency } from "@/utils/formatters";
 import { ticketApi } from "@/services/ticketApi";
 
+import type { OwnedTicketApiResponse } from "@/types";
+
+interface SuccessTicketInfo extends Partial<OwnedTicketApiResponse> {
+  id?: string;
+  eventTitle?: string;
+  quantity?: number;
+  totalAmount?: number;
+  ticketTypeName?: string | null;
+}
+
 export default function BookingSuccess() {
   const navigate = useNavigate();
-  const [lastTicket, setLastTicket] = useState<any>(null);
+  const [lastTicket, setLastTicket] = useState<SuccessTicketInfo | null>(() => {
+    try {
+      const pendingStr = localStorage.getItem("haloticket_pending_order");
+      if (pendingStr) {
+        const parsed = JSON.parse(pendingStr);
+        return {
+          id: parsed.bookingId || parsed.id,
+          eventTitle: parsed.eventTitle || "Sự kiện HaloTicket",
+          quantity: parsed.quantity || 1,
+          totalAmount: parsed.totalAmount || 0,
+          ticketTypeName: parsed.ticketTypeName || "Vé sự kiện",
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
-    ticketApi.getMyTickets().then((tickets) => {
-      if (tickets.length > 0) setLastTicket({
-        ...tickets[0],
-        eventTitle: tickets[0].eventId ? `Sự kiện ${tickets[0].eventId}` : "Sự kiện HaloTicket",
-        quantity: 1,
-        totalAmount: tickets[0].price || 0,
-      });
-    }).catch(() => undefined);
+    ticketApi
+      .getMyTickets()
+      .then((tickets) => {
+        if (tickets.length > 0) {
+          setLastTicket((prev) =>
+            prev || {
+              ...tickets[0],
+              eventTitle: tickets[0].eventId ? `Sự kiện ${tickets[0].eventId}` : "Sự kiện HaloTicket",
+              quantity: 1,
+              totalAmount: tickets[0].price || 0,
+            }
+          );
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   return (
@@ -51,7 +85,7 @@ export default function BookingSuccess() {
             </div>
             <div className="flex items-center justify-between">
               <span className="app-text-sub">Tổng thanh toán:</span>
-              <span className="font-black app-text-brand text-sm">{formatCurrency(lastTicket.totalAmount)}</span>
+              <span className="font-black app-text-brand text-sm">{formatCurrency(lastTicket.totalAmount || 0)}</span>
             </div>
           </div>
         )}

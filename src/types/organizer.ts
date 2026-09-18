@@ -18,6 +18,8 @@ export interface CustomQuestionItem {
   description: string;
   type: string;
   isRequired: boolean;
+  options?: string[];
+  [key: string]: unknown;
 }
 
 export interface OrganizerProfile {

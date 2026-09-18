@@ -34,6 +34,8 @@ export interface OwnedTicketApiResponse {
   ticketTypeId?: string | null;
   ticketTypeName?: string | null;
   price?: number | null;
+  originalPrice?: number | null;
+  acquisitionType?: "PRIMARY" | "RESALE" | "GIFT" | string | null;
   status?: string | null;
   qrCode?: string | null;
   qrVersion?: number | null;

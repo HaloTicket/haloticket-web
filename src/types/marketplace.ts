@@ -30,6 +30,7 @@ export interface MarketplaceSagaResponse {
 export interface TicketListing {
   id: string;
   ticketId: string;
+  ticketCode?: string | null;
   ownedByCurrentUser?: boolean;
   eventId?: string | null;
   ticketTypeName?: string | null;
@@ -67,6 +68,12 @@ export interface ResalePaymentInitiation {
   amount: number;
   currency: string;
   expiresAt: string;
+}
+
+export interface ResalePurchaseStatus {
+  transactionId: string;
+  status: "PENDING_PAYMENT" | "PAYMENT_PROCESSING" | "TRANSFERRING" | "COMPLETED" | "REFUND_PENDING" | "REFUNDED" | "CANCELLED" | "EXPIRED";
+  sagaId?: string | null;
 }
 
 export interface GiftTicketRequest {

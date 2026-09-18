@@ -37,6 +37,8 @@ export function getCachedUserProfile(): UserProfile | null {
     const payload = parseJwt(token);
     if (payload) {
       return {
+        id: payload.sub,
+        keycloakId: payload.sub,
         email: payload.email || "user@haloticket.vn",
         fullName: payload.name || payload.preferred_username || "Khách hàng HaloTicket",
         gender: "OTHER",

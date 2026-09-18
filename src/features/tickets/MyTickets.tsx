@@ -1,6 +1,22 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FiAlertCircle, FiArrowRight, FiCalendar, FiCheck, FiCopy, FiDownload, FiGift, FiMapPin, FiMoreHorizontal, FiSearch, FiTag, FiX } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import {
+  FiArrowRight,
+  FiCalendar,
+  FiCheck,
+  FiCopy,
+  FiDownload,
+  FiEyeOff,
+  FiGift,
+  FiLock,
+  FiMapPin,
+  FiMoreHorizontal,
+  FiSearch,
+  FiTag,
+  FiX,
+} from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { formatCurrency } from "@/utils/formatters";
@@ -22,6 +38,8 @@ export interface TicketItem {
   ticketTypeName: string;
   quantity: number;
   totalAmount: number;
+  originalPrice?: number;
+  acquisitionType?: string;
   purchaseDate?: string;
   customerName?: string;
   rawStatus: string;
@@ -29,13 +47,13 @@ export interface TicketItem {
   qrCode?: string;
 }
 
-const STATUS_PRESENTATION: Record<TicketUiStatus, { label: string; className: string }> = {
-  UPCOMING: { label: "Sắp diễn ra", className: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300" },
-  USED: { label: "Đã sử dụng", className: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" },
-  SELLING: { label: "Đang bán", className: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" },
-  GIFTING: { label: "Đang tặng", className: "border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300" },
-  TRANSFERRED: { label: "Đã chuyển nhượng", className: "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400" },
-  CANCELLED: { label: "Đã hủy", className: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300" },
+const STATUS_PRESENTATION: Record<TicketUiStatus, { labelKey: string; className: string }> = {
+  UPCOMING: { labelKey: "Sắp diễn ra", className: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300" },
+  USED: { labelKey: "Đã sử dụng", className: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" },
+  SELLING: { labelKey: "Đang bán", className: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" },
+  GIFTING: { labelKey: "Đang tặng", className: "border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300" },
+  TRANSFERRED: { labelKey: "Đã chuyển nhượng", className: "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400" },
+  CANCELLED: { labelKey: "Đã hủy", className: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300" },
 };
 
 export function mapTicketStatus(status?: string | null): TicketUiStatus {
@@ -59,7 +77,13 @@ function formatEventTime(value?: string) {
   if (!value) return "Chưa cập nhật lịch";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Chưa cập nhật lịch";
-  return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
 }
 
 async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketItem[]> {
@@ -76,10 +100,16 @@ async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketIt
     })
   );
   const events = new Map(entries);
+
   return items.map((item) => {
     const event = events.get(item.eventId);
     const rawStatus = item.status || "VALID";
     const startsAt = typeof event?.startTime === "string" ? event.startTime : undefined;
+    const isResale =
+      item.acquisitionType === "RESALE" ||
+      (item.bookingCode || "").startsWith("RSL-") ||
+      (item.bookingCode || "").includes("RESALE");
+
     return {
       id: item.id,
       bookingCode: item.bookingCode || item.id,
@@ -92,6 +122,8 @@ async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketIt
       ticketTypeName: item.ticketTypeName || "Vé điện tử",
       quantity: 1,
       totalAmount: item.price || 0,
+      originalPrice: item.originalPrice || undefined,
+      acquisitionType: isResale ? "RESALE" : (item.acquisitionType || "PRIMARY"),
       purchaseDate: item.issuedAt || undefined,
       rawStatus,
       status: mapTicketStatus(rawStatus),
@@ -127,7 +159,8 @@ export function downloadTicketAsImage(ticket: TicketItem) {
     context.fillStyle = "#94a3b8";
     context.font = "14px monospace";
     context.fillText(`Mã vé: ${ticket.bookingCode}`, 42, 325);
-    const qrValue = ticket.qrCode || `HALOTICKET-${ticket.bookingCode}`;
+    if (ticket.rawStatus !== "VALID" || !ticket.qrCode) return;
+    const qrValue = ticket.qrCode;
     const image = new Image();
     image.crossOrigin = "Anonymous";
     image.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrValue)}`;
@@ -158,57 +191,206 @@ export function downloadTicketAsImage(ticket: TicketItem) {
 }
 
 function StatusBadge({ status }: { status: TicketUiStatus }) {
+  const { t } = useTranslation();
   const presentation = STATUS_PRESENTATION[status];
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${presentation.className}`}>
-      {presentation.label}
+    <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shadow-xs ${presentation.className}`}>
+      {t(presentation.labelKey)}
     </span>
   );
 }
 
+/**
+ * Modal Xem vé điện tử:
+ * - Nếu vé Đang bán hoặc bị khóa: hiển thị QR mờ kèm ổ khóa đè lên và mô tả cảnh báo.
+ * - Nếu vé có hiệu lực: mặc định che QR bằng ổ khóa và thanh "Nhấn vào ảnh để xem mã QR" (Ảnh 1).
+ */
 function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => void }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
-  const qrActive = ticket.rawStatus === "VALID";
-  const code = ticket.qrCode || `HALOTICKET-${ticket.bookingCode}`;
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  const isSelling = ticket.status === "SELLING" || ticket.rawStatus === "LOCKED_FOR_RESALE";
+  const isLocked = isSelling || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode;
+  const code = ticket.qrCode || "";
+
   const copyCode = async () => {
+    if (!code) return;
     await navigator.clipboard.writeText(code);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border app-border app-bg-card shadow-2xl" role="dialog" aria-modal="true" aria-label="Vé điện tử">
-        <div className="relative h-32 bg-slate-200 dark:bg-slate-800">
-          {ticket.eventPoster && <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover" />}
-          <button type="button" onClick={onClose} className="absolute right-3 top-3 rounded-full bg-slate-950/70 p-2 text-white focus:outline-none focus:ring-2 focus:ring-white" aria-label="Đóng"><FiX className="h-5 w-5" /></button>
-        </div>
-        <div className="space-y-5 p-5">
-          <div>
-            <div className="flex items-start justify-between gap-3"><h2 className="text-lg font-bold leading-snug app-text-main">{ticket.eventTitle}</h2><StatusBadge status={ticket.status} /></div>
-            <p className="mt-2 flex items-center gap-2 text-sm app-text-sub"><FiCalendar className="text-blue-600" />{ticket.eventTime}</p>
-            <p className="mt-1 flex items-center gap-2 text-sm app-text-sub"><FiMapPin className="text-blue-600" />{ticket.eventLocation}</p>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
+      <div
+        className="w-full max-w-md overflow-hidden rounded-3xl border app-border app-bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("Vé điện tử")}
+      >
+        {/* Banner header */}
+        <div className="relative h-36 bg-slate-900">
+          {ticket.eventPoster && (
+            <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover filter brightness-85" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3.5 top-3.5 rounded-full bg-slate-950/70 p-2 text-white hover:bg-slate-950 transition cursor-pointer"
+            aria-label="Đóng"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
+          <div className="absolute bottom-3 left-4 right-4 flex items-center gap-2">
+            {ticket.acquisitionType === "RESALE" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs">
+                <FiTag className="h-3 w-3" /> {t("Vé mua lại")}
+              </span>
+            )}
+            <StatusBadge status={ticket.status} />
           </div>
-          <div className="flex items-center justify-between border-y app-border py-3 text-sm"><span className="font-semibold app-text-main">{ticket.ticketTypeName} · {ticket.quantity} vé</span><span className="font-semibold app-text-main">{formatCurrency(ticket.totalAmount)}</span></div>
-          {qrActive ? (
-            <div className="space-y-3 text-center">
-              <div className="mx-auto h-56 w-56 rounded-xl border border-slate-200 bg-white p-3"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(code)}`} alt="Mã QR check-in" className="h-full w-full object-contain" /></div>
-              <p className="text-xs app-text-muted">Xuất trình mã này tại cổng check-in</p>
-              <button type="button" onClick={copyCode} className="inline-flex max-w-full items-center gap-2 rounded-lg border app-border px-3 py-2 font-mono text-xs app-text-main hover:bg-slate-500/10"><span className="truncate">{code}</span>{copied ? <FiCheck className="shrink-0 text-emerald-600" /> : <FiCopy className="shrink-0" />}</button>
+        </div>
+
+        <div className="space-y-4 p-5 sm:p-6">
+          <div>
+            <h2 className="text-lg font-black leading-snug app-text-main">{ticket.eventTitle}</h2>
+            <p className="mt-2 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
+              <FiCalendar className="text-blue-600 shrink-0" />
+              <span>{ticket.eventTime}</span>
+            </p>
+            <p className="mt-1 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
+              <FiMapPin className="text-blue-600 shrink-0" />
+              <span className="truncate">{ticket.eventLocation}</span>
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between border-y app-border py-3 text-sm">
+            <span className="font-semibold app-text-main">
+              {ticket.ticketTypeName} · {ticket.quantity} {t("vé")}
+            </span>
+            <div className="text-right">
+              <strong className="block text-blue-600 dark:text-blue-400 font-mono font-bold text-base">
+                {formatCurrency(ticket.totalAmount)}
+              </strong>
+              <span className="text-xs app-text-sub font-medium block">
+                {ticket.acquisitionType === "RESALE" ? t("Giá mua vé bán lại") : t("Giá vé")}
+              </span>
+            </div>
+          </div>
+
+          {/* Khối hiển thị QR Code bảo mật */}
+          {isLocked ? (
+            /* Ảnh 2: Vé đang bị khóa */
+            <div className="overflow-hidden rounded-2xl border border-amber-500/30 bg-slate-50 dark:bg-slate-900 shadow-md">
+              <div className="relative flex aspect-square w-48 sm:w-56 mx-auto items-center justify-center p-3">
+                <img
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
+                  alt="QR Locked"
+                  className="h-full w-full object-contain filter blur-[5px] grayscale opacity-20 pointer-events-none select-none"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shadow-lg">
+                    <FiLock className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-amber-500/20 bg-amber-500/10 px-4 py-3 text-center">
+                <p className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                  {t("Mã QR đang bị khóa")}
+                </p>
+                <p className="mt-1 text-[11px] text-amber-800/80 dark:text-amber-200/80 leading-relaxed font-medium">
+                  {t("Vé đang bán, đang chuyển quyền, đã sử dụng hoặc đã hủy nên không thể dùng để check-in.")}
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="rounded-xl border app-border app-bg-subnav px-5 py-8 text-center"><FiAlertCircle className="mx-auto h-7 w-7 app-text-muted" /><p className="mt-2 text-sm font-semibold app-text-main">Mã QR hiện không khả dụng</p><p className="mt-1 text-xs app-text-sub">{ticket.status === "USED" ? "Vé này đã được sử dụng để check-in." : ticket.status === "CANCELLED" || ticket.status === "TRANSFERRED" ? "Vé không còn thuộc trạng thái có thể check-in." : "Vé đang được khóa trong một giao dịch."}</p></div>
+            /* Ảnh 1: Vé có hiệu lực - che bằng ổ khóa, nhấn để xem */
+            <div className="space-y-3">
+              <div className="mx-auto w-full max-w-[240px] overflow-hidden rounded-2xl border app-border bg-white dark:bg-slate-900 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setIsRevealed((prev) => !prev)}
+                  className="group relative block w-full text-left cursor-pointer focus:outline-none"
+                  aria-label={isRevealed ? t("Nhấn vào ảnh để che mã QR") : t("Nhấn vào ảnh để xem mã QR")}
+                >
+                  <div className="relative flex aspect-square w-full items-center justify-center bg-white p-3">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(code)}`}
+                      alt="Mã QR check-in"
+                      className={`h-full w-full object-contain transition-all duration-300 ${
+                        isRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
+                      }`}
+                    />
+                    {!isRevealed && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900/90 text-white shadow-lg transition-transform group-hover:scale-110">
+                          <FiLock className="h-5 w-5" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dải hướng dẫn giống Ảnh 1 */}
+                  <div className="bg-slate-800 hover:bg-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 py-2.5 px-3 text-center transition-colors">
+                    <p className="text-xs font-semibold text-white tracking-wide flex items-center justify-center gap-1.5">
+                      {isRevealed ? (
+                        <>
+                          <FiEyeOff className="h-3.5 w-3.5" />
+                          <span>{t("Nhấn vào ảnh để che mã QR")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiLock className="h-3.5 w-3.5" />
+                          <span>{t("Nhấn vào ảnh để xem mã QR")}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {isRevealed && (
+                <div className="space-y-2 text-center animate-in fade-in duration-150">
+                  <p className="text-[11px] app-text-muted">{t("Xuất trình mã này tại cổng check-in")}</p>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="inline-flex max-w-full items-center gap-2 rounded-lg border app-border px-3 py-1.5 font-mono text-xs app-text-main hover:bg-slate-500/10 cursor-pointer"
+                  >
+                    <span className="truncate max-w-[200px]">{code}</span>
+                    {copied ? <FiCheck className="shrink-0 text-emerald-600" /> : <FiCopy className="shrink-0" />}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
-          <div className="flex items-center justify-between gap-3"><p className="truncate font-mono text-xs app-text-muted">Mã vé: {ticket.bookingCode}</p>{qrActive && <button type="button" onClick={() => downloadTicketAsImage(ticket)} className="inline-flex shrink-0 items-center gap-2 rounded-xl border app-border px-3 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10"><FiDownload /> Tải vé</button>}</div>
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <p className="truncate font-mono text-xs app-text-muted">{t("Mã vé:")} {ticket.bookingCode}</p>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => downloadTicketAsImage(ticket)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border app-border px-3 py-1.5 text-xs font-semibold app-text-main hover:bg-slate-500/10 cursor-pointer"
+              >
+                <FiDownload /> {t("Tải vé")}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-interface MyTicketsProps { embedded?: boolean }
+interface MyTicketsProps {
+  embedded?: boolean;
+}
 
 export default function MyTickets({ embedded = false }: MyTicketsProps) {
+  const { t } = useTranslation();
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -228,165 +410,344 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       setTickets(hydrated);
     } catch (err) {
       console.error("loadTickets failed:", err);
-      setLoadError("Không thể tải vé từ hệ thống. Hãy thử lại sau.");
+      setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!embedded) window.scrollTo(0, 0);
-    void loadTickets();
-  }, [embedded, loadTickets]);
+    let active = true;
+    ticketApi
+      .getMyTickets()
+      .then(async (response) => {
+        const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
+        if (active) {
+          setTickets(hydrated);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("loadTickets failed:", err);
+        if (active) {
+          setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [embedded, t]);
 
-  const counts = useMemo(() => ({
-    ALL: tickets.length,
-    UPCOMING: tickets.filter((ticket) => ["UPCOMING", "SELLING", "GIFTING"].includes(ticket.status)).length,
-    USED: tickets.filter((ticket) => ticket.status === "USED").length,
-    TRANSFERRED: tickets.filter((ticket) => ticket.status === "TRANSFERRED").length,
-  }), [tickets]);
+  const counts = useMemo(
+    () => ({
+      ALL: tickets.length,
+      UPCOMING: tickets.filter((ticket) => ["UPCOMING", "SELLING", "GIFTING"].includes(ticket.status)).length,
+      USED: tickets.filter((ticket) => ticket.status === "USED").length,
+      TRANSFERRED: tickets.filter((ticket) => ticket.status === "TRANSFERRED").length,
+    }),
+    [tickets]
+  );
 
-  const filteredTickets = useMemo(() => tickets.filter((ticket) => {
-    const tabMatches = activeTab === "ALL"
-      || (activeTab === "UPCOMING" && ["UPCOMING", "SELLING", "GIFTING"].includes(ticket.status))
-      || (activeTab === "USED" && ticket.status === "USED")
-      || (activeTab === "TRANSFERRED" && ticket.status === "TRANSFERRED");
-    const query = searchQuery.trim().toLowerCase();
-    return tabMatches && (!query || ticket.eventTitle.toLowerCase().includes(query) || ticket.bookingCode.toLowerCase().includes(query) || ticket.ticketTypeName.toLowerCase().includes(query));
-  }), [activeTab, searchQuery, tickets]);
+  const filteredTickets = useMemo(
+    () =>
+      tickets.filter((ticket) => {
+        const tabMatches =
+          activeTab === "ALL" ||
+          (activeTab === "UPCOMING" && ["UPCOMING", "SELLING", "GIFTING"].includes(ticket.status)) ||
+          (activeTab === "USED" && ticket.status === "USED") ||
+          (activeTab === "TRANSFERRED" && ticket.status === "TRANSFERRED");
+        const query = searchQuery.trim().toLowerCase();
+        return (
+          tabMatches &&
+          (!query ||
+            ticket.eventTitle.toLowerCase().includes(query) ||
+            ticket.bookingCode.toLowerCase().includes(query) ||
+            ticket.ticketTypeName.toLowerCase().includes(query))
+        );
+      }),
+    [activeTab, searchQuery, tickets]
+  );
 
-  const tabs: Array<{ value: TicketFilter; label: string }> = [
-    { value: "ALL", label: "Tất cả" },
-    { value: "UPCOMING", label: "Sắp diễn ra" },
-    { value: "USED", label: "Đã sử dụng" },
-    { value: "TRANSFERRED", label: "Đã chuyển nhượng" },
+  const tabs: Array<{ value: TicketFilter; labelKey: string }> = [
+    { value: "ALL", labelKey: "Tất cả" },
+    { value: "UPCOMING", labelKey: "Sắp diễn ra" },
+    { value: "USED", labelKey: "Đã sử dụng" },
+    { value: "TRANSFERRED", labelKey: "Đã chuyển nhượng" },
   ];
 
   return (
     <div className={`w-full font-sans ${embedded ? "" : "flex-1 app-bg-page app-text-main pb-20"}`}>
-      <div className={embedded ? "space-y-5" : "mx-auto mt-8 max-w-[1120px] space-y-5 px-5 md:px-8"}>
-        <section className="rounded-2xl border app-border app-bg-card p-5 sm:p-6">
+      <div className={embedded ? "space-y-5" : "mx-auto mt-8 max-w-[1160px] space-y-5 px-4 md:px-8"}>
+        {/* Header section */}
+        <section className="rounded-2xl border app-border app-bg-card p-5 sm:p-6 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">Tủ vé điện tử</p><h1 className="mt-1 text-2xl font-bold tracking-tight app-text-main">Vé của tôi</h1><p className="mt-1 text-sm app-text-sub">Xem vé, quản lý check-in và chuyển quyền sở hữu.</p></div>
-            <label className="relative block w-full sm:w-72"><FiSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 app-text-muted" /><span className="sr-only">Tìm vé</span><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm vé…" className="w-full rounded-xl border app-border app-bg-card py-2.5 pl-10 pr-4 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500" /></label>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">{t("Tủ vé điện tử")}</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight app-text-main">{t("Vé của tôi")}</h1>
+              <p className="mt-1 text-sm app-text-sub">{t("Nhấn vào vé để xem chi tiết mã QR và quản lý vé.")}</p>
+            </div>
+            <label className="relative block w-full sm:w-72">
+              <FiSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 app-text-muted" />
+              <span className="sr-only">{t("Tìm kiếm")}</span>
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("Tìm vé…")}
+                className="w-full rounded-xl border app-border app-bg-card py-2.5 pl-10 pr-4 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </label>
           </div>
           <div className="mt-5 flex gap-1 overflow-x-auto border-t app-border pt-4" role="tablist">
-            {tabs.map((tab) => <button key={tab.value} type="button" role="tab" aria-selected={activeTab === tab.value} onClick={() => setActiveTab(tab.value)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${activeTab === tab.value ? "bg-blue-600 text-white" : "app-text-sub hover:bg-slate-500/10 hover:app-text-main"}`}>{tab.label} <span className={activeTab === tab.value ? "text-blue-100" : "app-text-muted"}>{counts[tab.value]}</span></button>)}
+            {tabs.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                  activeTab === tab.value
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "app-text-sub hover:bg-slate-500/10 hover:app-text-main"
+                }`}
+              >
+                {t(tab.labelKey)}{" "}
+                <span className={activeTab === tab.value ? "text-blue-100" : "app-text-muted"}>
+                  {counts[tab.value]}
+                </span>
+              </button>
+            ))}
           </div>
         </section>
 
         {loading ? (
-          <div className="rounded-2xl border app-border app-bg-card p-12 text-center text-sm app-text-sub">Đang tải vé từ hệ thống…</div>
+          <div className="rounded-2xl border app-border app-bg-card p-12 text-center text-sm app-text-sub">
+            {t("Đang tải vé từ hệ thống…")}
+          </div>
         ) : loadError ? (
-          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-8 text-center text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><p>{loadError}</p><button type="button" onClick={() => void loadTickets()} className="mt-4 rounded-xl border border-current px-4 py-2 font-semibold">Thử lại</button></div>
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-8 text-center text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+            <p>{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void loadTickets()}
+              className="mt-4 rounded-xl border border-current px-4 py-2 font-semibold cursor-pointer"
+            >
+              {t("Thử lại")}
+            </button>
+          </div>
         ) : filteredTickets.length ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filteredTickets.map((ticket) => {
               const canTransact = ticket.rawStatus === "VALID";
+              const isResale = ticket.acquisitionType === "RESALE";
+
               return (
-                <article key={ticket.id} className="relative overflow-visible rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="h-28 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800 sm:h-22 sm:w-32">
+                /* 
+                 * THẺ VÉ DẠNG CUỐNG VÉ (TICKET-STUB):
+                 * - Tỉ lệ 6 : 4 (6 phần thông tin bên trái md:col-span-6, 4 phần banner bên phải md:col-span-4).
+                 * - Đồng bộ màu sắc với nền sáng / tối (app-bg-card, app-border, app-text-main, app-bg-page).
+                 * - Bấm trực tiếp vào thẻ vé để mở modal xem vé.
+                 * - Rãnh khuyết bán nguyệt 2 đầu đường nét đứt (-top-3.5, -bottom-3.5, app-bg-page).
+                 */
+                <article
+                  key={ticket.id}
+                  tabIndex={0}
+                  onClick={() => setViewerTicket(ticket)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") setViewerTicket(ticket);
+                  }}
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl md:rounded-3xl border app-border app-bg-card app-text-main shadow-xs transition-all duration-200 hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500/50 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <button
+                    type="button"
+                    className="sr-only"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewerTicket(ticket);
+                    }}
+                  >
+                    {t("Xem vé")}
+                  </button>
+                  <div className="grid grid-cols-1 md:grid-cols-10 min-h-[220px]">
+                    {/* Cột trái: Thông tin vé (Đúng tỉ lệ 6 phần = 60% trên md) */}
+                    <div className="relative p-6 sm:p-7 md:col-span-6 flex flex-col justify-between space-y-4 sm:space-y-5 app-bg-card">
+                      <div className="space-y-3">
+                        {/* Hàng badge: Bán lại vé (nếu resale) + Trạng thái vé */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isResale && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-xs">
+                              <FiTag className="h-3.5 w-3.5" /> {t("Bán lại vé")}
+                            </span>
+                          )}
+                          <StatusBadge status={ticket.status} />
+                        </div>
+
+                        {/* Tiêu đề sự kiện (Tăng kích thước, rõ nét) */}
+                        <h2 className="text-lg sm:text-xl lg:text-2xl font-black app-text-main leading-snug tracking-tight line-clamp-2">
+                          {ticket.eventTitle}
+                        </h2>
+
+                        {/* Thời gian & Địa điểm (Tăng kích thước và độ rõ ràng) */}
+                        <div className="space-y-2 text-xs sm:text-sm font-medium app-text-sub">
+                          <p className="flex items-center gap-2.5">
+                            <FiCalendar className="shrink-0 text-blue-600 dark:text-blue-400 h-4 w-4" />
+                            <span className="truncate font-semibold app-text-main">{ticket.eventTime}</span>
+                          </p>
+                          <p className="flex items-center gap-2.5">
+                            <FiMapPin className="shrink-0 text-blue-600 dark:text-blue-400 h-4 w-4" />
+                            <span className="truncate">{ticket.eventLocation}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Hàng thông tin hạng vé & Giá vé đồng bộ màu sắc */}
+                      <div className="pt-3 border-t app-border flex flex-wrap items-end justify-between gap-3">
+                        <div className="space-y-1">
+                          <span className="text-xs sm:text-sm font-bold app-text-main block">
+                            {ticket.ticketTypeName} · <span className="text-blue-600 dark:text-blue-400 font-extrabold">{ticket.quantity} {t("vé")}</span>
+                          </span>
+                          <span className="font-mono text-xs app-text-sub block">
+                            {t("Mã vé:")} <strong className="font-bold app-text-main">{ticket.bookingCode}</strong>
+                          </span>
+                        </div>
+
+                        <div className="text-right">
+                          <strong className="block text-lg sm:text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                            {formatCurrency(ticket.totalAmount)}
+                          </strong>
+                          <span className="text-xs font-semibold app-text-sub block">
+                            {isResale ? t("Giá mua vé bán lại") : t("Giá vé")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rãnh khuyết bán nguyệt trên và dưới ở ranh giới cuống vé (chuẩn màu nền trang app-bg-page cả sáng và tối) */}
+                      <span
+                        aria-hidden="true"
+                        className="hidden md:block absolute -top-3.5 -right-3.5 z-10 h-7 w-7 rounded-full app-bg-page border app-border"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="hidden md:block absolute -bottom-3.5 -right-3.5 z-10 h-7 w-7 rounded-full app-bg-page border app-border"
+                      />
+                    </div>
+
+                    {/* Cột phải: Banner sự kiện (Đúng tỉ lệ 4 phần = 40% trên md) có đường viền nét đứt phân cách */}
+                    <div className="relative md:col-span-4 border-t md:border-t-0 md:border-l border-dashed app-border h-48 sm:h-56 md:h-full min-h-[200px] overflow-hidden bg-slate-900">
                       {ticket.eventPoster ? (
-                        <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover" />
+                        <img
+                          src={ticket.eventPoster}
+                          alt={ticket.eventTitle}
+                          className="h-full w-full object-cover filter brightness-90 transition-transform duration-300 group-hover:scale-105"
+                        />
                       ) : (
-                        <div className="flex h-full items-center justify-center"><FiTag className="h-5 w-5 text-slate-400" /></div>
+                        <div className="flex h-full w-full items-center justify-center bg-slate-800 text-slate-500">
+                          <FiTag className="h-8 w-8 opacity-40" />
+                        </div>
                       )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="line-clamp-2 text-base font-semibold leading-snug text-slate-900 dark:text-slate-100">{ticket.eventTitle}</h2>
-                        <StatusBadge status={ticket.status} />
-                      </div>
-                      <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:gap-4">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <FiCalendar className="shrink-0 text-slate-400 h-3.5 w-3.5" />
-                          <span className="truncate">{ticket.eventTime}</span>
-                        </span>
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <FiMapPin className="shrink-0 text-slate-400 h-3.5 w-3.5" />
-                          <span className="truncate">{ticket.eventLocation}</span>
-                        </span>
-                      </div>
-                      <div className="mt-2.5 flex items-center justify-between gap-3 text-xs">
-                        <span className="text-slate-500 font-medium">{ticket.ticketTypeName} · {ticket.quantity} vé</span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{formatCurrency(ticket.totalAmount)}</span>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center justify-end gap-2 sm:pl-2">
-                      <button
-                        type="button"
-                        onClick={() => setViewerTicket(ticket)}
-                        className="rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        Xem vé
-                      </button>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setOpenMenuId((current) => current === ticket.id ? undefined : ticket.id)}
-                          aria-label="Thao tác với vé"
-                          aria-expanded={openMenuId === ticket.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                          <FiMoreHorizontal className="h-4 w-4 text-slate-500" />
-                        </button>
-                        {openMenuId === ticket.id && (
-                          <div className="absolute bottom-11 right-0 z-20 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                            {canTransact && (
-                              <button
-                                type="button"
-                                onClick={() => { setOpenMenuId(undefined); downloadTicketAsImage(ticket); }}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
-                              >
-                                <FiDownload className="h-3.5 w-3.5 text-slate-400" /> Tải vé
-                              </button>
-                            )}
-                            {canTransact && (
-                              <button
-                                type="button"
-                                onClick={() => { setOpenMenuId(undefined); setResaleTicket(ticket); }}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
-                              >
-                                <FiTag className="h-3.5 w-3.5 text-slate-400" /> Đăng bán lại
-                              </button>
-                            )}
-                            {canTransact && (
-                              <button
-                                type="button"
-                                onClick={() => { setOpenMenuId(undefined); setGiftTicket(ticket); }}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
-                              >
-                                <FiGift className="h-3.5 w-3.5 text-slate-400" /> Tặng vé
-                              </button>
-                            )}
-                            <Link
-                              to={`/my-tickets/${ticket.id}`}
-                              onClick={() => setOpenMenuId(undefined)}
-                              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+
+                      <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/40 via-transparent to-transparent pointer-events-none" />
+
+                      {/* Nút 3 chấm menu thao tác (Nổi trên ảnh góc trên bên phải) */}
+                      <div className="absolute top-3 right-3 z-20">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenMenuId((current) => (current === ticket.id ? undefined : ticket.id));
+                            }}
+                            aria-label="Thao tác với vé"
+                            aria-expanded={openMenuId === ticket.id}
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/60 hover:bg-slate-950/85 text-white backdrop-blur-xs border border-white/20 shadow-md transition cursor-pointer"
+                          >
+                            <FiMoreHorizontal className="h-4 w-4" />
+                          </button>
+
+                          {openMenuId === ticket.id && (
+                            <div
+                              onClick={(event) => event.stopPropagation()}
+                              className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-xl border app-border app-bg-card py-1.5 shadow-2xl app-text-main animate-in zoom-in-95 duration-100"
                             >
-                              <FiArrowRight className="h-3.5 w-3.5 text-slate-400" /> Chi tiết
-                            </Link>
-                          </div>
-                        )}
+                              {canTransact && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMenuId(undefined);
+                                    downloadTicketAsImage(ticket);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                  <FiDownload className="h-3.5 w-3.5 text-blue-500" /> {t("Tải vé (.PNG)")}
+                                </button>
+                              )}
+                              {canTransact && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMenuId(undefined);
+                                    setResaleTicket(ticket);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                  <FiTag className="h-3.5 w-3.5 text-emerald-500" /> {t("Đăng bán lại")}
+                                </button>
+                              )}
+                              {canTransact && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMenuId(undefined);
+                                    setGiftTicket(ticket);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                  <FiGift className="h-3.5 w-3.5 text-purple-500" /> {t("Tặng vé")}
+                                </button>
+                              )}
+                              <Link
+                                to={`/my-tickets/${ticket.id}`}
+                                onClick={() => setOpenMenuId(undefined)}
+                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                              >
+                                <FiArrowRight className="h-3.5 w-3.5 text-indigo-500" /> {t("Chi tiết vé")}
+                              </Link>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 truncate border-t border-slate-100 pt-2 font-mono text-[11px] text-slate-400 dark:border-slate-800">
-                    Mã vé: {ticket.bookingCode}
-                  </p>
                 </article>
               );
             })}
           </div>
         ) : (
-          <div className="mx-auto max-w-lg rounded-2xl border app-border app-bg-card p-10 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40"><FiTag className="h-5 w-5" /></div><h2 className="mt-4 text-lg font-bold app-text-main">Không tìm thấy vé phù hợp</h2><p className="mt-2 text-sm app-text-sub">Thử đổi bộ lọc hoặc tìm một sự kiện khác.</p><Link to="/events" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline">Khám phá sự kiện <FiArrowRight /></Link></div>
+          <div className="mx-auto max-w-lg rounded-2xl border app-border app-bg-card p-10 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40">
+              <FiTag className="h-5 w-5" />
+            </div>
+            <h2 className="mt-4 text-lg font-bold app-text-main">{t("Không tìm thấy vé phù hợp")}</h2>
+            <p className="mt-2 text-sm app-text-sub">{t("Thử đổi bộ lọc hoặc tìm một sự kiện khác.")}</p>
+            <Link
+              to="/events"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline"
+            >
+              {t("Khám phá sự kiện")} <FiArrowRight />
+            </Link>
+          </div>
         )}
       </div>
 
       {viewerTicket && <TicketViewer ticket={viewerTicket} onClose={() => setViewerTicket(undefined)} />}
-      {resaleTicket && <ResaleTicketModal ticket={resaleTicket} onClose={() => setResaleTicket(undefined)} onChanged={loadTickets} />}
-      {giftTicket && <GiftTicketModal ticket={giftTicket} onClose={() => setGiftTicket(undefined)} onChanged={loadTickets} />}
+      {resaleTicket && (
+        <ResaleTicketModal ticket={resaleTicket} onClose={() => setResaleTicket(undefined)} onChanged={loadTickets} />
+      )}
+      {giftTicket && (
+        <GiftTicketModal ticket={giftTicket} onClose={() => setGiftTicket(undefined)} onChanged={loadTickets} />
+      )}
     </div>
   );
 }

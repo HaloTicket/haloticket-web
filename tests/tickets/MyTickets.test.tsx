@@ -76,7 +76,7 @@ describe("MyTickets", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Xem vé" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Xem vé" }));
 
-    expect(screen.getByText("Mã QR hiện không khả dụng")).toBeInTheDocument();
+    expect(screen.getByText("Mã QR đang bị khóa")).toBeInTheDocument();
     expect(screen.queryByAltText("Mã QR check-in")).not.toBeInTheDocument();
   });
 

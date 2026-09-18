@@ -7,6 +7,13 @@ import type {
 } from "@/types";
 
 export const paymentApi = {
+  confirmVnPayReturn: async (params: URLSearchParams): Promise<Record<string, string>> => {
+    return axiosClient.get<unknown, Record<string, string>>(`/payments/vnpay/ipn?${params.toString()}`);
+  },
+  confirmSandboxReturn: async (bookingId: string, provider: string): Promise<PaymentResponse> => {
+    const params = new URLSearchParams({ bookingId, provider });
+    return axiosClient.post<unknown, PaymentResponse>(`/payments/sandbox/confirm-return?${params.toString()}`);
+  },
   createPayment: async (request: PaymentCreateRequest): Promise<PaymentResponse | null> => {
     try {
       const response: unknown = await axiosClient.post("/payments", request);

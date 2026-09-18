@@ -24,18 +24,20 @@ export default function VietQrModal({
   const [copiedAccountNo, setCopiedAccountNo] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  
+
   // 15-minute payment countdown timer (900 seconds)
   const [timeLeft, setTimeLeft] = useState<number>(15 * 60);
   const [isExpired, setIsExpired] = useState<boolean>(false);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
-  // reset timer whenever modal opens
-  useEffect(() => {
+  // Reset timer during render phase when modal transitions to open
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setTimeLeft(15 * 60);
       setIsExpired(false);
     }
-  }, [isOpen]);
+  }
 
   // 15-min countdown interval
   useEffect(() => {
@@ -108,13 +110,11 @@ export default function VietQrModal({
       ) {
         onSuccess();
       } else {
-        // fallback demo confirm
-        setTimeout(() => {
-          onSuccess();
-        }, 1200);
+        const confirmed = await paymentApi.confirmSandboxReturn(bookingId, "vietqr");
+        if (["COMPLETED", "PAID", "SUCCESS"].includes(confirmed.status)) onSuccess();
       }
-    } catch {
-      onSuccess();
+    } catch (err) {
+      console.error("Manual payment verification failed:", err);
     } finally {
       setIsVerifying(false);
     }
