@@ -335,25 +335,23 @@ export default function EkycVerification() {
                   className="flex items-center gap-1.5 sm:gap-2 py-1 text-xs cursor-pointer transition-all shrink-0"
                 >
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      isActive
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : isCompleted
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${isActive
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : isCompleted
                         ? "bg-emerald-600 text-white"
                         : "app-bg-subnav app-text-muted border app-border"
-                    }`}
+                      }`}
                   >
                     {isCompleted && !isActive ? <FiCheck className="w-3.5 h-3.5 stroke-[3]" /> : step}
                   </div>
 
                   <span
-                    className={`text-xs hidden sm:inline transition-colors ${
-                      isActive
-                        ? "text-blue-600 dark:text-blue-400 font-bold"
-                        : isCompleted
+                    className={`text-xs hidden sm:inline transition-colors ${isActive
+                      ? "text-blue-600 dark:text-blue-400 font-bold"
+                      : isCompleted
                         ? "text-emerald-600 dark:text-emerald-400 font-semibold"
                         : "app-text-muted font-normal"
-                    }`}
+                      }`}
                   >
                     {title}
                   </span>
