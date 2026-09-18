@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
-import React from "react";
+import React, { useMemo } from "react";
 import { FiCalendar, FiMapPin, FiChevronRight } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { EventDetailData } from "@/types";
@@ -14,11 +14,116 @@ interface EventHeroProps {
 
 export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, isResaleTag = false }) => {
   useTranslation();
-  const rawPrice = event.minPrice ?? "";
-  const priceValue = parseVndAmount(rawPrice);
-  const displayPrice = priceValue !== undefined
-    ? formatCurrency(priceValue)
-    : rawPrice || translate("Miễn phí");
+
+  // Calculate dynamic minimum price across all ticket types / showtimes
+  const { displayPrice } = useMemo(() => {
+    const prices: number[] = [];
+    if (event.minPrice !== undefined && event.minPrice !== null) {
+      if (typeof event.minPrice === "number" && !isNaN(event.minPrice)) {
+        prices.push(event.minPrice);
+      } else if (typeof event.minPrice === "string") {
+        const parsed = parseVndAmount(event.minPrice);
+        if (parsed !== undefined) prices.push(parsed);
+      }
+    }
+
+    const rawTickets = (event as any).tickets || (event as any).ticketTypes;
+    if (Array.isArray(rawTickets) && rawTickets.length > 0) {
+      rawTickets.forEach((t: any) => {
+        if (typeof t.price === "number" && !isNaN(t.price)) {
+          prices.push(t.price);
+        } else if (typeof t.price === "string") {
+          const p = parseVndAmount(t.price);
+          if (p !== undefined) prices.push(p);
+        }
+      });
+    }
+
+    if (Array.isArray(event.showtimes)) {
+      event.showtimes.forEach((st: any) => {
+        if (Array.isArray(st.tickets)) {
+          st.tickets.forEach((t: any) => {
+            if (typeof t.priceValue === "number" && !isNaN(t.priceValue)) {
+              prices.push(t.priceValue);
+            } else if (typeof t.price === "number" && !isNaN(t.price)) {
+              prices.push(t.price);
+            } else if (typeof t.price === "string") {
+              const p = parseVndAmount(t.price);
+              if (p !== undefined) prices.push(p);
+            }
+          });
+        }
+      });
+    }
+
+    if (prices.length > 0) {
+      const min = Math.min(...prices);
+      if (min === 0) return { displayPrice: translate("Miễn phí") };
+      return { displayPrice: formatCurrency(min) };
+    }
+    return { displayPrice: translate("Miễn phí") };
+  }, [event]);
+
+  // Calculate buy ticket button status according to sale schedule and ticket availability
+  const salesStatus = useMemo(() => {
+    const now = new Date();
+    const saleStart = event.ticketSaleStartDate ? new Date(event.ticketSaleStartDate) : null;
+    const saleEnd = event.ticketSaleEndDate ? new Date(event.ticketSaleEndDate) : null;
+
+    if (saleStart && now < saleStart) {
+      return {
+        isClosed: true,
+        buttonText: `${translate("Chưa mở bán")} (${saleStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${saleStart.toLocaleDateString("vi-VN")})`,
+      };
+    }
+
+    if (saleEnd && now > saleEnd) {
+      return {
+        isClosed: true,
+        buttonText: translate("Đã hết hạn bán vé"),
+      };
+    }
+
+    const rawTickets = (event as any).tickets || (event as any).ticketTypes;
+    let totalAvailable = 0;
+    let hasTicketData = false;
+
+    if (Array.isArray(rawTickets) && rawTickets.length > 0) {
+      hasTicketData = true;
+      rawTickets.forEach((t: any) => {
+        const q = t.totalQuantity ?? t.quantity ?? 100;
+        const s = t.soldQuantity ?? 0;
+        if (t.available !== false && q - s > 0) {
+          totalAvailable += q - s;
+        }
+      });
+    }
+
+    if (Array.isArray(event.showtimes) && event.showtimes.length > 0) {
+      hasTicketData = true;
+      event.showtimes.forEach((st: any) => {
+        if (Array.isArray(st.tickets)) {
+          st.tickets.forEach((t: any) => {
+            if (t.available) totalAvailable += 1;
+          });
+        }
+      });
+    }
+
+    const isSoldOut = (event as any).isSoldOut || (hasTicketData && totalAvailable === 0);
+    if (isSoldOut) {
+      return {
+        isClosed: true,
+        buttonText: translate("Đã hết vé"),
+      };
+    }
+
+    return {
+      isClosed: false,
+      buttonText: translate("Mua vé ngay"),
+    };
+  }, [event]);
+
   const extraDaysCount = event.extraDaysCount || (event.showtimes && event.showtimes.length > 1 ? event.showtimes.length - 1 : 0);
   const displayDate = event.datesSummary || (event.startTime ? formatDate(event.startTime) : translate("Sắp diễn ra"));
   const locationName = event.locationName || translate("Địa điểm chưa cập nhật");
@@ -100,38 +205,19 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             </div>
 
             {/* CTA Button */}
-            {(() => {
-              const now = new Date();
-              const saleStart = event.ticketSaleStartDate ? new Date(event.ticketSaleStartDate) : null;
-              const saleEnd = event.ticketSaleEndDate ? new Date(event.ticketSaleEndDate) : null;
-
-              let isClosed = false;
-              let buttonText = translate("Mua vé ngay");
-
-              if (saleStart && now < saleStart) {
-                isClosed = true;
-                buttonText = `Mở bán lúc ${saleStart.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} ${saleStart.toLocaleDateString("vi-VN")}`;
-              } else if (saleEnd && now > saleEnd) {
-                isClosed = true;
-                buttonText = translate("Đã hết hạn bán vé");
-              }
-
-              return (
-                <button
-                  type="button"
-                  disabled={isClosed}
-                  onClick={onBuyTicketsClick}
-                  className={`w-full py-2.5 font-extrabold text-xs md:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
-                    isClosed
-                      ? "bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed shadow-none"
-                      : "gradient-btn text-white"
-                  }`}
-                >
-                  <FaTicketAlt className="w-3.5 h-3.5" />
-                  <span>{buttonText}</span>
-                </button>
-              );
-            })()}
+            <button
+              type="button"
+              disabled={salesStatus.isClosed}
+              onClick={onBuyTicketsClick}
+              className={`w-full py-2.5 font-extrabold text-xs md:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
+                salesStatus.isClosed
+                  ? "bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed shadow-none"
+                  : "gradient-btn text-white"
+              }`}
+            >
+              <FaTicketAlt className="w-3.5 h-3.5" />
+              <span>{salesStatus.buttonText}</span>
+            </button>
           </div>
         </div>
 

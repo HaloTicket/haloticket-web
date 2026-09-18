@@ -20,7 +20,7 @@ interface FaceCaptureStepProps {
   onRetake: () => void;
   onNext: () => void;
   onPrev: () => void;
-  returnUrl: string;
+  returnUrl?: string;
   isActive?: boolean;
 }
 

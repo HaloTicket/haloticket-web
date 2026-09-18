@@ -3,11 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
+import { bookingApi } from "@/services/bookingApi";
 import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
 import type { TicketTypeApiResponse } from "@/types";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { PRESET_TEMPLATES } from "@/mock/presetTemplates";
 import { formatCurrency } from "@/utils/formatters";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 export interface CartTicketItem {
   zoneId: string;
@@ -93,6 +96,7 @@ export default function SelectTicket() {
 
   // cart of selected tickets from multiple zones
   const [cart, setCart] = useState<CartTicketItem[]>([]);
+  const [selectedSeatObjects, setSelectedSeatObjects] = useState<any[]>([]);
 
   // selected zone for quantity selector modal
   const [activeZoneModal, setActiveZoneModal] = useState<ZoneModalData | null>(null);
@@ -278,28 +282,49 @@ export default function SelectTicket() {
     }
 
     loadData();
-    const interval = setInterval(async () => {
-      if (id) {
-        const statusData = await ticketApi.getSeatStatus(id);
-        if (isMounted && statusData) {
-          setSeatStatusMap(statusData);
+
+    // setup WebSocket STOMP client for real-time seat status updates
+    const stompClient = new Client({
+      webSocketFactory: () => new SockJS("http://localhost:8084/ws"), // direct booking-service connection
+      reconnectDelay: 5000,
+      onConnect: () => {
+        if (id) {
+          stompClient.subscribe(`/topic/seats/${id}`, (message: any) => {
+            if (message.body) {
+              try {
+                const data = JSON.parse(message.body);
+                setSeatStatusMap((prev) => ({
+                  ...prev,
+                  [data.seatId]: data.status,
+                }));
+              } catch (e) {
+                console.warn("Error parsing websocket message", e);
+              }
+            }
+          });
         }
-      }
-    }, 3000);
+      },
+      onStompError: (frame: any) => {
+        console.error("Broker reported error: " + frame.headers?.["message"]);
+        console.error("Additional details: " + frame.body);
+      },
+    });
+
+    stompClient.activate();
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      stompClient.deactivate();
     };
   }, [id]);
 
-  // Extract combined zones list
+  // extract combined zones list
   const zonesList = useMemo(() => {
     if (!seatMap || !seatMap.zones) return [];
     return Object.values(seatMap.zones);
   }, [seatMap]);
 
-  // Compute Price Legend Panel
+  // compute price legend panel
   const priceLegend = useMemo(() => {
     if (zonesList.length > 0) {
       return zonesList.map((z, idx) => {
@@ -338,20 +363,51 @@ export default function SelectTicket() {
     ];
   }, [zonesList, ticketTypes, seatMap]);
 
+  // storage event listener for cross-tab realtime synchronization
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "haloticket_pending_order" || e.key === "haloticket_seat_status_map") {
+        if (id) {
+          ticketApi.getSeatStatus(id).then((statusData) => {
+            if (statusData) setSeatStatusMap(statusData);
+          });
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [id]);
+
   // Handle Zone selection click
   const handleZoneClick = (zone: { id: string; name: string; price?: number; color?: string; tierId?: string; capacity?: number }) => {
     setErrorMessage(null);
-    const status = seatStatusMap[zone.id];
-    if (status === "HOLDING") {
-      setErrorMessage("Khu vực này đang được giữ tạm 15 phút bởi khách hàng khác.");
-      return;
-    } else if (status === "SOLD") {
-      setErrorMessage("Khu vực này đã được bán hết vé.");
-      return;
+
+    const seatsInZone = seatMap?.seats?.filter((s) => s.zoneId === zone.id || (zone.name && s.zoneId === zone.name)) || [];
+    const isSeatedZone = seatsInZone.length > 0;
+
+    if (isSeatedZone) {
+      const availableSeats = seatsInZone.filter((s) => {
+        const st = seatStatusMap[s.id] || s.status;
+        return st !== "SOLD" && st !== "sold" && st !== "HELD" && st !== "HOLDING" && st !== "reserved";
+      });
+      if (availableSeats.length === 0) {
+        setErrorMessage("Khu vực này đã hết vé.");
+        return;
+      }
+    } else {
+      const totalCapacity = zone.capacity || 100;
+      const soldOrHeld = Object.entries(seatStatusMap).filter(
+        ([k, v]) => (k === zone.id || k.startsWith(zone.id + "_") || k.includes(zone.id)) && (v === "SOLD" || v === "HELD" || v === "HOLDING")
+      ).length;
+      if (totalCapacity - soldOrHeld <= 0) {
+        setErrorMessage("Khu vực này đã hết vé.");
+        return;
+      }
     }
 
     const tier = ticketTypes.find((t) => t.id === zone.tierId);
-    const price = zone.price ?? tier?.price ?? priceLegend.find((p) => p.id === zone.id || p.name === zone.name)?.price ?? 1000000;
+    const price = zone.price ?? tier?.price ?? 1000000;
     const minQty = tier?.minPerOrder || 1;
 
     const existingInCart = cart.find((item) => item.zoneId === zone.id);
@@ -370,7 +426,83 @@ export default function SelectTicket() {
     setSelectedQuantity(initialQty);
   };
 
-  // Confirm Zone Selection & Add/Update Ticket to Cart (Multiple Zone selection!)
+  // handle individual seat selection toggle on 2D map
+  const handleToggleAttendeeSeat = async (seat: any) => {
+    setErrorMessage(null);
+    const existingIndex = selectedSeatObjects.findIndex((s) => s.id === seat.id);
+
+    if (existingIndex >= 0) {
+      // unselect seat
+      const updatedSeats = selectedSeatObjects.filter((s) => s.id !== seat.id);
+      setSelectedSeatObjects(updatedSeats);
+
+      const targetZoneId = seat.zoneId;
+      setCart((prev) => {
+        const item = prev.find((i) => i.zoneId === targetZoneId);
+        if (!item) return prev;
+        if (item.quantity <= 1) {
+          return prev.filter((i) => i.zoneId !== targetZoneId);
+        }
+        return prev.map((i) => (i.zoneId === targetZoneId ? { ...i, quantity: i.quantity - 1 } : i));
+      });
+    } else {
+      // check seat status first
+      const st = seatStatusMap[seat.id] || seat.status;
+      if (st === "SOLD" || st === "sold") {
+        setErrorMessage("Ghế này đã được bán. Vui lòng chọn ghế khác.");
+        return;
+      }
+      if (st === "HELD" || st === "HOLDING" || st === "reserved") {
+        setErrorMessage("Khu vực này đang được giữ tạm bởi khách hàng khác.");
+        return;
+      }
+      if (st === "BLOCKED" || st === "blocked") {
+        setErrorMessage("Ghế này đang bị khóa hoặc bảo trì.");
+        return;
+      }
+
+      // select seat
+      const zone = seatMap?.zones?.[seat.zoneId] || (seatMap?.zones && Object.values(seatMap.zones).find((z: any) => z.id === seat.zoneId || z.name === seat.zoneId));
+      const tier = ticketTypes.find((t) => t.id === zone?.tierId);
+      const maxQty = tier?.maxPerOrder || zone?.maxPerOrder || 4;
+
+      const currentZoneSeatsCount = selectedSeatObjects.filter((s) => s.zoneId === seat.zoneId || s.zoneId === zone?.id).length;
+      if (currentZoneSeatsCount >= maxQty) {
+        setErrorMessage(`Bạn chỉ được chọn tối đa ${maxQty} ghế trong khu vực ${zone?.name || "này"}.`);
+        return;
+      }
+
+      const updatedSeats = [...selectedSeatObjects, seat];
+      setSelectedSeatObjects(updatedSeats);
+
+      const price = zone?.price ?? tier?.price ?? 1000000;
+      const zoneId = zone?.id || seat.zoneId || "zone_default";
+      const zoneName = zone?.name || seat.zoneId || "Khu vực có ghế";
+
+      setCart((prev) => {
+        const existing = prev.find((i) => i.zoneId === zoneId);
+        if (existing) {
+          return prev.map((i) => (i.zoneId === zoneId ? { ...i, quantity: i.quantity + 1 } : i));
+        }
+        return [
+          ...prev,
+          {
+            zoneId,
+            zoneName,
+            tierId: tier?.id,
+            tierName: tier?.name || "Vé Tiêu Chuẩn",
+            price,
+            quantity: 1,
+            color: zone?.color || "#3b82f6",
+            maxPerOrder: maxQty,
+            minPerOrder: tier?.minPerOrder || 1,
+          },
+        ];
+      });
+    }
+  };
+
+  // confirm zone selection & add/update ticket to cart (multiple zone selection!)
   const handleConfirmAddZoneToCart = () => {
     setErrorMessage(null);
     if (!activeZoneModal) return;
@@ -436,6 +568,7 @@ export default function SelectTicket() {
 
   const handleRemoveCartItem = (zoneId: string) => {
     setCart((prev) => prev.filter((item) => item.zoneId !== zoneId));
+    setSelectedSeatObjects(prev => prev.filter(s => !(s.zoneId === zoneId || s.zoneId === seatMap?.zones?.[zoneId]?.name)));
   };
 
   const cartTotalAmount = useMemo(() => {
@@ -446,12 +579,57 @@ export default function SelectTicket() {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
   }, [cart]);
 
-  // Proceed to Checkout Step with all selected tickets
-  const handleProceedToCheckout = () => {
+  // proceed to checkout step with all selected tickets
+  const handleProceedToCheckout = async () => {
     if (cart.length === 0 || cartTotalTickets === 0) return;
 
+    // generate or get a pseudo userId for holding
+    let userId = localStorage.getItem("haloticket_session_id");
+    if (!userId) {
+      userId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem("haloticket_session_id", userId);
+    }
+
+    if (selectedSeatObjects.length > 0) {
+      setIsLoading(true);
+      try {
+        const holdResults = await Promise.all(
+          selectedSeatObjects.map((s) => bookingApi.holdSeat({ eventId: id!, seatId: s.id, userId: userId! }))
+        );
+        const allSuccess = holdResults.every((res) => res === true);
+        if (!allSuccess) {
+          setErrorMessage("Một số ghế bạn chọn đã bị người khác giữ. Vui lòng chọn ghế khác.");
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        setErrorMessage("Lỗi hệ thống khi giữ ghế. Vui lòng thử lại.");
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(false);
+    }
+
     const firstItem = cart[0];
-    const ticketSummaryText = cart.map((c) => `${c.quantity}x ${c.zoneName}`).join(", ");
+    const ticketSummaryText = cart.map((c) => {
+       const seatsInZone = selectedSeatObjects.filter(s => s.zoneId === c.zoneId || s.zoneId === c.zoneName);
+       if (seatsInZone.length > 0) {
+          const seatLabels = seatsInZone.map(s => {
+             if (s.row && (s.col !== undefined || s.number !== undefined)) {
+                return `Hàng ${s.row} - Ghế ${s.col ?? s.number}`;
+             }
+             const match = s.id.match(/seat_\d+_(\d+)_(\d+)/);
+             if (match) {
+                 const r = String.fromCharCode(65 + parseInt(match[1]));
+                 const c = parseInt(match[2]) + 1;
+                 return `Hàng ${r} - Ghế ${c}`;
+             }
+             return s.id;
+          }).join(", ");
+          return `${c.zoneName} (${seatLabels})`;
+       }
+       return `${c.quantity}x ${c.zoneName}`;
+    }).join("; ");
     const expiresAt = Date.now() + 15 * 60 * 1000;
 
     const bookingPayload = {
@@ -466,6 +644,24 @@ export default function SelectTicket() {
       zoneName: firstItem.zoneName,
       ticketTypeName: ticketSummaryText,
       cartItems: cart,
+      seatIds: selectedSeatObjects.length > 0 
+           ? selectedSeatObjects.map(s => s.id) 
+           : Array.from({length: cartTotalTickets}).map((_, i) => `${firstItem.zoneId}-GA-${Date.now()}-${i+1}`),
+      seatNames: selectedSeatObjects.reduce((acc, s) => {
+           if (s.row && (s.col !== undefined || s.number !== undefined)) {
+               acc[s.id] = `Hàng ${s.row} - Ghế ${s.col ?? s.number}`;
+           } else {
+               const match = s.id.match(/seat_\d+_(\d+)_(\d+)/);
+               if (match) {
+                   const r = String.fromCharCode(65 + parseInt(match[1]));
+                   const c = parseInt(match[2]) + 1;
+                   acc[s.id] = `Hàng ${r} - Ghế ${c}`;
+               } else {
+                   acc[s.id] = s.id;
+               }
+           }
+           return acc;
+      }, {} as Record<string, string>),
       price: cart[0].price,
       quantity: cartTotalTickets,
       totalAmount: cartTotalAmount,
@@ -539,6 +735,7 @@ export default function SelectTicket() {
             structures={seatMap?.structures || []}
             zones={seatMap?.zones || {}}
             tiers={ticketTypes}
+            seatStatusMap={seatStatusMap}
             canvasSettings={seatMap?.canvasSettings || { width: 1500, height: 1050, gridSize: 20, snapEnabled: true, showGrid: true }}
             selectedSeatIds={[]}
             setSelectedSeatIds={() => { }}
@@ -558,8 +755,8 @@ export default function SelectTicket() {
             onUpdateZones={() => { }}
             onDeleteSelected={() => { }}
             isAttendeeMode={true}
-            attendeeCart={[]}
-            onToggleAttendeeSeat={() => { }}
+            attendeeCart={selectedSeatObjects}
+            onToggleAttendeeSeat={handleToggleAttendeeSeat}
             onSelectZoneAttendee={(zone) => {
               handleZoneClick(zone);
             }}
@@ -609,7 +806,15 @@ export default function SelectTicket() {
                 </div>
 
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {cart.map((item) => (
+                  {cart.map((item) => {
+                    const seatsInZone = selectedSeatObjects.filter(s => s.zoneId === item.zoneId || s.zoneId === item.zoneName);
+                    const seatLabels = seatsInZone.length > 0 ? seatsInZone.map(s => {
+                       if (s.row && (s.col !== undefined || s.number !== undefined)) {
+                          return `Hàng ${s.row} - Ghế ${s.col ?? s.number}`;
+                       }
+                       return s.id;
+                    }).join(", ") : null;
+                    return (
                     <div
                       key={item.zoneId}
                       className="flex items-center justify-between p-2.5 rounded-xl app-bg-card border app-border text-xs"
@@ -617,7 +822,10 @@ export default function SelectTicket() {
                       <div className="flex items-center gap-2 min-w-0 pr-2">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color || "#3b82f6" }} />
                         <div className="min-w-0">
-                          <div className="font-extrabold app-text-main truncate">{item.zoneName}</div>
+                          <div className="font-extrabold app-text-main truncate">
+                             {item.zoneName}
+                          </div>
+                          {seatLabels && <div className="text-[10px] text-blue-500 font-bold font-mono truncate">Ghế: {seatLabels}</div>}
                           <div className="text-[10px] app-text-sub font-mono">{formatCurrency(item.price)} / vé</div>
                         </div>
                       </div>
@@ -649,7 +857,7 @@ export default function SelectTicket() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )}

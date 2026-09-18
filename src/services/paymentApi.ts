@@ -133,4 +133,12 @@ export const paymentApi = {
       return null;
     }
   },
+
+  mockPaymentSuccess: async (bookingId: string): Promise<void> => {
+    try {
+      await axiosClient.post(`/payments/sepay/webhook`, { code: bookingId });
+    } catch (err) {
+      console.error("Failed to mock payment success:", err);
+    }
+  },
 };

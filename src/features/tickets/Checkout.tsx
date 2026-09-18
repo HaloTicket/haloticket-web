@@ -21,7 +21,15 @@ export default function Checkout() {
   const eventIdParam = searchParams.get("eventId");
 
   // load pending order data from localStorage or fallback
-  const [order] = useState<BookingOrderData & { eventPoster?: string | null; cartItems?: Array<Record<string, unknown>> }>(() => {
+  const [order] = useState<
+    BookingOrderData & {
+      eventPoster?: string | null;
+      cartItems?: any[];
+      seatIds?: string[];
+      zoneId?: string;
+      seatNames?: Record<string, string>;
+    }
+  >(() => {
     try {
       const saved = localStorage.getItem("haloticket_pending_order");
       if (saved) return JSON.parse(saved);
@@ -37,6 +45,8 @@ export default function Checkout() {
       quantity: 1,
       price: 0,
       totalAmount: 0,
+      eventPoster: null,
+      seatNames: {},
     };
   });
 
@@ -69,8 +79,23 @@ export default function Checkout() {
   const [eventPosterUrl, setEventPosterUrl] = useState<string | null>(order.eventPoster || null);
   const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
 
-  // 15-minute countdown timer
-  const [timeLeft, setTimeLeft] = useState<number>(14 * 60 + 50);
+  // 15-minute countdown timer synced with expiresAt timestamp in localStorage
+  const getExpiresAt = () => {
+    try {
+      const saved = localStorage.getItem("haloticket_pending_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.expiresAt) return parsed.expiresAt;
+        if (parsed.timestamp) return parsed.timestamp + 15 * 60 * 1000;
+      }
+    } catch {}
+    return Date.now() + 15 * 60 * 1000;
+  };
+
+  const [expiresAtTimestamp] = useState<number>(getExpiresAt);
+  const [timeLeft, setTimeLeft] = useState<number>(() =>
+    Math.max(0, Math.floor((getExpiresAt() - Date.now()) / 1000))
+  );
   const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
 
   useEffect(() => {
@@ -79,18 +104,23 @@ export default function Checkout() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsTimeoutModalOpen(true);
-          return 0;
+      const remaining = Math.max(0, Math.floor((expiresAtTimestamp - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer);
+        // release seats on timeout
+        const userId = localStorage.getItem("haloticket_session_id");
+        if (userId && order?.seatIds) {
+          order.seatIds.forEach((seatId: string) => {
+            bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
+          });
         }
-        return prev - 1;
-      });
+        setIsTimeoutModalOpen(true);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [expiresAtTimestamp, activeEventId, order?.seatIds]);
 
   // listen to browser back button (popstate) to display cancel order confirm modal (image 1)
   useEffect(() => {
@@ -288,11 +318,15 @@ export default function Checkout() {
       void recipientData;
       setIsSubmitting(true);
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
-      const seatIds = order.zoneId ? [order.zoneId] : [];
+      const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : (order.zoneId ? [order.zoneId] : []);
 
       // call real bookingApi backend
+      const userId = localStorage.getItem("haloticket_session_id") || "ANONYMOUS";
       const bookingRes = await bookingApi.createBooking({
         eventId: activeEventId || "",
+        customerId: userId,
+        customerEmail: recipientData.email,
+        customerName: recipientData.recipientName,
         totalAmount: finalTotalAmount,
         seatIds,
       });
@@ -301,6 +335,57 @@ export default function Checkout() {
       const bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
       setActiveBookingId(bookingId);
 
+      // Save to my_tickets cache - 1 physical ticket per seat
+      const newTickets = seatIds.map((seatId: string, idx: number) => {
+        let seatLabel = order.seatNames?.[seatId];
+        // fallback if not present
+        if (!seatLabel) {
+           const match = seatId.match(/seat_\d+_(\d+)_(\d+)/);
+           if (match) {
+             const rowName = String.fromCharCode(65 + parseInt(match[1])); // 0 -> A, 1 -> B
+             const colName = parseInt(match[2]) + 1;
+             seatLabel = `Hàng ${rowName} - Ghế ${colName}`;
+           } else {
+             seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
+           }
+        }
+        // Extract zone name from the ticketTypeName summary (e.g. "Khán đài S3 (Ghế...)")
+        let zoneNameStr = order.ticketTypeName.split("(")[0].trim();
+        if (!zoneNameStr) zoneNameStr = "Vé Sự kiện";
+
+        return {
+          id: `${bookingId}-${idx}`,
+          bookingCode: `${bookingCode}-${idx+1}`,
+          eventId: activeEventId,
+          eventTitle: order.eventTitle,
+          eventTime: order.eventTime,
+          eventLocation: order.eventLocation,
+          eventPoster: order.eventPoster,
+          ticketTypeName: `${zoneNameStr} (${seatLabel})`,
+          seatId: seatId,
+          quantity: 1,
+          totalAmount: finalTotalAmount / seatIds.length,
+          customerName: recipientData.recipientName || fullName,
+          customerPhone: recipientData.phone || phoneOrCccd,
+          customerEmail: recipientData.email || email,
+          shippingAddress: `${recipientData.address}, ${recipientData.ward}, ${recipientData.city}`,
+          paymentMethod: selectedPaymentMethod,
+          purchaseDate: new Date().toISOString(),
+          qrCode: `HALOTICKET-${bookingId}-${seatId}`,
+          status: "UPCOMING"
+        };
+      });
+      const existingMyTickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
+      localStorage.setItem("haloticket_my_tickets", JSON.stringify([...newTickets, ...existingMyTickets]));
+      
+      // Save order summary for success screen
+      localStorage.setItem("haloticket_last_order", JSON.stringify({
+         bookingId: bookingId,
+         eventTitle: order.eventTitle,
+         ticketTypeName: order.ticketTypeName,
+         totalAmount: finalTotalAmount,
+         quantity: seatIds.length
+      }));
       // Option 1: VNPay gateway
       if (selectedPaymentMethod === "vnpay") {
         const vnpayUrl = await paymentApi.createVnPayUrl(
@@ -955,12 +1040,20 @@ export default function Checkout() {
         onClose={() => setIsVietQrModalOpen(false)}
         bookingId={activeBookingId}
         vietQrData={vietQrData}
+        expiresAt={expiresAtTimestamp}
         onSuccess={() => {
           localStorage.removeItem("haloticket_pending_order");
           setIsVietQrModalOpen(false);
           navigate("/booking-success");
         }}
         onTimeout={() => {
+          // Release seats on timeout
+          const userId = localStorage.getItem("haloticket_session_id");
+          if (userId && order?.seatIds) {
+            order.seatIds.forEach((seatId: string) => {
+              bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
+            });
+          }
           localStorage.removeItem("haloticket_pending_order");
           setIsVietQrModalOpen(false);
           showToast("error", "Đã hết thời gian thanh toán (15 phút). Đơn hàng đã tự động hủy.");
@@ -972,6 +1065,13 @@ export default function Checkout() {
       <CancelOrderModal
         open={showCancelConfirmModal}
         onCancelOrder={() => {
+          // Release seats when cancelled manually
+          const userId = localStorage.getItem("haloticket_session_id");
+          if (userId && order?.seatIds) {
+            order.seatIds.forEach((seatId: string) => {
+              bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
+            });
+          }
           localStorage.removeItem("haloticket_pending_order");
           setShowCancelConfirmModal(false);
           navigate(`/events/${activeEventId}`);

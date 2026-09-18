@@ -310,6 +310,7 @@ export interface SeatCanvasProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onCanvasClickPosition?: (pos: { x: number; y: number }) => void;
+  seatStatusMap?: Record<string, string>;
 }
 
 export interface AttendeePreviewProps {

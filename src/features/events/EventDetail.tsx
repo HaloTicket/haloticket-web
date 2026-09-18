@@ -61,6 +61,11 @@ export default function EventDetail() {
   }, []);
 
   const handleGoToSelectTicket = () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      navigate(`/login?returnUrl=/events/${id}`);
+      return;
+    }
     if (id) {
       navigate(`/events/${id}/select-ticket`);
     }
