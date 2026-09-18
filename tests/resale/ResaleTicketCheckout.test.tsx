@@ -91,10 +91,12 @@ describe("ResaleTicketCheckout", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Quy định sử dụng/i }));
     fireEvent.click(screen.getByRole("button", { name: /Tiếp tục/i }));
 
-    await waitFor(() => expect(screen.getByText(/txn-1/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Bảng câu hỏi/i)).toBeInTheDocument());
     expect(screen.queryByRole("heading", { name: "Chọn vé" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Vé đã được giữ tạm thời thành công/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Tiến trình mua vé bán lại")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Event X" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Thông tin đặt vé" })).toBeInTheDocument();
-    expect(screen.getByText("BẢNG CÂU HỎI")).toBeInTheDocument();
     expect(screen.getByText("Hoàn tất đặt vé trong")).toBeInTheDocument();
     const continueButton = screen.getByRole("button", { name: "Tiếp tục" });
     expect(continueButton).toBeDisabled();

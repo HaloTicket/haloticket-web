@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiAlertTriangle, FiArrowLeft, FiCheckCircle, FiClock, FiShield, FiX } from "react-icons/fi";
+import { FiAlertTriangle, FiArrowLeft, FiCalendar, FiCheckCircle, FiClock, FiMapPin, FiShield, FiX } from "react-icons/fi";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { eventApi } from "@/services/eventApi";
@@ -33,15 +33,23 @@ function ReservationSummary({
   quantity,
   price,
   totalAmount,
+  actionLabel,
+  actionDisabled,
+  actionLoading,
+  onAction,
 }: {
   ticketTier: string;
   quantity: number;
   price: number;
   totalAmount: number;
+  actionLabel: "Tiếp tục" | "Thanh toán";
+  actionDisabled?: boolean;
+  actionLoading?: boolean;
+  onAction: () => void;
 }) {
   return (
     <aside className="h-fit rounded-xl border app-border app-bg-card p-5 shadow-sm lg:sticky lg:top-6" aria-label="Thông tin đặt vé">
-      <h2 className="border-b app-border pb-3 text-base font-bold app-text-main">Thông tin đặt vé</h2>
+      <h2 className="border-b app-border pb-3 text-lg font-bold app-text-main">Thông tin đặt vé</h2>
       <div className="mt-4 flex items-start justify-between gap-4 text-sm">
         <div>
           <p className="font-semibold app-text-main">{ticketTier}</p>
@@ -50,9 +58,17 @@ function ReservationSummary({
         <p className="font-semibold app-text-main">{String(quantity).padStart(2, "0")}</p>
       </div>
       <div className="mt-4 flex items-center justify-between border-t app-border pt-4 text-sm">
-        <span className="font-semibold app-text-muted">Tạm tính</span>
+        <span className="font-semibold app-text-main">Tạm tính {quantity} vé</span>
         <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{money(totalAmount)}</span>
       </div>
+      <button
+        type="button"
+        disabled={actionDisabled || actionLoading}
+        onClick={onAction}
+        className="mt-5 w-full rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700"
+      >
+        {actionLoading ? "Đang xử lý…" : actionLabel}
+      </button>
     </aside>
   );
 }
@@ -226,6 +242,125 @@ export const ResaleTicketCheckout = () => {
     const answer = answers[String(question.id ?? "")];
     return answer !== undefined && answer !== "" && answer !== false;
   });
+
+  if (reservation) {
+    const eventLocation = String(event?.venueName ?? event?.location ?? event?.address ?? "Địa điểm sẽ được cập nhật");
+    const eventPoster = String(event?.posterImage ?? event?.bannerUrl ?? event?.imageUrl ?? "");
+
+    return (
+      <div className="min-h-screen bg-slate-50 app-text-main dark:bg-slate-950">
+        <section
+          className="relative overflow-hidden bg-slate-950 text-white"
+          style={eventPoster ? { backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.96), rgba(15,23,42,.78)), url(${eventPoster})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}
+        >
+          <div className="mx-auto grid min-h-[230px] max-w-6xl items-center gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_190px] lg:py-9">
+            <div>
+              <h1 className="max-w-4xl text-2xl font-bold leading-tight sm:text-3xl">{eventTitle}</h1>
+              <div className="mt-5 h-px max-w-4xl bg-white/35" />
+              <div className="mt-5 space-y-3 text-sm font-semibold sm:text-base">
+                <p className="flex items-center gap-3"><FiCalendar className="text-xl" />{eventTime}</p>
+                <p className="flex items-center gap-3"><FiMapPin className="text-xl" />{eventLocation}</p>
+              </div>
+            </div>
+            <div className="w-fit rounded-xl border border-white/30 bg-slate-900/70 p-4 backdrop-blur-sm lg:justify-self-end">
+              <p className="text-sm text-slate-200">Hoàn tất đặt vé trong</p>
+              <div className="mt-4 flex items-center gap-2 font-mono text-xl font-bold" aria-label={`Còn lại ${timerMinutes} phút ${timerSeconds} giây`}>
+                <span className="rounded-lg bg-rose-500 px-3 py-2 text-white">{timerMinutes}</span>
+                <span>:</span>
+                <span className="rounded-lg bg-rose-500 px-3 py-2 text-white">{timerSeconds}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+          <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="min-w-0">
+              {step === "reserve" ? (
+                <>
+                  {customQuestions.length > 0 && (
+                    <h2 className="mb-6 text-xl font-bold uppercase text-emerald-600 dark:text-emerald-400">Bảng câu hỏi</h2>
+                  )}
+                  <div className="mb-5 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-300">
+                    <FiAlertTriangle className="shrink-0" />
+                    <span>Không hỗ trợ xuất hóa đơn cho vé bán lại</span>
+                  </div>
+
+                  {customQuestions.length > 0 ? (
+                    <section className="space-y-4" aria-label="Bảng câu hỏi sự kiện">
+                      {customQuestions.map((question, index) => {
+                        const id = String(question.id ?? index);
+                        const type = String(question.type ?? "text").toLowerCase();
+                        const title = String(question.title ?? "Câu hỏi");
+                        return (
+                          <div key={id} className="overflow-hidden rounded-xl border app-border app-bg-card shadow-sm">
+                            <div className="border-b app-border bg-slate-50 px-5 py-4 font-bold text-emerald-600 dark:bg-slate-800/70 dark:text-emerald-400">{ticketTier}</div>
+                            <div className="p-5">
+                              <label className="block text-sm font-semibold app-text-main">
+                                {title}{question.isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
+                              </label>
+                              {question.description && <p className="mt-1 text-xs app-text-muted">{String(question.description)}</p>}
+                              <div className="mt-4">
+                                {type === "checkbox" ? (
+                                  <label className="flex cursor-pointer items-center gap-3 text-sm app-text-main">
+                                    <input type="checkbox" aria-label={title} checked={answers[id] === true} onChange={(e) => setAnswers((current) => ({ ...current, [id]: e.target.checked }))} className="h-5 w-5 accent-blue-600" />
+                                    <span>Tôi đã đọc và đồng ý</span>
+                                  </label>
+                                ) : type === "select" || type === "dropdown" ? (
+                                  <select aria-label={title} value={String(answers[id] ?? "")} onChange={(e) => setAnswers((current) => ({ ...current, [id]: e.target.value }))} className="w-full rounded-lg border app-border app-bg-page px-3 py-3 text-sm app-text-main">
+                                    <option value="">Chọn câu trả lời</option>
+                                    {(Array.isArray(question.options) ? question.options : []).map((option: unknown) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
+                                  </select>
+                                ) : (
+                                  <input aria-label={title} value={String(answers[id] ?? "")} onChange={(e) => setAnswers((current) => ({ ...current, [id]: e.target.value }))} placeholder="Điền câu trả lời của bạn" className="w-full rounded-lg border app-border app-bg-page px-3 py-3 text-sm app-text-main" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {questionError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{questionError}</p>}
+                    </section>
+                  ) : (
+                    <div className="rounded-xl border app-border app-bg-card p-5 text-sm app-text-muted">Sự kiện không yêu cầu thêm thông tin từ người mua.</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={() => setStep("reserve")} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400"><FiArrowLeft /> Quay lại</button>
+                  <fieldset className="rounded-xl border app-border app-bg-card p-5 shadow-sm">
+                    <legend className="px-1 text-lg font-bold app-text-main">Phương thức thanh toán</legend>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      {(["VNPAY", "MOMO", "ZALOPAY"] as const).map((method) => (
+                        <label key={method} className={`cursor-pointer rounded-lg border px-4 py-5 text-center transition ${paymentMethod === method ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300" : "app-border app-text-muted"}`}>
+                          <input type="radio" className="sr-only" checked={paymentMethod === method} onChange={() => setPaymentMethod(method)} />
+                          <span className="font-bold">{method}</span>
+                          <span className="mt-1 block text-xs font-normal">Cổng thanh toán</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {error && <div role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">{error}</div>}
+                </>
+              )}
+            </div>
+
+            <ReservationSummary
+              ticketTier={ticketTier}
+              quantity={quantity}
+              price={listing.price}
+              totalAmount={totalAmount}
+              actionLabel={step === "reserve" ? "Tiếp tục" : "Thanh toán"}
+              actionDisabled={secondsRemaining === 0 || (step === "reserve" && !requiredQuestionsAnswered)}
+              actionLoading={paying}
+              onAction={step === "reserve" ? handleContinueToPayment : handlePayment}
+            />
+          </div>
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-500"><FiShield className="text-blue-500" />Giao dịch được bảo đảm bởi HaloTicket</div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen app-bg-page app-text-main">
@@ -418,11 +553,11 @@ export const ResaleTicketCheckout = () => {
               {reserving ? (
                 "Đang giữ vé…"
               ) : isMyListing ? (
-                "Giữ vé (Không thể mua vé của chính bạn)"
+                "Không thể mua vé của chính bạn"
               ) : agreed ? (
-                `Tiếp tục - ${money(totalAmount)} »`
+                "Tiếp tục"
               ) : (
-                selected ? "Tiếp tục (Vui lòng đồng ý điều khoản) »" : "Vui lòng chọn vé để tiếp tục"
+                selected ? "Vui lòng đồng ý điều khoản" : "Vui lòng chọn vé"
               )}
             </button>
           </div>
@@ -439,7 +574,7 @@ export const ResaleTicketCheckout = () => {
                 <span>Vé đã được giữ tạm thời thành công!</span>
               </div>
               <p className="mt-2 text-xs text-slate-300">
-                Mã giao dịch: <strong className="text-white font-mono">{reservation.transactionId}</strong>
+                Mã giao dịch: <strong className="text-white font-mono">{(reservation as ResaleReservation).transactionId}</strong>
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-300">
                 <FiClock className="shrink-0" />
@@ -447,7 +582,7 @@ export const ResaleTicketCheckout = () => {
                   Hết hạn giữ vé lúc:{" "}
                   <strong>
                     {new Intl.DateTimeFormat("vi-VN", { timeStyle: "medium" }).format(
-                      new Date(reservation.reservationExpiresAt)
+                      new Date((reservation as ResaleReservation).reservationExpiresAt)
                     )}
                   </strong>{" "}
                   (khoảng 15 phút)
@@ -516,7 +651,7 @@ export const ResaleTicketCheckout = () => {
               Tiếp tục
               </button>
             </div>
-            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} />
+            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} actionLabel="Tiếp tục" actionDisabled={!requiredQuestionsAnswered} onAction={handleContinueToPayment} />
           </div>
         ) : (
           /* Step 3: Payment */
@@ -567,7 +702,7 @@ export const ResaleTicketCheckout = () => {
               {paying ? "Đang chuyển đến cổng thanh toán…" : "Thanh toán"}
               </button>
             </div>
-            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} />
+            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} actionLabel="Thanh toán" actionLoading={paying} onAction={handlePayment} />
           </div>
         )}
 
