@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ekycApi } from "@/services/ekycApi";
 import { PATHS } from "@/routes/paths";
 import { EKYC_STATUS_LABELS, type EkycStatusResponse } from "@/types/ekyc";
 import {
-  FiShield,
   FiCheckCircle,
   FiAlertCircle,
   FiRefreshCw,
@@ -13,10 +12,12 @@ import {
   FiArrowLeft,
   FiClock,
   FiInfo,
+  FiCreditCard,
+  FiChevronDown,
 } from "react-icons/fi";
 import { FaTicketAlt, FaMicrochip } from "react-icons/fa";
-import { FiCreditCard, FiChevronDown } from "react-icons/fi";
 import { ImageUploadStep } from "./components/ImageUploadStep";
+import { FaceCaptureStep } from "./components/FaceCaptureStep";
 import { ReviewSubmitStep } from "./components/ReviewSubmitStep";
 import { EkycConfirmationStep } from "./components/EkycConfirmationStep";
 import { userApi, type UserProfile } from "@/services/userApi";
@@ -24,7 +25,6 @@ import { rotateImageFile, readImageMetadata, type ImageMetadata } from "@/utils/
 
 export default function EkycVerification() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const returnUrl =
     params.get("returnUrl") === PATHS.CREATE_EVENT
@@ -38,21 +38,21 @@ export default function EkycVerification() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [files, setFiles] = useState<(File | null)[]>([null, null]);
-  const [previews, setPreviews] = useState<(string | null)[]>([null, null]);
-  const [metadatas, setMetadatas] = useState<(ImageMetadata | null)[]>([null, null]);
+  const [files, setFiles] = useState<(File | null)[]>([null, null, null]);
+  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null]);
+  const [metadatas, setMetadatas] = useState<(ImageMetadata | null)[]>([null, null, null]);
   const [rotatingIndex, setRotatingIndex] = useState<number | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [uploadVersion, setUploadVersion] = useState(0);
   const inFlight = useRef(false);
-  const previewUrls = useRef<(string | null)[]>([null, null]);
+  const previewUrls = useRef<(string | null)[]>([null, null, null]);
 
   // Reset inFlight on unmount to prevent stale lock across hot-reloads
   useEffect(() => {
     return () => { inFlight.current = false; };
   }, []);
 
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   useEffect(() => {
     let active = true;
@@ -62,7 +62,7 @@ export default function EkycVerification() {
         const val = ekycRes.value;
         setStatus(val);
         if (val.status === "APPROVED") {
-          setCurrentStep(4);
+          setCurrentStep(5);
         }
       } else {
         setError("Không thể tải trạng thái xác minh từ hệ thống đối soát.");
@@ -130,6 +130,27 @@ export default function EkycVerification() {
     });
   };
 
+  /** Called by FaceCaptureStep after webcam photo is captured */
+  const handleFaceCapture = (file: File, url: string) => {
+    setError("");
+    if (previewUrls.current[2]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[2]!);
+    previewUrls.current[2] = url;
+    setFiles((c) => [c[0], c[1], file]);
+    setPreviews((c) => [c[0], c[1], url]);
+    void readImageMetadata(file).then((meta) => {
+      setMetadatas((c) => [c[0], c[1], meta]);
+    });
+  };
+
+  /** Called by FaceCaptureStep when retaking portrait */
+  const handleFaceRetake = () => {
+    if (previewUrls.current[2]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[2]!);
+    previewUrls.current[2] = null;
+    setFiles((c) => [c[0], c[1], null]);
+    setPreviews((c) => [c[0], c[1], null]);
+    setMetadatas((c) => [c[0], c[1], null]);
+  };
+
   const handleRotate = async (index: number, degrees: number) => {
     const currentFile = files[index];
     if (!currentFile || busy || rotatingIndex !== null) return;
@@ -156,7 +177,7 @@ export default function EkycVerification() {
   };
 
   async function submit() {
-    if (inFlight.current || !consent || !files[0] || !files[1]) {
+    if (inFlight.current || !consent || !files[0] || !files[1] || !files[2]) {
       return;
     }
     inFlight.current = true;
@@ -166,26 +187,32 @@ export default function EkycVerification() {
     try {
       const session = await ekycApi.startSession(true, "2026.1");
       if (Date.parse(session.expiresAt) <= Date.now()) throw new Error("Expired session");
-      const verifyResult = await ekycApi.verify(session.sessionId, files[0]!, files[1]!);
+      const verifyResult = await ekycApi.verify(session.sessionId, files[0]!, files[1]!, files[2]!);
       const finalStatus = verifyResult;
       setStatus(finalStatus);
 
       // If rejected, show error message from verifyResult
       if (verifyResult.status === "REJECTED") {
         if (verifyResult.reasonCode === "OCR_DATA_INCOMPLETE") {
-          setError("Không đọc được đầy đủ thông tin từ CCCD. Vui lòng chụp rõ nét hơn.");
+          setError(t("Không đọc được đầy đủ thông tin từ CCCD. Vui lòng chụp rõ nét hơn."));
         } else if (verifyResult.reasonCode === "DOCUMENT_EXPIRED") {
-          setError("CCCD đã hết hạn. Vui lòng sử dụng giấy tờ còn hiệu lực.");
+          setError(t("CCCD đã hết hạn. Vui lòng sử dụng giấy tờ còn hiệu lực."));
         } else if (verifyResult.reasonCode === "DOCUMENT_TYPE_INVALID") {
-          setError("VNPT không nhận diện ảnh là CCCD gắn chip. Vui lòng kiểm tra đúng mặt trước, mặt sau và chụp đủ bốn góc thẻ.");
+          setError(t("VNPT không nhận diện ảnh là CCCD gắn chip. Vui lòng kiểm tra đúng mặt trước, mặt sau và chụp đủ bốn góc thẻ."));
         } else if (verifyResult.reasonCode === "DOCUMENT_INVALID") {
-          setError("VNPT đã đọc được CCCD nhưng phát hiện cảnh báo về dữ liệu, chất lượng ảnh hoặc tính hợp lệ. Vui lòng chụp lại rõ nét, đủ bốn góc và đúng hai mặt của cùng một CCCD.");
+          setError(t("VNPT đã đọc được CCCD nhưng phát hiện cảnh báo về dữ liệu, chất lượng ảnh hoặc tính hợp lệ. Vui lòng chụp lại rõ nét, đủ bốn góc và đúng hai mặt của cùng một CCCD."));
+        } else if (verifyResult.reasonCode === "FACE_LIVENESS_FAILED") {
+          setError(t("Khuôn mặt không vượt qua kiểm tra người thật (Face Liveness). Vui lòng nhìn thẳng camera và đảm bảo đủ ánh sáng."));
+        } else if (verifyResult.reasonCode === "FACE_MATCH_FAILED") {
+          setError(t("Khuôn mặt không khớp với ảnh trên CCCD. Vui lòng chụp lại khuôn mặt rõ ràng, không đeo kính hoặc phụ kiện."));
+        } else if (verifyResult.reasonCode === "FACE_MULTIPLE_DETECTED") {
+          setError(t("Phát hiện nhiều hơn 1 khuôn mặt trong khung hình. Vui lòng chụp một mình trong khung hình camera."));
         } else if (verifyResult.reasonCode === "PROVIDER_REJECTED") {
-          setError("VNPT từ chối hồ sơ. Vui lòng kiểm tra chất lượng ảnh và thử lại.");
+          setError(t("VNPT từ chối hồ sơ. Vui lòng kiểm tra chất lượng ảnh và thử lại."));
         } else if (verifyResult.reasonCode) {
-          setError(`Xác minh bị từ chối: ${verifyResult.reasonCode}. Vui lòng kiểm tra lại giấy tờ.`);
+          setError(t("Xác minh bị từ chối: {{code}}. Vui lòng kiểm tra lại giấy tờ.", { code: verifyResult.reasonCode }));
         } else {
-          setError("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và thử lại.");
+          setError(t("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và ảnh chân dung rồi thử lại."));
         }
         // Don't reset form for rejected cases - let user retry
         inFlight.current = false;
@@ -194,40 +221,40 @@ export default function EkycVerification() {
       }
 
       if (verifyResult.status === "PENDING") {
-        setSuccessMessage("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút).");
+        setSuccessMessage(t("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút)."));
         inFlight.current = false;
         setBusy(false);
         return;
       }
 
       setParams((prev) => { const next = new URLSearchParams(prev); next.delete("mode"); return next; });
-      setFiles([null, null]);
+      setFiles([null, null, null]);
       previewUrls.current.forEach((url) => { if (url) URL.revokeObjectURL(url); });
-      previewUrls.current = [null, null];
-      setPreviews([null, null]);
-      setMetadatas([null, null]);
+      previewUrls.current = [null, null, null];
+      setPreviews([null, null, null]);
+      setMetadatas([null, null, null]);
       setConsent(false);
       setUploadVersion((v) => v + 1);
-      // Show success message based on returned status and switch to step 4
+      // Show success message based on returned status and switch to step 5
       if (finalStatus.status === "APPROVED") {
         void userApi.getProfile().then(setUserProfile);
-        setSuccessMessage("Xác minh CCCD thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền.");
-        setCurrentStep(4);
+        setSuccessMessage(t("Xác minh CCCD & Khuôn mặt thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền."));
+        setCurrentStep(5);
       } else if (finalStatus.status === "PENDING") {
-        setSuccessMessage("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút).");
+        setSuccessMessage(t("Hồ sơ đã được gửi thành công. Chờ VNPT eKYC đối soát (thường 5–15 phút)."));
         setCurrentStep(1);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
       const apiMsg = axiosErr.response?.data?.message || axiosErr.response?.data?.error;
       if (apiMsg === "EKYC_ATTEMPT_LIMIT") {
-        setError("Không thể hoàn tất xác minh: Bạn đã vượt quá số lần thử cho phép trong ngày. Vui lòng thử lại sau.");
-      } else if (apiMsg && (apiMsg.includes("Loại giấy tờ") || apiMsg.includes("Vui lòng") || apiMsg.includes("CCCD"))) {
+        setError(t("Không thể hoàn tất xác minh: Bạn đã vượt quá số lần thử cho phép trong ngày. Vui lòng thử lại sau."));
+      } else if (apiMsg && (apiMsg.includes("Loại giấy tờ") || apiMsg.includes("Vui lòng") || apiMsg.includes("CCCD") || apiMsg.includes("khuôn mặt") || apiMsg.includes("Face"))) {
         setError(apiMsg);
       } else if (apiMsg) {
-        setError(`Không thể hoàn tất xác minh (${apiMsg}). Vui lòng kiểm tra lại giấy tờ và gửi lại.`);
+        setError(t("Không thể hoàn tất xác minh ({{msg}}). Vui lòng kiểm tra lại giấy tờ và gửi lại.", { msg: apiMsg }));
       } else {
-        setError("Không thể hoàn tất xác minh. Vui lòng kiểm tra lại kết nối và độ rõ nét của ảnh, sau đó gửi lại.");
+        setError(t("Không thể hoàn tất xác minh. Vui lòng kiểm tra lại kết nối và độ rõ nét của ảnh, sau đó gửi lại."));
       }
     } finally {
       inFlight.current = false;
@@ -235,178 +262,102 @@ export default function EkycVerification() {
     }
   }
 
-  const activateStep = (step: 1 | 2 | 3 | 4) => {
+  const activateStep = (step: 1 | 2 | 3 | 4 | 5) => {
     setCurrentStep(step);
-  };
-
-  const handleNextAction = () => {
-    if (currentStep === 1) {
-      setCurrentStep(2);
-    } else if (currentStep === 2) {
-      setCurrentStep(3);
-    } else if (currentStep === 3) {
-      if (status?.status === "APPROVED") {
-        setCurrentStep(4);
-      } else {
-        void submit();
-      }
-    } else if (currentStep === 4) {
-      navigate(returnUrl);
-    }
   };
 
   return (
     <div className="app-bg-page app-text-main py-8 sm:py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-500 selection:text-white">
-      {/* Background Glow Accents */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-500/10 dark:bg-blue-600/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-sky-500/10 dark:bg-sky-600/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="max-w-4xl w-full mx-auto space-y-6">
-        {/* Breadcrumb Navigation - Ticketbox Style */}
-        <nav className="flex items-center gap-2 text-xs app-text-muted">
-          <Link to={PATHS.HOME} className="hover:app-text-main transition-colors">{t("Trang chủ")}</Link>
-          <span>/</span>
-          <Link to={PATHS.MY_EVENTS} className="hover:app-text-main transition-colors">{t("Kênh Ban Tổ Chức")}</Link>
-          <span>/</span>
-          <span className="font-semibold text-blue-600 dark:text-blue-400">{t("Xác minh danh tính (eKYC)")}</span>
-        </nav>
-
-        {/* Page Title & Status Indicator */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <Link
-              to={returnUrl}
-              className="p-2.5 rounded-xl border app-border app-bg-card hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-600 dark:text-zinc-300 hover:app-text-main shrink-0 shadow-2xs"
-              title={t("Quay về hồ sơ")}
-            >
-              <FiArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="space-y-0.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight app-text-main">
-                  {t("Xác minh danh tính Nhà tổ chức")}
-                </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                  VNPT eKYC AI
-                </span>
-                {status?.status === "APPROVED" ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                    <FiCheck className="w-3 h-3 stroke-[3]" />
-                    <span>{t("Đã xác thực")}</span>
-                  </span>
-                ) : status?.status === "PENDING" ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                    <FiClock className="w-3 h-3" />
-                    <span>{t("Đang đối soát")}</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border app-border">
-                    <FiShield className="w-3 h-3 text-blue-500" />
-                    <span>{t("Chưa xác minh")}</span>
-                  </span>
-                )}
-              </div>
-              <p className="text-xs sm:text-sm app-text-muted">
-                {t("Xác thực thông tin định danh & Thiết lập tài khoản nhận doanh thu bán vé")}
-              </p>
-            </div>
-          </div>
+      <div className="max-w-2xl w-full mx-auto space-y-5">
+        {/* Top Back Navigation */}
+        <div className="flex items-center justify-between">
+          <Link
+            to={returnUrl}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold app-text-muted hover:app-text-main transition-colors"
+          >
+            <FiArrowLeft className="w-4 h-4" />
+            <span>{t("Quay lại Tài khoản")}</span>
+          </Link>
+          <span className="text-xs app-text-muted font-medium">
+            {t("Bước {{current}} / {{total}}", { current: currentStep, total: 4 })}
+          </span>
         </div>
 
-        {/* CCCD Verification Stepper Bar - Adaptive Light & Dark Theme */}
-        <div className="w-full app-bg-card border app-border rounded-2xl px-4 sm:px-6 py-3 shadow-sm transition-colors">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            {/* Steps Container */}
-            <div className="flex items-center overflow-x-auto no-scrollbar gap-4 sm:gap-6 pb-1 md:pb-0">
-              {[
-                { step: 1 as const, title: t("Mặt trước CCCD") },
-                { step: 2 as const, title: t("Mặt sau CCCD") },
-                { step: 3 as const, title: t("Đối soát VNPT") },
-                { step: 4 as const, title: t("Xác nhận thông tin") },
-              ].map(({ step, title }) => {
-                const isApproved = status?.status === "APPROVED";
-                const isCompleted =
-                  (step === 1 && (Boolean(files[0]) || (isApproved && params.get("mode") !== "update"))) ||
-                  (step === 2 && (Boolean(files[1]) || (isApproved && params.get("mode") !== "update"))) ||
-                  (step === 3 && isApproved) ||
-                  (step === 4 && isApproved && params.get("mode") !== "update");
-                const isActive = currentStep === step;
+        {/* Page Title & Clean Status */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight app-text-main">
+              {t("Xác minh danh tính")}
+            </h1>
+            {status?.status === "APPROVED" ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                <FiCheck className="w-3 h-3 stroke-[3]" />
+                <span>{t("Đã xác thực")}</span>
+              </span>
+            ) : status?.status === "PENDING" ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                <FiClock className="w-3 h-3" />
+                <span>{t("Đang đối soát")}</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border app-border">
+                <span>{t("Chưa xác minh")}</span>
+              </span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm app-text-muted">
+            {t("Xác minh thông tin CCCD để kích hoạt các tính năng dành cho nhà tổ chức.")}
+          </p>
+        </div>
 
-                return (
-                  <button
-                    key={step}
-                    type="button"
-                    onClick={() => {
-                      if (step === 4) {
-                        if (!isApproved) return;
-                        setParams((prev) => {
-                          const next = new URLSearchParams(prev);
-                          next.delete("mode");
-                          return next;
-                        });
-                      } else if (isApproved) {
-                        setParams((prev) => {
-                          const next = new URLSearchParams(prev);
-                          next.set("mode", "update");
-                          return next;
-                        });
-                      }
-                      activateStep(step);
-                    }}
-                    disabled={step === 4 && !isApproved}
-                    className={`relative flex items-center gap-2.5 py-1.5 pb-2.5 whitespace-nowrap cursor-pointer transition-all shrink-0 ${step === 4 && !isApproved ? "opacity-50 cursor-not-allowed" : "hover:opacity-95"
+        {/* Compact Stepper */}
+        <div className="w-full app-bg-card border app-border rounded-xl px-3 sm:px-4 py-2.5 shadow-2xs">
+          <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-2 sm:gap-4">
+            {[
+              { step: 1 as const, title: t("CCCD mặt trước") },
+              { step: 2 as const, title: t("CCCD mặt sau") },
+              { step: 3 as const, title: t("Khuôn mặt") },
+              { step: 4 as const, title: t("Kiểm tra") },
+            ].map(({ step, title }) => {
+              const isApproved = status?.status === "APPROVED";
+              const isCompleted =
+                (step === 1 && (Boolean(files[0]) || (isApproved && params.get("mode") !== "update"))) ||
+                (step === 2 && (Boolean(files[1]) || (isApproved && params.get("mode") !== "update"))) ||
+                (step === 3 && (Boolean(files[2]) || (isApproved && params.get("mode") !== "update"))) ||
+                (step === 4 && isApproved);
+              const isActive = currentStep === step;
+
+              return (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => activateStep(step)}
+                  className="flex items-center gap-1.5 sm:gap-2 py-1 px-1.5 rounded-lg text-xs cursor-pointer transition-all shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${isActive
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : isCompleted
+                        ? "bg-emerald-600 text-white"
+                        : "app-bg-subnav app-text-muted border app-border"
                       }`}
                   >
-                    <div
-                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${isActive
-                        ? "bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/30 scale-105"
-                        : isCompleted
-                          ? "bg-emerald-600 text-white shadow-xs"
-                          : "app-bg-subnav app-text-muted border app-border"
-                        }`}
-                    >
-                      {isCompleted && !isActive ? <FiCheck className="w-4 h-4 stroke-[3]" /> : step}
-                    </div>
+                    {isCompleted && !isActive ? <FiCheck className="w-3.5 h-3.5 stroke-[3]" /> : step}
+                  </div>
 
-                    <span
-                      className={`text-xs sm:text-sm transition-colors ${isActive
-                        ? "text-blue-600 dark:text-blue-400 font-extrabold"
-                        : isCompleted
-                          ? "text-emerald-600 dark:text-emerald-400 font-bold"
-                          : "app-text-muted hover:app-text-main font-medium"
-                        }`}
-                    >
-                      {title}
-                    </span>
-
-                    {/* Active Underline Indicator */}
-                    {isActive && (
-                      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 dark:bg-blue-500 rounded-full animate-in fade-in" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Actions on the Right */}
-            <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
-              <Link
-                to={returnUrl}
-                className="px-4 py-2 rounded-xl border app-border app-bg-card hover:bg-slate-100 dark:hover:bg-zinc-800 font-bold text-xs sm:text-sm app-text-main transition-colors shadow-2xs"
-              >
-                {t("Lưu")}
-              </Link>
-              <button
-                type="button"
-                onClick={handleNextAction}
-                disabled={busy}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/25 cursor-pointer inline-flex items-center gap-1.5 active:scale-98"
-              >
-                <span>{currentStep === 4 ? t("Hoàn tất") : t("Tiếp tục")}</span>
-              </button>
-            </div>
+                  <span
+                    className={`text-xs hidden sm:inline transition-colors ${isActive
+                      ? "text-blue-600 dark:text-blue-400 font-bold"
+                      : isCompleted
+                        ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                        : "app-text-muted font-normal"
+                      }`}
+                  >
+                    {title}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -415,17 +366,14 @@ export default function EkycVerification() {
 
           {/* LOADING STATE */}
           {loading && (
-            <div className="app-bg-card app-border rounded-3xl border p-10 sm:p-14 text-center space-y-5 shadow-sm">
-              <div className="relative w-16 h-16 mx-auto">
-                <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping" />
-                <div className="relative w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <FiRefreshCw className="w-8 h-8 animate-spin" />
-                </div>
+            <div className="app-bg-card app-border rounded-xl border p-8 sm:p-12 text-center space-y-4 shadow-2xs">
+              <div className="w-12 h-12 rounded-lg bg-blue-600 text-white flex items-center justify-center mx-auto shadow-sm">
+                <FiRefreshCw className="w-6 h-6 animate-spin" />
               </div>
-              <div className="space-y-1.5">
-                <h3 className="text-base sm:text-lg font-bold app-text-main">Đang kết nối cổng đối soát VNPT eKYC…</h3>
-                <p className="text-xs sm:text-sm app-text-muted max-w-md mx-auto">
-                  Hệ thống đang tải thông tin định danh và trạng thái phê duyệt của tài khoản.
+              <div className="space-y-1">
+                <h3 className="text-base font-bold app-text-main">{t("Đang kiểm tra trạng thái xác minh…")}</h3>
+                <p className="text-xs app-text-muted max-w-sm mx-auto">
+                  {t("Hệ thống đang tải dữ liệu định danh của tài khoản.")}
                 </p>
               </div>
             </div>
@@ -433,30 +381,29 @@ export default function EkycVerification() {
 
           {/* ERROR / OFFLINE STATE */}
           {!loading && !status && (
-            <div role="alert" className="app-bg-card app-border rounded-3xl border p-6 sm:p-10 shadow-lg space-y-6 animate-in fade-in zoom-in-95">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-                <div className="w-16 h-16 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-md shadow-rose-500/10">
-                  <FiAlertCircle className="w-8 h-8" />
+            <div role="alert" className="app-bg-card app-border rounded-xl border p-6 sm:p-8 space-y-5 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                <div className="w-12 h-12 rounded-lg bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <FiAlertCircle className="w-6 h-6" />
                 </div>
-                <div className="space-y-2 flex-1">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800">
-                    <span>Mất kết nối máy chủ</span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-extrabold app-text-main">Không thể tải trạng thái xác minh. Vui lòng thử lại.</h2>
-                  <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
-                    {error || "Không thể tải trạng thái xác minh. Vui lòng thử lại."}
+                <div className="space-y-1 flex-1">
+                  <h2 className="text-base sm:text-lg font-bold app-text-main">
+                    {t("Không thể tải trạng thái xác minh. Vui lòng thử lại.")}
+                  </h2>
+                  <p className="text-xs app-text-muted leading-relaxed">
+                    {error || t("Không thể tải trạng thái xác minh. Vui lòng thử lại.")}
                   </p>
                 </div>
               </div>
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border app-border space-y-3 text-xs sm:text-sm">
                 <h4 className="font-bold app-text-main flex items-center gap-2">
                   <FiInfo className="w-4 h-4 text-blue-500 shrink-0" />
-                  <span>Gợi ý khắc phục nhanh:</span>
+                  <span>{t("Gợi ý khắc phục nhanh:")}</span>
                 </h4>
                 <ul className="space-y-2 text-xs app-text-muted list-disc list-inside">
-                  <li>Kiểm tra kết nối mạng Internet và thử lại.</li>
-                  <li>Bấm nút <strong>"Thử lại"</strong> bên dưới để hệ thống khởi tạo lại phiên kết nối.</li>
-                  <li>Hoặc tải lại trang sau ít phút nếu máy chủ đang bảo trì định kỳ.</li>
+                  <li>{t("Kiểm tra kết nối mạng Internet và thử lại.")}</li>
+                  <li>{t("Bấm nút \"Thử lại\" bên dưới để hệ thống khởi tạo lại phiên kết nối.")}</li>
+                  <li>{t("Hoặc tải lại trang sau ít phút nếu máy chủ đang bảo trì định kỳ.")}</li>
                 </ul>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t app-border">
@@ -464,7 +411,7 @@ export default function EkycVerification() {
                   to={returnUrl}
                   className="w-full sm:w-auto px-5 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center order-3 sm:order-1"
                 >
-                  Về hồ sơ
+                  {t("Về hồ sơ")}
                 </Link>
                 <button
                   type="button"
@@ -472,7 +419,7 @@ export default function EkycVerification() {
                   onClick={() => { setLoading(true); setError(""); setRefresh((v) => v + 1); }}
                 >
                   <FiRefreshCw className="w-4 h-4" />
-                  <span>Thử lại</span>
+                  <span>{t("Thử lại")}</span>
                 </button>
               </div>
             </div>
@@ -483,7 +430,7 @@ export default function EkycVerification() {
             <div role="status" className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
               <FiCheckCircle className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
               <div className="flex-1 space-y-0.5">
-                <span className="font-bold">Thành công:</span>
+                <span className="font-bold">{t("Thành công:")}</span>
                 <p>{successMessage}</p>
               </div>
               <button
@@ -502,7 +449,7 @@ export default function EkycVerification() {
             <div role="alert" className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
               <FiAlertCircle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
               <div className="flex-1 space-y-0.5">
-                <span className="font-bold">Lỗi xác minh:</span>
+                <span className="font-bold">{t("Lỗi xác minh:")}</span>
                 <p>{error}</p>
               </div>
             </div>
@@ -530,7 +477,7 @@ export default function EkycVerification() {
                 <details className="group">
                   <summary className="text-xs font-bold text-slate-500 hover:app-text-main cursor-pointer list-none inline-flex items-center gap-1.5 py-2 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
                     <FiCreditCard className="w-4 h-4 text-blue-500" />
-                    <span>Xem thẻ CCCD điện tử đã đối soát</span>
+                    <span>{t("Xem thẻ CCCD điện tử đã đối soát")}</span>
                     <FiChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
                   </summary>
                   <div className="mt-4 text-left space-y-4">
@@ -543,7 +490,7 @@ export default function EkycVerification() {
                           </div>
                           <div>
                             <span className="text-[11px] font-extrabold uppercase text-blue-300 block leading-none">HaloTicket Identity</span>
-                            <span className="text-[9px] text-slate-400">Đã xác minh bởi VNPT eKYC</span>
+                            <span className="text-[9px] text-slate-400">{t("Đã xác minh bởi VNPT eKYC")}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">
@@ -553,20 +500,20 @@ export default function EkycVerification() {
                       </div>
                       <div className="grid grid-cols-2 gap-4 py-4">
                         <div>
-                          <span className="text-[9px] uppercase font-bold text-slate-400 block">Họ và tên</span>
+                          <span className="text-[9px] uppercase font-bold text-slate-400 block">{t("Họ và tên")}</span>
                           <p className="text-sm font-extrabold uppercase text-white truncate">{status.legalName || "—"}</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-[9px] uppercase font-bold text-slate-400 block">Số CCCD</span>
+                          <span className="text-[9px] uppercase font-bold text-slate-400 block">{t("Số CCCD")}</span>
                           <p className="text-xs font-mono font-extrabold text-blue-400">{status.documentNumber || "—"}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t border-white/10 text-[10px] text-slate-400">
                         <div className="flex items-center gap-1 text-emerald-400">
                           <FiCheckCircle className="w-3.5 h-3.5" />
-                          <span>Hợp lệ & Không sửa đổi</span>
+                          <span>{t("Hợp lệ & Không sửa đổi")}</span>
                         </div>
-                        <span>Cập nhật: {status.verifiedAt ? new Date(status.verifiedAt).toLocaleDateString("vi-VN") : "Hôm nay"}</span>
+                        <span>{t("Cập nhật:")} {status.verifiedAt ? new Date(status.verifiedAt).toLocaleDateString("vi-VN") : t("Hôm nay")}</span>
                       </div>
                     </div>
                   </div>
@@ -587,16 +534,16 @@ export default function EkycVerification() {
               <div className="space-y-2 max-w-lg mx-auto">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-300 dark:border-amber-800">
                   <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                  <span role="status">{EKYC_STATUS_LABELS.PENDING}</span>
+                  <span role="status">{t(EKYC_STATUS_LABELS.PENDING)}</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold app-text-main">Hồ sơ đang được đối soát</h2>
+                <h2 className="text-xl sm:text-2xl font-extrabold app-text-main">{t("Hồ sơ đang được đối soát")}</h2>
                 <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
-                  Hồ sơ đang chờ kết quả xác minh. Bạn có thể kiểm tra lại trạng thái sau.
+                  {t("Hồ sơ đang chờ kết quả xác minh. Bạn có thể kiểm tra lại trạng thái sau.")}
                 </p>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border app-border max-w-md mx-auto text-xs app-text-muted space-y-1">
-                <p>⏱️ Thời gian xử lý trung bình: <strong>5 - 15 phút</strong></p>
-                <p>📧 Kết quả phê duyệt sẽ được thông báo trực tiếp qua Email của bạn.</p>
+                <p>⏱️ {t("Thời gian xử lý trung bình: 5 - 15 phút")}</p>
+                <p>📧 {t("Kết quả phê duyệt sẽ được thông báo trực tiếp qua Email của bạn.")}</p>
               </div>
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
@@ -605,13 +552,13 @@ export default function EkycVerification() {
                   onClick={() => { setError(""); setRefresh((v) => v + 1); }}
                 >
                   <FiRefreshCw className="w-4 h-4" />
-                  <span>Kiểm tra trạng thái</span>
+                  <span>{t("Kiểm tra trạng thái")}</span>
                 </button>
                 <Link
                   to={returnUrl}
                   className="w-full sm:w-auto px-6 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center"
                 >
-                  Về hồ sơ
+                  {t("Về hồ sơ")}
                 </Link>
               </div>
             </div>
@@ -623,32 +570,18 @@ export default function EkycVerification() {
               {/* Wizard Form */}
               <form
                 key={uploadVersion}
-                className="app-bg-card app-border rounded-3xl border p-6 sm:p-8 space-y-7 shadow-md"
+                className="app-bg-card app-border rounded-xl border p-5 sm:p-7 space-y-6 shadow-xs"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void submit();
                 }}
               >
-                {/* Step Header */}
-                <div className="pb-4 border-b app-border">
-                  <h3 className="text-base sm:text-lg font-bold app-text-main">
-                    {currentStep === 1 && t("1. Tải lên Mặt trước CCCD gắn chip")}
-                    {currentStep === 2 && t("2. Tải lên Mặt sau CCCD (Chip & Mã MRZ)")}
-                    {currentStep === 3 && t("3. Đối soát & Gửi xác minh VNPT AI")}
-                  </h3>
-                  <p className="text-xs app-text-muted mt-0.5">
-                    {currentStep === 1 && t("Chụp rõ nét mặt trước thẻ CCCD gắn chip, đảm bảo thấy rõ ảnh và số định danh 12 số.")}
-                    {currentStep === 2 && t("Chụp rõ mặt sau chứa chip vi mạch điện tử và 3 dòng mã ký tự quang học MRZ.")}
-                    {currentStep === 3 && t("Xem lại hai mặt CCCD, đồng ý điều khoản và gửi VNPT bóc tách thông tin.")}
-                  </p>
-                </div>
-
                 {/* TAB 1 */}
                 <div className={currentStep === 1 ? "block" : "hidden"}>
                   <ImageUploadStep
                     index={0}
-                    label="Mặt trước CCCD gắn chip"
-                    description="Giữ thẻ thẳng góc, Đủ ánh sáng, Rõ 12 số định danh"
+                    label={t("CCCD mặt trước")}
+                    description={t("Đặt mặt trước CCCD vào khung hình. Đảm bảo 4 góc giấy tờ nhìn rõ.")}
                     preview={previews[0]}
                     metadata={metadatas[0]}
                     rotatingIndex={rotatingIndex}
@@ -657,7 +590,7 @@ export default function EkycVerification() {
                     onFileChange={handleFileSelect}
                     onCropConfirm={handleCropConfirm}
                     onRotate={(i, d) => void handleRotate(i, d)}
-                    nextLabel="Sang bước 2: Mặt sau giấy tờ"
+                    nextLabel={t("Tiếp tục")}
                     onNext={() => setCurrentStep(2)}
                   />
                 </div>
@@ -666,8 +599,8 @@ export default function EkycVerification() {
                 <div className={currentStep === 2 ? "block" : "hidden"}>
                   <ImageUploadStep
                     index={1}
-                    label="Mặt sau CCCD (Chip & Mã MRZ)"
-                    description="Rõ chip vi mạch, Rõ 3 dòng mã MRZ, Không che vân tay"
+                    label={t("CCCD mặt sau")}
+                    description={t("Đảm bảo mã QR và thông tin trên giấy tờ nhìn rõ.")}
                     preview={previews[1]}
                     metadata={metadatas[1]}
                     rotatingIndex={rotatingIndex}
@@ -676,25 +609,40 @@ export default function EkycVerification() {
                     onFileChange={handleFileSelect}
                     onCropConfirm={handleCropConfirm}
                     onRotate={(i, d) => void handleRotate(i, d)}
-                    prevLabel="Quay lại bước 1"
+                    prevLabel={t("Quay lại")}
                     onPrev={() => setCurrentStep(1)}
-                    nextLabel="Sang bước 3: Kiểm tra thông tin"
+                    nextLabel={t("Tiếp tục")}
                     onNext={() => setCurrentStep(3)}
                   />
                 </div>
 
+                {/* TAB 3: Chụp khuôn mặt */}
                 <div className={currentStep === 3 ? "block" : "hidden"}>
+                  <FaceCaptureStep
+                    isActive={currentStep === 3}
+                    file={files[2]}
+                    previewUrl={previews[2]}
+                    onCapture={handleFaceCapture}
+                    onRetake={handleFaceRetake}
+                    onPrev={() => setCurrentStep(2)}
+                    onNext={() => setCurrentStep(4)}
+                    returnUrl={returnUrl}
+                  />
+                </div>
+
+                {/* TAB 4: Kiểm tra thông tin & Gửi xác minh */}
+                <div className={currentStep === 4 ? "block" : "hidden"}>
                   <ReviewSubmitStep
-                    previews={[previews[0], previews[1]]}
-                    metadatas={[metadatas[0], metadatas[1]]}
-                    files={[files[0], files[1]]}
+                    previews={previews}
+                    metadatas={metadatas}
+                    files={files}
                     rotatingIndex={rotatingIndex}
                     consent={consent}
                     busy={busy}
                     onConsentChange={setConsent}
                     onRotate={(i, d) => void handleRotate(i, d)}
-                    onGoToStep={setCurrentStep}
-                    onPrev={() => setCurrentStep(2)}
+                    onGoToStep={(s) => setCurrentStep(s as 1 | 2 | 3 | 4 | 5)}
+                    onPrev={() => setCurrentStep(3)}
                     returnUrl={returnUrl}
                   />
                 </div>
