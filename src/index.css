@@ -67,6 +67,9 @@
   --color-brand-primary: var(--color-brand-primary);
   --color-brand-accent: var(--color-brand-accent);
   --color-brand-rose: var(--color-brand-rose);
+  --color-brand-500: #3B82F6;
+  --color-brand-600: #2563EB;
+  --color-brand-700: #1D4ED8;
 
   /* Keyframe Animations */
   --animate-float: float 3s ease-in-out infinite;

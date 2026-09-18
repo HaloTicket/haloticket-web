@@ -37,10 +37,10 @@ const variantStyles: Record<NotificationModalVariant, string> = {
 };
 
 const actionStyles: Record<NotificationModalActionVariant, string> = {
-  primary: "bg-brand-600 text-white hover:bg-brand-500 shadow-brand-500/20",
+  primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/25 cursor-pointer",
   secondary:
-    "app-bg-subnav app-text-main border app-border hover:bg-slate-100 dark:hover:bg-zinc-800",
-  danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-rose-500/20",
+    "app-bg-subnav app-text-main border app-border hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer",
+  danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-500/25 cursor-pointer",
 };
 
 const defaultIcons: Record<NotificationModalVariant, ReactNode> = {
@@ -133,7 +133,7 @@ export function NotificationModal({
               type="button"
               disabled={action.disabled}
               onClick={action.onClick}
-              className={`min-h-11 rounded-xl px-5 py-2.5 text-sm font-bold shadow-md transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${actionStyles[action.variant ?? "primary"]}`}
+              className={`min-h-11 rounded-xl px-5 py-2.5 text-sm font-bold shadow-md transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 ${actionStyles[action.variant ?? "primary"]}`}
             >
               {action.label}
             </button>

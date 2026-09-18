@@ -27,15 +27,15 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles = {
     primary:
-      "bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow-md shadow-brand-500/25",
+      "bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md shadow-blue-500/25 cursor-pointer",
     secondary:
-      "bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+      "bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 cursor-pointer",
     outline:
-      "border border-brand-500/80 text-brand-600 hover:bg-brand-500/10 dark:border-brand-400 dark:text-brand-400",
+      "border border-blue-500/80 text-blue-600 hover:bg-blue-500/10 dark:border-blue-400 dark:text-blue-400 cursor-pointer",
     ghost:
-      "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+      "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer",
     gradient:
-      "gradient-btn text-white font-semibold shadow-lg shadow-brand-500/25"
+      "gradient-btn text-white font-semibold shadow-lg shadow-blue-500/25 cursor-pointer"
   };
 
   return (
