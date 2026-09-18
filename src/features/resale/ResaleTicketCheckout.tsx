@@ -28,6 +28,35 @@ const formatDateTime = (value?: unknown) => {
 
 type CheckoutStep = "select" | "reserve" | "payment";
 
+function ReservationSummary({
+  ticketTier,
+  quantity,
+  price,
+  totalAmount,
+}: {
+  ticketTier: string;
+  quantity: number;
+  price: number;
+  totalAmount: number;
+}) {
+  return (
+    <aside className="h-fit rounded-xl border app-border app-bg-card p-5 shadow-sm lg:sticky lg:top-6" aria-label="Thông tin đặt vé">
+      <h2 className="border-b app-border pb-3 text-base font-bold app-text-main">Thông tin đặt vé</h2>
+      <div className="mt-4 flex items-start justify-between gap-4 text-sm">
+        <div>
+          <p className="font-semibold app-text-main">{ticketTier}</p>
+          <p className="mt-1 text-xs app-text-muted">{money(price)} / vé</p>
+        </div>
+        <p className="font-semibold app-text-main">{String(quantity).padStart(2, "0")}</p>
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t app-border pt-4 text-sm">
+        <span className="font-semibold app-text-muted">Tạm tính</span>
+        <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{money(totalAmount)}</span>
+      </div>
+    </aside>
+  );
+}
+
 export const ResaleTicketCheckout = () => {
   const { eventId = "", ticketId = "" } = useParams();
   const navigate = useNavigate();
@@ -39,6 +68,10 @@ export const ResaleTicketCheckout = () => {
   const [reserving, setReserving] = useState(false);
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
   const [step, setStep] = useState<CheckoutStep>("select");
+  const [customQuestions, setCustomQuestions] = useState<Array<Record<string, any>>>([]);
+  const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
+  const [questionError, setQuestionError] = useState("");
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "MOMO" | "ZALOPAY">("VNPAY");
   const [paying, setPaying] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -52,6 +85,32 @@ export const ResaleTicketCheckout = () => {
       })
       .catch(() => setError("Vé này không còn khả dụng hoặc đã được người khác mua."));
   }, [eventId, ticketId]);
+
+  useEffect(() => {
+    const rawQuestions = event?.customQuestions ?? event?.questions;
+    if (Array.isArray(rawQuestions)) {
+      setCustomQuestions(rawQuestions.filter((item): item is Record<string, any> => Boolean(item && typeof item === "object")));
+      return;
+    }
+    if (typeof rawQuestions === "string") {
+      try {
+        const parsed = JSON.parse(rawQuestions);
+        setCustomQuestions(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setCustomQuestions([]);
+      }
+      return;
+    }
+    setCustomQuestions([]);
+  }, [event]);
+
+  useEffect(() => {
+    if (!reservation) return;
+    const update = () => setSecondsRemaining(Math.max(0, Math.floor((new Date(reservation.reservationExpiresAt).getTime() - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [reservation]);
 
   const isMyListing = listing?.ownedByCurrentUser === true;
 
@@ -101,6 +160,21 @@ export const ResaleTicketCheckout = () => {
     }
   };
 
+  const handleContinueToPayment = () => {
+    const requiredQuestion = customQuestions.find((question) => {
+      if (!question.isRequired) return false;
+      const answer = answers[String(question.id ?? "")];
+      return answer === undefined || answer === "" || answer === false;
+    });
+    if (requiredQuestion) {
+      setQuestionError(`Vui lòng trả lời câu hỏi bắt buộc: "${String(requiredQuestion.title ?? "của sự kiện")}"`);
+      return;
+    }
+    setQuestionError("");
+    setStep("payment");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (error && !listing) {
     return (
       <main className="min-h-screen app-bg-page app-text-main px-4 py-12">
@@ -145,6 +219,13 @@ export const ResaleTicketCheckout = () => {
     ? `${Math.round((minPrice / originalPrice) * 100)}%–${Math.round((maxPrice / originalPrice) * 100)}% giá gốc`
     : null;
   const stepTitle = step === "select" ? "Chọn vé bán lại" : step === "reserve" ? "Giữ vé bán lại" : "Thanh toán vé bán lại";
+  const timerMinutes = String(Math.floor(secondsRemaining / 60)).padStart(2, "0");
+  const timerSeconds = String(secondsRemaining % 60).padStart(2, "0");
+  const requiredQuestionsAnswered = customQuestions.every((question) => {
+    if (!question.isRequired) return true;
+    const answer = answers[String(question.id ?? "")];
+    return answer !== undefined && answer !== "" && answer !== false;
+  });
 
   return (
     <div className="min-h-screen app-bg-page app-text-main">
@@ -188,6 +269,20 @@ export const ResaleTicketCheckout = () => {
             <p className="mt-3 text-xs app-text-muted">Biên độ giá resale: <strong className="app-text-main">{policyRange}</strong></p>
           )}
         </div>
+
+        {reservation && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/50 dark:bg-rose-950/20 sm:px-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-300">Hoàn tất đặt vé trong</p>
+              <p className="mt-1 text-xs app-text-muted">Vé được giữ riêng cho bạn trong thời gian này.</p>
+            </div>
+            <div className="flex items-center gap-1 font-mono text-xl font-bold text-rose-600 dark:text-rose-300" aria-label={`Còn lại ${timerMinutes} phút ${timerSeconds} giây`}>
+              <span className="rounded-lg bg-rose-500 px-2.5 py-1.5 text-white">{timerMinutes}</span>
+              <span>:</span>
+              <span className="rounded-lg bg-rose-500 px-2.5 py-1.5 text-white">{timerSeconds}</span>
+            </div>
+          </div>
+        )}
 
         <nav aria-label="Tiến trình mua vé bán lại" className="mb-6 grid grid-cols-3 gap-2 text-center text-xs">
           {["Chọn vé", "Giữ vé", "Thanh toán"].map((label, index) => {
@@ -333,11 +428,12 @@ export const ResaleTicketCheckout = () => {
           </div>
         ) : step === "reserve" ? (
           /* Step 2: Reservation */
-          <div className="space-y-6">
-            <div
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="space-y-6">
+              <div
               role="status"
               className="rounded-xl border border-blue-500/40 bg-blue-950/30 p-5 text-sm text-blue-200 shadow-md"
-            >
+              >
               <div className="flex items-center gap-2 font-bold text-base text-blue-400">
                 <FiCheckCircle className="text-xl shrink-0" />
                 <span>Vé đã được giữ tạm thời thành công!</span>
@@ -357,25 +453,81 @@ export const ResaleTicketCheckout = () => {
                   (khoảng 15 phút)
                 </span>
               </div>
-            </div>
+              </div>
 
-            <button
+              {customQuestions.length > 0 && (
+              <section aria-labelledby="resale-questions-title" className="space-y-4">
+                <h2 id="resale-questions-title" className="text-base font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">BẢNG CÂU HỎI</h2>
+                <div className="space-y-4 rounded-xl border app-border app-bg-card p-5 shadow-sm">
+                  {customQuestions.map((question, index) => {
+                    const id = String(question.id ?? index);
+                    const type = String(question.type ?? "text").toLowerCase();
+                    const title = String(question.title ?? "Câu hỏi");
+                    return (
+                      <div key={id} className="space-y-2 rounded-lg border app-border app-bg-page p-4">
+                        <label className="block text-sm font-semibold app-text-main">
+                          {title}{question.isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
+                        </label>
+                        {question.description && <p className="text-xs app-text-muted">{String(question.description)}</p>}
+                        {type === "checkbox" ? (
+                          <label className="flex cursor-pointer items-center gap-2 text-sm app-text-main">
+                            <input
+                              type="checkbox"
+                              aria-label={title}
+                              checked={answers[id] === true}
+                              onChange={(event) => setAnswers((current) => ({ ...current, [id]: event.target.checked }))}
+                              className="h-4 w-4 rounded accent-blue-600"
+                            />
+                            <span>Tôi đã đọc và đồng ý</span>
+                          </label>
+                        ) : type === "select" || type === "dropdown" ? (
+                          <select
+                            aria-label={title}
+                            value={String(answers[id] ?? "")}
+                            onChange={(event) => setAnswers((current) => ({ ...current, [id]: event.target.value }))}
+                            className="w-full rounded-lg border app-border app-bg-card px-3 py-2.5 text-sm app-text-main"
+                          >
+                            <option value="">Chọn câu trả lời</option>
+                            {(Array.isArray(question.options) ? question.options : []).map((option: unknown) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
+                          </select>
+                        ) : (
+                          <input
+                            aria-label={title}
+                            value={String(answers[id] ?? "")}
+                            onChange={(event) => setAnswers((current) => ({ ...current, [id]: event.target.value }))}
+                            placeholder="Nhập câu trả lời của bạn"
+                            className="w-full rounded-lg border app-border app-bg-card px-3 py-2.5 text-sm app-text-main"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                  {questionError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{questionError}</p>}
+                </div>
+              </section>
+            )}
+
+              <button
               type="button"
-              onClick={() => setStep("payment")}
-              className="w-full rounded-lg bg-blue-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+              disabled={secondsRemaining === 0 || reserving || !requiredQuestionsAnswered}
+              onClick={handleContinueToPayment}
+              className="w-full rounded-lg bg-blue-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Tiếp tục thanh toán - {money(reservation.amount)} »
-            </button>
+              Tiếp tục
+              </button>
+            </div>
+            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} />
           </div>
         ) : (
           /* Step 3: Payment */
-          <div className="space-y-6">
-            <div className="flex items-center justify-between rounded-xl border app-border app-bg-card px-4 py-3 text-sm">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between rounded-xl border app-border app-bg-card px-4 py-3 text-sm">
               <span className="app-text-muted">Vé đã giữ cho bạn</span>
               <button type="button" onClick={() => setStep("reserve")} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">Quay lại giữ vé</button>
-            </div>
+              </div>
 
-            <fieldset className="rounded-xl border app-border app-bg-card p-5 shadow-sm">
+              <fieldset className="rounded-xl border app-border app-bg-card p-5 shadow-sm">
               <legend className="mb-3 text-base font-bold app-text-main">Phương thức thanh toán</legend>
               <div className="grid grid-cols-3 gap-3">
                 {(["VNPAY", "MOMO", "ZALOPAY"] as const).map((m) => (
@@ -398,22 +550,24 @@ export const ResaleTicketCheckout = () => {
                   </label>
                 ))}
               </div>
-            </fieldset>
+              </fieldset>
 
-            {error && (
+              {error && (
               <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
                 {error}
               </div>
             )}
 
-            <button
+              <button
               type="button"
               disabled={paying}
               onClick={handlePayment}
               className="w-full py-3.5 px-6 rounded-lg text-base font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition shadow-lg shadow-blue-600/25 disabled:opacity-50"
             >
-              {paying ? "Đang chuyển đến cổng thanh toán…" : `Thanh toán - ${money(reservation.amount)} »`}
-            </button>
+              {paying ? "Đang chuyển đến cổng thanh toán…" : "Thanh toán"}
+              </button>
+            </div>
+            <ReservationSummary ticketTier={ticketTier} quantity={quantity} price={listing.price} totalAmount={totalAmount} />
           </div>
         )}
 

@@ -67,6 +67,9 @@ describe("ResaleTicketCheckout", () => {
     } as any);
     vi.mocked(eventApi.getEventById).mockResolvedValue({
       title: "Event X",
+      customQuestions: [
+        { id: "q1", title: "Bạn đã đọc điều khoản sự kiện?", type: "checkbox", isRequired: true },
+      ],
     } as any);
     vi.mocked(marketplaceApi.reserveListing).mockResolvedValue({
       transactionId: "txn-1",
@@ -90,10 +93,16 @@ describe("ResaleTicketCheckout", () => {
 
     await waitFor(() => expect(screen.getByText(/txn-1/)).toBeInTheDocument());
     expect(screen.queryByRole("heading", { name: "Chọn vé" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Tiếp tục thanh toán/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Thông tin đặt vé" })).toBeInTheDocument();
+    expect(screen.getByText("BẢNG CÂU HỎI")).toBeInTheDocument();
+    expect(screen.getByText("Hoàn tất đặt vé trong")).toBeInTheDocument();
+    const continueButton = screen.getByRole("button", { name: "Tiếp tục" });
+    expect(continueButton).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Bạn đã đọc điều khoản/i }));
+    expect(continueButton).not.toBeDisabled();
     expect(screen.queryByText("VNPAY")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Tiếp tục thanh toán/i }));
+    fireEvent.click(continueButton);
     expect(screen.getByText("VNPAY")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Thanh toán/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thanh toán" })).toBeInTheDocument();
   });
 });
