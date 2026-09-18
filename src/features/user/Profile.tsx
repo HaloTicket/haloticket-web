@@ -897,9 +897,6 @@ export default function Profile() {
                     <h3 className="text-xl font-extrabold app-text-main">
                       {translate("Xác minh danh tính Nhà tổ chức")}
                     </h3>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800">
-                      VNPT eKYC
-                    </span>
                   </div>
                   <p className="text-xs sm:text-sm app-text-muted mt-1">
                     {translate("Xác minh danh tính & Thiết lập tài khoản nhận tiền bán vé.")}
@@ -970,7 +967,7 @@ export default function Profile() {
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10 text-[11px] text-slate-400 relative z-10">
                       <span className="flex items-center gap-1.5">
                         <FiCheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        {translate("Đã xác thực qua VNPT eKYC")}
+                        {translate("Đã xác minh danh tính")}
                       </span>
                       <span>
                         {translate("Ngày xác thực:")}{" "}
@@ -982,7 +979,7 @@ export default function Profile() {
                   </div>
 
                   {/* Notice & Actions */}
-                  <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs app-text-muted">
+                  <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs app-text-muted">
                     <p className="leading-relaxed">
                       {translate("Thông tin CCCD đã được xác thực. Tài khoản thụ hưởng cần được xác minh riêng trước khi nhận thanh toán.")}
                     </p>
@@ -991,76 +988,50 @@ export default function Profile() {
                   <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
                     <Link
                       to={PATHS.MY_EVENTS}
-                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all text-center"
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all text-center"
                     >
                       {translate("Quản lý sự kiện")}
                     </Link>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Hero Benefits Box */}
-                  <div className="p-6 rounded-3xl bg-gradient-to-br from-blue-600/5 via-indigo-600/5 to-purple-600/5 border border-blue-200/80 dark:border-blue-900/40 space-y-5">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25">
-                        <FiShield className="w-6 h-6" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-base sm:text-lg font-bold app-text-main">
-                          {translate("Quyền lợi khi hoàn tất xác thực thông tin CCCD")}
-                        </h4>
-                        <p className="text-xs sm:text-sm app-text-muted leading-relaxed">
-                          {translate(
-                            "Sau khi xác thực thông tin CCCD, tài khoản mới có quyền tạo sự kiện, chuyển nhượng vé và bán vé:"
-                          )}
-                        </p>
-                      </div>
-                    </div>
+                <div className="space-y-4 p-5 rounded-xl border app-border app-bg-card">
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold app-text-main">
+                      {translate("Xác minh danh tính Nhà tổ chức")}
+                    </h4>
+                    <p className="text-xs sm:text-sm app-text-muted">
+                      {translate("Xác minh thông tin CCCD để sử dụng các tính năng dành cho nhà tổ chức.")}
+                    </p>
+                  </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/60 flex items-start gap-3.5 text-xs shadow-2xs">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center shrink-0">
-                          <FiCheckCircle className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h5 className="app-text-main font-bold">{translate("Tạo sự kiện")}</h5>
-                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Mở khóa quyền tạo và phát hành sự kiện.")}</p>
-                        </div>
+                  <div className="py-2 space-y-2 text-xs sm:text-sm">
+                    <p className="font-bold app-text-main">{translate("Bạn sẽ có thể:")}</p>
+                    <div className="space-y-1.5 pl-1">
+                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                        <FiCheck className="w-4 h-4 shrink-0" />
+                        <span className="app-text-main font-medium">{translate("Tạo và quản lý sự kiện")}</span>
                       </div>
-
-                      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/60 flex items-start gap-3.5 text-xs shadow-2xs">
-                        <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center shrink-0">
-                          <FaTicketAlt className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <h5 className="app-text-main font-bold">{translate("Chuyển nhượng & Bán vé")}</h5>
-                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Quyền bán vé và sang nhượng vé chính chủ.")}</p>
-                        </div>
+                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                        <FiCheck className="w-4 h-4 shrink-0" />
+                        <span className="app-text-main font-medium">{translate("Bán và chuyển nhượng vé")}</span>
                       </div>
-
-                      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/60 flex items-start gap-3.5 text-xs shadow-2xs">
-                        <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center shrink-0">
-                          <FiShield className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h5 className="app-text-main font-bold">{translate("Tài khoản thụ hưởng riêng")}</h5>
-                          <p className="text-[11px] app-text-muted mt-0.5 leading-tight">{translate("Xác minh tài khoản thụ hưởng riêng khi rút tiền.")}</p>
-                        </div>
+                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                        <FiCheck className="w-4 h-4 shrink-0" />
+                        <span className="app-text-main font-medium">{translate("Thiết lập tài khoản nhận tiền")}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* 3 Steps Guide & Action CTA */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-3 border-t app-border">
-                    <div className="flex items-center gap-2 text-xs app-text-muted">
-                      <FiCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span>{translate("Chuẩn bị hai mặt Căn cước công dân (CCCD gắn chip) để quét OCR.")}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t app-border">
+                    <div className="text-xs app-text-muted">
+                      {translate("Chuẩn bị CCCD gắn chip và thiết bị có camera.")}
                     </div>
                     <Link
                       to={`${PATHS.EKYC}?returnUrl=/profile?tab=ekyc`}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-blue-500/25 hover:shadow-blue-500/40 transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-98"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-98"
                     >
-                      <span>{translate("Bắt đầu xác minh ngay")}</span>
+                      <span>{translate("Bắt đầu xác minh")}</span>
                       <FiArrowRight className="w-4 h-4 shrink-0" />
                     </Link>
                   </div>

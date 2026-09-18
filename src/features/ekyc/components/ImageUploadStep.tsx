@@ -7,13 +7,13 @@ import {
   FiRotateCcw,
   FiRotateCw,
   FiRepeat,
-  FiUploadCloud,
   FiArrowLeft,
   FiArrowRight,
   FiCrop,
+  FiEdit2,
+  FiUploadCloud,
 } from "react-icons/fi";
 import { type ImageMetadata } from "@/utils/imageUtils";
-import { VnptInputStandardsGuide } from "./VnptInputStandardsGuide";
 import { CropModal } from "./CropModal";
 
 interface ImageUploadStepProps {
@@ -59,31 +59,20 @@ export function ImageUploadStep({
   const inputId = `ekyc-upload-input-${index}`;
 
   const [showCrop, setShowCrop] = useState(false);
-  // Temp src for crop: either current preview or a newly selected-but-not-yet-confirmed file
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [showEditTools, setShowEditTools] = useState(false);
 
   const openFilePicker = () => {
-    // Always clear input value so same file can be re-selected
-    if (inputRef.current) {
-      inputRef.current.value = "";
-      inputRef.current.click();
-    }
+    inputRef.current?.click();
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Validate
     if (!["image/jpeg", "image/png"].includes(file.type) || file.size > 10 * 1024 * 1024) {
-      onFileChange(index, e); // let parent show error
+      onFileChange(index, e);
       return;
     }
-    // Tạm tắt crop modal - dùng ảnh gốc trực tiếp để preserve EXIF metadata
-    // const tempUrl = URL.createObjectURL(file);
-    // setCropSrc(tempUrl);
-    // setShowCrop(true);
-    
-    // Dùng ảnh gốc trực tiếp
     const url = URL.createObjectURL(file);
     onCropConfirm(index, file, url);
   };
@@ -121,152 +110,165 @@ export function ImageUploadStep({
         />
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-5">
+        {/* Header Title & Instruction */}
+        <div className="space-y-1">
+          <h3 className="text-base sm:text-lg font-bold app-text-main">
+            {label}
+          </h3>
+          <p className="text-xs sm:text-sm app-text-muted">
+            {description}
+          </p>
+        </div>
+
+        {/* Upload Container or Preview */}
         {preview ? (
-          <div className="space-y-4 rounded-3xl border app-border app-bg-card p-5 sm:p-7 shadow-xs">
-            {/* Preview Box */}
-            <div className="relative max-w-lg mx-auto aspect-[16/10] rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-zinc-700 bg-slate-950 flex items-center justify-center">
+          <div className="rounded-xl border app-border app-bg-card p-4 sm:p-5 space-y-4">
+            {/* Image Preview Box */}
+            <div className="relative max-w-md mx-auto aspect-[16/10] rounded-lg overflow-hidden border app-border bg-slate-950 flex items-center justify-center">
               <img
                 src={preview}
                 alt={`Ảnh ${label}`}
                 className="w-full h-full object-contain select-none"
               />
 
-              {/* Top-left label badge */}
-              <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-md">
+              {/* Status Badge */}
+              <div className="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-md bg-emerald-600/90 text-white text-xs font-semibold flex items-center gap-1 shadow-sm backdrop-blur-xs">
                 <FiCheck className="w-3.5 h-3.5 stroke-[3]" />
-                <span>{label}</span>
-              </div>
-
-              {/* Top-right orientation badge */}
-              <div className="absolute top-3 right-3">
-                {metadata?.isPortrait ? (
-                  <span className="px-2.5 py-1 rounded-full bg-amber-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md animate-pulse">
-                    <FiAlertCircle className="w-3.5 h-3.5" />
-                    <span>{t("Ảnh dọc - Cần xoay ngang")}</span>
-                  </span>
-                ) : metadata?.width ? (
-                  <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1 shadow-md">
-                    <FiCheck className="w-3.5 h-3.5" />
-                    <span>{metadata.width} × {metadata.height} px ({t("Chuẩn ngang")})</span>
-                  </span>
-                ) : null}
+                <span>{metadata?.isPortrait ? t("Ảnh dọc - Cần xoay") : t("Ảnh đạt yêu cầu")}</span>
               </div>
 
               {/* Rotating overlay */}
               {rotatingIndex === index && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2 z-20">
-                  <FiRefreshCw className="w-8 h-8 animate-spin text-blue-400" />
-                  <span className="text-xs font-bold">{t("Đang xoay ảnh...")}</span>
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white gap-2 z-20">
+                  <FiRefreshCw className="w-6 h-6 animate-spin text-blue-400" />
+                  <span className="text-xs font-medium">{t("Đang xoay ảnh...")}</span>
                 </div>
               )}
             </div>
 
-            {/* Portrait warning banner */}
+            {/* Portrait orientation alert if needed */}
             {metadata?.isPortrait && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
-                <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200">
-                  <FiAlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                  <span>
-                    {t("Ảnh đang theo")} <strong>{t("chiều dọc")}</strong> ({metadata?.height} × {metadata?.width} px). {t("VNPT eKYC yêu cầu ảnh CCCD nằm ngang để bóc tách chính xác.")}
-                  </span>
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                  <FiAlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{t("Ảnh đang chụp theo chiều dọc. Vui lòng xoay ngang để tiếp tục.")}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => onRotate(index, 90)}
                   disabled={rotatingIndex !== null}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs active:scale-98"
+                  className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 inline-flex items-center gap-1 cursor-pointer transition-all active:scale-98"
                 >
-                  <FiRotateCw className="w-3.5 h-3.5" />
-                  <span>{t("Xoay ngang 90° ngay")}</span>
+                  <FiRotateCw className="w-3 h-3" />
+                  <span>{t("Xoay ngang 90°")}</span>
                 </button>
               </div>
             )}
 
-            {/* Rotation + action toolbar */}
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t app-border">
-              <button
-                type="button"
-                onClick={() => onRotate(index, -90)}
-                disabled={rotatingIndex !== null}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer border app-border"
-                title={t("Xoay trái 90°")}
-              >
-                <FiRotateCcw className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
-                <span>{t("Xoay trái 90°")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onRotate(index, 90)}
-                disabled={rotatingIndex !== null}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer border app-border"
-                title={t("Xoay phải 90°")}
-              >
-                <FiRotateCw className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
-                <span>{t("Xoay phải 90°")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onRotate(index, 180)}
-                disabled={rotatingIndex !== null}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer border app-border"
-                title={t("Lật 180°")}
-              >
-                <FiRepeat className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
-                <span>{t("Xoay 180°")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={openCropExisting}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer border app-border"
-                title={t("Cắt ảnh")}
-              >
-                <FiCrop className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
-                <span>{t("Cắt ảnh")}</span>
-              </button>
-
+            {/* Action Bar (Progressive Disclosure) */}
+            <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
                 onClick={openFilePicker}
-                className="px-3.5 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer sm:ml-auto"
+                className="px-3.5 py-1.5 rounded-lg border app-border app-bg-page hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-semibold app-text-main inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                <FiUploadCloud className="w-3.5 h-3.5" />
                 <span>{t("Chọn ảnh khác")}</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setShowEditTools((v) => !v)}
+                className="px-3 py-1.5 rounded-lg border app-border text-xs font-medium text-slate-600 dark:text-zinc-300 hover:app-text-main inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <FiEdit2 className="w-3 h-3" />
+                <span>{showEditTools ? t("Thu gọn công cụ") : t("Chỉnh sửa (Xoay/Cắt)")}</span>
+              </button>
             </div>
+
+            {/* Revealed Edit Tools */}
+            {showEditTools && (
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-3 border-t app-border animate-in fade-in">
+                <button
+                  type="button"
+                  onClick={() => onRotate(index, -90)}
+                  disabled={rotatingIndex !== null}
+                  className="px-3 py-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer border app-border"
+                >
+                  <FiRotateCcw className="w-3 h-3" />
+                  <span>{t("Xoay trái")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRotate(index, 90)}
+                  disabled={rotatingIndex !== null}
+                  className="px-3 py-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer border app-border"
+                >
+                  <FiRotateCw className="w-3 h-3" />
+                  <span>{t("Xoay phải")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRotate(index, 180)}
+                  disabled={rotatingIndex !== null}
+                  className="px-3 py-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer border app-border"
+                >
+                  <FiRepeat className="w-3 h-3" />
+                  <span>{t("Xoay 180°")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openCropExisting}
+                  className="px-3 py-1.5 rounded-md bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer border app-border"
+                >
+                  <FiCrop className="w-3 h-3" />
+                  <span>{t("Cắt ảnh")}</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
-          <label
-            htmlFor={inputId}
-            className="block relative rounded-3xl border-2 border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900/40 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/20 dark:hover:bg-blue-950/20 transition-all p-6 sm:p-8 cursor-pointer text-center group"
-          >
-            <div className="py-8 sm:py-12 space-y-4 max-w-md mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/50 mx-auto flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                <FiUploadCloud className="w-7 h-7" />
+          /* Dropzone Upload Box */
+          <div className="space-y-4">
+            <label
+              htmlFor={inputId}
+              className="block relative rounded-2xl border-2 border-dashed border-blue-400/80 dark:border-blue-500/70 bg-blue-50/15 dark:bg-blue-950/15 hover:border-blue-600 dark:hover:border-blue-400 hover:bg-blue-50/35 dark:hover:bg-blue-950/25 transition-all duration-200 p-6 sm:p-8 cursor-pointer text-center group"
+            >
+              <div className="py-6 sm:py-8 space-y-3.5 max-w-md mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/25 mx-auto flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-700 transition-all duration-200">
+                  <FiUploadCloud className="w-7 h-7" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <h4 className="text-base sm:text-lg font-bold app-text-main group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {t("Bấm để tải ảnh ")}{label}
+                  </h4>
+                  <p className="text-xs app-text-muted">
+                    {t("Hỗ trợ định dạng JPG, PNG · Tối đa 10 MB · Có thể cắt sau khi chọn")}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <h4 className="text-base sm:text-lg font-bold app-text-main">
-                  {t("Bấm để tải ảnh ")}{label}
-                </h4>
-                <p className="text-xs app-text-muted">
-                  {t("Hỗ trợ định dạng JPG, PNG · Tối đa 10 MB · Có thể cắt sau khi chọn")}
-                </p>
+            </label>
+
+            {/* Checklist items */}
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-slate-600 dark:text-zinc-400 pt-1">
+              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                <FiCheck className="w-3.5 h-3.5" />
+                <span>{t("Ảnh rõ nét")}</span>
               </div>
-              <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
-                {description.split(",").map((hint) => (
-                  <span key={hint} className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 border app-border">
-                    {hint.trim()}
-                  </span>
-                ))}
+              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                <FiCheck className="w-3.5 h-3.5" />
+                <span>{t("Đủ 4 góc")}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                <FiCheck className="w-3.5 h-3.5" />
+                <span>{t("Không bị lóa hoặc che thông tin")}</span>
               </div>
             </div>
-          </label>
+          </div>
         )}
 
-        {/* Hidden file input — id must match label's htmlFor */}
+        {/* Hidden file input */}
         <input
           id={inputId}
           ref={inputRef}
@@ -279,27 +281,26 @@ export function ImageUploadStep({
           onChange={handleInputChange}
         />
 
-        {/* VNPT Standards Guide */}
-        <VnptInputStandardsGuide />
-
-        {/* Navigation buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        {/* Bottom Navigation */}
+        <div className="flex items-center justify-between pt-3 border-t app-border">
           {onPrev ? (
             <button
               type="button"
               onClick={onPrev}
-              className="px-5 py-3 rounded-xl border app-border text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center gap-2 cursor-pointer app-text-main order-2 sm:order-1"
+              className="px-4 py-2 rounded-lg border app-border text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors inline-flex items-center gap-1.5 cursor-pointer app-text-main"
             >
               <FiArrowLeft className="w-4 h-4" />
               <span>{prevLabel ?? t("Quay lại")}</span>
             </button>
           ) : (
-            <div className="order-2 sm:order-1" />
+            <div />
           )}
+
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2 active:scale-98"
+            disabled={!preview}
+            className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-sm transition-all cursor-pointer inline-flex items-center gap-1.5 active:scale-98"
           >
             <span>{nextLabel}</span>
             <FiArrowRight className="w-4 h-4" />
