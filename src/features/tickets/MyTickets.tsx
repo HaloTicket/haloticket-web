@@ -39,7 +39,8 @@ const STATUS_PRESENTATION: Record<TicketUiStatus, { label: string; className: st
 };
 
 export function mapTicketStatus(status?: string | null): TicketUiStatus {
-  switch (status) {
+  const s = (status || "").trim().toUpperCase();
+  switch (s) {
     case "USED": return "USED";
     case "LOCKED_FOR_RESALE": return "SELLING";
     case "LOCKED_FOR_TRANSFER": return "GIFTING";
@@ -47,7 +48,10 @@ export function mapTicketStatus(status?: string | null): TicketUiStatus {
     case "TRANSFERRED": return "TRANSFERRED";
     case "REVOKED":
     case "CANCELLED": return "CANCELLED";
-    default: return "UPCOMING";
+    case "VALID":
+    case "UPCOMING":
+    default:
+      return "UPCOMING";
   }
 }
 
@@ -59,8 +63,18 @@ function formatEventTime(value?: string) {
 }
 
 async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketItem[]> {
+  if (!items || !Array.isArray(items)) return [];
   const eventIds = [...new Set(items.map((item) => item.eventId).filter(Boolean))];
-  const entries = await Promise.all(eventIds.map(async (eventId) => [eventId, await eventApi.getEventById(eventId)] as const));
+  const entries = await Promise.all(
+    eventIds.map(async (eventId) => {
+      try {
+        const event = await eventApi.getEventById(eventId);
+        return [eventId, event] as const;
+      } catch {
+        return [eventId, null] as const;
+      }
+    })
+  );
   const events = new Map(entries);
   return items.map((item) => {
     const event = events.get(item.eventId);
@@ -87,53 +101,69 @@ async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketIt
 }
 
 export function downloadTicketAsImage(ticket: TicketItem) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1050;
-  canvas.height = 580;
-  const context = canvas.getContext("2d");
-  if (!context) return;
-  context.fillStyle = "#0f172a";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#2563eb";
-  context.fillRect(42, 42, 154, 38);
-  context.fillStyle = "#ffffff";
-  context.font = "700 16px sans-serif";
-  context.fillText("HALOTICKET", 58, 68);
-  context.font = "700 28px sans-serif";
-  const title = ticket.eventTitle.length > 42 ? `${ticket.eventTitle.slice(0, 39)}…` : ticket.eventTitle;
-  context.fillText(title, 42, 135);
-  context.fillStyle = "#cbd5e1";
-  context.font = "16px sans-serif";
-  context.fillText(ticket.eventTime, 42, 180);
-  context.fillText(ticket.eventLocation, 42, 215);
-  context.fillStyle = "#ffffff";
-  context.font = "700 20px sans-serif";
-  context.fillText(`${ticket.ticketTypeName} · ${formatCurrency(ticket.totalAmount)}`, 42, 280);
-  context.fillStyle = "#94a3b8";
-  context.font = "14px monospace";
-  context.fillText(`Mã vé: ${ticket.bookingCode}`, 42, 325);
-  const qrValue = ticket.qrCode || `HALOTICKET-${ticket.bookingCode}`;
-  const image = new Image();
-  image.crossOrigin = "Anonymous";
-  image.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrValue)}`;
-  const save = () => {
-    const link = document.createElement("a");
-    link.download = `HaloTicket_${ticket.bookingCode}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
-  image.onload = () => {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1050;
+    canvas.height = 580;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.fillStyle = "#0f172a";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#2563eb";
+    context.fillRect(42, 42, 154, 38);
     context.fillStyle = "#ffffff";
-    context.fillRect(740, 125, 250, 250);
-    context.drawImage(image, 752, 137, 226, 226);
-    save();
-  };
-  image.onerror = save;
+    context.font = "700 16px sans-serif";
+    context.fillText("HALOTICKET", 58, 68);
+    context.font = "700 28px sans-serif";
+    const title = ticket.eventTitle.length > 42 ? `${ticket.eventTitle.slice(0, 39)}…` : ticket.eventTitle;
+    context.fillText(title, 42, 135);
+    context.fillStyle = "#cbd5e1";
+    context.font = "16px sans-serif";
+    context.fillText(ticket.eventTime, 42, 180);
+    context.fillText(ticket.eventLocation, 42, 215);
+    context.fillStyle = "#ffffff";
+    context.font = "700 20px sans-serif";
+    context.fillText(`${ticket.ticketTypeName} · ${formatCurrency(ticket.totalAmount)}`, 42, 280);
+    context.fillStyle = "#94a3b8";
+    context.font = "14px monospace";
+    context.fillText(`Mã vé: ${ticket.bookingCode}`, 42, 325);
+    const qrValue = ticket.qrCode || `HALOTICKET-${ticket.bookingCode}`;
+    const image = new Image();
+    image.crossOrigin = "Anonymous";
+    image.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrValue)}`;
+    const save = () => {
+      try {
+        const link = document.createElement("a");
+        link.download = `HaloTicket_${ticket.bookingCode}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      } catch (err) {
+        console.warn("Could not download canvas image:", err);
+      }
+    };
+    image.onload = () => {
+      try {
+        context.fillStyle = "#ffffff";
+        context.fillRect(740, 125, 250, 250);
+        context.drawImage(image, 752, 137, 226, 226);
+      } catch {
+        // Tainted canvas fallback
+      }
+      save();
+    };
+    image.onerror = save;
+  } catch (err) {
+    console.warn("Error in downloadTicketAsImage:", err);
+  }
 }
 
 function StatusBadge({ status }: { status: TicketUiStatus }) {
   const presentation = STATUS_PRESENTATION[status];
-  return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${presentation.className}`}>{presentation.label}</span>;
+  return (
+    <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${presentation.className}`}>
+      {presentation.label}
+    </span>
+  );
 }
 
 function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => void }) {
@@ -193,8 +223,11 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
     setLoading(true);
     setLoadError(null);
     try {
-      setTickets(await hydrateTickets(await ticketApi.getMyTickets()));
-    } catch {
+      const response = await ticketApi.getMyTickets();
+      const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
+      setTickets(hydrated);
+    } catch (err) {
+      console.error("loadTickets failed:", err);
       setLoadError("Không thể tải vé từ hệ thống. Hãy thử lại sau.");
     } finally {
       setLoading(false);
@@ -251,30 +284,97 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
             {filteredTickets.map((ticket) => {
               const canTransact = ticket.rawStatus === "VALID";
               return (
-                <article key={ticket.id} className="relative overflow-visible rounded-2xl border app-border app-bg-card p-3 transition-shadow hover:shadow-md sm:p-4">
+                <article key={ticket.id} className="relative overflow-visible rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800 sm:h-24 sm:w-36">
-                      {ticket.eventPoster ? <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><FiTag className="h-6 w-6 app-text-muted" /></div>}
+                    <div className="h-28 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800 sm:h-22 sm:w-32">
+                      {ticket.eventPoster ? (
+                        <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center"><FiTag className="h-5 w-5 text-slate-400" /></div>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3"><h2 className="line-clamp-2 text-base font-bold leading-snug app-text-main sm:text-lg">{ticket.eventTitle}</h2><StatusBadge status={ticket.status} /></div>
-                      <div className="mt-2 flex flex-col gap-1 text-sm app-text-sub sm:flex-row sm:gap-5"><span className="flex min-w-0 items-center gap-2"><FiCalendar className="shrink-0 text-blue-600" /><span className="truncate">{ticket.eventTime}</span></span><span className="flex min-w-0 items-center gap-2"><FiMapPin className="shrink-0 text-blue-600" /><span className="truncate">{ticket.eventLocation}</span></span></div>
-                      <div className="mt-3 flex items-center justify-between gap-3"><p className="text-sm app-text-sub"><span className="font-semibold app-text-main">{ticket.ticketTypeName}</span> · {ticket.quantity} vé</p><p className="text-sm font-semibold app-text-main">{formatCurrency(ticket.totalAmount)}</p></div>
+                      <div className="flex items-start justify-between gap-3">
+                        <h2 className="line-clamp-2 text-base font-semibold leading-snug text-slate-900 dark:text-slate-100">{ticket.eventTitle}</h2>
+                        <StatusBadge status={ticket.status} />
+                      </div>
+                      <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:gap-4">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <FiCalendar className="shrink-0 text-slate-400 h-3.5 w-3.5" />
+                          <span className="truncate">{ticket.eventTime}</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <FiMapPin className="shrink-0 text-slate-400 h-3.5 w-3.5" />
+                          <span className="truncate">{ticket.eventLocation}</span>
+                        </span>
+                      </div>
+                      <div className="mt-2.5 flex items-center justify-between gap-3 text-xs">
+                        <span className="text-slate-500 font-medium">{ticket.ticketTypeName} · {ticket.quantity} vé</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{formatCurrency(ticket.totalAmount)}</span>
+                      </div>
                     </div>
                     <div className="flex shrink-0 items-center justify-end gap-2 sm:pl-2">
-                      <button type="button" onClick={() => setViewerTicket(ticket)} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Xem vé</button>
+                      <button
+                        type="button"
+                        onClick={() => setViewerTicket(ticket)}
+                        className="rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Xem vé
+                      </button>
                       <div className="relative">
-                        <button type="button" onClick={() => setOpenMenuId((current) => current === ticket.id ? undefined : ticket.id)} aria-label="Thao tác với vé" aria-expanded={openMenuId === ticket.id} className="rounded-xl border app-border p-2.5 app-text-main hover:bg-slate-500/10 focus:outline-none focus:ring-2 focus:ring-blue-500"><FiMoreHorizontal className="h-5 w-5" /></button>
-                        {openMenuId === ticket.id && <div className="absolute bottom-12 right-0 z-20 w-48 overflow-hidden rounded-xl border app-border app-bg-card py-1 shadow-xl">
-                          {canTransact && <button type="button" onClick={() => { setOpenMenuId(undefined); downloadTicketAsImage(ticket); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm app-text-main hover:bg-slate-500/10"><FiDownload /> Tải vé</button>}
-                          {canTransact && <button type="button" onClick={() => { setOpenMenuId(undefined); setResaleTicket(ticket); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm app-text-main hover:bg-slate-500/10"><FiTag /> Đăng bán lại</button>}
-                          {canTransact && <button type="button" onClick={() => { setOpenMenuId(undefined); setGiftTicket(ticket); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm app-text-main hover:bg-slate-500/10"><FiGift /> Tặng vé</button>}
-                          <Link to={`/my-tickets/${ticket.id}`} onClick={() => setOpenMenuId(undefined)} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm app-text-main hover:bg-slate-500/10"><FiArrowRight /> Chi tiết</Link>
-                        </div>}
+                        <button
+                          type="button"
+                          onClick={() => setOpenMenuId((current) => current === ticket.id ? undefined : ticket.id)}
+                          aria-label="Thao tác với vé"
+                          aria-expanded={openMenuId === ticket.id}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <FiMoreHorizontal className="h-4 w-4 text-slate-500" />
+                        </button>
+                        {openMenuId === ticket.id && (
+                          <div className="absolute bottom-11 right-0 z-20 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                            {canTransact && (
+                              <button
+                                type="button"
+                                onClick={() => { setOpenMenuId(undefined); downloadTicketAsImage(ticket); }}
+                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                              >
+                                <FiDownload className="h-3.5 w-3.5 text-slate-400" /> Tải vé
+                              </button>
+                            )}
+                            {canTransact && (
+                              <button
+                                type="button"
+                                onClick={() => { setOpenMenuId(undefined); setResaleTicket(ticket); }}
+                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                              >
+                                <FiTag className="h-3.5 w-3.5 text-slate-400" /> Đăng bán lại
+                              </button>
+                            )}
+                            {canTransact && (
+                              <button
+                                type="button"
+                                onClick={() => { setOpenMenuId(undefined); setGiftTicket(ticket); }}
+                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                              >
+                                <FiGift className="h-3.5 w-3.5 text-slate-400" /> Tặng vé
+                              </button>
+                            )}
+                            <Link
+                              to={`/my-tickets/${ticket.id}`}
+                              onClick={() => setOpenMenuId(undefined)}
+                              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                            >
+                              <FiArrowRight className="h-3.5 w-3.5 text-slate-400" /> Chi tiết
+                            </Link>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 truncate border-t app-border pt-2 font-mono text-[11px] app-text-muted">Mã vé: {ticket.bookingCode}</p>
+                  <p className="mt-3 truncate border-t border-slate-100 pt-2 font-mono text-[11px] text-slate-400 dark:border-slate-800">
+                    Mã vé: {ticket.bookingCode}
+                  </p>
                 </article>
               );
             })}

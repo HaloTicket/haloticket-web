@@ -42,7 +42,7 @@ export const marketplaceApi = {
   getResaleEligibility: (ticketId: string) =>
     axiosClient.get<unknown, ResaleEligibility>(`/marketplace/tickets/${encodeURIComponent(ticketId)}/resale-eligibility`),
 
-  createResaleListing: (request: { ticketId: string; price: number; policyVersion?: number; termsVersion?: string }, idempotencyKey = newIdempotencyKey()) =>
+  createResaleListing: (request: { ticketId: string; price: number; policyVersion?: number; termsVersion?: string; allowRetail?: boolean }, idempotencyKey = newIdempotencyKey()) =>
     axiosClient.post<unknown, MarketplaceSagaResponse>("/marketplace/listings", request, { headers: { "Idempotency-Key": idempotencyKey } }),
 
   getSaga: (sagaId: string) =>

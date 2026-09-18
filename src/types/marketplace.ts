@@ -30,6 +30,7 @@ export interface MarketplaceSagaResponse {
 export interface TicketListing {
   id: string;
   ticketId: string;
+  ownedByCurrentUser?: boolean;
   eventId?: string | null;
   ticketTypeName?: string | null;
   section?: string | null;
@@ -39,6 +40,8 @@ export interface TicketListing {
   originalPrice?: number | null;
   minPriceSnapshot?: number | null;
   maxPriceSnapshot?: number | null;
+  quantity?: number | null;
+  allowRetail?: boolean | null;
   status: "ACTIVE" | "RESERVED" | "SOLD" | "CANCELLED" | "EXPIRED";
   expiresAt?: string | null;
   publishedAt?: string | null;

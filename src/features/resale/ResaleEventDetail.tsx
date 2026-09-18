@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { FiArrowLeft, FiCalendar, FiMapPin } from "react-icons/fi";
-import { useNavigate, useParams } from "react-router-dom";
+import { FiCalendar, FiMapPin } from "react-icons/fi";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
@@ -8,8 +8,17 @@ import type { TicketListing } from "@/types/marketplace";
 
 const money = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+
 const dateTime = (value?: unknown) =>
   value ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "long", timeStyle: "short" }).format(new Date(String(value))) : "Đang cập nhật";
+
+function getZoneColor(name?: string) {
+  const n = (name || "").toUpperCase();
+  if (n.includes("VVIP")) return "bg-blue-400";
+  if (n.includes("VIP")) return "bg-indigo-400";
+  if (n.includes("LẦU")) return "bg-amber-400";
+  return "bg-sky-400";
+}
 
 export const ResaleEventDetail = () => {
   const { eventId = "" } = useParams();
@@ -42,124 +51,187 @@ export const ResaleEventDetail = () => {
   );
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <button
-        type="button"
-        onClick={() => navigate("/resale-ticket")}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-semibold app-text-muted hover:text-brand-primary"
-      >
-        <FiArrowLeft /> Sàn vé bán lại
-      </button>
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      {/* Breadcrumbs */}
+      <nav className="mb-4 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <Link to="/" className="hover:text-blue-500">Trang chủ</Link>
+        <span>&gt;</span>
+        <Link to="/resale-ticket" className="hover:text-blue-500">Vé bán lại</Link>
+        <span>&gt;</span>
+        <span className="truncate font-medium text-slate-900 dark:text-white max-w-xs sm:max-w-md">
+          {String(event?.title ?? "Sự kiện")}
+        </span>
+      </nav>
 
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-        {/* Sidebar — desktop only (poster + info) */}
-        <div className="lg:sticky lg:top-24 lg:w-72 lg:shrink-0">
-          {/* Desktop poster */}
-          <div className="hidden aspect-[3/4] overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 lg:block">
-            {Boolean(event?.posterImage) && (
-              <img src={String(event?.posterImage)} alt="" className="h-full w-full object-cover" />
-            )}
-          </div>
-
-          {/* Mobile: horizontal compact header */}
-          <div className="flex gap-4 rounded-2xl border app-border app-bg-card p-4 lg:hidden">
-            <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-              {Boolean(event?.posterImage) && (
-                <img src={String(event?.posterImage)} alt="" className="h-full w-full object-cover" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold leading-snug app-text-main line-clamp-2">
-                {String(event?.title ?? "Sự kiện")}
-              </h1>
-              <p className="mt-1 flex items-center gap-1.5 text-xs app-text-muted">
-                <FiCalendar className="shrink-0" />
-                {dateTime(event?.startTime)}
+      {/* HaloTicket Event Hero Banner */}
+      <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 p-5 sm:p-6 text-white shadow-xl dark:border-slate-800">
+        <div className="flex flex-col-reverse items-start justify-between gap-6 md:flex-row md:items-center">
+          <div className="min-w-0 flex-1">
+            <span className="inline-block rounded-full border border-blue-500/30 bg-blue-500/20 px-3 py-1 text-xs font-semibold text-blue-400">
+              Bán lại vé
+            </span>
+            <h1 className="mt-2.5 text-xl font-bold leading-tight sm:text-2xl text-white">
+              {String(event?.title ?? "Sự kiện")}
+            </h1>
+            <div className="mt-3 space-y-1 text-xs sm:text-sm text-slate-300">
+              <p className="flex items-center gap-2">
+                <FiCalendar className="shrink-0 text-blue-400" />
+                <span>{dateTime(event?.startTime)}</span>
               </p>
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs app-text-muted">
-                <FiMapPin className="shrink-0" />
-                {String(event?.locationName ?? "Địa điểm đang cập nhật")}
+              <p className="flex items-center gap-2 text-slate-400">
+                <FiMapPin className="shrink-0 text-blue-400" />
+                <span className="line-clamp-1">{String(event?.locationName ?? "Địa điểm đang cập nhật")}</span>
               </p>
             </div>
           </div>
 
-          {/* Desktop info panel */}
-          <div className="mt-4 hidden rounded-2xl border app-border app-bg-card p-5 lg:block">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">Vé bán lại đã xác thực</p>
-            <h1 className="mt-2 text-xl font-bold app-text-main">{String(event?.title ?? "Sự kiện")}</h1>
-            <div className="mt-4 space-y-2 text-sm app-text-muted">
-              <p className="flex items-start gap-2">
-                <FiCalendar className="mt-0.5 shrink-0" />
-                {dateTime(event?.startTime)}
-              </p>
-              <p className="flex items-start gap-2">
-                <FiMapPin className="mt-0.5 shrink-0" />
-                {String(event?.locationName ?? "Địa điểm đang cập nhật")}
-              </p>
+          {Boolean(event?.posterImage) && (
+            <div className="w-full sm:w-60 md:w-72 shrink-0 overflow-hidden rounded-xl bg-slate-800 shadow-md aspect-[16/9]">
+              <img
+                src={String(event?.posterImage)}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </div>
-            <div className="mt-5 border-t app-border pt-4 text-sm app-text-muted">
-              {listings.length} vé đang bán
-            </div>
-          </div>
-        </div>
-
-        {/* Listing grid */}
-        <div className="flex-1">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <h2 className="text-lg font-bold app-text-main">
-              Chọn vé <span className="ml-1 text-sm font-normal app-text-muted">({listings.length})</span>
-            </h2>
-            <label className="text-sm app-text-muted">
-              <span className="sr-only">Sắp xếp</span>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                className="rounded-xl border app-border app-bg-card px-3 py-2 text-sm app-text-main"
-              >
-                <option value="price-asc">Giá thấp trước</option>
-                <option value="price-desc">Giá cao trước</option>
-              </select>
-            </label>
-          </div>
-
-          {loading && <p className="rounded-xl border app-border p-8 text-center app-text-muted">Đang tải vé…</p>}
-          {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</p>}
-          {!loading && !error && sorted.length === 0 && (
-            <p className="rounded-xl border app-border p-8 text-center app-text-muted">Sự kiện hiện chưa có vé bán lại.</p>
           )}
-
-          <section className="grid gap-4 sm:grid-cols-2" aria-label="Vé bán lại">
-            {sorted.map((listing) => (
-              <button
-                key={listing.id}
-                type="button"
-                onClick={() => navigate(`/resale-ticket/${eventId}/ticket/${listing.id}`)}
-                className="group rounded-2xl border app-border app-bg-card p-5 text-left transition hover:border-brand-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-              >
-                <p className="text-sm font-bold text-brand-primary">{listing.ticketTypeName || "Vé sự kiện"}</p>
-                {(listing.section || listing.row || listing.seat) && (
-                  <p className="mt-1 text-xs app-text-muted">
-                    {[listing.section, listing.row && `Hàng ${listing.row}`, listing.seat && `Ghế ${listing.seat}`]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                )}
-                <div className="mt-4 flex items-end justify-between gap-4 border-t app-border pt-4">
-                  <div>
-                    {listing.originalPrice && listing.originalPrice !== listing.price && (
-                      <p className="text-xs app-text-muted line-through">{money(listing.originalPrice)}</p>
-                    )}
-                    <p className="text-xl font-bold text-brand-primary">{money(listing.price)}</p>
-                  </div>
-                  <span className="flex min-h-[44px] min-w-[80px] items-center justify-center rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white group-hover:brightness-110">
-                    Chọn vé
-                  </span>
-                </div>
-              </button>
-            ))}
-          </section>
         </div>
       </div>
+
+      {/* Section Header: Danh sách vé bán lại */}
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            Danh sách vé bán lại
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {listings.length} vé có sẵn từ người bán đã được xác thực
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 dark:text-slate-400">Sắp xếp:</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <option value="price-asc">Giá thấp trước</option>
+            <option value="price-desc">Giá cao trước</option>
+          </select>
+        </div>
+      </div>
+
+      {loading && <p className="rounded-xl border app-border p-8 text-center text-xs app-text-muted">Đang tải vé…</p>}
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">{error}</p>}
+      {!loading && !error && sorted.length === 0 && (
+        <div className="rounded-xl border app-border p-12 text-center">
+          <p className="text-sm font-semibold app-text-main">Sự kiện hiện chưa có vé bán lại.</p>
+          <p className="mt-1 text-xs app-text-muted">Vui lòng quay lại sau hoặc theo dõi cập nhật từ người bán khác.</p>
+        </div>
+      )}
+
+      {/* 4-column Ticket Grid */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label="Vé bán lại">
+        {sorted.map((listing) => {
+          const isOwner = listing.ownedByCurrentUser === true;
+          const listingCode = `RSL${listing.id.replace(/-/g, "").slice(0, 9).toUpperCase()}`;
+
+          // Business rule:
+          // 1 vé -> Bán lẻ
+          // 2 vé trở lên + yêu cầu mua cả 2 (allowRetail === false) -> Không bán lẻ
+          // 2 vé trở lên + không yêu cầu mua hết -> Bán lẻ
+          const quantity = listing.quantity || 1;
+          const isRetail = quantity <= 1 || listing.allowRetail !== false;
+
+          return (
+            <div
+              key={listing.id}
+              className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-900 p-4 text-white shadow transition hover:border-blue-500/50 dark:border-slate-800"
+            >
+              <div>
+                {/* Top row: Colored dot + Zone/TicketTypeName and Pill badge */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${getZoneColor(listing.ticketTypeName || undefined)}`} />
+                    <span className="text-xs font-bold uppercase tracking-wide text-white truncate max-w-[100px]">
+                      {listing.ticketTypeName || "Vé"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        isRetail
+                          ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                          : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                      }`}
+                    >
+                      {isRetail ? "Bán lẻ" : "Không bán lẻ"}
+                    </span>
+                    <span className="font-mono text-[10px] text-slate-500">
+                      {listingCode}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Body: Key-value rows */}
+                <dl className="mt-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <dt className="text-slate-400">Số lượng:</dt>
+                    <dd className="font-medium text-slate-200">{quantity} vé</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-slate-400">Suất diễn:</dt>
+                    <dd className="font-medium text-slate-200 text-right truncate max-w-[140px]">
+                      {dateTime(event?.startTime)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-slate-400">Khu vực:</dt>
+                    <dd className="font-medium text-slate-200 truncate max-w-[140px]">
+                      {listing.section || listing.ticketTypeName || "Tiêu chuẩn"}
+                    </dd>
+                  </div>
+                  {(listing.row || listing.seat) && (
+                    <div className="flex justify-between">
+                      <dt className="text-slate-400">Hàng / Ghế:</dt>
+                      <dd className="font-medium text-slate-200 truncate max-w-[140px]">
+                        {[listing.row && `Hàng ${listing.row}`, listing.seat && `Ghế ${listing.seat}`]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-slate-800 pt-2 mt-2">
+                    <dt className="text-slate-400">Giá bán:</dt>
+                    <dd className="text-base font-bold text-blue-400">
+                      {money(listing.price)}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Action Button */}
+              <div className="mt-4">
+                {isOwner ? (
+                  <div className="text-center">
+                    <span className="inline-block rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-400">
+                      Vé của bạn
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/resale-ticket/${eventId}/ticket/${listing.id}`)}
+                    className="w-full rounded-lg bg-blue-600 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Chọn vé
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </section>
     </main>
   );
 };

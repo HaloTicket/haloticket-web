@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
-import { paymentApi } from "@/services/paymentApi";
 
 vi.mock("@/services/marketplaceApi");
 vi.mock("@/services/eventApi");
