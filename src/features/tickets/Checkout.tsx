@@ -104,7 +104,7 @@ export default function Checkout() {
         const userId = localStorage.getItem("haloticket_session_id");
         if (userId && order?.seatIds) {
           order.seatIds.forEach((seatId: string) => {
-            bookingApi.releaseSeat({ eventId: activeEventId, seatId, userId }).catch(console.error);
+            bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
           });
         }
         localStorage.removeItem("haloticket_pending_order");
@@ -1008,7 +1008,7 @@ export default function Checkout() {
           const userId = localStorage.getItem("haloticket_session_id");
           if (userId && order?.seatIds) {
             order.seatIds.forEach((seatId: string) => {
-              bookingApi.releaseSeat({ eventId: activeEventId, seatId, userId }).catch(console.error);
+              bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
             });
           }
           localStorage.removeItem("haloticket_pending_order");
@@ -1033,7 +1033,7 @@ export default function Checkout() {
             const userId = localStorage.getItem("haloticket_session_id");
             if (userId && order?.seatIds) {
               order.seatIds.forEach((seatId: string) => {
-                bookingApi.releaseSeat({ eventId: activeEventId, seatId, userId }).catch(console.error);
+                bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
               });
             }
             localStorage.removeItem("haloticket_pending_order");
