@@ -491,7 +491,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     <span className="px-2.5 py-0.5 rounded-lg app-bg-subnav border app-border text-[11px] font-bold app-text-main">
                       Hạng vé: <strong className="text-blue-500">
-                        {ticket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (match, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)}
+                        {ticket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (_, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)}
                       </strong>
                     </span>
                     <span className="px-2.5 py-0.5 rounded-lg app-bg-subnav border app-border text-[11px] font-bold app-text-main">
@@ -580,7 +580,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
             <div className="space-y-1">
               <p className="text-xs font-black text-blue-500 uppercase">{selectedQrTicket.eventTitle}</p>
               <p className="text-xs app-text-sub font-semibold">
-                {selectedQrTicket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (match, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)} (x{selectedQrTicket.quantity})
+                {selectedQrTicket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (_, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)} (x{selectedQrTicket.quantity})
               </p>
             </div>
 
