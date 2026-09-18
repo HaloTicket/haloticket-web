@@ -44,11 +44,13 @@ describe("ResaleTicketCheckout", () => {
 
     await waitFor(() => expect(screen.getAllByText("Event X").length).toBeGreaterThanOrEqual(1));
     expect(screen.getByText(/GA/)).toBeInTheDocument();
-    const btn = screen.getByRole("button", { name: /Giữ vé/i });
+    const btn = screen.getByRole("button", { name: /Vui lòng chọn vé/i });
     expect(btn).toBeDisabled();
 
-    fireEvent.click(screen.getByRole("checkbox"));
-    expect(btn).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn tất cả" }));
+    expect(screen.getByRole("button", { name: /đồng ý điều khoản/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Quy định sử dụng/i }));
+    expect(screen.getByRole("button", { name: /Tiếp tục/i })).not.toBeDisabled();
   });
 
   it("shows reservation info and payment method selector after reserving", async () => {
@@ -73,9 +75,14 @@ describe("ResaleTicketCheckout", () => {
 
     renderCheckout();
 
-    await waitFor(() => expect(screen.getByRole("checkbox")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: /Giữ vé/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "Chọn tất cả" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn tất cả" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Quy định sử dụng/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tiếp tục/i }));
 
     await waitFor(() => expect(screen.getByText(/txn-1/)).toBeInTheDocument());
     expect(screen.getByText("VNPAY")).toBeInTheDocument();

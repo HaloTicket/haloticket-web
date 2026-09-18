@@ -32,6 +32,7 @@ export const ResaleTicketCheckout = () => {
   const [listing, setListing] = useState<TicketListing | null>(null);
   const [event, setEvent] = useState<Record<string, unknown> | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [selected, setSelected] = useState(false);
   const [error, setError] = useState("");
   const [reserving, setReserving] = useState(false);
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
@@ -132,6 +133,7 @@ export const ResaleTicketCheckout = () => {
   // 2 vé trở lên + không yêu cầu mua hết -> Bán lẻ
   const quantity = listing.quantity || 1;
   const isRetail = quantity <= 1 || listing.allowRetail !== false;
+  const totalAmount = listing.price * quantity;
 
   return (
     <div className="min-h-screen app-bg-page app-text-main">
@@ -186,9 +188,14 @@ export const ResaleTicketCheckout = () => {
           </div>
         )}
 
+        <div className="mb-5 flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+          <FiAlertTriangle className="shrink-0" />
+          <span>Không hỗ trợ xuất hóa đơn cho vé bán lại.</span>
+        </div>
+
         {/* Section: Chọn vé */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-bold app-text-main sm:text-lg">Chọn vé</h2>
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
@@ -205,8 +212,17 @@ export const ResaleTicketCheckout = () => {
             <span>{ticketTier}</span>
           </div>
 
+          <div className="mb-3 flex items-center justify-between rounded-lg border app-border app-bg-card px-4 py-2.5 text-xs app-text-muted">
+            <span>Đã chọn {selected ? quantity : 0}/{quantity}</span>
+            <label className="inline-flex cursor-pointer items-center gap-2">
+              <span>Chọn tất cả</span>
+              <input aria-label="Chọn tất cả" type="checkbox" checked={selected} onChange={(e) => setSelected(e.target.checked)} className="h-4 w-4 rounded accent-blue-600" />
+            </label>
+          </div>
+
           {/* Ticket Detail Card */}
-          <div className="rounded-xl border app-border app-bg-card p-4 shadow-sm sm:p-5">
+          <label className={`block cursor-pointer rounded-xl border app-bg-card p-4 shadow-sm transition sm:p-5 ${selected ? "border-blue-500 ring-2 ring-blue-500/15" : "app-border"}`}>
+            <div className="flex items-start justify-between gap-4">
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center">
                 <span className="text-slate-400 w-28 shrink-0">Khu vực:</span>
@@ -227,7 +243,9 @@ export const ResaleTicketCheckout = () => {
                 <span className="text-blue-400 font-bold text-base sm:text-lg">{money(listing.price)}</span>
               </div>
             </div>
-          </div>
+              <input aria-label={`Chọn ${ticketTier}`} type="checkbox" checked={selected} onChange={(e) => setSelected(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 rounded accent-blue-600" />
+            </div>
+          </label>
         </div>
 
         {/* Step 1: Terms Agreement & Reserve CTA */}
@@ -267,10 +285,10 @@ export const ResaleTicketCheckout = () => {
 
             <button
               type="button"
-              disabled={!agreed || reserving || isMyListing}
+              disabled={!selected || !agreed || reserving || isMyListing}
               onClick={handleReserve}
               className={`w-full py-3.5 px-6 rounded-lg text-base font-bold flex items-center justify-center gap-2 transition shadow-lg ${
-                agreed && !isMyListing && !reserving
+                selected && agreed && !isMyListing && !reserving
                   ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-blue-600/25"
                   : "bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed"
               }`}
@@ -280,9 +298,9 @@ export const ResaleTicketCheckout = () => {
               ) : isMyListing ? (
                 "Giữ vé (Không thể mua vé của chính bạn)"
               ) : agreed ? (
-                `Giữ vé · Tiếp tục - ${money(listing.price)} »`
+                `Tiếp tục - ${money(totalAmount)} »`
               ) : (
-                "Giữ vé (Vui lòng đồng ý điều khoản) »"
+                selected ? "Tiếp tục (Vui lòng đồng ý điều khoản) »" : "Vui lòng chọn vé để tiếp tục"
               )}
             </button>
           </div>
