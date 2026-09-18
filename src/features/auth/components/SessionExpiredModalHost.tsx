@@ -32,7 +32,7 @@ export function SessionExpiredModalHost({ onLoginAgain }: SessionExpiredModalHos
     <NotificationModal
       open={open}
       title={t("Phiên đăng nhập đã hết hạn")}
-      message={t("Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.")}
+      message={t("Vui lòng đăng nhập lại để tiếp tục.")}
       variant="warning"
       dismissible={false}
       actions={[

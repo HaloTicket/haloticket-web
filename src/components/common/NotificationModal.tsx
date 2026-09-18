@@ -29,25 +29,18 @@ export interface NotificationModalProps {
   onClose?: () => void;
 }
 
-const variantStyles: Record<NotificationModalVariant, string> = {
-  info: "bg-blue-500/15 text-blue-500",
-  success: "bg-emerald-500/15 text-emerald-500",
-  warning: "bg-amber-500/15 text-amber-500",
-  error: "bg-rose-500/15 text-rose-500",
-};
-
 const actionStyles: Record<NotificationModalActionVariant, string> = {
-  primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/25 cursor-pointer",
+  primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-xs",
   secondary:
-    "app-bg-subnav app-text-main border app-border hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer",
-  danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-500/25 cursor-pointer",
+    "app-bg-subnav app-text-main border app-border hover:bg-slate-100 dark:hover:bg-zinc-800",
+  danger: "bg-rose-600 text-white hover:bg-rose-700 shadow-xs",
 };
 
 const defaultIcons: Record<NotificationModalVariant, ReactNode> = {
-  info: <FiInfo className="h-6 w-6" aria-hidden="true" />,
-  success: <FiCheckCircle className="h-6 w-6" aria-hidden="true" />,
-  warning: <FiAlertTriangle className="h-6 w-6" aria-hidden="true" />,
-  error: <FiAlertCircle className="h-6 w-6" aria-hidden="true" />,
+  info: <FiInfo className="h-5 w-5 text-blue-500 shrink-0" aria-hidden="true" />,
+  success: <FiCheckCircle className="h-5 w-5 text-emerald-500 shrink-0" aria-hidden="true" />,
+  warning: <FiAlertTriangle className="h-5 w-5 text-amber-500 shrink-0" aria-hidden="true" />,
+  error: <FiAlertCircle className="h-5 w-5 text-rose-500 shrink-0" aria-hidden="true" />,
 };
 
 export function NotificationModal({
@@ -85,7 +78,7 @@ export function NotificationModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/45 p-4"
       onMouseDown={(event) => {
         if (dismissible && event.target === event.currentTarget) onClose?.();
       }}
@@ -95,37 +88,35 @@ export function NotificationModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={messageId}
-        className="app-bg-card app-border w-full max-w-md rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95 duration-200 md:p-8"
+        className="app-bg-card app-border w-full max-w-[400px] rounded-2xl border p-6 shadow-xl animate-in zoom-in-95 duration-150"
       >
-        <div className="flex items-start gap-4">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${variantStyles[variant]}`}
-          >
+        {/* Header with inline icon */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
             {icon ?? defaultIcons[variant]}
+            <h2 id={titleId} className="app-text-main text-base font-semibold truncate">
+              {title}
+            </h2>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <h2 id={titleId} className="app-text-main text-lg font-extrabold leading-7">
-                {title}
-              </h2>
-              {dismissible && onClose && (
-                <button
-                  type="button"
-                  aria-label="Đóng"
-                  onClick={onClose}
-                  className="app-text-muted -mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-zinc-800 dark:hover:text-white"
-                >
-                  <FiX className="h-5 w-5" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-            <div id={messageId} className="app-text-muted mt-2 text-sm leading-6">
-              {message}
-            </div>
-          </div>
+          {dismissible && onClose && (
+            <button
+              type="button"
+              aria-label="Đóng"
+              onClick={onClose}
+              className="app-text-muted -mr-1.5 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-zinc-800 dark:hover:text-white cursor-pointer"
+            >
+              <FiX className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
-        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {/* Description */}
+        <div id={messageId} className="app-text-muted mt-3 text-sm leading-6">
+          {message}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {actions.map((action, index) => (
             <button
               key={`${action.label}-${index}`}
@@ -133,7 +124,7 @@ export function NotificationModal({
               type="button"
               disabled={action.disabled}
               onClick={action.onClick}
-              className={`min-h-11 rounded-xl px-5 py-2.5 text-sm font-bold shadow-md transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 ${actionStyles[action.variant ?? "primary"]}`}
+              className={`h-10 px-4 rounded-lg text-sm font-semibold transition-all active:scale-98 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${actionStyles[action.variant ?? "primary"]}`}
             >
               {action.label}
             </button>
