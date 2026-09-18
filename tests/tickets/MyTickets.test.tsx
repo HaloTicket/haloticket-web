@@ -79,4 +79,50 @@ describe("MyTickets", () => {
     expect(screen.getByText("Mã QR hiện không khả dụng")).toBeInTheDocument();
     expect(screen.queryByAltText("Mã QR check-in")).not.toBeInTheDocument();
   });
+
+  it("shows Đang bán badge and hides Đăng bán lại for LOCKED_FOR_RESALE ticket", async () => {
+    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce([
+      {
+        id: "t1",
+        bookingCode: "BOOK-1",
+        eventId: "event-1",
+        ticketTypeName: "GA",
+        price: 100000,
+        status: "LOCKED_FOR_RESALE",
+        qrCode: "qr1",
+        issuedAt: "2026-09-18T00:00:00Z",
+      } as any,
+    ]);
+    render(
+      <MemoryRouter>
+        <MyTickets embedded />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("Đang bán")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Thao tác với vé/i }));
+    expect(screen.queryByText("Đăng bán lại")).not.toBeInTheDocument();
+  });
+
+  it("shows Đang tặng badge and hides gift action for LOCKED_FOR_TRANSFER ticket", async () => {
+    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce([
+      {
+        id: "t2",
+        bookingCode: "BOOK-2",
+        eventId: "event-1",
+        ticketTypeName: "VIP",
+        price: 200000,
+        status: "LOCKED_FOR_TRANSFER",
+        qrCode: "qr2",
+        issuedAt: "2026-09-18T00:00:00Z",
+      } as any,
+    ]);
+    render(
+      <MemoryRouter>
+        <MyTickets embedded />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("Đang tặng")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Thao tác với vé/i }));
+    expect(screen.queryByText("Tặng vé")).not.toBeInTheDocument();
+  });
 });
