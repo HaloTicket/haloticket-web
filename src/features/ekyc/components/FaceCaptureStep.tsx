@@ -12,7 +12,6 @@ import {
   FiX,
   FiUser,
 } from "react-icons/fi";
-import { Link } from "react-router-dom";
 
 interface FaceCaptureStepProps {
   onCapture: (file: File, previewUrl: string) => void;
@@ -31,7 +30,6 @@ export function FaceCaptureStep({
   onRetake,
   onNext,
   onPrev,
-  returnUrl,
   isActive = true,
 }: FaceCaptureStepProps) {
   const { t } = useTranslation();
