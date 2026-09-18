@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { vi, it, expect, beforeEach, afterEach, describe } from "vitest";
 import { ResaleTicketModal } from "@/features/tickets/TicketActionModals";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import { ekycApi } from "@/services/ekycApi";
 import type { TicketItem } from "@/features/tickets/MyTickets";
 
 vi.mock("@/services/marketplaceApi", () => ({
@@ -16,6 +17,12 @@ vi.mock("@/services/marketplaceApi", () => ({
 
 vi.mock("@/features/resale/hooks/useMarketplaceSaga", () => ({
   useMarketplaceSaga: () => ({ saga: null, loading: false, error: null }),
+}));
+
+vi.mock("@/services/ekycApi", () => ({
+  ekycApi: {
+    getOrganizerEligibility: vi.fn().mockResolvedValue({ eligible: true }),
+  },
 }));
 
 const eligibleTicket: TicketItem = {
@@ -175,5 +182,22 @@ describe("ResaleTicketModal — 3-step seller flow", () => {
       expect(screen.getByText(/hoàn tất xác minh danh tính/i)).toBeTruthy()
     );
     expect(screen.getByRole("link", { name: /Xác minh eKYC ngay/i })).toBeTruthy();
+  });
+
+  it("blocks seller at step 1 with eKYC banner when user is not eKYC verified", async () => {
+    vi.mocked(marketplaceApi.getResaleEligibility).mockResolvedValue({
+      ticketId: "t1", eventId: "e1", eligible: true,
+      minPrice: 100000, maxPrice: 300000, originalPrice: 200000,
+    });
+    vi.mocked(ekycApi.getOrganizerEligibility).mockResolvedValue({
+      eligible: false,
+      reasonCode: "EKYC_NOT_STARTED",
+    });
+    renderModal();
+    await waitFor(() =>
+      expect(screen.getByText(/Tài khoản của bạn cần hoàn tất xác minh danh tính/i)).toBeTruthy()
+    );
+    expect(screen.getByRole("link", { name: /Xác minh eKYC ngay/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Tiếp tục/i })).toBeNull();
   });
 });

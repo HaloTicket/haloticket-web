@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiAlertCircle, FiCheck, FiGift, FiLoader, FiTag, FiX } from "react-icons/fi";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import { ekycApi } from "@/services/ekycApi";
 import { useMarketplaceSaga } from "@/features/resale/hooks/useMarketplaceSaga";
 import { formatCurrency } from "@/utils/formatters";
 import { PATHS } from "@/routes/paths";
@@ -67,6 +68,7 @@ function FlowSteps({ gift = false, activeStep = 1 as 1 | 2 | 3 }: { gift?: boole
 }
 
 function errorMessage(error: unknown) {
+  const status = (error as { response?: { status?: number } })?.response?.status;
   const response = (error as { response?: { data?: { message?: string; detail?: string; error?: string } } })?.response?.data;
   const raw = typeof response === "string" ? response : JSON.stringify(response || {});
   const code = ((typeof response === "object" && response ? response.message || response.detail || response.error : "") || "") + " " + raw;
@@ -75,6 +77,9 @@ function errorMessage(error: unknown) {
   if (code.includes("TICKET_NOT_ELIGIBLE")) return "Vé không còn đủ điều kiện thực hiện thao tác này.";
   if (code.includes("EKYC_REQUIRED")) return "Tài khoản của bạn cần hoàn tất xác minh danh tính (eKYC) trước khi đăng bán lại vé.";
   if (code.includes("EKYC_SERVICE_UNAVAILABLE")) return "Dịch vụ xác thực danh tính tạm thời không phản hồi. Vui lòng thử lại sau.";
+  if (status === 409 || code.includes("Conflict")) {
+    return "Tài khoản của bạn cần hoàn tất xác minh danh tính (eKYC) trước khi đăng bán lại vé.";
+  }
   return "Không thể hoàn tất thao tác. Trạng thái vé sẽ được hệ thống đối soát và khôi phục nếu cần.";
 }
 
@@ -91,9 +96,20 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
 
   useEffect(() => {
     let active = true;
-    marketplaceApi.getResaleEligibility(ticket.id)
-      .then((result) => {
+    Promise.all([
+      marketplaceApi.getResaleEligibility(ticket.id),
+      ekycApi.getOrganizerEligibility().catch(() => ({ eligible: false, reasonCode: "EKYC_NOT_STARTED" })),
+    ])
+      .then(([result, ekyc]) => {
         if (!active) return;
+        if (!ekyc?.eligible) {
+          setEligibility({
+            ...result,
+            eligible: false,
+            reasonCode: "EKYC_REQUIRED",
+          });
+          return;
+        }
         setEligibility(result);
         if (result.minPrice != null) setPrice(String(result.minPrice));
       })
@@ -197,7 +213,26 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
             </label>
           </>
         ) : !eligibility?.eligible ? (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">Vé không đủ điều kiện bán lại hoặc thời gian nhận đăng bán đã kết thúc.</div>
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+            {eligibility?.reasonCode === "EKYC_REQUIRED" ? (
+              <div className="space-y-3">
+                <p className="font-semibold">
+                  Tài khoản của bạn cần hoàn tất xác minh danh tính (eKYC) trước khi đăng bán lại vé.
+                </p>
+                <div>
+                  <Link
+                    to={PATHS.EKYC}
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700"
+                  >
+                    Xác minh eKYC ngay &rarr;
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              "Vé không đủ điều kiện bán lại hoặc thời gian nhận đăng bán đã kết thúc."
+            )}
+          </div>
         ) : null}
 
         {submitError && (
