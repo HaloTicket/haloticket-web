@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { FiAlertCircle, FiCheck, FiGift, FiLoader, FiTag, FiX } from "react-icons/fi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { useMarketplaceSaga } from "@/features/resale/hooks/useMarketplaceSaga";
 import { formatCurrency } from "@/utils/formatters";
+import { PATHS } from "@/routes/paths";
 import type { ResaleEligibility } from "@/types/marketplace";
 import type { TicketItem } from "./MyTickets";
 
@@ -43,17 +45,36 @@ function TicketSummary({ ticket }: { ticket: TicketItem }) {
   );
 }
 
-function FlowSteps({ gift = false }: { gift?: boolean }) {
+function FlowSteps({ gift = false, activeStep = 1 as 1 | 2 | 3 }: { gift?: boolean; activeStep?: 1 | 2 | 3 }) {
   const steps = gift ? ["Người nhận", "Xác nhận", "Chuyển vé"] : ["Thiết lập giá", "Xác nhận", "Đăng bán"];
-  return <ol className="grid grid-cols-3 gap-2" aria-label="Các bước thực hiện">{steps.map((step, index) => <li key={step} className="flex items-center gap-2 text-[11px] font-semibold app-text-muted"><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${index === 0 ? "border-blue-600 bg-blue-600 text-white" : "app-border app-bg-subnav"}`}>{index + 1}</span><span className="hidden sm:inline">{step}</span></li>)}</ol>;
+  return (
+    <ol className="grid grid-cols-3 gap-2" aria-label="Các bước thực hiện">
+      {steps.map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3;
+        const done = n < activeStep;
+        const active = n === activeStep;
+        return (
+          <li key={label} className="flex items-center gap-2 text-[11px] font-semibold app-text-muted">
+            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] ${active ? "border-blue-600 bg-blue-600 text-white" : done ? "border-emerald-500 bg-emerald-500 text-white" : "app-border app-bg-subnav"}`}>
+              {done ? "✓" : n}
+            </span>
+            <span className={`hidden sm:inline ${active ? "app-text-main font-bold" : ""}`}>{label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 function errorMessage(error: unknown) {
-  const response = (error as { response?: { data?: { message?: string; detail?: string } } })?.response?.data;
-  const code = response?.message || response?.detail || "";
+  const response = (error as { response?: { data?: { message?: string; detail?: string; error?: string } } })?.response?.data;
+  const raw = typeof response === "string" ? response : JSON.stringify(response || {});
+  const code = ((typeof response === "object" && response ? response.message || response.detail || response.error : "") || "") + " " + raw;
   if (code.includes("PRICE_OUT_OF_RANGE")) return "Giá bán phải nằm trong khoảng cho phép.";
   if (code.includes("POLICY_CHANGED")) return "Chính sách bán lại vừa thay đổi. Hãy tải lại thông tin giá.";
   if (code.includes("TICKET_NOT_ELIGIBLE")) return "Vé không còn đủ điều kiện thực hiện thao tác này.";
+  if (code.includes("EKYC_REQUIRED")) return "Tài khoản của bạn cần hoàn tất xác minh danh tính (eKYC) trước khi đăng bán lại vé.";
+  if (code.includes("EKYC_SERVICE_UNAVAILABLE")) return "Dịch vụ xác thực danh tính tạm thời không phản hồi. Vui lòng thử lại sau.";
   return "Không thể hoàn tất thao tác. Trạng thái vé sẽ được hệ thống đối soát và khôi phục nếu cần.";
 }
 
@@ -61,6 +82,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const [eligibility, setEligibility] = useState<ResaleEligibility | null>(null);
   const [price, setPrice] = useState("");
   const [accepted, setAccepted] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loadingEligibility, setLoadingEligibility] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sagaId, setSagaId] = useState<string>();
@@ -104,6 +126,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
         termsVersion: eligibility.termsVersion ?? undefined,
       });
       setSagaId(result.sagaId);
+      setStep(3);
     } catch (error) {
       setSubmitError(errorMessage(error));
       onChanged();
@@ -112,12 +135,17 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
 
   const failed = saga && ["FAILED", "COMPENSATED"].includes(saga.state);
   const completed = saga?.state === "COMPLETED";
+  const isTerminal = completed || failed;
+
+  // Derive active step for FlowSteps
+  const activeStep: 1 | 2 | 3 = sagaId ? 3 : step;
 
   return (
     <ModalShell title="Đăng bán lại vé" onClose={onClose}>
       <div className="space-y-5 p-5 sm:p-6">
-        <FlowSteps />
+        <FlowSteps activeStep={activeStep} />
         <TicketSummary ticket={ticket} />
+
         {loadingEligibility ? (
           <div className="flex items-center justify-center gap-2 py-8 text-sm app-text-sub"><FiLoader className="animate-spin" /> Đang kiểm tra điều kiện bán lại…</div>
         ) : completed ? (
@@ -132,8 +160,9 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           </div>
         ) : sagaId ? (
           <div className="flex items-center gap-3 rounded-xl border app-border p-4 text-sm app-text-main"><FiLoader className="animate-spin text-blue-600" /> Đang khóa vé và công khai tin đăng…</div>
-        ) : eligibility?.eligible ? (
+        ) : eligibility?.eligible && step === 1 ? (
           <>
+            {/* Step 1: Price input */}
             <div className="grid grid-cols-3 overflow-hidden rounded-xl border app-border text-sm">
               <div className="p-3"><p className="text-xs app-text-muted">Giá gốc</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.originalPrice || 0)}</p></div>
               <div className="border-x app-border p-3"><p className="text-xs app-text-muted">Tối thiểu</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.minPrice || 0)}</p></div>
@@ -148,18 +177,74 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
               {price && !priceValid && <span className="mt-1 block text-xs text-rose-600">Nhập giá trong khoảng {formatCurrency(eligibility.minPrice || 0)} – {formatCurrency(eligibility.maxPrice || 0)}.</span>}
             </label>
             {eligibility.closesAt && <p className="text-xs app-text-sub">Nhận đăng bán đến {new Date(eligibility.closesAt).toLocaleString("vi-VN")}.</p>}
+          </>
+        ) : eligibility?.eligible && step === 2 ? (
+          <>
+            {/* Step 2: Confirmation table */}
+            <dl className="grid grid-cols-2 gap-y-3 rounded-xl border app-border p-4 text-sm">
+              <dt className="app-text-muted">Sự kiện</dt>
+              <dd className="text-right font-semibold app-text-main truncate">{ticket.eventTitle}</dd>
+              <dt className="app-text-muted">Loại vé</dt>
+              <dd className="text-right font-semibold app-text-main">{ticket.ticketTypeName}</dd>
+              <dt className="app-text-muted">Giá gốc</dt>
+              <dd className="text-right app-text-muted">{formatCurrency(eligibility.originalPrice || 0)}</dd>
+              <dt className="app-text-muted font-semibold">Giá bán</dt>
+              <dd className="text-right text-lg font-bold text-brand-primary">{formatCurrency(numericPrice)}</dd>
+            </dl>
             <label className="flex cursor-pointer items-start gap-3 text-sm app-text-sub">
               <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
               <span>Tôi đồng ý điều khoản bán lại và hiểu rằng vé sẽ bị khóa check-in khi tin đăng được tạo.</span>
             </label>
           </>
-        ) : (
+        ) : !eligibility?.eligible ? (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">Vé không đủ điều kiện bán lại hoặc thời gian nhận đăng bán đã kết thúc.</div>
+        ) : null}
+
+        {submitError && (
+          <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+            <div className="flex items-center gap-2 font-bold">
+              <FiAlertCircle className="shrink-0" />
+              <span>{submitError}</span>
+            </div>
+            {submitError.includes("eKYC") && (
+              <div className="mt-2.5">
+                <Link
+                  to={PATHS.EKYC}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
+                >
+                  Xác minh eKYC ngay &rarr;
+                </Link>
+              </div>
+            )}
+          </div>
         )}
-        {submitError && <p className="text-sm text-rose-600">{submitError}</p>}
+
+        {/* Sticky footer */}
         <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-3 border-t app-border app-bg-card px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
-          <button type="button" onClick={onClose} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">{completed || failed ? "Đóng" : "Hủy"}</button>
-          {!sagaId && eligibility?.eligible && <button type="button" onClick={submit} disabled={!priceValid || !accepted} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><span className="inline-flex items-center gap-2"><FiTag /> Xác nhận đăng bán</span></button>}
+          {isTerminal ? (
+            <button type="button" onClick={onClose} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">Đóng</button>
+          ) : sagaId ? (
+            // Polling — no actions
+            null
+          ) : step === 1 ? (
+            <>
+              <button type="button" onClick={onClose} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">Hủy</button>
+              {eligibility?.eligible && (
+                <button type="button" onClick={() => setStep(2)} disabled={!priceValid} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+                  Tiếp tục
+                </button>
+              )}
+            </>
+          ) : step === 2 ? (
+            <>
+              <button type="button" onClick={() => setStep(1)} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">Quay lại</button>
+              <button type="button" onClick={submit} disabled={!accepted} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+                <span className="inline-flex items-center gap-2"><FiTag /> Xác nhận đăng bán</span>
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={onClose} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">Hủy</button>
+          )}
         </div>
       </div>
     </ModalShell>
@@ -203,10 +288,12 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const completed = saga?.state === "COMPLETED";
   const failed = saga && ["FAILED", "COMPENSATED"].includes(saga.state);
 
+  const giftActiveStep: 1 | 2 | 3 = sagaId ? (waitingRecipient || completed || failed ? 3 : 3) : 1;
+
   return (
     <ModalShell title="Tặng vé" onClose={onClose}>
       <div className="space-y-5 p-5 sm:p-6">
-        <FlowSteps gift />
+        <FlowSteps gift activeStep={giftActiveStep} />
         <TicketSummary ticket={ticket} />
         {waitingRecipient || completed ? (
           <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
