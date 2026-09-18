@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,9 @@ import { marketplaceApi } from "@/services/marketplaceApi";
 
 vi.mock("@/services/marketplaceApi");
 vi.mock("@/services/eventApi");
+vi.mock("@/services/keycloakSession", () => ({
+  getKeycloakSession: () => ({ isAuthenticated: () => false }),
+}));
 
 afterEach(() => {
   cleanup();
@@ -27,7 +30,7 @@ function renderWithRoute(eventId: string) {
 }
 
 describe("ResaleEventDetail", () => {
-  it("renders event title and listing card with Chọn vé button", async () => {
+  it("renders event title and listing card with purchase button", async () => {
     vi.mocked(marketplaceApi.getEventListings).mockResolvedValue({
       content: [
         {
@@ -57,8 +60,9 @@ describe("ResaleEventDetail", () => {
     renderWithRoute("event-1");
 
     await waitFor(() => expect(screen.getAllByText("Event A").length).toBeGreaterThanOrEqual(1));
-    expect(screen.getByText("VIP")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Chọn vé/i })).toBeInTheDocument();
+    expect(screen.getByText(/VIP · 1 vé/i)).toBeInTheDocument();
+    expect(screen.getByText(/Khu vực: A/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Mua vé/i })).toBeInTheDocument();
   });
 
   it("shows empty message when no listings", async () => {
@@ -78,5 +82,24 @@ describe("ResaleEventDetail", () => {
     renderWithRoute("event-2");
 
     await waitFor(() => expect(screen.getByText(/chưa có vé bán lại/i)).toBeInTheDocument());
+  });
+
+  it("opens login modal for a guest instead of navigating away", async () => {
+    vi.mocked(marketplaceApi.getEventListings).mockResolvedValue({
+      content: [{ id: "l1", ticketId: "t1", price: 350000, ticketTypeName: "VIP", status: "ACTIVE" } as any],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+    });
+    vi.mocked(eventApi.getEventById).mockResolvedValue({ title: "Event Guest" } as any);
+
+    renderWithRoute("event-guest");
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Mua vé/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Mua vé/i }));
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("Đăng nhập để mua vé");
+    expect(screen.getByRole("button", { name: "Ở lại trang" })).toBeInTheDocument();
   });
 });

@@ -218,6 +218,13 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
                 <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(eligibility.maxPrice || 0)}</p>
               </div>
             </div>
+            {eligibility.originalPrice && eligibility.minPrice != null && eligibility.maxPrice != null && (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Biên độ chính sách: <strong className="text-slate-700 dark:text-slate-200">
+                  {Math.round((eligibility.minPrice / eligibility.originalPrice) * 100)}%–{Math.round((eligibility.maxPrice / eligibility.originalPrice) * 100)}% giá gốc
+                </strong>
+              </p>
+            )}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Giá bán

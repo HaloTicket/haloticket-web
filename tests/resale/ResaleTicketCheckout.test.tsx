@@ -33,6 +33,9 @@ describe("ResaleTicketCheckout", () => {
       id: "l1",
       ticketId: "t1",
       price: 250000,
+      originalPrice: 300000,
+      minPriceSnapshot: 240000,
+      maxPriceSnapshot: 360000,
       ticketTypeName: "GA",
       status: "ACTIVE",
     } as any);
@@ -44,6 +47,7 @@ describe("ResaleTicketCheckout", () => {
 
     await waitFor(() => expect(screen.getAllByText("Event X").length).toBeGreaterThanOrEqual(1));
     expect(screen.getByText(/GA/)).toBeInTheDocument();
+    expect(screen.getByText(/80%.*120%.*giá gốc/i)).toBeInTheDocument();
     const btn = screen.getByRole("button", { name: /Vui lòng chọn vé/i });
     expect(btn).toBeDisabled();
 
@@ -85,6 +89,10 @@ describe("ResaleTicketCheckout", () => {
     fireEvent.click(screen.getByRole("button", { name: /Tiếp tục/i }));
 
     await waitFor(() => expect(screen.getByText(/txn-1/)).toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: "Chọn vé" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tiếp tục thanh toán/i })).toBeInTheDocument();
+    expect(screen.queryByText("VNPAY")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Tiếp tục thanh toán/i }));
     expect(screen.getByText("VNPAY")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Thanh toán/i })).toBeInTheDocument();
   });

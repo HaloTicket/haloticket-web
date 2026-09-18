@@ -26,6 +26,8 @@ const formatDateTime = (value?: unknown) => {
   }
 };
 
+type CheckoutStep = "select" | "reserve" | "payment";
+
 export const ResaleTicketCheckout = () => {
   const { eventId = "", ticketId = "" } = useParams();
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export const ResaleTicketCheckout = () => {
   const [error, setError] = useState("");
   const [reserving, setReserving] = useState(false);
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
+  const [step, setStep] = useState<CheckoutStep>("select");
   const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "MOMO" | "ZALOPAY">("VNPAY");
   const [paying, setPaying] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -59,6 +62,7 @@ export const ResaleTicketCheckout = () => {
     try {
       const r = await marketplaceApi.reserveListing(listing.id);
       setReservation(r);
+      setStep("reserve");
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
       const status = axiosErr?.response?.status;
@@ -134,6 +138,13 @@ export const ResaleTicketCheckout = () => {
   const quantity = listing.quantity || 1;
   const isRetail = quantity <= 1 || listing.allowRetail !== false;
   const totalAmount = listing.price * quantity;
+  const originalPrice = listing.originalPrice ?? null;
+  const minPrice = listing.minPriceSnapshot ?? null;
+  const maxPrice = listing.maxPriceSnapshot ?? null;
+  const policyRange = originalPrice && minPrice != null && maxPrice != null
+    ? `${Math.round((minPrice / originalPrice) * 100)}%–${Math.round((maxPrice / originalPrice) * 100)}% giá gốc`
+    : null;
+  const stepTitle = step === "select" ? "Chọn vé bán lại" : step === "reserve" ? "Giữ vé bán lại" : "Thanh toán vé bán lại";
 
   return (
     <div className="min-h-screen app-bg-page app-text-main">
@@ -148,7 +159,7 @@ export const ResaleTicketCheckout = () => {
         </nav>
 
         {/* Page Title */}
-        <h1 className="mb-2 text-xl font-bold app-text-main sm:text-2xl">Danh sách vé bán lại</h1>
+        <h1 className="mb-2 text-xl font-bold app-text-main sm:text-2xl">{stepTitle}</h1>
         <div className="mb-6 h-px w-full border-t app-border" />
 
         {/* Event summary card */}
@@ -173,7 +184,21 @@ export const ResaleTicketCheckout = () => {
             <span className="text-slate-400 mr-2">Suất diễn</span>
             <span className="font-medium app-text-main">{eventTime}</span>
           </div>
+          {policyRange && (
+            <p className="mt-3 text-xs app-text-muted">Biên độ giá resale: <strong className="app-text-main">{policyRange}</strong></p>
+          )}
         </div>
+
+        <nav aria-label="Tiến trình mua vé bán lại" className="mb-6 grid grid-cols-3 gap-2 text-center text-xs">
+          {["Chọn vé", "Giữ vé", "Thanh toán"].map((label, index) => {
+            const current = index === (step === "select" ? 0 : step === "reserve" ? 1 : 2);
+            return (
+              <div key={label} className={`border-b-2 pb-2 font-semibold ${current ? "border-blue-600 text-blue-600 dark:text-blue-400" : "border-slate-200 text-slate-400 dark:border-slate-800"}`}>
+                {index + 1}. {label}
+              </div>
+            );
+          })}
+        </nav>
 
         {/* Warning if current user is the seller */}
         {isMyListing && (
@@ -193,7 +218,8 @@ export const ResaleTicketCheckout = () => {
           <span>Không hỗ trợ xuất hóa đơn cho vé bán lại.</span>
         </div>
 
-        {/* Section: Chọn vé */}
+        {step === "select" && (
+        /* Section: Chọn vé */
         <div className="mb-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-bold app-text-main sm:text-lg">Chọn vé</h2>
@@ -247,6 +273,7 @@ export const ResaleTicketCheckout = () => {
             </div>
           </label>
         </div>
+        )}
 
         {/* Step 1: Terms Agreement & Reserve CTA */}
         {!reservation ? (
@@ -304,8 +331,8 @@ export const ResaleTicketCheckout = () => {
               )}
             </button>
           </div>
-        ) : (
-          /* Step 2: Reserved Info & Payment Selection */
+        ) : step === "reserve" ? (
+          /* Step 2: Reservation */
           <div className="space-y-6">
             <div
               role="status"
@@ -330,6 +357,22 @@ export const ResaleTicketCheckout = () => {
                   (khoảng 15 phút)
                 </span>
               </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStep("payment")}
+              className="w-full rounded-lg bg-blue-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+            >
+              Tiếp tục thanh toán - {money(reservation.amount)} »
+            </button>
+          </div>
+        ) : (
+          /* Step 3: Payment */
+          <div className="space-y-6">
+            <div className="flex items-center justify-between rounded-xl border app-border app-bg-card px-4 py-3 text-sm">
+              <span className="app-text-muted">Vé đã giữ cho bạn</span>
+              <button type="button" onClick={() => setStep("reserve")} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">Quay lại giữ vé</button>
             </div>
 
             <fieldset className="rounded-xl border app-border app-bg-card p-5 shadow-sm">

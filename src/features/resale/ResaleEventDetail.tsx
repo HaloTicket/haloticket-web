@@ -6,6 +6,7 @@ import { PATHS } from "@/routes/paths";
 import { eventApi } from "@/services/eventApi";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import NotificationModal from "@/components/common/NotificationModal";
 import type { TicketListing } from "@/types/marketplace";
 
 const money = (value: number) => new Intl.NumberFormat("vi-VN", {
@@ -26,6 +27,7 @@ export const ResaleEventDetail = () => {
   const [sort, setSort] = useState("price-asc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -49,13 +51,14 @@ export const ResaleEventDetail = () => {
   const buy = (listing: TicketListing) => {
     const target = `/resale-ticket/${eventId}/ticket/${listing.id}`;
     if (!getKeycloakSession().isAuthenticated()) {
-      navigate(PATHS.LOGIN, { state: { from: target } });
+      setLoginPrompt(target);
       return;
     }
     navigate(target);
   };
 
   return (
+    <>
     <main className="min-h-[calc(100vh-220px)] bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <nav className="mb-4 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -107,6 +110,7 @@ export const ResaleEventDetail = () => {
                   <div>
                     <p className="text-sm font-semibold text-slate-950 dark:text-white">{owner ? "Vé của bạn" : `${tier} · ${quantity} vé`}</p>
                     <p className={`mt-1 text-sm ${owner ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>{owner ? "Đang bán" : dateTime(event?.startTime)}</p>
+                    <p className="mt-1 text-sm text-slate-500">Khu vực: {listing.section || "Khu vực chung"}</p>
                   </div>
                   <p className="text-sm text-slate-500">{retail ? "Có thể mua lẻ" : "Mua toàn bộ"}</p>
                 </div>
@@ -125,6 +129,18 @@ export const ResaleEventDetail = () => {
         </section>
       </div>
     </main>
+    <NotificationModal
+      open={Boolean(loginPrompt)}
+      title="Đăng nhập để mua vé"
+      message="Bạn có thể xem toàn bộ vé bán lại mà không cần đăng nhập. Hãy đăng nhập để giữ vé và tiếp tục thanh toán."
+      variant="info"
+      onClose={() => setLoginPrompt(null)}
+      actions={[
+        { label: "Đăng nhập", variant: "primary", onClick: () => { if (loginPrompt) navigate(PATHS.LOGIN, { state: { from: loginPrompt } }); } },
+        { label: "Ở lại trang", variant: "secondary", onClick: () => setLoginPrompt(null) },
+      ]}
+    />
+    </>
   );
 };
 
