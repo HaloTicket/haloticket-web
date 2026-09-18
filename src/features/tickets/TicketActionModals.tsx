@@ -14,10 +14,10 @@ interface ModalProps {
 
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4" role="presentation">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border app-border app-bg-card shadow-2xl" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="flex items-center justify-between border-b app-border px-5 py-4">
-          <h2 className="text-base font-bold app-text-main">{title}</h2>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/70 sm:items-center sm:p-4" role="presentation">
+      <div className="max-h-[94vh] w-full overflow-y-auto rounded-t-3xl border app-border app-bg-card shadow-2xl sm:max-w-xl sm:rounded-2xl" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b app-border app-bg-card px-5 py-4 sm:px-6">
+          <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">HaloTicket Marketplace</p><h2 className="mt-0.5 text-lg font-bold app-text-main">{title}</h2></div>
           <button type="button" onClick={onClose} className="rounded-lg p-2 app-text-muted hover:bg-slate-500/10 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Đóng">
             <FiX className="h-5 w-5" />
           </button>
@@ -30,17 +30,22 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 
 function TicketSummary({ ticket }: { ticket: TicketItem }) {
   return (
-    <div className="flex gap-3 rounded-xl border app-border app-bg-subnav p-3">
-      <div className="h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
+    <div className="flex gap-4 rounded-2xl border app-border app-bg-subnav p-3">
+      <div className="h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
         {ticket.eventPoster && <img src={ticket.eventPoster} alt="" className="h-full w-full object-cover" />}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-bold app-text-main">{ticket.eventTitle}</p>
-        <p className="mt-1 text-xs app-text-sub">{ticket.ticketTypeName} · {formatCurrency(ticket.totalAmount)}</p>
-        <p className="mt-1 truncate font-mono text-[11px] app-text-muted">{ticket.bookingCode}</p>
+        <p className="line-clamp-2 text-sm font-bold leading-snug app-text-main">{ticket.eventTitle}</p>
+        <p className="mt-1.5 text-xs app-text-sub">{ticket.ticketTypeName} · 1 vé</p>
+        <p className="mt-1 font-semibold app-text-main">{formatCurrency(ticket.totalAmount)}</p>
       </div>
     </div>
   );
+}
+
+function FlowSteps({ gift = false }: { gift?: boolean }) {
+  const steps = gift ? ["Người nhận", "Xác nhận", "Chuyển vé"] : ["Thiết lập giá", "Xác nhận", "Đăng bán"];
+  return <ol className="grid grid-cols-3 gap-2" aria-label="Các bước thực hiện">{steps.map((step, index) => <li key={step} className="flex items-center gap-2 text-[11px] font-semibold app-text-muted"><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${index === 0 ? "border-blue-600 bg-blue-600 text-white" : "app-border app-bg-subnav"}`}>{index + 1}</span><span className="hidden sm:inline">{step}</span></li>)}</ol>;
 }
 
 function errorMessage(error: unknown) {
@@ -110,7 +115,8 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
 
   return (
     <ModalShell title="Đăng bán lại vé" onClose={onClose}>
-      <div className="space-y-5 p-5">
+      <div className="space-y-5 p-5 sm:p-6">
+        <FlowSteps />
         <TicketSummary ticket={ticket} />
         {loadingEligibility ? (
           <div className="flex items-center justify-center gap-2 py-8 text-sm app-text-sub"><FiLoader className="animate-spin" /> Đang kiểm tra điều kiện bán lại…</div>
@@ -128,10 +134,10 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           <div className="flex items-center gap-3 rounded-xl border app-border p-4 text-sm app-text-main"><FiLoader className="animate-spin text-blue-600" /> Đang khóa vé và công khai tin đăng…</div>
         ) : eligibility?.eligible ? (
           <>
-            <div className="grid grid-cols-3 gap-3 border-y app-border py-4 text-sm">
-              <div><p className="text-xs app-text-muted">Giá gốc</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.originalPrice || 0)}</p></div>
-              <div><p className="text-xs app-text-muted">Tối thiểu</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.minPrice || 0)}</p></div>
-              <div><p className="text-xs app-text-muted">Tối đa</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.maxPrice || 0)}</p></div>
+            <div className="grid grid-cols-3 overflow-hidden rounded-xl border app-border text-sm">
+              <div className="p-3"><p className="text-xs app-text-muted">Giá gốc</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.originalPrice || 0)}</p></div>
+              <div className="border-x app-border p-3"><p className="text-xs app-text-muted">Tối thiểu</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.minPrice || 0)}</p></div>
+              <div className="p-3"><p className="text-xs app-text-muted">Tối đa</p><p className="mt-1 font-semibold app-text-main">{formatCurrency(eligibility.maxPrice || 0)}</p></div>
             </div>
             <label className="block text-sm font-semibold app-text-main">
               Giá bán
@@ -151,7 +157,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">Vé không đủ điều kiện bán lại hoặc thời gian nhận đăng bán đã kết thúc.</div>
         )}
         {submitError && <p className="text-sm text-rose-600">{submitError}</p>}
-        <div className="flex justify-end gap-3 border-t app-border pt-4">
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-3 border-t app-border app-bg-card px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
           <button type="button" onClick={onClose} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">{completed || failed ? "Đóng" : "Hủy"}</button>
           {!sagaId && eligibility?.eligible && <button type="button" onClick={submit} disabled={!priceValid || !accepted} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><span className="inline-flex items-center gap-2"><FiTag /> Xác nhận đăng bán</span></button>}
         </div>
@@ -199,7 +205,8 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
 
   return (
     <ModalShell title="Tặng vé" onClose={onClose}>
-      <div className="space-y-5 p-5">
+      <div className="space-y-5 p-5 sm:p-6">
+        <FlowSteps gift />
         <TicketSummary ticket={ticket} />
         {waitingRecipient || completed ? (
           <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -218,7 +225,7 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           </>
         )}
         {submitError && <p className="text-sm text-rose-600">{submitError}</p>}
-        <div className="flex justify-end gap-3 border-t app-border pt-4">
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-3 border-t app-border app-bg-card px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
           <button type="button" onClick={onClose} className="rounded-xl border app-border px-4 py-2.5 text-sm font-semibold app-text-main hover:bg-slate-500/10">{waitingRecipient || completed || failed ? "Đóng" : "Hủy"}</button>
           {!sagaId && <button type="button" onClick={submit} disabled={!emailValid || submitting} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><span className="inline-flex items-center gap-2">{submitting ? <FiLoader className="animate-spin" /> : <FiGift />} Xác nhận tặng vé</span></button>}
         </div>
