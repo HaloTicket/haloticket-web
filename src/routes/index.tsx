@@ -61,6 +61,7 @@ import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
 import ResaleList from "@/features/resale/ResaleList";
 import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
 import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
+import ResaleTransactionResult from "@/features/resale/ResaleTransactionResult";
 
 // Admin Feature
 import AdminDashboard from "@/features/admin/AdminDashboard";
@@ -254,6 +255,10 @@ export const router = createBrowserRouter([
       {
         path: "/resale-ticket/:eventId/ticket/:ticketId",
         element: <ResaleTicketCheckout />,
+      },
+      {
+        path: "/resale-ticket/result/:sagaId",
+        element: <ResaleTransactionResult />,
       },
       {
         path: "/my-tickets",
