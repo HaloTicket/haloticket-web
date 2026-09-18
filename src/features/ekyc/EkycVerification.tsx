@@ -332,7 +332,7 @@ export default function EkycVerification() {
                   key={step}
                   type="button"
                   onClick={() => activateStep(step)}
-                  className="flex items-center gap-1.5 sm:gap-2 py-1 text-xs cursor-pointer transition-all shrink-0"
+                  className="flex items-center gap-1.5 sm:gap-2 py-1 px-1.5 rounded-lg text-xs cursor-pointer transition-all shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${isActive

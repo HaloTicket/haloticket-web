@@ -5,11 +5,9 @@ import {
   FiRotateCcw,
   FiRotateCw,
   FiArrowLeft,
-  FiArrowRight,
   FiCreditCard,
   FiCamera,
 } from "react-icons/fi";
-import { Link } from "react-router-dom";
 import { type ImageMetadata } from "@/utils/imageUtils";
 
 interface ReviewStepProps {
@@ -37,7 +35,6 @@ export function ReviewSubmitStep({
   onRotate,
   onGoToStep,
   onPrev,
-  returnUrl,
 }: ReviewStepProps) {
   const { t } = useTranslation();
 
@@ -46,8 +43,9 @@ export function ReviewSubmitStep({
       index: 0,
       label: t("CCCD mặt trước"),
       goToStep: () => onGoToStep(1),
-      icon: <FiCreditCard className="w-4 h-4 text-blue-500" />,
+      icon: <FiCreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
       changeLabel: t("Thay đổi"),
+      emptyActionLabel: t("Tải lên"),
       noImageText: t("Chưa có ảnh mặt trước"),
       canRotate: true,
     },
@@ -55,8 +53,9 @@ export function ReviewSubmitStep({
       index: 1,
       label: t("CCCD mặt sau"),
       goToStep: () => onGoToStep(2),
-      icon: <FiCreditCard className="w-4 h-4 text-blue-500" />,
+      icon: <FiCreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
       changeLabel: t("Thay đổi"),
+      emptyActionLabel: t("Tải lên"),
       noImageText: t("Chưa có ảnh mặt sau"),
       canRotate: true,
     },
@@ -64,10 +63,11 @@ export function ReviewSubmitStep({
       index: 2,
       label: t("Khuôn mặt"),
       goToStep: () => onGoToStep(3),
-      icon: <FiCamera className="w-4 h-4 text-blue-500" />,
+      icon: <FiCamera className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
       changeLabel: t("Chụp lại"),
+      emptyActionLabel: t("Chụp ảnh"),
       noImageText: t("Chưa chụp ảnh"),
-      canRotate: false,
+      canRotate: true,
     },
   ] as const;
 
@@ -83,7 +83,7 @@ export function ReviewSubmitStep({
         </p>
       </div>
 
-      {/* 3 Review Cards */}
+      {/* 3 Review Cards with perfectly uniform grid and height */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {sides.map((side) => {
           const preview = previews[side.index];
@@ -93,53 +93,61 @@ export function ReviewSubmitStep({
           return (
             <div
               key={side.index}
-              className="p-3.5 rounded-xl border app-border app-bg-card space-y-2.5 flex flex-col justify-between"
+              className="p-3.5 sm:p-4 rounded-xl border app-border app-bg-card flex flex-col justify-between h-full space-y-3 shadow-2xs"
             >
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold app-text-main flex items-center gap-1.5">
+              <div className="space-y-3">
+                {/* Card Header: Icon, Title & Status */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold app-text-main flex items-center gap-1.5 min-w-0 truncate">
                     {side.icon}
-                    <span>{side.label}</span>
+                    <span className="truncate">{side.label}</span>
                   </span>
                   {hasFile ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       {side.canRotate && meta?.isPortrait && (
                         <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold">
                           {t("Ảnh dọc")}
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
                         <FiCheck className="w-3 h-3 stroke-[3]" />
                         <span>{t("Đã tải")}</span>
                       </span>
                     </div>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[11px] font-semibold">
+                    <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[11px] font-semibold border border-rose-200 dark:border-rose-800 shrink-0">
                       {t("Chưa có")}
                     </span>
                   )}
                 </div>
 
-                <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-950 border app-border flex items-center justify-center">
+                {/* Preview Image Box (Same Aspect Ratio across all cards) */}
+                <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-900/90 dark:bg-zinc-950 border app-border flex items-center justify-center">
                   {preview ? (
-                    <img src={preview} alt={`Ảnh ${side.label}`} className="w-full h-full object-contain" />
+                    <img
+                      src={preview}
+                      alt={`Ảnh ${side.label}`}
+                      className="w-full h-full object-contain select-none"
+                    />
                   ) : (
                     <p className="text-xs app-text-muted text-center px-2">{side.noImageText}</p>
                   )}
                   {rotatingIndex === side.index && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-1.5 z-10">
                       <FiRefreshCw className="w-5 h-5 animate-spin text-blue-400" />
+                      <span className="text-[11px] font-medium">{t("Đang xoay...")}</span>
                     </div>
                   )}
                 </div>
 
-                {hasFile && side.canRotate && (
-                  <div className="flex items-center gap-1.5">
+                {/* Uniform Rotate Controls Row (Equal height on all 3 cards) */}
+                {hasFile && side.canRotate ? (
+                  <div className="grid grid-cols-2 gap-1.5">
                     <button
                       type="button"
                       onClick={() => onRotate(side.index, -90)}
                       disabled={rotatingIndex !== null}
-                      className="flex-1 py-1 px-1.5 rounded-md border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-medium text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      className="h-8 px-2 rounded-lg border app-border bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-[11px] font-medium app-text-main flex items-center justify-center gap-1 cursor-pointer transition-colors disabled:opacity-50 active:scale-98"
                     >
                       <FiRotateCcw className="w-3 h-3" />
                       <span>{t("Xoay trái")}</span>
@@ -148,21 +156,26 @@ export function ReviewSubmitStep({
                       type="button"
                       onClick={() => onRotate(side.index, 90)}
                       disabled={rotatingIndex !== null}
-                      className="flex-1 py-1 px-1.5 rounded-md border app-border bg-slate-100 dark:bg-zinc-800 text-[11px] font-medium text-slate-700 dark:text-zinc-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      className="h-8 px-2 rounded-lg border app-border bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-[11px] font-medium app-text-main flex items-center justify-center gap-1 cursor-pointer transition-colors disabled:opacity-50 active:scale-98"
                     >
                       <FiRotateCw className="w-3 h-3" />
                       <span>{t("Xoay phải")}</span>
                     </button>
                   </div>
+                ) : (
+                  <div className="h-8 flex items-center justify-center text-[11px] app-text-muted italic border border-dashed app-border rounded-lg">
+                    <span>{t("Chưa có ảnh")}</span>
+                  </div>
                 )}
               </div>
 
+              {/* Bottom Action Button (Always aligned at the bottom) */}
               <button
                 type="button"
                 onClick={side.goToStep}
-                className="w-full py-1.5 rounded-lg border app-border text-xs font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center cursor-pointer app-text-main mt-1"
+                className="w-full h-8.5 rounded-lg border app-border text-xs font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-center cursor-pointer app-text-main flex items-center justify-center mt-auto"
               >
-                {side.changeLabel}
+                {hasFile ? side.changeLabel : side.emptyActionLabel}
               </button>
             </div>
           );
@@ -202,23 +215,15 @@ export function ReviewSubmitStep({
           {busy ? (
             <>
               <FiRefreshCw className="w-4 h-4 animate-spin" />
-              <span>{t("Đang xử lý xác minh…")}</span>
+              <span>{t("Đang gửi...")}</span>
             </>
           ) : (
-            <>
-              <span>{t("Gửi xác minh")}</span>
-              <FiArrowRight className="w-4 h-4" />
-            </>
+            <span>{t("Gửi xác minh")}</span>
           )}
         </button>
-      </div>
-
-      {/* Back to Profile Link */}
-      <div className="text-center pt-1">
-        <Link to={returnUrl} className="text-xs app-text-muted hover:app-text-main">
-          ← {t("Về hồ sơ")}
-        </Link>
       </div>
     </div>
   );
 }
+
+export default ReviewSubmitStep;
