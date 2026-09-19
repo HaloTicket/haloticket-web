@@ -75,7 +75,7 @@ export default function Profile() {
     fullName: "",
     phoneNumber: "",
     gender: "OTHER",
-    isActive: true,
+    status: "ACTIVE",
   });
 
   const [formData, setFormData] = useState<UserProfileUpdateRequest>({
@@ -117,7 +117,7 @@ export default function Profile() {
     }
   };
 
-  // Password change state
+  // password change state
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -127,7 +127,7 @@ export default function Profile() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
-  // Copy member ID state
+  // copy member ID state
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function Profile() {
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
 
-    // --- Validate fields ---
+    // validate fields
     const errors = validateProfileForm(formData);
     setFieldErrors(errors);
     if (hasProfileErrors(errors)) return;
@@ -219,7 +219,7 @@ export default function Profile() {
 
     setPasswordSaving(true);
     try {
-      // Mock API delay for security verification
+      // mock API delay for security verification
       await new Promise((resolve) => setTimeout(resolve, 800));
       setPasswordSuccess(true);
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });

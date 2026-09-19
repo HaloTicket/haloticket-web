@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useOutletContext, useParams } from "react-router-dom";
 import {
   FiUsers,
   FiUserPlus,
@@ -6,73 +7,61 @@ import {
   FiTrash2,
   FiShield,
   FiKey,
-  FiCheck
+  FiCheck,
+  FiEye,
+  FiRepeat,
+  FiX
 } from "react-icons/fi";
 import { AddMemberModal } from "./components/AddMemberModal";
 import { TablePagination } from "@/components/common/TablePagination";
+import ConfirmModal, { type ConfirmModalType } from "@/components/common/ConfirmModal";
+import { ToastContainer, type ToastMessage } from "@/features/organizer/event-manage/components/seating/SeatingToast";
 import type { MemberItem } from "@/types";
 
-const INITIAL_MEMBERS: MemberItem[] = [
-  {
-    id: "mem-1",
-    name: "Mai Văn An",
-    email: "anmai.ftu2@gmail.com",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    role: "OWNER",
-    status: "ACTIVE",
-    addedAt: "2026-08-01 10:00",
-  },
-  {
-    id: "mem-2",
-    name: "Huy Trần Gia",
-    email: "huytg@ticketbox.vn",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    role: "ADMIN",
-    status: "ACTIVE",
-    addedAt: "2026-08-05 14:30",
-  },
-  {
-    id: "mem-3",
-    name: "Phương Nguyễn Thị Linh",
-    email: "phuongntl@ticketbox.vn",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
-    role: "ADMIN",
-    status: "ACTIVE",
-    addedAt: "2026-08-10 09:15",
-  },
-  {
-    id: "mem-4",
-    name: "Viên Trần Thị Nguyệt",
-    email: "vienttn@ticketbox.vn",
-    role: "ADMIN",
-    status: "ACTIVE",
-    addedAt: "2026-08-12 11:20",
-  },
-  {
-    id: "mem-5",
-    name: "Minh Nguyễn",
-    email: "minhnvb@ticketbox.vn",
-    role: "MANAGER",
-    status: "ACTIVE",
-    addedAt: "2026-08-15 16:45",
-  },
-  {
-    id: "mem-6",
-    name: "Phúc Nguyễn Huỳnh",
-    email: "phucnh@ticketbox.vn",
-    role: "CHECKIN_STAFF",
-    status: "PENDING",
-    addedAt: "2026-09-01 09:00",
-  },
-];
+import { eventApi } from "@/services/eventApi";
 
 export const EventMembers: React.FC = () => {
-  const [members, setMembers] = useState<MemberItem[]>(INITIAL_MEMBERS);
+  const { eventId } = useParams<{ eventId: string }>();
+  const { myRole } = useOutletContext<{ myRole: string | null }>();
+  const [members, setMembers] = useState<MemberItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberItem | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: ConfirmModalType;
+    onConfirm: () => void;
+  } | null>(null);
+  
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const showToast = (type: "success" | "error" | "warning" | "info", text: string) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, text }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
+
+  const fetchMembers = async () => {
+    if (!eventId) return;
+    try {
+      const data = await eventApi.getEventMembers(eventId);
+      setMembers(data);
+    } catch (err) {
+      console.error("Không thể tải danh sách thành viên", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, [eventId]);
 
   const filteredMembers = members.filter((m) => {
     const matchesSearch =
@@ -85,14 +74,68 @@ export const EventMembers: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const handleDeleteMember = (id: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa thành viên này khỏi Ban tổ chức?")) {
-      setMembers(members.filter((m) => m.id !== id));
+  const handleDeleteMember = async (id: string) => {
+    if (!eventId) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Xóa thành viên",
+      message: "Bạn có chắc chắn muốn xóa thành viên này khỏi Ban tổ chức?",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await eventApi.removeEventMember(eventId, id);
+          showToast("success", "Xóa thành viên thành công");
+          setMembers(members.filter((m) => m.id !== id));
+        } catch (err) {
+          showToast("error", "Lỗi khi xóa thành viên");
+        }
+        setConfirmModal(null);
+      }
+    });
+  };
+
+  const handleTransferOwner = async (id: string) => {
+    if (!eventId) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Nhượng quyền Chủ sự kiện",
+      message: "Bạn có chắc chắn muốn nhượng quyền Chủ sự kiện cho người này? Hành động này không thể hoàn tác, bạn sẽ trở thành Quản trị viên.",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await eventApi.transferOwner(eventId, id);
+          showToast("success", "Nhượng quyền thành công. Đang chuyển hướng...");
+          setTimeout(() => {
+            window.location.href = "/organizer/dashboard/events";
+          }, 1500);
+        } catch (err: any) {
+          showToast("error", err?.response?.data?.message || "Lỗi khi nhượng quyền");
+        }
+        setConfirmModal(null);
+      }
+    });
+  };
+
+  const handleAddMemberSave = async (newMember: MemberItem) => {
+    if (!eventId) return;
+    try {
+      const res = await eventApi.inviteEventMember(eventId, newMember.email, newMember.role);
+      showToast("success", "Đã mời thành viên tham gia!");
+      setMembers([res, ...members]);
+    } catch (err: any) {
+      showToast("error", err?.response?.data?.message || "Lỗi khi mời thành viên");
     }
   };
 
-  const handleAddMemberSave = (newMember: MemberItem) => {
-    setMembers([newMember, ...members]);
+  const handleRoleChange = async (id: string, newRole: string) => {
+    if (!eventId) return;
+    try {
+      await eventApi.changeEventMemberRole(eventId, id, newRole);
+      setMembers(members.map(m => m.id === id ? { ...m, role: newRole as any } : m));
+      showToast("success", "Đã cập nhật vai trò!");
+    } catch (err: any) {
+      showToast("error", err?.response?.data?.message || "Lỗi khi đổi vai trò");
+    }
   };
 
   const getRoleBadge = (role: MemberItem["role"]) => {
@@ -123,6 +166,8 @@ export const EventMembers: React.FC = () => {
         );
     }
   };
+
+  const canEdit = myRole === "OWNER" || myRole === "ADMIN";
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -180,20 +225,22 @@ export const EventMembers: React.FC = () => {
           </div>
 
           {/* Add Member CTA */}
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
-          >
-            <FiUserPlus className="w-4 h-4" />
-            <span>Thêm thành viên</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <FiUserPlus className="w-4 h-4" />
+              <span>Thêm thành viên</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Members Table with NO row borders */}
-      <div className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm p-4 space-y-4">
-        <div className="overflow-x-auto no-scrollbar">
+      <div className="app-bg-card border app-border rounded-2xl shadow-sm p-4 space-y-4">
+        <div className="w-full">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b app-border bg-slate-50/50 dark:bg-slate-900/50 text-[11px] font-bold app-text-muted uppercase tracking-wider">
@@ -201,7 +248,7 @@ export const EventMembers: React.FC = () => {
                 <th className="py-3.5 px-6">Vai trò</th>
                 <th className="py-3.5 px-6">Email hệ thống</th>
                 <th className="py-3.5 px-6 text-center">Trạng thái</th>
-                <th className="py-3.5 px-6 text-right rounded-r-xl">Hành động</th>
+                {canEdit && <th className="py-3.5 px-6 text-right rounded-r-xl">Hành động</th>}
               </tr>
             </thead>
             <tbody className="text-xs app-text-main">
@@ -209,26 +256,82 @@ export const EventMembers: React.FC = () => {
                 <tr key={m.id} className="hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-colors rounded-xl">
                   <td className="py-4 px-6 font-bold rounded-l-xl">
                     <div className="flex items-center gap-3">
-                      {m.avatar ? (
+                      {m.avatar || (m as any).avatar_url || (m as any).avatarUrl ? (
                         <img
-                          src={m.avatar}
+                          src={m.avatar || (m as any).avatar_url || (m as any).avatarUrl}
                           alt={m.name}
                           className="w-9 h-9 rounded-full object-cover border border-blue-500/20"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
                         />
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs">
-                          {m.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      ) : null}
+                      <div 
+                        className={`w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs ${m.avatar || (m as any).avatar_url || (m as any).avatarUrl ? 'hidden' : ''}`}
+                      >
+                        {m.name.charAt(0).toUpperCase()}
+                      </div>
                       <div>
                         <span className="app-text-main font-extrabold text-xs block">{m.name}</span>
-                        <span className="text-[10px] app-text-muted font-normal">Tham gia: {m.addedAt}</span>
+                        <span className="text-[10px] app-text-muted font-normal">Tham gia: {m.addedAt ? new Date(m.addedAt).toLocaleDateString() : ''}</span>
                       </div>
                     </div>
                   </td>
 
-                  <td className="py-4 px-6">
-                    {getRoleBadge(m.role)}
+                  <td className="py-4 px-6 relative group">
+                    {(myRole === "OWNER" && m.role !== "OWNER") || (myRole === "ADMIN" && m.role !== "OWNER" && m.role !== "ADMIN") ? (
+                      <div className="relative inline-block w-36">
+                        <div 
+                          className="px-2.5 py-1.5 rounded-lg app-bg-main border app-border app-text-main text-xs font-bold cursor-pointer flex justify-between items-center hover:border-blue-500 transition-colors"
+                          onClick={() => setOpenDropdownId(openDropdownId === m.id ? null : m.id)}
+                        >
+                          <span>
+                            {m.role === "ADMIN" ? "Quản trị viên" : m.role === "MANAGER" ? "Quản lý" : "Nhân viên Check-in"}
+                          </span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${openDropdownId === m.id ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        
+                        {openDropdownId === m.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setOpenDropdownId(null)}></div>
+                            <div className="absolute top-full mt-1 w-40 max-h-48 overflow-y-auto app-bg-card border app-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 left-0">
+                              {myRole === "OWNER" && (
+                                <div
+                                  className={`px-3 py-2 text-xs cursor-pointer transition-colors ${m.role === 'ADMIN' ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
+                                  onClick={() => { handleRoleChange(m.id, 'ADMIN'); setOpenDropdownId(null); }}
+                                >
+                                  Quản trị viên
+                                </div>
+                              )}
+                              <div
+                                className={`px-3 py-2 text-xs cursor-pointer transition-colors ${m.role === 'MANAGER' ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
+                                onClick={() => { handleRoleChange(m.id, 'MANAGER'); setOpenDropdownId(null); }}
+                              >
+                                Quản lý
+                              </div>
+                              <div
+                                className={`px-3 py-2 text-xs cursor-pointer transition-colors ${m.role === 'CHECKIN_STAFF' ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
+                                onClick={() => { handleRoleChange(m.id, 'CHECKIN_STAFF'); setOpenDropdownId(null); }}
+                              >
+                                Nhân viên Check-in
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      getRoleBadge(m.role)
+                    )}
+                    {openDropdownId !== m.id && (
+                      <div className="absolute left-6 top-12 hidden group-hover:block z-30 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-lg">
+                        {m.role === "OWNER" && "Chủ sự kiện: Toàn quyền quản lý, có thể xóa sự kiện và nhượng quyền."}
+                        {m.role === "ADMIN" && "Quản trị viên: Có thể sửa sự kiện, quản lý vé và xem danh sách người tham gia."}
+                        {m.role === "MANAGER" && "Quản lý: Có quyền Check-in vé và xem danh sách đăng ký."}
+                        {m.role === "CHECKIN_STAFF" && "Nhân viên Check-in: Chỉ có quyền quét mã vạch soát vé."}
+                      </div>
+                    )}
                   </td>
 
                   <td className="py-4 px-6 app-text-muted font-mono text-xs">
@@ -247,26 +350,40 @@ export const EventMembers: React.FC = () => {
                     </span>
                   </td>
 
-                  <td className="py-4 px-6 text-right rounded-r-xl">
-                    <div className="inline-flex items-center gap-3">
+                  {canEdit && (
+                    <td className="py-4 px-6 text-right rounded-r-xl space-x-2">
                       <button
                         type="button"
-                        className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-bold cursor-pointer"
+                        onClick={() => setSelectedMember(m)}
+                        className="p-2 app-text-muted hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer inline-flex"
+                        title="Xem chi tiết"
                       >
-                        Xem chi tiết
+                        <FiEye className="w-4 h-4" />
                       </button>
+                      
+                      {myRole === "OWNER" && (m.role === "ADMIN" || m.role === "MANAGER") && (
+                        <button
+                          type="button"
+                          onClick={() => handleTransferOwner(m.id)}
+                          className="p-2 app-text-muted hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer inline-flex"
+                          title="Nhượng quyền Chủ sự kiện"
+                        >
+                          <FiRepeat className="w-4 h-4" />
+                        </button>
+                      )}
+
                       {m.role !== "OWNER" && (
                         <button
                           type="button"
                           onClick={() => handleDeleteMember(m.id)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                          title="Xóa thành viên"
+                          className="p-2 app-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer inline-flex"
+                          title="Xóa khỏi sự kiện"
                         >
                           <FiTrash2 className="w-4 h-4" />
                         </button>
                       )}
-                    </div>
-                  </td>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -295,6 +412,84 @@ export const EventMembers: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMemberSave}
       />
+
+      {/* View Details Modal */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="app-bg-card border app-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b app-border flex items-center justify-between app-bg-subnav">
+              <h3 className="font-bold app-text-main">Chi tiết thành viên</h3>
+              <button 
+                onClick={() => setSelectedMember(null)}
+                className="p-1 rounded-lg app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex justify-center mb-6">
+                {selectedMember.avatar || (selectedMember as any).avatar_url || (selectedMember as any).avatarUrl ? (
+                  <img
+                    src={selectedMember.avatar || (selectedMember as any).avatar_url || (selectedMember as any).avatarUrl}
+                    alt={selectedMember.name}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-blue-500/20"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`w-24 h-24 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-4xl shadow-md ${selectedMember.avatar || (selectedMember as any).avatar_url || (selectedMember as any).avatarUrl ? 'hidden' : ''}`}
+                >
+                  {selectedMember.name.charAt(0).toUpperCase()}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
+                <span className="app-text-muted font-bold col-span-1">Tên</span>
+                <span className="app-text-main col-span-2 font-medium">{selectedMember.name}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
+                <span className="app-text-muted font-bold col-span-1">Email</span>
+                <span className="app-text-main col-span-2 font-mono text-xs font-medium">{selectedMember.email}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
+                <span className="app-text-muted font-bold col-span-1">Vai trò</span>
+                <span className="col-span-2">{getRoleBadge(selectedMember.role)}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
+                <span className="app-text-muted font-bold col-span-1">Ngày tham gia</span>
+                <span className="app-text-main col-span-2 font-medium">{selectedMember.addedAt ? new Date(selectedMember.addedAt).toLocaleString() : ''}</span>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t app-border flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedMember(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold app-text-muted hover:app-text-main app-bg-main border app-border transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      {confirmModal && (
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          type={confirmModal.type}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );
 };

@@ -7,8 +7,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import Profile from "@/features/user/Profile";
-import type { UserProfile } from "@/services/userApi";
+import Profile from "../../src/features/user/Profile";
+import type { UserProfile } from "../../src/services/userApi";
 
 const mocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
@@ -42,7 +42,7 @@ const savedProfile: UserProfile = {
   phoneNumber: "0901234567",
   gender: "MALE",
   avatarUrl: "https://example.com/saved-avatar.png",
-  isActive: true,
+  status: "ACTIVE",
   roles: ["CUSTOMER"],
 };
 

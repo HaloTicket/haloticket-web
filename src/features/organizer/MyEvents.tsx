@@ -58,6 +58,11 @@ interface OrganizerEventItem {
     totalQuantity?: number;
     quantity?: number;
   }>;
+  staffAssignments?: Array<{
+    id?: string;
+    email?: string;
+    role?: string;
+  }>;
 }
 
 export const MyEvents: React.FC = () => {
@@ -84,13 +89,6 @@ export const MyEvents: React.FC = () => {
   };
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
-
-  const tabs: Array<{ id: MyEventTab; label: string }> = [
-    { id: "upcoming", label: "Sắp tới" },
-    { id: "past", label: "Đã qua" },
-    { id: "pending", label: "Chờ duyệt" },
-    { id: "draft", label: "Nháp" }
-  ];
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -129,6 +127,11 @@ export const MyEvents: React.FC = () => {
     const orgId = ev.organizer?.id;
     const orgName = (ev.organizer?.name || "").toLowerCase();
 
+    // check staff assignments
+    if (ev.staffAssignments && ev.staffAssignments.some(s => s.email === currentEmail)) {
+      return true;
+    }
+
     // direct match on organizer userId
     if (orgUserId && currentUserId && orgUserId === currentUserId) return true;
 
@@ -146,6 +149,10 @@ export const MyEvents: React.FC = () => {
   };
 
   const getEventTabStatus = (ev: OrganizerEventItem): string => {
+    if (ev.endTime && new Date(ev.endTime) < new Date()) {
+      return "past";
+    }
+
     const status = (ev.eventApprovalStatus || ev.eventStatus || "").toUpperCase();
     if (status === "PENDING") return "pending";
     if (status === "DRAFT") return "draft";
@@ -154,12 +161,20 @@ export const MyEvents: React.FC = () => {
     return "pending"; // default newly created events to pending
   };
 
-  const filteredEvents = eventsList.filter((ev) => {
-    const isOwner = isMyEvent(ev);
+  const myEventsOnly = eventsList.filter(isMyEvent);
+
+  const tabs: Array<{ id: MyEventTab; label: string; count: number }> = [
+    { id: "upcoming", label: "Sắp tới", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "upcoming").length },
+    { id: "past", label: "Đã qua", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "past").length },
+    { id: "pending", label: "Chờ duyệt", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "pending").length },
+    { id: "draft", label: "Nháp", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "draft").length }
+  ];
+
+  const filteredEvents = myEventsOnly.filter((ev) => {
     const evTabStatus = getEventTabStatus(ev);
     const matchesTab = evTabStatus === activeTab;
     const matchesQuery = (ev.title || "").toLowerCase().includes(searchQuery.toLowerCase());
-    return isOwner && matchesTab && matchesQuery;
+    return matchesTab && matchesQuery;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
@@ -198,9 +213,8 @@ export const MyEvents: React.FC = () => {
 
         {/* Status Tabs Navigation */}
         <div className="inline-flex p-1.5 app-bg-card border app-border rounded-xl shadow-xs overflow-x-auto no-scrollbar">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
+          <div className="flex items-center gap-1 min-w-max">
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -208,15 +222,23 @@ export const MyEvents: React.FC = () => {
                   setActiveTab(tab.id);
                   setCurrentPage(1);
                 }}
-                className={`px-5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${isActive
-                    ? "bg-blue-600 dark:bg-blue-500 text-white shadow-xs"
-                    : "app-text-muted hover:app-text-main"
-                  }`}
+                className={`px-4 py-2 flex items-center gap-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === tab.id
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "app-text-muted hover:app-text-main hover:bg-slate-50 dark:hover:bg-slate-800"
+                }`}
               >
-                {translate(tab.label)}
+                <span>{translate(tab.label)}</span>
+                <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${
+                  activeTab === tab.id 
+                    ? "bg-white/20 text-white" 
+                    : "bg-slate-100 dark:bg-slate-800 app-text-muted"
+                }`}>
+                  {tab.count}
+                </span>
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
 
