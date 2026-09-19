@@ -11,6 +11,7 @@ export const PATHS = {
   CHECKOUT: "/checkout",
   BOOKING_SUCCESS: "/booking-success",
   MY_TICKETS: "/profile?tab=tickets",
+  GIFT_ACCEPT: "/gifts/accept",
   TICKET_DETAIL: (id: string | number) => `/my-tickets/${id}`,
   PROFILE: "/profile",
   EKYC: "/ekyc",

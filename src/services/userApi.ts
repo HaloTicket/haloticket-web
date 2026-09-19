@@ -62,6 +62,10 @@ export function setCachedUserProfile(profile: UserProfile, notify = false): void
 }
 
 export const userApi = {
+  findGiftRecipient: (email: string) =>
+    axiosClient.get<unknown, { userId: string; email: string; fullName: string }>(
+      `/users/gift-recipient?email=${encodeURIComponent(email.trim())}`,
+    ),
   syncCurrentUser: async (): Promise<UserProfile> => {
     const response = await axiosClient.get<unknown, UserProfile>("/users/me");
     setCachedUserProfile(response, true);

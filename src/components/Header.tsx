@@ -10,6 +10,9 @@ import { addSearchHistory } from "@/utils/searchHistory";
 import { eventApi } from "@/services/eventApi";
 import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
 import { getKeycloakSession } from "@/services/keycloakSession";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import type { NotificationItem } from "@/types";
 import { VietnamFlag, UKFlag } from "./common/FlagIcons";
 import {
   FiSearch,
@@ -275,6 +278,8 @@ export const Header: React.FC = () => {
           </Link>
 
           <div className="h-6 w-px app-border hidden lg:block" />
+
+          {isAuthenticated && userProfile?.keycloakId && <GiftNotificationBell userId={userProfile.keycloakId} />}
 
           {/* Auth Dropdown (Ảnh 1) */}
           {isAuthenticated ? (
@@ -672,3 +677,16 @@ export const Header: React.FC = () => {
 };
 
 export default Header;
+
+function GiftNotificationBell({ userId }: { userId: string }) {
+  const navigate = useNavigate();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationSocket(userId);
+  const onClick = (item: NotificationItem) => {
+    void markAsRead(item.id);
+    if (item.type === "GIFT_INVITATION") {
+      const sagaId = item.message.match(/Mã lời mời: ([a-f0-9-]{36})/i)?.[1];
+      if (sagaId) navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
+    }
+  };
+  return <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={markAllAsRead} onNotificationClick={onClick} viewAllLink={PATHS.MY_TICKETS} titleText="Thông báo vé" />;
+}

@@ -80,6 +80,7 @@ export interface GiftTicketRequest {
   ticketId: string;
   recipientEmail: string;
   message?: string;
+  acceptedTerms: boolean;
 }
 
 export interface MarketplacePage<T> {

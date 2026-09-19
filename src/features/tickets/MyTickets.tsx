@@ -19,6 +19,8 @@ import {
 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
+import { PATHS } from "@/routes/paths";
 import { formatCurrency } from "@/utils/formatters";
 import type { OwnedTicketApiResponse } from "@/types";
 import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
@@ -45,6 +47,9 @@ export interface TicketItem {
   rawStatus: string;
   status: TicketUiStatus;
   qrCode?: string;
+  section?: string;
+  row?: string;
+  seatNumber?: string;
 }
 
 const STATUS_PRESENTATION: Record<TicketUiStatus, { labelKey: string; className: string }> = {
@@ -389,6 +394,78 @@ interface MyTicketsProps {
   embedded?: boolean;
 }
 
+function GiftInvitations() {
+  const [invitations, setInvitations] = useState<Awaited<ReturnType<typeof marketplaceApi.getMyGiftInvitations>>>([]);
+
+  useEffect(() => {
+    let active = true;
+    marketplaceApi
+      .getMyGiftInvitations()
+      .then((items) => {
+        if (active) setInvitations(items);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!invitations.length) return null;
+
+  return (
+    <section className="space-y-3" aria-label="Lời mời nhận vé">
+      {invitations.map((item) => {
+        const expireDate = new Date(item.expiresAt);
+        const timeStr = !isNaN(expireDate.getTime())
+          ? expireDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) +
+            " ngày " +
+            expireDate.toLocaleDateString("vi-VN")
+          : item.expiresAt;
+
+        return (
+          <div
+            key={item.sagaId}
+            className="relative overflow-hidden rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-400/20 via-amber-300/10 to-amber-400/5 p-4 sm:p-5 shadow-sm dark:border-amber-500/30 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-transparent"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400/30 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 text-2xl shadow-xs border border-amber-400/30">
+                  🎁
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                      Lời mời nhận vé
+                    </span>
+                    {item.senderName && (
+                      <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        từ {item.senderName}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    {item.ticketTypeName ? `Vé sự kiện: ${item.ticketTypeName}` : "Bạn có lời mời nhận vé"}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-amber-800/90 dark:text-amber-300/80">
+                    Hoàn tất nhận vé trước <span className="font-semibold">{timeStr}</span>
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to={`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(item.sagaId)}`}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
+              >
+                Nhận vé ngay →
+              </Link>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 export default function MyTickets({ embedded = false }: MyTicketsProps) {
   const { t } = useTranslation();
   const [tickets, setTickets] = useState<TicketItem[]>([]);
@@ -521,6 +598,8 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
             ))}
           </div>
         </section>
+
+        <GiftInvitations />
 
         {loading ? (
           <div className="rounded-2xl border app-border app-bg-card p-12 text-center text-sm app-text-sub">

@@ -64,6 +64,25 @@ export const marketplaceApi = {
   createGift: (request: GiftTicketRequest, idempotencyKey = newIdempotencyKey()) =>
     axiosClient.post<unknown, MarketplaceSagaResponse>("/marketplace/gifts", request, { headers: { "Idempotency-Key": idempotencyKey } }),
 
-  acceptGift: (sagaId: string, token: string) =>
-    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/gifts/${encodeURIComponent(sagaId)}/accept`, null, { params: { token } }),
+  acceptGift: (sagaId: string, token?: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/gifts/${encodeURIComponent(sagaId)}/accept`, null, { params: token ? { token } : {} }),
+
+  getGiftInvitation: (sagaId: string, token?: string) =>
+    axiosClient.get<unknown, {
+      ticketId: string; eventId: string; ticketTypeName: string;
+      section: string; row: string; seat: string; message: string;
+      recipientEmail: string; expiresAt: string; state: string;
+      senderUserId?: string; senderName?: string;
+    }>(
+      `/marketplace/gifts/${encodeURIComponent(sagaId)}/invitation`, { params: token ? { token } : {} },
+    ),
+
+  getMyGiftInvitations: () =>
+    axiosClient.get<unknown, Array<{
+      sagaId: string; eventId: string; ticketTypeName: string;
+      section?: string; row?: string; seat?: string;
+      expiresAt: string; senderName?: string;
+    }>>(
+      "/marketplace/gifts/mine",
+    ),
 };

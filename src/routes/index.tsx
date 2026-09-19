@@ -35,6 +35,7 @@ import Checkout from "@/features/tickets/Checkout";
 import BookingSuccess from "@/features/tickets/BookingSuccess";
 import PaymentCallback from "@/features/tickets/PaymentCallback";
 import TicketDetail from "@/features/tickets/TicketDetail";
+import GiftInvitation from "@/features/tickets/GiftInvitation";
 
 // User Feature
 import Profile from "@/features/user/Profile";
@@ -154,7 +155,9 @@ function AuthHandlers() {
     if (isAdmin) {
       navigate(PATHS.ADMIN_DASHBOARD, { replace: true });
     } else {
-      navigate(PATHS.HOME, { replace: true });
+      const giftReturn = sessionStorage.getItem("haloticket_gift_return");
+      sessionStorage.removeItem("haloticket_gift_return");
+      navigate(giftReturn?.startsWith(PATHS.GIFT_ACCEPT + "?") ? giftReturn : PATHS.HOME, { replace: true });
     }
   };
 
@@ -263,6 +266,10 @@ export const router = createBrowserRouter([
       {
         path: "/my-tickets",
         element: <Navigate to="/profile?tab=tickets" replace />,
+      },
+      {
+        path: PATHS.GIFT_ACCEPT,
+        element: <GiftInvitation />,
       },
       {
         path: "/my-tickets/:id",

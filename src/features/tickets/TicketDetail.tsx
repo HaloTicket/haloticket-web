@@ -12,11 +12,14 @@ import {
   FiEyeOff,
   FiTag,
   FiShield,
+  FiGift,
 } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import { type TicketItem, downloadTicketAsImage, mapTicketStatus } from "./MyTickets";
 import { ticketApi } from "@/services/ticketApi";
 import { eventApi } from "@/services/eventApi";
+import { GiftTicketModal } from "./TicketActionModals";
+import { PATHS } from "@/routes/paths";
 
 export default function TicketDetail() {
   const { t } = useTranslation();
@@ -27,6 +30,7 @@ export default function TicketDetail() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isQrRevealed, setIsQrRevealed] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -345,12 +349,31 @@ export default function TicketDetail() {
                       </button>
                     </div>
                   )}
+
+                  {!isLocked && ticket.status === "UPCOMING" && ticket.rawStatus === "VALID" && (
+                    <button
+                      type="button"
+                      onClick={() => setShowGiftModal(true)}
+                      className="w-full max-w-[260px] py-2.5 px-4 rounded-xl border border-blue-600/30 bg-blue-50/80 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:border-blue-500/40 dark:text-blue-400 dark:hover:bg-blue-900/40 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <FiGift className="w-4 h-4" />
+                      <span>{t("Tặng vé")}</span>
+                    </button>
+                  )}
                 </>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {showGiftModal && (
+        <GiftTicketModal
+          ticket={ticket}
+          onClose={() => setShowGiftModal(false)}
+          onChanged={() => navigate(PATHS.MY_TICKETS)}
+        />
+      )}
     </div>
   );
 }
