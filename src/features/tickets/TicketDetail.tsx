@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,7 +9,6 @@ import {
   FiCopy,
   FiCheck,
   FiLock,
-  FiEyeOff,
   FiTag,
   FiShield,
   FiGift,
@@ -18,6 +17,9 @@ import { formatCurrency } from "@/utils/formatters";
 import { type TicketItem, downloadTicketAsImage, mapTicketStatus } from "./MyTickets";
 import { ticketApi } from "@/services/ticketApi";
 import { eventApi } from "@/services/eventApi";
+import { bookingApi } from "@/services/bookingApi";
+import { userApi, getCachedUserProfile } from "@/services/userApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
 import { GiftTicketModal } from "./TicketActionModals";
 import { PATHS } from "@/routes/paths";
 
@@ -31,338 +33,565 @@ export default function TicketDetail() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isQrRevealed, setIsQrRevealed] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [recipientName, setRecipientName] = useState<string>("");
+  const [activeListingId, setActiveListingId] = useState<string | null>(null);
+  const [isCancellingResale, setIsCancellingResale] = useState(false);
+
+  const loadTicketData = useCallback(async (ticketId: string) => {
+    try {
+      const item = await ticketApi.getMyTicket(ticketId);
+      const event = await eventApi.getEventById(item.eventId).catch(() => null);
+
+      // 1. Fetch real recipient name from booking or authenticated user profile
+      let realName = (item as unknown as { customerName?: string }).customerName;
+      if (!realName && item.bookingCode) {
+        try {
+          const booking = await bookingApi.getBookingById(item.bookingCode);
+          const bCustomerName = (booking as unknown as { customerName?: string })?.customerName;
+          if (bCustomerName && bCustomerName.trim()) {
+            realName = bCustomerName.trim();
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!realName) {
+        try {
+          const profile = await userApi.getProfile();
+          realName = profile.fullName?.trim() || profile.email;
+        } catch {
+          const cached = getCachedUserProfile();
+          if (cached) {
+            realName = cached.fullName?.trim() || cached.email;
+          }
+        }
+      }
+      setRecipientName(realName || t("Khách hàng"));
+
+      // 2. Format event date/time
+      const startTimeStr = event?.startTime ? String(event.startTime) : "";
+      const formattedTime = startTimeStr
+        ? new Intl.DateTimeFormat("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }).format(new Date(startTimeStr))
+        : t("Chưa cập nhật lịch");
+
+      const rawStatus = item.status || "VALID";
+      const isResale =
+        item.acquisitionType === "RESALE" ||
+        (item.bookingCode || "").startsWith("RSL-") ||
+        (item.bookingCode || "").includes("RESALE");
+
+      setTicket({
+        id: item.id,
+        bookingCode: item.bookingCode || item.id,
+        eventId: item.eventId,
+        eventTitle: String(event?.title || `Sự kiện ${item.eventId}`),
+        eventTime: formattedTime,
+        eventLocation: String(event?.locationName || event?.address || t("Đang cập nhật")),
+        eventPoster: String(event?.posterImage || event?.bannerUrl || ""),
+        ticketTypeName: item.ticketTypeName || t("Vé điện tử"),
+        quantity: 1,
+        totalAmount: item.price || 0,
+        originalPrice: item.originalPrice || undefined,
+        acquisitionType: isResale ? "RESALE" : (item.acquisitionType || "PRIMARY"),
+        purchaseDate: item.issuedAt || undefined,
+        rawStatus,
+        status: mapTicketStatus(rawStatus),
+        qrCode: item.qrCode || undefined,
+      });
+
+      // 3. If ticket is currently locked for resale, look up the listing ID to allow cancel
+      if (rawStatus === "LOCKED_FOR_RESALE" || mapTicketStatus(rawStatus) === "SELLING") {
+        try {
+          const listingsPage = await marketplaceApi.getMyListings(0, 50);
+          const matched = listingsPage?.content?.find((l) => l.ticketId === item.id && l.status === "ACTIVE");
+          if (matched) {
+            setActiveListingId(matched.id);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      setLoadError(t("Không thể tải thông tin vé. Vui lòng thử lại sau."));
+    }
+  }, [t]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     if (!id) return;
-    let active = true;
-    ticketApi
-      .getMyTicket(id)
-      .then(async (item) => {
-        if (!active) return;
-        const event = await eventApi.getEventById(item.eventId);
-        setTicket({
-          id: item.id,
-          bookingCode: item.bookingCode || item.id,
-          eventId: item.eventId,
-          eventTitle: String(event?.title || `Sự kiện ${item.eventId}`),
-          eventTime: event?.startTime
-            ? new Date(String(event.startTime)).toLocaleString("vi-VN", {
-                hour: "2-digit",
-                minute: "2-digit",
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "Chưa cập nhật lịch",
-          eventLocation: String(event?.locationName || event?.address || "Đang cập nhật"),
-          eventPoster: String(event?.posterImage || event?.bannerUrl || ""),
-          ticketTypeName: item.ticketTypeName || "Vé điện tử",
-          quantity: 1,
-          totalAmount: item.price || 0,
-          originalPrice: item.originalPrice || undefined,
-          acquisitionType: item.acquisitionType || "PRIMARY",
-          purchaseDate: item.issuedAt || undefined,
-          rawStatus: item.status || "VALID",
-          status: mapTicketStatus(item.status),
-          qrCode: item.qrCode || undefined,
-        });
-      })
-      .catch(() => {
-        if (active) setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
-      });
-    return () => {
-      active = false;
-    };
-  }, [id, t]);
+    loadTicketData(id);
+  }, [id, loadTicketData]);
 
-  if (loadError) {
-    return (
-      <div className="w-full flex-1 app-bg-page flex items-center justify-center min-h-[450px] text-rose-600">
-        {loadError}
-      </div>
-    );
-  }
-  if (!ticket) {
-    return (
-      <div className="w-full flex-1 app-bg-page flex items-center justify-center min-h-[450px]">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  const isSelling = ticket.status === "SELLING" || ticket.rawStatus === "LOCKED_FOR_RESALE";
-  const isLocked = isSelling || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode;
-  const qrCodeString = ticket.qrCode || "";
+  const isSelling = ticket ? ticket.status === "SELLING" || ticket.rawStatus === "LOCKED_FOR_RESALE" : false;
+  const isLocked = ticket ? isSelling || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode : true;
+  const qrCodeString = ticket?.qrCode || "";
 
   const copyCode = () => {
-    if (!qrCodeString) return;
-    navigator.clipboard.writeText(qrCodeString);
+    const code = ticket?.bookingCode || qrCodeString;
+    if (!code) return;
+    navigator.clipboard.writeText(code);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const handleCancelResale = async () => {
+    if (!activeListingId) {
+      navigate(PATHS.MARKETPLACE);
+      return;
+    }
+    const confirmed = window.confirm(t("Bạn có chắc chắn muốn hủy đăng bán lại vé này không? Mã QR sẽ được kích hoạt lại."));
+    if (!confirmed) return;
+
+    try {
+      setIsCancellingResale(true);
+      await marketplaceApi.cancelListing(activeListingId);
+      if (id) {
+        await loadTicketData(id);
+      }
+    } catch (err) {
+      alert(t("Không thể hủy niêm yết lúc này. Vui lòng thử lại sau."));
+    } finally {
+      setIsCancellingResale(false);
+    }
+  };
+
+  // Seat extraction
+  const { formattedTicketType, seatDisplay } = useMemo(() => {
+    if (!ticket) return { formattedTicketType: "", seatDisplay: null };
+    const rawType = ticket.ticketTypeName;
+    const seatMatch = rawType.match(/seat_\d+_(\d+)_(\d+)/);
+    if (seatMatch) {
+      const rowLetter = String.fromCharCode(65 + parseInt(seatMatch[1], 10));
+      const seatNum = parseInt(seatMatch[2], 10) + 1;
+      const cleanType = rawType.replace(/seat_\d+_\d+_\d+/, "").trim();
+      return {
+        formattedTicketType: cleanType || t("Vé tiêu chuẩn"),
+        seatDisplay: `Hàng ${rowLetter} · Ghế ${seatNum}`,
+      };
+    }
+    return {
+      formattedTicketType: rawType,
+      seatDisplay: null,
+    };
+  }, [ticket, t]);
+
+  // Timeline builder
+  const timelineEvents = useMemo(() => {
+    if (!ticket) return [];
+    const events: Array<{ title: string; desc?: string; time?: string; dotColor: string }> = [];
+
+    const issuedDate = ticket.purchaseDate ? new Date(ticket.purchaseDate) : null;
+    const formattedIssued = issuedDate && !Number.isNaN(issuedDate.getTime())
+      ? new Intl.DateTimeFormat("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(issuedDate)
+      : null;
+
+    // 1. Issuance
+    events.push({
+      title: t("Vé được phát hành"),
+      desc: ticket.acquisitionType === "RESALE"
+        ? t("Vé được cấp lại sau khi mua thành công trên sàn")
+        : ticket.acquisitionType === "GIFT"
+        ? t("Vé được chuyển vào tài khoản từ lời mời tặng vé")
+        : t("Thanh toán thành công và khởi tạo vé điện tử chính thức"),
+      time: formattedIssued || t("Đã ghi nhận"),
+      dotColor: "bg-[#2166F3]",
+    });
+
+    // 2. Ownership confirmation
+    events.push({
+      title: t("Vé đã chuyển vào tài khoản"),
+      desc: t("Sẵn sàng quản lý và sử dụng"),
+      time: formattedIssued || undefined,
+      dotColor: "bg-emerald-500",
+    });
+
+    // 3. Resale / Gifting
+    if (isSelling) {
+      events.push({
+        title: t("Đăng bán lại trên Marketplace"),
+        desc: t("Người dùng đã tạo tin bán lại vé này"),
+        time: formattedIssued || undefined,
+        dotColor: "bg-amber-500",
+      });
+      events.push({
+        title: t("QR đang tạm khóa"),
+        desc: t("Vé đang trong quá trình giao dịch và chưa thể sử dụng để check-in"),
+        time: formattedIssued || undefined,
+        dotColor: "bg-slate-400",
+      });
+    }
+
+    // 4. Used
+    if (ticket.status === "USED") {
+      events.push({
+        title: t("Đã check-in sự kiện"),
+        desc: t("Vé đã được soát vé thành công tại cổng vào"),
+        dotColor: "bg-emerald-600",
+      });
+    }
+
+    return events;
+  }, [ticket, isSelling, t]);
+
+  if (loadError) {
+    return (
+      <div className="w-full flex-1 bg-[#F3F6FA] flex flex-col items-center justify-center min-h-[450px] p-6 text-center">
+        <p className="text-sm font-semibold text-rose-600 mb-4">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => navigate(PATHS.MY_TICKETS)}
+          className="px-4 py-2 rounded-md bg-[#2166F3] text-white text-xs font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
+        >
+          {t("Quay lại vé của tôi")}
+        </button>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className="w-full flex-1 bg-[#F3F6FA] flex items-center justify-center min-h-[450px]">
+        <div className="w-8 h-8 border-3 border-[#2166F3] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full flex-1 app-bg-page app-text-main font-sans selection:bg-blue-600 selection:text-white pb-20">
-      {/* Top Header Bar */}
-      <div className="bg-slate-950 text-white border-b border-slate-800 py-6 px-6 md:px-16 shadow-lg">
-        <div className="max-w-[1240px] mx-auto flex items-center justify-between">
+    <div className="w-full flex-1 bg-[#F3F6FA] text-[#172033] font-sans pb-16">
+      <div className="max-w-[1000px] mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        {/* Back Link */}
+        <div>
           <button
             type="button"
-            onClick={() => navigate("/my-tickets")}
-            className="flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+            onClick={() => navigate(PATHS.MY_TICKETS)}
+            className="inline-flex items-center gap-2 text-sm font-medium text-[#64748B] hover:text-[#2166F3] transition-colors cursor-pointer"
           >
             <FiArrowLeft className="w-4 h-4" />
-            <span>{t("Quay lại tủ vé")}</span>
+            <span>{t("Quay lại vé của tôi")}</span>
           </button>
-
-          {isSelling ? (
-            <span className="px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-black flex items-center gap-1.5">
-              <FiLock className="h-3.5 w-3.5" />
-              <span>{t("VÉ ĐANG ĐĂNG BÁN - TẠM KHÓA QR")}</span>
-            </span>
-          ) : isLocked ? (
-            <span className="px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black flex items-center gap-1.5">
-              <FiLock className="h-3.5 w-3.5" />
-              <span>{t("VÉ KHÔNG THỂ CHECK-IN")}</span>
-            </span>
-          ) : (
-            <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center gap-1.5">
-              <FiShield className="h-3.5 w-3.5" />
-              <span>{t("VÉ CÓ HIỆU LỰC")}</span>
-            </span>
-          )}
         </div>
-      </div>
 
-      {/* Main Ticket Layout */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 space-y-8">
-        {/* Pass Card Component */}
-        <div className="app-bg-card border app-border rounded-3xl overflow-hidden shadow-xl space-y-0">
-          {/* Header Banner */}
-          <div className="relative h-48 md:h-56 bg-slate-900 overflow-hidden">
-            {ticket.eventPoster && (
-              <img
-                src={ticket.eventPoster}
-                alt={ticket.eventTitle}
-                className="w-full h-full object-cover filter brightness-75"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-            <div className="absolute bottom-6 left-6 right-6 text-white space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-xl bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider">
-                  {t("VÉ ĐIỆN TỬ CHÍNH THỨC")}
+        {/* Page Title & Status Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-2xl font-bold text-[#172033] tracking-tight leading-snug">
+            {ticket.eventTitle}
+          </h1>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {isSelling ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  {t("Đang bán lại")}
                 </span>
-                {ticket.acquisitionType === "RESALE" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-wider shadow-sm">
-                    <FiTag className="h-3 w-3" />
-                    {t("VÉ MUA TỪ SÀN BÁN LẠI")}
-                  </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  <FiLock className="w-3.5 h-3.5 text-slate-500" />
+                  {t("QR tạm khóa")}
+                </span>
+              </>
+            ) : isLocked ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                <FiLock className="w-3.5 h-3.5 text-rose-500" />
+                {t("Không thể check-in")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <FiShield className="w-3.5 h-3.5 text-emerald-600" />
+                {t("Vé có hiệu lực")}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 1. Event Header Card (Poster + Thông tin sự kiện) */}
+        <div className="bg-white border border-[#D7DFEA] rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 shadow-xs">
+          {ticket.eventPoster ? (
+            <img
+              src={ticket.eventPoster}
+              alt={ticket.eventTitle}
+              className="w-full sm:w-[120px] h-36 sm:h-[160px] object-cover rounded-md border border-[#E2E8F0] shrink-0"
+            />
+          ) : (
+            <div className="w-full sm:w-[120px] h-36 sm:h-[160px] bg-slate-100 rounded-md border border-[#E2E8F0] flex items-center justify-center text-slate-400 shrink-0">
+              <FiCalendar className="w-8 h-8" />
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                {t("Vé điện tử chính thức")}
+              </span>
+              {ticket.acquisitionType === "RESALE" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <FiTag className="w-3 h-3" />
+                  {t("Vé mua từ sàn bán lại")}
+                </span>
+              )}
+            </div>
+
+            <h2 className="text-lg sm:text-xl font-bold text-[#172033] line-clamp-2 leading-snug">
+              {ticket.eventTitle}
+            </h2>
+
+            <div className="space-y-1.5 text-xs sm:text-sm text-[#64748B]">
+              <p className="flex items-center gap-2 font-medium text-[#172033]">
+                <FiCalendar className="w-4 h-4 text-[#2166F3] shrink-0" />
+                <span>{ticket.eventTime}</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <FiMapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="truncate">{ticket.eventLocation}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Main Body - 2 Columns Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Cột trái: Thông tin vé (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-white border border-[#D7DFEA] rounded-lg p-5 sm:p-6 shadow-xs space-y-5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                {t("THÔNG TIN VÉ")}
+              </h3>
+
+              <div className="divide-y divide-[#EEF2F6] text-sm">
+                <div className="py-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#64748B]">{t("Hạng vé")}</span>
+                  <span className="font-semibold text-[#172033]">{formattedTicketType}</span>
+                </div>
+
+                {seatDisplay && (
+                  <div className="py-3 flex items-center justify-between">
+                    <span className="text-xs font-medium text-[#64748B]">{t("Vị trí ngồi")}</span>
+                    <span className="font-semibold text-[#172033]">{seatDisplay}</span>
+                  </div>
                 )}
+
+                <div className="py-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#64748B]">{t("Số lượng")}</span>
+                  <span className="font-semibold text-[#172033]">{ticket.quantity} {t("vé")}</span>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#64748B]">{t("Người nhận vé")}</span>
+                  <span className="font-semibold text-[#172033]">{recipientName}</span>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#64748B]">
+                    {ticket.acquisitionType === "RESALE" ? t("Giá mua lại") : t("Tổng tiền")}
+                  </span>
+                  <div className="text-right">
+                    <span className="font-semibold text-[#172033] font-mono">
+                      {formatCurrency(ticket.totalAmount)}
+                    </span>
+                    {ticket.originalPrice && ticket.originalPrice !== ticket.totalAmount && (
+                      <span className="block text-xs text-[#64748B] line-through font-mono">
+                        {formatCurrency(ticket.originalPrice)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight drop-shadow-md">
-                {ticket.eventTitle}
-              </h1>
+
+              {/* Divider & Booking Code */}
+              <div className="border-t border-[#D9E0EA] pt-4">
+                <div className="flex items-center justify-between bg-[#F8FAFC] border border-[#E2E8F0] rounded-md p-3">
+                  <div>
+                    <span className="text-[11px] font-medium text-[#64748B] block">{t("Mã vé")}</span>
+                    <span className="font-mono font-bold text-sm text-[#172033] tracking-wide">
+                      {ticket.bookingCode}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="p-1.5 rounded hover:bg-slate-200/60 text-slate-600 hover:text-[#2166F3] transition-colors cursor-pointer"
+                    title={t("Sao chép mã")}
+                  >
+                    {copiedCode ? <FiCheck className="w-4 h-4 text-emerald-600" /> : <FiCopy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Box: Nếu vé đang đăng bán lại */}
+              {isSelling && (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-md p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                      {t("Đang bán lại")}
+                    </p>
+                    <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+                      {t("Vé hiện đang được đăng bán trên Marketplace. Mã QR tạm thời không thể sử dụng để check-in.")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => navigate(PATHS.MARKETPLACE)}
+                      className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-[#2166F3] text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                    >
+                      {t("Quản lý tin bán")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelResale}
+                      disabled={isCancellingResale}
+                      className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white border border-amber-300 text-amber-900 hover:bg-amber-100/50 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isCancellingResale ? t("Đang hủy...") : t("Hủy đăng bán")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tặng vé Button if VALID and not selling */}
+              {!isLocked && ticket.status === "UPCOMING" && ticket.rawStatus === "VALID" && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowGiftModal(true)}
+                    className="w-full py-2.5 px-4 rounded-md border border-[#2166F3] text-[#2166F3] hover:bg-blue-50/60 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <FiGift className="w-4 h-4" />
+                    <span>{t("Tặng vé cho bạn bè")}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Ticket Body Content Grid */}
-          <div className="p-6 md:p-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-            {/* Left Info Column */}
-            <div className="md:col-span-7 space-y-6">
-              {/* Event Time & Venue */}
-              <div className="space-y-3 pb-6 border-b app-border">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-500">
-                    {t("Thời gian diễn ra")}
-                  </span>
-                  <p className="text-sm font-bold flex items-center gap-2 app-text-main">
-                    <FiCalendar className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>{ticket.eventTime}</span>
-                  </p>
-                </div>
+          {/* Cột phải: Mã QR Check-in (5 cols) */}
+          <div className="lg:col-span-5">
+            <div className="bg-white border border-[#D7DFEA] rounded-lg p-5 sm:p-6 shadow-xs flex flex-col items-center text-center space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B] self-start">
+                {t("MÃ QR CHECK-IN")}
+              </h3>
 
-                <div className="space-y-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-indigo-500">
-                    {t("Địa điểm tổ chức")}
-                  </span>
-                  <p className="text-sm font-bold flex items-center gap-2 app-text-main">
-                    <FiMapPin className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span>{ticket.eventLocation}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Ticket Category & Buyer Info */}
-              <div className="grid grid-cols-2 gap-4 pb-6 border-b app-border text-xs">
-                <div className="space-y-1">
-                  <span className="app-text-sub font-bold block">{t("Hạng vé")}</span>
-                  <span className="font-extrabold text-blue-500 text-sm block">
-                    {ticket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (_, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <span className="app-text-sub font-bold block">{t("Số lượng vé")}</span>
-                  <span className="font-extrabold app-text-main text-sm block font-mono">
-                    {ticket.quantity} {t("vé")}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <span className="app-text-sub font-bold block">{t("Người nhận vé")}</span>
-                  <span className="font-extrabold app-text-main block">
-                    {ticket.customerName || "Trần Long Vũ"}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <span className="app-text-sub font-bold block">
-                    {ticket.acquisitionType === "RESALE" ? t("Giá mua vé bán lại") : t("Tổng tiền")}
-                  </span>
-                  <div className="space-y-0.5">
-                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm block font-mono">
-                      {formatCurrency(ticket.totalAmount)}
-                    </span>
-                    {ticket.acquisitionType === "RESALE" && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                        <FiTag className="h-3 w-3" /> {t("Vé mua lại")}
-                      </span>
-                    )}
-                    {ticket.originalPrice && ticket.originalPrice !== ticket.totalAmount && (
-                      <span className="block text-[11px] app-text-muted line-through">
-                        {t("Giá gốc:")} {formatCurrency(ticket.originalPrice)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Booking Code Banner */}
-              <div className="p-4 rounded-2xl app-bg-subnav border app-border space-y-1">
-                <span className="text-[11px] font-extrabold app-text-sub block">{t("Mã vé:")}</span>
-                <span className="font-mono font-black text-base text-blue-600 dark:text-blue-400 tracking-wider">
-                  {ticket.bookingCode}
-                </span>
-              </div>
-            </div>
-
-            {/* Right Column: QR Code Display Card */}
-            <div className="md:col-span-5 flex flex-col items-center justify-center space-y-4 p-6 rounded-3xl app-bg-subnav border app-border text-center">
               {isLocked ? (
-                /* Khối QR đang bị khóa (Ảnh 2 của người dùng) */
-                <div className="w-full max-w-[280px] overflow-hidden rounded-2xl border border-amber-500/30 app-bg-card shadow-lg">
-                  <div className="relative flex aspect-square w-full items-center justify-center bg-slate-50 dark:bg-slate-800 p-4">
-                    <img
-                      src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
-                      alt="QR Locked"
-                      className="h-full w-full object-contain filter blur-[5px] grayscale opacity-20 pointer-events-none select-none"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shadow-xl backdrop-blur-xs">
-                        <FiLock className="h-7 w-7" />
-                      </div>
+                /* Khối QR bị tạm khóa tinh tế, không dùng visual blur quá lố */
+                <div className="w-full py-5 flex flex-col items-center space-y-3">
+                  <div className="w-44 h-44 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col items-center justify-center p-4">
+                    <div className="w-10 h-10 rounded-full bg-slate-200/70 flex items-center justify-center text-slate-500 mb-2">
+                      <FiLock className="w-5 h-5" />
                     </div>
+                    <span className="text-xs font-semibold text-slate-700">
+                      {t("QR đang tạm khóa")}
+                    </span>
                   </div>
 
-                  <div className="border-t border-amber-500/20 bg-amber-500/10 px-4 py-3.5 text-center">
-                    <p className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                      {t("Mã QR đang bị khóa")}
+                  <div className="space-y-1 max-w-[260px]">
+                    <p className="text-xs font-medium text-[#172033]">
+                      {t("QR đang tạm khóa")}
                     </p>
-                    <p className="mt-1 text-[11px] text-amber-800/80 dark:text-amber-200/80 leading-relaxed font-medium">
-                      {t("Vé đang bán, đang chuyển quyền, đã sử dụng hoặc đã hủy nên không thể dùng để check-in.")}
+                    <p className="text-xs text-[#64748B] leading-relaxed">
+                      {isSelling
+                        ? t("Vé đang được đăng bán lại. Mã QR sẽ được kích hoạt khi giao dịch kết thúc.")
+                        : t("Vé hiện không khả dụng để check-in.")}
                     </p>
+                  </div>
+
+                  <div className="w-full border-t border-[#EEF2F6] pt-3 mt-1 flex items-center justify-center gap-2">
+                    <span className="text-xs text-[#64748B]">{t("Trạng thái vé:")}</span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      {isSelling ? t("Đang bán lại") : t("Tạm khóa")}
+                    </span>
                   </div>
                 </div>
               ) : (
-                /* Khối QR có hiệu lực: Che bằng ổ khóa như Ảnh 1, nhấn để xem */
-                <>
-                  <div className="w-full max-w-[260px] overflow-hidden rounded-2xl border app-border app-bg-card shadow-xl">
+                /* Khối QR có hiệu lực, sẵn sàng check-in */
+                <div className="w-full py-2 flex flex-col items-center space-y-4">
+                  <div className="relative p-2 bg-white border border-[#E2E8F0] rounded-lg shadow-2xs">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeString)}`}
+                      alt="QR Check-in"
+                      className={`w-44 h-44 object-contain transition-all duration-200 ${
+                        isQrRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
+                      }`}
+                    />
+                    {!isQrRevealed && (
+                      <button
+                        type="button"
+                        onClick={() => setIsQrRevealed(true)}
+                        className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 rounded-lg cursor-pointer text-white hover:bg-slate-900/50 transition-colors"
+                      >
+                        <FiLock className="w-6 h-6 mb-1" />
+                        <span className="text-xs font-medium">{t("Bấm để xem QR")}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[#172033]">
+                      {t("Mã vé sẵn sàng check-in")}
+                    </p>
+                    <p className="text-xs text-[#64748B]">
+                      {t("Xuất trình mã này tại cổng soát vé sự kiện.")}
+                    </p>
+                  </div>
+
+                  <div className="w-full space-y-2 pt-2 border-t border-[#EEF2F6]">
+                    <button
+                      type="button"
+                      onClick={() => downloadTicketAsImage(ticket)}
+                      className="w-full py-2 px-3 rounded-md bg-[#2166F3] hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                      <span>{t("Tải ảnh vé về máy")}</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setIsQrRevealed((prev) => !prev)}
-                      className="group relative block w-full text-left cursor-pointer focus:outline-none"
-                      aria-label={isQrRevealed ? t("Nhấn vào ảnh để che mã QR") : t("Nhấn vào ảnh để xem mã QR")}
+                      className="w-full py-1.5 text-xs text-[#64748B] hover:text-[#172033] font-medium transition-colors cursor-pointer"
                     >
-                      <div className="relative flex aspect-square w-full items-center justify-center bg-white p-3">
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-                            qrCodeString
-                          )}`}
-                          alt="Mã QR check-in"
-                          className={`h-full w-full object-contain transition-all duration-300 ${
-                            isQrRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
-                          }`}
-                        />
-
-                        {!isQrRevealed && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/90 text-white shadow-xl transition-transform group-hover:scale-110">
-                              <FiLock className="h-6 w-6" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Thanh hướng dẫn bên dưới đúng như Ảnh 1 */}
-                      <div className="bg-slate-800 hover:bg-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 py-2.5 px-3 text-center transition-colors">
-                        <p className="text-xs font-semibold text-white tracking-wide flex items-center justify-center gap-1.5">
-                          {isQrRevealed ? (
-                            <>
-                              <FiEyeOff className="h-3.5 w-3.5" />
-                              <span>{t("Nhấn vào ảnh để che mã QR")}</span>
-                            </>
-                          ) : (
-                            <>
-                              <FiLock className="h-3.5 w-3.5" />
-                              <span>{t("Nhấn vào ảnh để xem mã QR")}</span>
-                            </>
-                          )}
-                        </p>
-                      </div>
+                      {isQrRevealed ? t("Che mã QR bảo mật") : t("Hiện mã QR")}
                     </button>
                   </div>
-
-                  {/* Khi đã mở xem QR thì mới hiển thị mã text và nút xuất vé */}
-                  {isQrRevealed && (
-                    <div className="space-y-3 w-full animate-in fade-in duration-200">
-                      <div className="space-y-1">
-                        <p className="text-[11px] font-black uppercase text-blue-500">{t("MÃ CHUYÊN CHECK-IN VÀO CỔNG")}</p>
-                        <div className="flex items-center justify-center gap-2 font-mono text-xs font-bold app-text-main">
-                          <span className="truncate max-w-[200px]">{qrCodeString}</span>
-                          <button
-                            type="button"
-                            onClick={copyCode}
-                            className="p-1 rounded hover:bg-blue-500/10 text-blue-600 cursor-pointer"
-                            aria-label="Sao chép mã"
-                          >
-                            {copiedCode ? <FiCheck className="text-emerald-500" /> : <FiCopy />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => downloadTicketAsImage(ticket)}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        <FiDownload className="w-4 h-4" />
-                        <span>{t("Xuất Vé Dạng Hình Ảnh (.PNG)")}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {!isLocked && ticket.status === "UPCOMING" && ticket.rawStatus === "VALID" && (
-                    <button
-                      type="button"
-                      onClick={() => setShowGiftModal(true)}
-                      className="w-full max-w-[260px] py-2.5 px-4 rounded-xl border border-blue-600/30 bg-blue-50/80 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:border-blue-500/40 dark:text-blue-400 dark:hover:bg-blue-900/40 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <FiGift className="w-4 h-4" />
-                      <span>{t("Tặng vé")}</span>
-                    </button>
-                  )}
-                </>
+                </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* 3. Lịch sử vé (Ticket History / Timeline) */}
+        <div className="bg-white border border-[#D7DFEA] rounded-lg p-5 sm:p-6 shadow-xs space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+            {t("LỊCH SỬ VÉ")}
+          </h3>
+
+          <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+            {timelineEvents.map((item, idx) => (
+              <div key={idx} className="relative flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                <div className="flex items-start gap-2.5">
+                  <span className={`absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white ${item.dotColor}`} />
+                  <div>
+                    <p className="text-sm font-semibold text-[#172033]">{item.title}</p>
+                    {item.desc && <p className="text-xs text-[#64748B] mt-0.5">{item.desc}</p>}
+                  </div>
+                </div>
+                {item.time && (
+                  <span className="text-xs font-mono text-[#64748B] sm:text-right shrink-0">
+                    {item.time}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>

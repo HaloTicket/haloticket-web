@@ -85,4 +85,10 @@ export const marketplaceApi = {
     }>>(
       "/marketplace/gifts/mine",
     ),
+
+  getMyListings: (page = 0, size = 50) =>
+    axiosClient.get<unknown, MarketplacePage<TicketListing>>(`/marketplace/listings/me?page=${page}&size=${size}`),
+
+  cancelListing: (listingId: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/listings/${encodeURIComponent(listingId)}/cancel`),
 };
