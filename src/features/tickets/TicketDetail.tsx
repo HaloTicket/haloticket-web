@@ -302,9 +302,9 @@ export default function TicketDetail() {
                 </span>
               </>
             ) : isLocked ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                <FiLock className="w-3.5 h-3.5 text-rose-500" />
-                {t("Không thể check-in")}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                <FiLock className="w-3.5 h-3.5 text-slate-500" />
+                {ticket.status === "USED" ? t("Đã sử dụng") : ticket.status === "TRANSFERRED" ? t("Đã chuyển nhượng") : t("QR tạm khóa")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -483,34 +483,57 @@ export default function TicketDetail() {
               </h3>
 
               {isLocked ? (
-                /* Khối QR bị tạm khóa tinh tế, không dùng visual blur quá lố */
-                <div className="w-full py-5 flex flex-col items-center space-y-3">
-                  <div className="w-44 h-44 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col items-center justify-center p-4">
-                    <div className="w-10 h-10 rounded-full bg-slate-200/70 flex items-center justify-center text-slate-500 mb-2">
-                      <FiLock className="w-5 h-5" />
+                /* Khối QR làm mờ giữ như cũ nhưng luôn là màu xám trung tính chuẩn ticketing */
+                <div className="w-full flex flex-col items-center space-y-3">
+                  <div className="w-full max-w-[270px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+                    <div className="relative flex aspect-square w-full items-center justify-center bg-slate-50 p-4">
+                      <img
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
+                        alt="QR Locked"
+                        className="h-full w-full object-contain filter blur-[5px] grayscale opacity-20 pointer-events-none select-none"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100/95 text-slate-600 border border-slate-300 shadow-sm backdrop-blur-xs">
+                          <FiLock className="h-7 w-7 text-slate-600" />
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-xs font-semibold text-slate-700">
-                      {t("QR đang tạm khóa")}
-                    </span>
-                  </div>
 
-                  <div className="space-y-1 max-w-[260px]">
-                    <p className="text-xs font-medium text-[#172033]">
-                      {t("QR đang tạm khóa")}
-                    </p>
-                    <p className="text-xs text-[#64748B] leading-relaxed">
-                      {isSelling
-                        ? t("Vé đang được đăng bán lại. Mã QR sẽ được kích hoạt khi giao dịch kết thúc.")
-                        : t("Vé hiện không khả dụng để check-in.")}
-                    </p>
+                    <div className="border-t border-slate-200 bg-slate-50/90 px-4 py-3 text-center">
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                        {t("MÃ QR ĐANG TẠM KHÓA")}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500 leading-relaxed font-medium">
+                        {isSelling
+                          ? t("Vé đang đăng bán trên sàn Marketplace. Mã QR sẽ được kích hoạt khi giao dịch kết thúc.")
+                          : t("Vé đang bán, đang chuyển quyền, đã sử dụng hoặc đã hủy nên không thể dùng để check-in.")}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="w-full border-t border-[#EEF2F6] pt-3 mt-1 flex items-center justify-center gap-2">
                     <span className="text-xs text-[#64748B]">{t("Trạng thái vé:")}</span>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      {isSelling ? t("Đang bán lại") : t("Tạm khóa")}
-                    </span>
+                    {isSelling ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        {t("Đang bán lại")}
+                      </span>
+                    ) : ticket.status === "USED" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        {t("Đã sử dụng")}
+                      </span>
+                    ) : ticket.status === "TRANSFERRED" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        {t("Đã chuyển nhượng")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        {t("QR tạm khóa")}
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : (
