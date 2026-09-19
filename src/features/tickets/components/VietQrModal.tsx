@@ -88,11 +88,9 @@ export default function VietQrModal({
     if (!isOpen || !bookingId || isExpired) return;
 
     let isMounted = true;
-    let pollCount = 0;
     
     const interval = setInterval(async () => {
       try {
-        pollCount++;
         const payment = await paymentApi.verifyPaymentStatus(bookingId);
         if (
           isMounted &&
@@ -101,11 +99,6 @@ export default function VietQrModal({
         ) {
           clearInterval(interval);
           onSuccess();
-        } else if (isMounted && import.meta.env.DEV && pollCount >= 3) {
-           // auto trigger mock webhook after ~9 seconds in DEV for testing
-           clearInterval(interval);
-           await paymentApi.mockPaymentSuccess(bookingId);
-           setTimeout(() => onSuccess(), 1000);
         }
       } catch (err) {
         console.warn("Polling payment status error:", err);
@@ -140,26 +133,9 @@ export default function VietQrModal({
         (payment.status === "COMPLETED" || payment.status === "PAID" || payment.status === "SUCCESS")
       ) {
         onSuccess();
-      } else {
-        try {
-          const confirmed = await paymentApi.confirmSandboxReturn(bookingId, "vietqr");
-          if (["COMPLETED", "PAID", "SUCCESS"].includes(confirmed.status)) {
-            onSuccess();
-            return;
-          }
-        } catch {
-          // ignore
-        }
-        // fallback demo confirm
-        await paymentApi.mockPaymentSuccess(bookingId);
-        setTimeout(() => {
-          onSuccess();
-        }, 1200);
       }
-    } catch {
-      // fallback demo confirm
-      await paymentApi.mockPaymentSuccess(bookingId);
-      onSuccess();
+    } catch (err) {
+      console.warn("Could not verify bank transfer yet", err);
     } finally {
       setIsVerifying(false);
     }

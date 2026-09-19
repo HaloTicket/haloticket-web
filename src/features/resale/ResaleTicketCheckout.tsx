@@ -45,12 +45,6 @@ const formatDateTime = (value?: unknown) => {
   }
 };
 
-const getListingCode = (l: TicketListing & { ticketCode?: string | null }) => {
-  if (l.ticketCode) return l.ticketCode;
-  const numOnly = String(l.id).replace(/\D/g, "");
-  return `RSL${(numOnly || "758250945").slice(-9).padEnd(9, "0")}`;
-};
-
 export interface NormalizedCustomQuestion {
   id: string;
   title: string;
@@ -409,7 +403,6 @@ export const ResaleTicketCheckout = () => {
       const currentTxId = paymentInitiation.transactionId;
       const totalAmount = paymentInitiation.amount;
       const orderInfo = `Mua ve ban lai ${String(event?.title ?? listing.id)}`;
-      const bookingCode = getListingCode(listing);
       const bookingId = currentTxId;
       setActiveBookingId(bookingId);
 
@@ -438,7 +431,7 @@ export const ResaleTicketCheckout = () => {
       // Option 1: VietQR / SePay fast transfer
       if (paymentMethod === "VIETQR") {
         try {
-          const qrPayload = await paymentApi.createVietQrPayload(totalAmount, bookingCode, bookingId);
+          const qrPayload = await paymentApi.createVietQrPayload(totalAmount, bookingId, bookingId);
           if (qrPayload) {
             setVietQrData(qrPayload);
             setIsVietQrModalOpen(true);
@@ -938,19 +931,13 @@ export const ResaleTicketCheckout = () => {
                     </label>
 
                     {/* 5. ShopeePay */}
-                    <label
-                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
-                        paymentMethod === "SHOPEEPAY"
-                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
-                          : "app-bg-page border app-border hover:border-blue-500/50"
-                      }`}
-                      onClick={() => setPaymentMethod("SHOPEEPAY")}
-                    >
+                    <label className="flex items-center gap-3.5 p-4 rounded-2xl border app-bg-page app-border opacity-60 cursor-not-allowed">
                       <input
                         type="radio"
                         name="payment_method"
                         checked={paymentMethod === "SHOPEEPAY"}
                         onChange={() => setPaymentMethod("SHOPEEPAY")}
+                        disabled
                         className="accent-blue-600 w-4 h-4 cursor-pointer"
                       />
                       <span className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
@@ -958,7 +945,7 @@ export const ResaleTicketCheckout = () => {
                       </span>
                       <div className="min-w-0">
                         <span className="text-sm font-extrabold app-text-main block">Ví ShopeePay</span>
-                        <span className="text-xs app-text-muted block">Thanh toán qua ứng dụng ví ShopeePay</span>
+                        <span className="text-xs app-text-muted block">Chưa khả dụng</span>
                       </div>
                     </label>
                   </div>

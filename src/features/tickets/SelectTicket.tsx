@@ -285,7 +285,7 @@ export default function SelectTicket() {
 
     // setup WebSocket STOMP client for real-time seat status updates
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS("http://localhost:8084/ws"), // direct booking-service connection
+      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}`.replace(/\/api\/?$/, "") + "/ws"),
       reconnectDelay: 5000,
       onConnect: () => {
         if (id) {

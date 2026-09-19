@@ -11,8 +11,6 @@ export default function PaymentCallback() {
   const vnpResponseCode = searchParams.get("vnp_ResponseCode");
   const vnpTxnRef = searchParams.get("vnp_TxnRef");
   const bookingIdParam = searchParams.get("bookingId") || vnpTxnRef;
-  const provider = searchParams.get("provider");
-  const providerStatus = searchParams.get("status");
 
   const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
   const [message, setMessage] = useState("Hệ thống đang xác thực giao dịch thanh toán...");
@@ -45,9 +43,6 @@ export default function PaymentCallback() {
 
         if (!bookingIdParam) throw new Error("Thiếu mã giao dịch thanh toán");
 
-        if (!vnpResponseCode && provider && providerStatus === "success") {
-          await paymentApi.confirmSandboxReturn(bookingIdParam, provider);
-        }
 
         let paymentCompleted = false;
         for (let attempt = 0; attempt < 10 && !paymentCompleted; attempt += 1) {
@@ -92,7 +87,7 @@ export default function PaymentCallback() {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, vnpResponseCode, bookingIdParam, provider, providerStatus, navigate]);
+  }, [searchParams, vnpResponseCode, bookingIdParam, navigate]);
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-6 app-bg-page app-text-main font-sans">
