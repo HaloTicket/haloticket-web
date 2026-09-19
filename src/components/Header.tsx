@@ -10,6 +10,9 @@ import { addSearchHistory } from "@/utils/searchHistory";
 import { eventApi } from "@/services/eventApi";
 import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
 import { getKeycloakSession } from "@/services/keycloakSession";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import type { NotificationItem } from "@/types";
 import { VietnamFlag, UKFlag } from "./common/FlagIcons";
 import {
   FiSearch,
@@ -268,13 +271,15 @@ export const Header: React.FC = () => {
                 navigate(PATHS.LOGIN);
               }
             }}
-            className="hidden lg:inline-flex items-center gap-2 text-xs font-semibold app-text-main hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-all active:scale-95"
+            className="hidden lg:inline-flex items-center gap-2 px-2 py-2 text-xs font-semibold app-text-main transition-colors hover:text-blue-600 dark:hover:text-blue-400"
           >
             <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>{translate("Vé của tôi")}</span>
           </Link>
 
           <div className="h-6 w-px app-border hidden lg:block" />
+
+          {isAuthenticated && userProfile?.keycloakId && <GiftNotificationBell userId={userProfile.keycloakId} />}
 
           {/* Auth Dropdown (Ảnh 1) */}
           {isAuthenticated ? (
@@ -397,7 +402,7 @@ export const Header: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsLangOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 text-sm font-medium hover:opacity-90 transition-all bg-secondary/60 hover:bg-secondary app-bg-subnav px-2.5 py-1.5 rounded-xl active:scale-95 cursor-pointer border app-border"
+              className="flex cursor-pointer items-center gap-1.5 px-1.5 py-1.5 text-sm font-medium transition-colors hover:text-blue-600 dark:hover:text-blue-400"
               title={translate("Ngôn ngữ")}
               aria-label={translate("Chọn ngôn ngữ")}
             >
@@ -489,14 +494,11 @@ export const Header: React.FC = () => {
               <Link
                 key={cat.label}
                 to={cat.path}
-                className={`transition-colors py-0.5 relative cursor-pointer ${cat.isResale
-                    ? "text-rose-500 font-extrabold hover:opacity-80 flex items-center gap-1"
-                    : isActive
-                      ? "text-blue-600 dark:text-blue-400 font-bold"
-                      : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
+                className={`relative cursor-pointer py-0.5 transition-colors ${isActive
+                    ? "font-bold text-blue-600 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:bg-blue-600 dark:text-blue-400 dark:after:bg-blue-400"
+                    : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
                   }`}
               >
-                {cat.isResale && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                 {translate(cat.label)}
               </Link>
             );
@@ -675,3 +677,16 @@ export const Header: React.FC = () => {
 };
 
 export default Header;
+
+function GiftNotificationBell({ userId }: { userId: string }) {
+  const navigate = useNavigate();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationSocket(userId);
+  const onClick = (item: NotificationItem) => {
+    void markAsRead(item.id);
+    if (item.type === "GIFT_INVITATION") {
+      const sagaId = item.message.match(/Mã lời mời: ([a-f0-9-]{36})/i)?.[1];
+      if (sagaId) navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
+    }
+  };
+  return <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={markAllAsRead} onNotificationClick={onClick} viewAllLink={PATHS.MY_TICKETS} titleText="Thông báo vé" />;
+}

@@ -14,7 +14,7 @@ afterEach(async () => { cleanup(); await setLanguage('vi'); });
 describe('management translations', () => {
   it('provides English for every literal translation key on management screens', () => {
     const files = ['src/features/admin', 'src/features/organizer'].flatMap(dir =>
-      readdirSync(resolve(dir), { recursive: true }).filter(file => String(file).endsWith('.tsx')).map(file => resolve(dir, String(file)))
+      readdirSync(resolve(dir), { recursive: true }).filter((file: string | Buffer) => String(file).endsWith('.tsx')).map((file: string | Buffer) => resolve(dir, String(file)))
     ).concat([resolve('src/layouts/AdminLayout.tsx'), resolve('src/layouts/OrganizerLayout.tsx')]);
     const missing: string[] = [];
     for (const file of files) {

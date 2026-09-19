@@ -1,639 +1,831 @@
-import { useState, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
-  FiCalendar,
-  FiMapPin,
-  FiDownload,
-  FiSearch,
   FiArrowRight,
-  FiCopy,
+  FiCalendar,
   FiCheck,
-  FiX,
+  FiCopy,
+  FiDownload,
+  FiEyeOff,
+  FiGift,
+  FiLock,
+  FiMapPin,
+  FiMoreHorizontal,
+  FiSearch,
   FiTag,
+  FiX,
 } from "react-icons/fi";
-
-function QrCodeIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m0 14v1m8-8h-1M5 12H4m12 0a4 4 0 11-8 0 4 4 0 018 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6h2v2H6V6zm0 10h2v2H6v-2zm10-10h2v2h-2V6zm-4 4h.01M16 16h.01" />
-    </svg>
-  );
-}
+import { eventApi } from "@/services/eventApi";
+import { ticketApi } from "@/services/ticketApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
+import { PATHS } from "@/routes/paths";
 import { formatCurrency } from "@/utils/formatters";
+import type { OwnedTicketApiResponse } from "@/types";
+import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
+
+type TicketFilter = "ALL" | "UPCOMING" | "USED" | "TRANSFERRED";
+type TicketUiStatus = "UPCOMING" | "USED" | "SELLING" | "GIFTING" | "TRANSFERRED" | "CANCELLED";
 
 export interface TicketItem {
   id: string;
   bookingCode: string;
-  eventId?: string;
+  eventId: string;
   eventTitle: string;
+  eventStartsAt?: string;
   eventTime: string;
   eventLocation: string;
   eventPoster?: string | null;
   ticketTypeName: string;
   quantity: number;
   totalAmount: number;
-  customerName?: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  paymentMethod?: string;
+  originalPrice?: number;
+  acquisitionType?: string;
   purchaseDate?: string;
-  status?: "UPCOMING" | "ATTENDED" | "CANCELLED" | string;
+  customerName?: string;
+  rawStatus: string;
+  status: TicketUiStatus;
   qrCode?: string;
+  section?: string;
+  row?: string;
+  seatNumber?: string;
 }
 
-const SAMPLE_TICKETS: TicketItem[] = [
-  {
-    id: "booking-demo-001",
-    bookingCode: "HT-849201",
-    eventId: "e1",
-    eventTitle: "GRAND CONCERT - HALOTICKET LIVE 2026",
-    eventTime: "19:30 - 23:30, 20/10/2026",
-    eventLocation: "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
-    eventPoster: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
-    ticketTypeName: "Vé VIP (Standing)",
-    quantity: 2,
-    totalAmount: 4000000,
-    customerName: "Trần Long Vũ",
-    customerPhone: "0915020803",
-    customerEmail: "vutkd23405@gmail.com",
-    paymentMethod: "SEPAY (VietQR 24/7)",
-    purchaseDate: "2026-09-17T16:00:00.000Z",
-    status: "UPCOMING",
-    qrCode: "HALOTICKET-HT-849201",
-  },
-  {
-    id: "booking-demo-002",
-    bookingCode: "HT-629104",
-    eventId: "e2",
-    eventTitle: "NHẠC HỘI MÙA HÈ - SUMMER MUSIC FEST",
-    eventTime: "18:00 - 22:00, 15/08/2026",
-    eventLocation: "Nhà thi đấu Phú Thọ, TP. Hồ Chí Minh",
-    eventPoster: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-    ticketTypeName: "Khán đài A (Nồi ngồi)",
-    quantity: 1,
-    totalAmount: 1200000,
-    customerName: "Trần Long Vũ",
-    customerPhone: "0915020803",
-    customerEmail: "vutkd23405@gmail.com",
-    paymentMethod: "VNPAY",
-    purchaseDate: "2026-08-10T14:30:00.000Z",
-    status: "ATTENDED",
-    qrCode: "HALOTICKET-HT-629104",
-  },
-];
+const STATUS_PRESENTATION: Record<TicketUiStatus, { labelKey: string; className: string }> = {
+  UPCOMING: { labelKey: "Sắp diễn ra", className: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300" },
+  USED: { labelKey: "Đã sử dụng", className: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" },
+  SELLING: { labelKey: "Đang bán", className: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" },
+  GIFTING: { labelKey: "Đang tặng", className: "border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300" },
+  TRANSFERRED: { labelKey: "Đã chuyển nhượng", className: "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400" },
+  CANCELLED: { labelKey: "Đã hủy", className: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300" },
+};
 
-// canvas image export helper function
+export function mapTicketStatus(status?: string | null): TicketUiStatus {
+  const s = (status || "").trim().toUpperCase();
+  switch (s) {
+    case "USED": return "USED";
+    case "LOCKED_FOR_RESALE": return "SELLING";
+    case "LOCKED_FOR_TRANSFER": return "GIFTING";
+    case "TRANSFERED":
+    case "TRANSFERRED": return "TRANSFERRED";
+    case "REVOKED":
+    case "CANCELLED": return "CANCELLED";
+    case "VALID":
+    case "UPCOMING":
+    default:
+      return "UPCOMING";
+  }
+}
+
+function formatEventTime(value?: string) {
+  if (!value) return "Chưa cập nhật lịch";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Chưa cập nhật lịch";
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketItem[]> {
+  if (!items || !Array.isArray(items)) return [];
+  const eventIds = [...new Set(items.map((item) => item.eventId).filter(Boolean))];
+  const entries = await Promise.all(
+    eventIds.map(async (eventId) => {
+      try {
+        const event = await eventApi.getEventById(eventId);
+        return [eventId, event] as const;
+      } catch {
+        return [eventId, null] as const;
+      }
+    })
+  );
+  const events = new Map(entries);
+
+  return items.map((item) => {
+    const event = events.get(item.eventId);
+    const rawStatus = item.status || "VALID";
+    const startsAt = typeof event?.startTime === "string" ? event.startTime : undefined;
+    const isResale =
+      item.acquisitionType === "RESALE" ||
+      (item.bookingCode || "").startsWith("RSL-") ||
+      (item.bookingCode || "").includes("RESALE");
+
+    return {
+      id: item.id,
+      bookingCode: item.bookingCode || item.id,
+      eventId: item.eventId,
+      eventTitle: String(event?.title || `Sự kiện ${item.eventId}`),
+      eventStartsAt: startsAt,
+      eventTime: formatEventTime(startsAt),
+      eventLocation: String(event?.locationName || event?.address || "Đang cập nhật"),
+      eventPoster: String(event?.posterImage || event?.bannerUrl || ""),
+      ticketTypeName: item.ticketTypeName || "Vé điện tử",
+      quantity: 1,
+      totalAmount: item.price || 0,
+      originalPrice: item.originalPrice || undefined,
+      acquisitionType: isResale ? "RESALE" : (item.acquisitionType || "PRIMARY"),
+      purchaseDate: item.issuedAt || undefined,
+      rawStatus,
+      status: mapTicketStatus(rawStatus),
+      qrCode: item.qrCode || undefined,
+    };
+  });
+}
+
 export function downloadTicketAsImage(ticket: TicketItem) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1050;
-  canvas.height = 580;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1050;
+    canvas.height = 580;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.fillStyle = "#0f172a";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#2563eb";
+    context.fillRect(42, 42, 154, 38);
+    context.fillStyle = "#ffffff";
+    context.font = "700 16px sans-serif";
+    context.fillText("HALOTICKET", 58, 68);
+    context.font = "700 28px sans-serif";
+    const title = ticket.eventTitle.length > 42 ? `${ticket.eventTitle.slice(0, 39)}…` : ticket.eventTitle;
+    context.fillText(title, 42, 135);
+    context.fillStyle = "#cbd5e1";
+    context.font = "16px sans-serif";
+    context.fillText(ticket.eventTime, 42, 180);
+    context.fillText(ticket.eventLocation, 42, 215);
+    context.fillStyle = "#ffffff";
+    context.font = "700 20px sans-serif";
+    context.fillText(`${ticket.ticketTypeName} · ${formatCurrency(ticket.totalAmount)}`, 42, 280);
+    context.fillStyle = "#94a3b8";
+    context.font = "14px monospace";
+    context.fillText(`Mã vé: ${ticket.bookingCode}`, 42, 325);
+    if (ticket.rawStatus !== "VALID" || !ticket.qrCode) return;
+    const qrValue = ticket.qrCode;
+    const image = new Image();
+    image.crossOrigin = "Anonymous";
+    image.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrValue)}`;
+    const save = () => {
+      try {
+        const link = document.createElement("a");
+        link.download = `HaloTicket_${ticket.bookingCode}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      } catch (err) {
+        console.warn("Could not download canvas image:", err);
+      }
+    };
+    image.onload = () => {
+      try {
+        context.fillStyle = "#ffffff";
+        context.fillRect(740, 125, 250, 250);
+        context.drawImage(image, 752, 137, 226, 226);
+      } catch {
+        // Tainted canvas fallback
+      }
+      save();
+    };
+    image.onerror = save;
+  } catch (err) {
+    console.warn("Error in downloadTicketAsImage:", err);
+  }
+}
 
-  // background gradient
-  const gradient = ctx.createLinearGradient(0, 0, 1050, 580);
-  gradient.addColorStop(0, "#090d16");
-  gradient.addColorStop(0.5, "#1e293b");
-  gradient.addColorStop(1, "#0f172a");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1050, 580);
+function StatusBadge({ status }: { status: TicketUiStatus }) {
+  const { t } = useTranslation();
+  const presentation = STATUS_PRESENTATION[status];
+  return (
+    <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shadow-xs ${presentation.className}`}>
+      {t(presentation.labelKey)}
+    </span>
+  );
+}
 
-  // outer border & glow frame
-  ctx.strokeStyle = "#2563eb";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(12, 12, 1026, 556);
+/**
+ * Modal Xem vé điện tử:
+ * - Nếu vé Đang bán hoặc bị khóa: hiển thị QR mờ kèm ổ khóa đè lên và mô tả cảnh báo.
+ * - Nếu vé có hiệu lực: mặc định che QR bằng ổ khóa và thanh "Nhấn vào ảnh để xem mã QR" (Ảnh 1).
+ */
+function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
 
-  // header brand tag
-  ctx.fillStyle = "#2563eb";
-  ctx.fillRect(45, 45, 150, 38);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 16px sans-serif";
-  ctx.fillText("HALOTICKET", 60, 70);
+  const isSelling = ticket.status === "SELLING" || ticket.rawStatus === "LOCKED_FOR_RESALE";
+  const isLocked = isSelling || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode;
+  const code = ticket.qrCode || "";
 
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("VÉ ĐIỆN TỬ CHÍNH THỨC • OFFICIAL E-TICKET PASS", 215, 70);
-
-  // horizontal divider line
-  ctx.strokeStyle = "#334155";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(45, 100);
-  ctx.lineTo(1005, 100);
-  ctx.stroke();
-
-  // event title
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 24px sans-serif";
-  const titleText = (ticket.eventTitle || "SỰ KIỆN HALOTICKET").toUpperCase();
-  ctx.fillText(titleText.length > 45 ? titleText.substring(0, 42) + "..." : titleText, 45, 145);
-
-  // event details
-  ctx.fillStyle = "#cbd5e1";
-  ctx.font = "15px sans-serif";
-  ctx.fillText(`Thời gian:  ${ticket.eventTime}`, 45, 185);
-  ctx.fillText(`Địa điểm:  ${ticket.eventLocation}`, 45, 220);
-
-  // section divider line
-  ctx.strokeStyle = "#334155";
-  ctx.beginPath();
-  ctx.moveTo(45, 245);
-  ctx.lineTo(690, 245);
-  ctx.stroke();
-
-  // attendee & ticket info
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "bold 12px sans-serif";
-  ctx.fillText("HỌ VÀ TÊN NGƯỜI NHẬN VÉ", 45, 275);
-  ctx.fillText("HẠNG VÉ & SỐ LƯỢNG", 370, 275);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(ticket.customerName || "Khách hàng HaloTicket", 45, 305);
-  ctx.fillText(`${ticket.quantity || 1}x ${ticket.ticketTypeName}`, 370, 305);
-
-  ctx.fillStyle = "#cbd5e1";
-  ctx.font = "14px sans-serif";
-  ctx.fillText(`Số điện thoại: ${ticket.customerPhone || "0915020803"}`, 45, 335);
-  ctx.fillText(`Mã vé: ${ticket.bookingCode || ticket.id}`, 370, 335);
-
-  // payment status banner
-  ctx.fillStyle = "#10b981";
-  ctx.font = "bold 18px sans-serif";
-  const priceText = formatCurrency(ticket.totalAmount || 0);
-  ctx.fillText(`ĐÃ THANH TOÁN (${priceText})`, 45, 395);
-
-  // check-in code box
-  ctx.fillStyle = "#1e293b";
-  ctx.fillRect(45, 435, 645, 65);
-  ctx.strokeStyle = "#3b82f6";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(45, 435, 645, 65);
-
-  ctx.fillStyle = "#60a5fa";
-  ctx.font = "bold 16px monospace";
-  const qrString = ticket.qrCode || `HALOTICKET-${ticket.bookingCode || ticket.id}`;
-  ctx.fillText(`MÃ CHECK-IN: ${qrString}`, 65, 474);
-
-  // vertical divider before qr code
-  ctx.strokeStyle = "#334155";
-  ctx.beginPath();
-  ctx.moveTo(715, 115);
-  ctx.lineTo(715, 520);
-  ctx.stroke();
-
-  // draw qr code image on canvas
-  const qrImg = new Image();
-  qrImg.crossOrigin = "Anonymous";
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrString)}`;
-  qrImg.src = qrApiUrl;
-
-  const triggerDownload = () => {
-    const link = document.createElement("a");
-    link.download = `Ve_HaloTicket_${ticket.bookingCode || ticket.id}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+  const copyCode = async () => {
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
   };
 
-  qrImg.onload = () => {
-    // white background card for QR code
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(740, 140, 245, 245);
-    ctx.drawImage(qrImg, 752, 152, 221, 221);
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
+      <div
+        className="w-full max-w-md overflow-hidden rounded-3xl border app-border app-bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("Vé điện tử")}
+      >
+        {/* Banner header */}
+        <div className="relative h-36 bg-slate-900">
+          {ticket.eventPoster && (
+            <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover filter brightness-85" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3.5 top-3.5 rounded-full bg-slate-950/70 p-2 text-white hover:bg-slate-950 transition cursor-pointer"
+            aria-label="Đóng"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
+          <div className="absolute bottom-3 left-4 right-4 flex items-center gap-2">
+            {ticket.acquisitionType === "RESALE" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs">
+                <FiTag className="h-3 w-3" /> {t("Vé mua lại")}
+              </span>
+            )}
+            <StatusBadge status={ticket.status} />
+          </div>
+        </div>
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillText("QUÉT MÃ ĐỂ VÀO CỔNG", 760, 420);
+        <div className="space-y-4 p-5 sm:p-6">
+          <div>
+            <h2 className="text-lg font-black leading-snug app-text-main">{ticket.eventTitle}</h2>
+            <p className="mt-2 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
+              <FiCalendar className="text-blue-600 shrink-0" />
+              <span>{ticket.eventTime}</span>
+            </p>
+            <p className="mt-1 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
+              <FiMapPin className="text-blue-600 shrink-0" />
+              <span className="truncate">{ticket.eventLocation}</span>
+            </p>
+          </div>
 
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("Xuất vé từ HaloTicket.vn", 760, 445);
+          <div className="flex items-center justify-between border-y app-border py-3 text-sm">
+            <span className="font-semibold app-text-main">
+              {ticket.ticketTypeName} · {ticket.quantity} {t("vé")}
+            </span>
+            <div className="text-right">
+              <strong className="block text-blue-600 dark:text-blue-400 font-mono font-bold text-base">
+                {formatCurrency(ticket.totalAmount)}
+              </strong>
+              <span className="text-xs app-text-sub font-medium block">
+                {ticket.acquisitionType === "RESALE" ? t("Giá mua vé bán lại") : t("Giá vé")}
+              </span>
+            </div>
+          </div>
 
-    triggerDownload();
-  };
+          {/* Khối hiển thị QR Code bảo mật */}
+          {isLocked ? (
+            /* Ảnh 2: Vé đang bị khóa */
+            <div className="overflow-hidden rounded-2xl border border-amber-500/30 bg-slate-50 dark:bg-slate-900 shadow-md">
+              <div className="relative flex aspect-square w-48 sm:w-56 mx-auto items-center justify-center p-3">
+                <img
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
+                  alt="QR Locked"
+                  className="h-full w-full object-contain filter blur-[5px] grayscale opacity-20 pointer-events-none select-none"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shadow-lg">
+                    <FiLock className="h-6 w-6" />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-amber-500/20 bg-amber-500/10 px-4 py-3 text-center">
+                <p className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                  {t("Mã QR đang bị khóa")}
+                </p>
+                <p className="mt-1 text-[11px] text-amber-800/80 dark:text-amber-200/80 leading-relaxed font-medium">
+                  {t("Vé đang bán, đang chuyển quyền, đã sử dụng hoặc đã hủy nên không thể dùng để check-in.")}
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Ảnh 1: Vé có hiệu lực - che bằng ổ khóa, nhấn để xem */
+            <div className="space-y-3">
+              <div className="mx-auto w-full max-w-[240px] overflow-hidden rounded-2xl border app-border bg-white dark:bg-slate-900 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setIsRevealed((prev) => !prev)}
+                  className="group relative block w-full text-left cursor-pointer focus:outline-none"
+                  aria-label={isRevealed ? t("Nhấn vào ảnh để che mã QR") : t("Nhấn vào ảnh để xem mã QR")}
+                >
+                  <div className="relative flex aspect-square w-full items-center justify-center bg-white p-3">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(code)}`}
+                      alt="Mã QR check-in"
+                      className={`h-full w-full object-contain transition-all duration-300 ${
+                        isRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
+                      }`}
+                    />
+                    {!isRevealed && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900/90 text-white shadow-lg transition-transform group-hover:scale-110">
+                          <FiLock className="h-5 w-5" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-  // fallback if image load takes time
-  setTimeout(() => {
-    if (!qrImg.complete) {
-      triggerDownload();
-    }
-  }, 1000);
+                  {/* Dải hướng dẫn giống Ảnh 1 */}
+                  <div className="bg-slate-800 hover:bg-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 py-2.5 px-3 text-center transition-colors">
+                    <p className="text-xs font-semibold text-white tracking-wide flex items-center justify-center gap-1.5">
+                      {isRevealed ? (
+                        <>
+                          <FiEyeOff className="h-3.5 w-3.5" />
+                          <span>{t("Nhấn vào ảnh để che mã QR")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiLock className="h-3.5 w-3.5" />
+                          <span>{t("Nhấn vào ảnh để xem mã QR")}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {isRevealed && (
+                <div className="space-y-2 text-center animate-in fade-in duration-150">
+                  <p className="text-[11px] app-text-muted">{t("Xuất trình mã này tại cổng check-in")}</p>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="inline-flex max-w-full items-center gap-2 rounded-lg border app-border px-3 py-1.5 font-mono text-xs app-text-main hover:bg-slate-500/10 cursor-pointer"
+                  >
+                    <span className="truncate max-w-[200px]">{code}</span>
+                    {copied ? <FiCheck className="shrink-0 text-emerald-600" /> : <FiCopy className="shrink-0" />}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <p className="truncate font-mono text-xs app-text-muted">{t("Mã vé:")} {ticket.bookingCode}</p>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => downloadTicketAsImage(ticket)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border app-border px-3 py-1.5 text-xs font-semibold app-text-main hover:bg-slate-500/10 cursor-pointer"
+              >
+                <FiDownload /> {t("Tải vé")}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface MyTicketsProps {
   embedded?: boolean;
 }
 
-export default function MyTickets({ embedded = false }: MyTicketsProps) {
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
-  const [activeTab, setActiveTab] = useState<"ALL" | "UPCOMING" | "ATTENDED">("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // qr modal state
-  const [selectedQrTicket, setSelectedQrTicket] = useState<TicketItem | null>(null);
-  const [copiedQrCode, setCopiedQrCode] = useState(false);
+function GiftInvitations() {
+  const [invitations, setInvitations] = useState<Awaited<ReturnType<typeof marketplaceApi.getMyGiftInvitations>>>([]);
 
   useEffect(() => {
-    if (!embedded) {
-      window.scrollTo(0, 0);
-    }
+    let active = true;
+    marketplaceApi
+      .getMyGiftInvitations()
+      .then((items) => {
+        if (active) setInvitations(items);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
-    // load tickets from localStorage or fallback to sample tickets
-    try {
-      const saved = localStorage.getItem("haloticket_my_tickets");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTickets(parsed);
-          return;
-        }
-      }
-    } catch {
-      // fallback below
-    }
-    setTickets(SAMPLE_TICKETS);
-  }, [embedded]);
-
-  const filteredTickets = tickets.filter((t) => {
-    const matchesTab =
-      activeTab === "ALL"
-        ? true
-        : activeTab === "UPCOMING"
-        ? t.status !== "ATTENDED" && t.status !== "CANCELLED"
-        : t.status === "ATTENDED";
-
-    const matchesSearch =
-      t.eventTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.bookingCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.ticketTypeName.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesTab && matchesSearch;
-  });
-
-  const copyQrCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedQrCode(true);
-    setTimeout(() => setCopiedQrCode(false), 2000);
-  };
+  if (!invitations.length) return null;
 
   return (
-    <div className={`w-full font-sans selection:bg-blue-600 selection:text-white ${embedded ? "" : "flex-1 app-bg-page app-text-main pb-20"}`}>
-      {/* Top Hero Banner (Only when NOT embedded) */}
-      {!embedded && (
-        <div className="bg-slate-950 text-white border-b border-slate-800 py-10 px-6 md:px-16 relative overflow-hidden shadow-xl">
-          <div className="absolute -right-20 -top-20 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="max-w-[1240px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2">
-              <span className="px-3.5 py-1 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-wider shadow-sm">
-                TỦ VÉ ĐIỆN TỬ
-              </span>
-              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white drop-shadow-md">
-                Vé Của Tôi
-              </h1>
-              <p className="text-xs md:text-sm text-slate-400 font-medium">
-                Quản lý danh sách vé đã mua, xem mã QR check-in và xuất hình ảnh vé lưu trữ.
-              </p>
-            </div>
+    <section className="space-y-3" aria-label="Lời mời nhận vé">
+      {invitations.map((item) => {
+        const expireDate = new Date(item.expiresAt);
+        const timeStr = !isNaN(expireDate.getTime())
+          ? expireDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) +
+            " ngày " +
+            expireDate.toLocaleDateString("vi-VN")
+          : item.expiresAt;
 
-            {/* Search Input Box */}
-            <div className="relative min-w-[260px] md:min-w-[320px]">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+        return (
+          <div
+            key={item.sagaId}
+            className="relative overflow-hidden rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-400/20 via-amber-300/10 to-amber-400/5 p-4 sm:p-5 shadow-sm dark:border-amber-500/30 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-transparent"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400/30 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 text-2xl shadow-xs border border-amber-400/30">
+                  🎁
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                      Lời mời nhận vé
+                    </span>
+                    {item.senderName && (
+                      <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        từ {item.senderName}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    {item.ticketTypeName ? `Vé sự kiện: ${item.ticketTypeName}` : "Bạn có lời mời nhận vé"}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-amber-800/90 dark:text-amber-300/80">
+                    Hoàn tất nhận vé trước <span className="font-semibold">{timeStr}</span>
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to={`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(item.sagaId)}`}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
+              >
+                Nhận vé ngay →
+              </Link>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+export default function MyTickets({ embedded = false }: MyTicketsProps) {
+  const { t } = useTranslation();
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TicketFilter>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string>();
+  const [viewerTicket, setViewerTicket] = useState<TicketItem>();
+  const [resaleTicket, setResaleTicket] = useState<TicketItem>();
+  const [giftTicket, setGiftTicket] = useState<TicketItem>();
+
+  const loadTickets = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const response = await ticketApi.getMyTickets();
+      const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
+      setTickets(hydrated);
+    } catch (err) {
+      console.error("loadTickets failed:", err);
+      setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (!embedded) window.scrollTo(0, 0);
+    let active = true;
+    ticketApi
+      .getMyTickets()
+      .then(async (response) => {
+        const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
+        if (active) {
+          setTickets(hydrated);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("loadTickets failed:", err);
+        if (active) {
+          setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [embedded, t]);
+
+  const counts = useMemo(
+    () => ({
+      ALL: tickets.length,
+      UPCOMING: tickets.filter((ticket) => ["UPCOMING", "SELLING", "GIFTING"].includes(ticket.status)).length,
+      USED: tickets.filter((ticket) => ticket.status === "USED").length,
+      TRANSFERRED: tickets.filter((ticket) => ticket.status === "TRANSFERRED").length,
+    }),
+    [tickets]
+  );
+
+  const filteredTickets = useMemo(
+    () =>
+      tickets.filter((ticket) => {
+        const tabMatches =
+          activeTab === "ALL" ||
+          (activeTab === "UPCOMING" && ["UPCOMING", "SELLING", "GIFTING"].includes(ticket.status)) ||
+          (activeTab === "USED" && ticket.status === "USED") ||
+          (activeTab === "TRANSFERRED" && ticket.status === "TRANSFERRED");
+        const query = searchQuery.trim().toLowerCase();
+        return (
+          tabMatches &&
+          (!query ||
+            ticket.eventTitle.toLowerCase().includes(query) ||
+            ticket.bookingCode.toLowerCase().includes(query) ||
+            ticket.ticketTypeName.toLowerCase().includes(query))
+        );
+      }),
+    [activeTab, searchQuery, tickets]
+  );
+
+  const tabs: Array<{ value: TicketFilter; labelKey: string }> = [
+    { value: "ALL", labelKey: "Tất cả" },
+    { value: "UPCOMING", labelKey: "Sắp diễn ra" },
+    { value: "USED", labelKey: "Đã sử dụng" },
+    { value: "TRANSFERRED", labelKey: "Đã chuyển nhượng" },
+  ];
+
+  return (
+    <div className={`w-full font-sans ${embedded ? "" : "flex-1 app-bg-page app-text-main pb-20"}`}>
+      <div className={embedded ? "space-y-5" : "mx-auto mt-8 max-w-[1160px] space-y-5 px-4 md:px-8"}>
+        {/* Header section */}
+        <section className="rounded-2xl border app-border app-bg-card p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">{t("Tủ vé điện tử")}</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight app-text-main">{t("Vé của tôi")}</h1>
+              <p className="mt-1 text-sm app-text-sub">{t("Nhấn vào vé để xem chi tiết mã QR và quản lý vé.")}</p>
+            </div>
+            <label className="relative block w-full sm:w-72">
+              <FiSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 app-text-muted" />
+              <span className="sr-only">{t("Tìm kiếm")}</span>
               <input
-                type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm theo tên sự kiện, mã vé..."
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-white text-xs font-bold placeholder-slate-500 focus:outline-none focus:border-blue-500 shadow-inner"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("Tìm vé…")}
+                className="w-full rounded-xl border app-border app-bg-card py-2.5 pl-10 pr-4 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </div>
+            </label>
           </div>
-        </div>
-      )}
-
-      {/* Main Content Layout */}
-      <div className={embedded ? "space-y-6" : "max-w-[1240px] mx-auto px-6 md:px-16 mt-8 space-y-6"}>
-        {/* Header & Controls in Embedded Mode */}
-        {embedded && (
-          <div className="rounded-2xl app-bg-card border app-border p-5 shadow-sm sm:p-7 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b app-border pb-5">
-              <div>
-                <h3 className="text-xl font-bold app-text-main">Vé của tôi</h3>
-                <p className="text-xs sm:text-sm app-text-muted mt-1">
-                  Danh sách vé điện tử đã mua, xem mã QR check-in và xuất hình ảnh vé.
-                </p>
-              </div>
-
-              {/* Search Box */}
-              <div className="relative w-full sm:w-72 shrink-0">
-                <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm tên sự kiện, mã vé..."
-                  className="w-full pl-10 pr-4 py-2 text-xs app-bg-subnav app-text-main border app-border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Navigation Filter Tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="mt-5 flex gap-1 overflow-x-auto border-t app-border pt-4" role="tablist">
+            {tabs.map((tab) => (
               <button
+                key={tab.value}
                 type="button"
-                onClick={() => setActiveTab("ALL")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === "ALL"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "app-bg-subnav border app-border app-text-main hover:bg-slate-200 dark:hover:bg-slate-800"
+                role="tab"
+                aria-selected={activeTab === tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                  activeTab === tab.value
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "app-text-sub hover:bg-slate-500/10 hover:app-text-main"
                 }`}
               >
-                Tất cả ({tickets.length})
+                {t(tab.labelKey)}{" "}
+                <span className={activeTab === tab.value ? "text-blue-100" : "app-text-muted"}>
+                  {counts[tab.value]}
+                </span>
               </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("UPCOMING")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === "UPCOMING"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "app-bg-subnav border app-border app-text-main hover:bg-slate-200 dark:hover:bg-slate-800"
-                }`}
-              >
-                Sắp diễn ra ({tickets.filter((t) => t.status !== "ATTENDED" && t.status !== "CANCELLED").length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("ATTENDED")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === "ATTENDED"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "app-bg-subnav border app-border app-text-main hover:bg-slate-200 dark:hover:bg-slate-800"
-                }`}
-              >
-                Đã tham gia ({tickets.filter((t) => t.status === "ATTENDED").length})
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation Tabs in Standalone Mode */}
-        {!embedded && (
-          <div className="flex items-center gap-2 border-b app-border pb-3 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => setActiveTab("ALL")}
-              className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "ALL"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                  : "app-bg-card border app-border app-text-sub hover:app-text-main"
-              }`}
-            >
-              Tất cả vé ({tickets.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("UPCOMING")}
-              className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "UPCOMING"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                  : "app-bg-card border app-border app-text-sub hover:app-text-main"
-              }`}
-            >
-              Sắp diễn ra (
-              {tickets.filter((t) => t.status !== "ATTENDED" && t.status !== "CANCELLED").length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("ATTENDED")}
-              className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "ATTENDED"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                  : "app-bg-card border app-border app-text-sub hover:app-text-main"
-              }`}
-            >
-              Đã tham gia ({tickets.filter((t) => t.status === "ATTENDED").length})
-            </button>
-          </div>
-        )}
-
-        {/* Ticket List Cards Grid */}
-        {filteredTickets.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredTickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="relative app-bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row group"
-              >
-                {/* Left Side: Compact Event Poster Image & Status Tag */}
-                <div className="relative md:w-40 shrink-0 h-32 md:h-auto bg-slate-900 overflow-hidden">
-                  {ticket.eventPoster ? (
-                    <img
-                      src={ticket.eventPoster}
-                      alt={ticket.eventTitle}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 flex items-center justify-center p-3 text-center text-white">
-                      <FiTag className="w-8 h-8 text-blue-400 opacity-60" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent md:hidden" />
-
-                  {/* Status Badge */}
-                  <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md backdrop-blur-md bg-emerald-500/90 text-white">
-                    {ticket.status === "ATTENDED" ? "Đã Check-in" : "Đã Thanh Toán"}
-                  </span>
-                </div>
-
-                {/* Perforated Vertical Dashed Line Divider + Top & Bottom Semicircular Cutouts (Between Poster & Main Content) */}
-                <div className="hidden md:flex relative flex-col justify-between items-center w-0 border-r-2 border-dashed border-slate-300 dark:border-slate-700 my-1">
-                  {/* Top Notch Cutout */}
-                  <div className="absolute -top-3.5 -left-[14px] w-7 h-7 rounded-full app-bg-page border app-border z-10" />
-                  {/* Bottom Notch Cutout */}
-                  <div className="absolute -bottom-3.5 -left-[14px] w-7 h-7 rounded-full app-bg-page border app-border z-10" />
-                </div>
-
-                {/* Mobile Perforated Horizontal Line */}
-                <div className="md:hidden relative border-t-2 border-dashed border-slate-300 dark:border-slate-700 my-1 mx-4">
-                  <div className="absolute -left-7 -top-[14px] w-7 h-7 rounded-full app-bg-page border app-border z-10" />
-                  <div className="absolute -right-7 -top-[14px] w-7 h-7 rounded-full app-bg-page border app-border z-10" />
-                </div>
-
-                {/* Center Content Section */}
-                <div className="p-3.5 md:p-4 flex-1 flex flex-col justify-between min-w-0">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-mono font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
-                        Mã vé: {ticket.bookingCode}
-                      </span>
-                      <span className="text-[11px] font-mono app-text-muted">
-                        {new Date(ticket.purchaseDate || Date.now()).toLocaleDateString("vi-VN")}
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm md:text-base font-extrabold app-text-main truncate leading-snug">
-                      {ticket.eventTitle}
-                    </h3>
-
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium app-text-sub">
-                      <p className="flex items-center gap-1.5 truncate">
-                        <FiCalendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="truncate">{ticket.eventTime}</span>
-                      </p>
-                      <p className="flex items-center gap-1.5 truncate">
-                        <FiMapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                        <span className="truncate max-w-[200px]">{ticket.eventLocation}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Ticket Details Pills */}
-                  <div className="flex flex-wrap items-center gap-2 pt-2">
-                    <span className="px-2.5 py-0.5 rounded-lg app-bg-subnav border app-border text-[11px] font-bold app-text-main">
-                      Hạng vé: <strong className="text-blue-500">
-                        {ticket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (_, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)}
-                      </strong>
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-lg app-bg-subnav border app-border text-[11px] font-bold app-text-main">
-                      {ticket.quantity} vé
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-lg app-bg-subnav border app-border text-[11px] font-extrabold text-emerald-500">
-                      {formatCurrency(ticket.totalAmount)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right Side: Ticket Action Buttons */}
-                <div className="p-3 md:p-4 md:w-44 shrink-0 flex flex-row md:flex-col items-center justify-center gap-2">
-                  {/* Xem QR Code Button */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedQrTicket(ticket)}
-                    className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                  >
-                    <QrCodeIcon className="w-4 h-4" />
-                    <span>Xem QR</span>
-                  </button>
-
-                  {/* Xuất Ảnh Vé Button */}
-                  <button
-                    type="button"
-                    onClick={() => downloadTicketAsImage(ticket)}
-                    className="w-full py-2 px-3 rounded-xl app-bg-card border app-border hover:border-blue-500 text-xs font-bold app-text-main hover:text-blue-500 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                  >
-                    <FiDownload className="w-3.5 h-3.5" />
-                    <span>Xuất Ảnh</span>
-                  </button>
-
-                  {/* Xem Chi Tiết Link */}
-                  <Link
-                    to={`/my-tickets/${ticket.id}`}
-                    className="text-[11px] font-bold text-blue-500 hover:underline flex items-center justify-center gap-1 mt-0.5"
-                  >
-                    <span>Chi tiết</span>
-                    <FiArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
-              </div>
             ))}
           </div>
+        </section>
+
+        <GiftInvitations />
+
+        {loading ? (
+          <div className="rounded-2xl border app-border app-bg-card p-12 text-center text-sm app-text-sub">
+            {t("Đang tải vé từ hệ thống…")}
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-8 text-center text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+            <p>{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void loadTickets()}
+              className="mt-4 rounded-xl border border-current px-4 py-2 font-semibold cursor-pointer"
+            >
+              {t("Thử lại")}
+            </button>
+          </div>
+        ) : filteredTickets.length ? (
+          <div className="space-y-4">
+            {filteredTickets.map((ticket) => {
+              const canTransact = ticket.rawStatus === "VALID";
+              const isResale = ticket.acquisitionType === "RESALE";
+
+              return (
+                /* 
+                 * THẺ VÉ DẠNG CUỐNG VÉ (TICKET-STUB):
+                 * - Tỉ lệ 6 : 4 (6 phần thông tin bên trái md:col-span-6, 4 phần banner bên phải md:col-span-4).
+                 * - Đồng bộ màu sắc với nền sáng / tối (app-bg-card, app-border, app-text-main, app-bg-page).
+                 * - Bấm trực tiếp vào thẻ vé để mở modal xem vé.
+                 * - Rãnh khuyết bán nguyệt 2 đầu đường nét đứt (-top-3.5, -bottom-3.5, app-bg-page).
+                 */
+                <article
+                  key={ticket.id}
+                  tabIndex={0}
+                  onClick={() => setViewerTicket(ticket)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") setViewerTicket(ticket);
+                  }}
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl md:rounded-3xl border app-border app-bg-card app-text-main shadow-xs transition-all duration-200 hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500/50 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <button
+                    type="button"
+                    className="sr-only"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewerTicket(ticket);
+                    }}
+                  >
+                    {t("Xem vé")}
+                  </button>
+                  <div className="grid grid-cols-1 md:grid-cols-10 min-h-[220px]">
+                    {/* Cột trái: Thông tin vé (Đúng tỉ lệ 6 phần = 60% trên md) */}
+                    <div className="relative p-6 sm:p-7 md:col-span-6 flex flex-col justify-between space-y-4 sm:space-y-5 app-bg-card">
+                      <div className="space-y-3">
+                        {/* Hàng badge: Bán lại vé (nếu resale) + Trạng thái vé */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isResale && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-xs">
+                              <FiTag className="h-3.5 w-3.5" /> {t("Bán lại vé")}
+                            </span>
+                          )}
+                          <StatusBadge status={ticket.status} />
+                        </div>
+
+                        {/* Tiêu đề sự kiện (Tăng kích thước, rõ nét) */}
+                        <h2 className="text-lg sm:text-xl lg:text-2xl font-black app-text-main leading-snug tracking-tight line-clamp-2">
+                          {ticket.eventTitle}
+                        </h2>
+
+                        {/* Thời gian & Địa điểm (Tăng kích thước và độ rõ ràng) */}
+                        <div className="space-y-2 text-xs sm:text-sm font-medium app-text-sub">
+                          <p className="flex items-center gap-2.5">
+                            <FiCalendar className="shrink-0 text-blue-600 dark:text-blue-400 h-4 w-4" />
+                            <span className="truncate font-semibold app-text-main">{ticket.eventTime}</span>
+                          </p>
+                          <p className="flex items-center gap-2.5">
+                            <FiMapPin className="shrink-0 text-blue-600 dark:text-blue-400 h-4 w-4" />
+                            <span className="truncate">{ticket.eventLocation}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Hàng thông tin hạng vé & Giá vé đồng bộ màu sắc */}
+                      <div className="pt-3 border-t app-border flex flex-wrap items-end justify-between gap-3">
+                        <div className="space-y-1">
+                          <span className="text-xs sm:text-sm font-bold app-text-main block">
+                            {ticket.ticketTypeName} · <span className="text-blue-600 dark:text-blue-400 font-extrabold">{ticket.quantity} {t("vé")}</span>
+                          </span>
+                          <span className="font-mono text-xs app-text-sub block">
+                            {t("Mã vé:")} <strong className="font-bold app-text-main">{ticket.bookingCode}</strong>
+                          </span>
+                        </div>
+
+                        <div className="text-right">
+                          <strong className="block text-lg sm:text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                            {formatCurrency(ticket.totalAmount)}
+                          </strong>
+                          <span className="text-xs font-semibold app-text-sub block">
+                            {isResale ? t("Giá mua vé bán lại") : t("Giá vé")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rãnh khuyết bán nguyệt trên và dưới ở ranh giới cuống vé (chuẩn màu nền trang app-bg-page cả sáng và tối) */}
+                      <span
+                        aria-hidden="true"
+                        className="hidden md:block absolute -top-3.5 -right-3.5 z-10 h-7 w-7 rounded-full app-bg-page border app-border"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="hidden md:block absolute -bottom-3.5 -right-3.5 z-10 h-7 w-7 rounded-full app-bg-page border app-border"
+                      />
+                    </div>
+
+                    {/* Cột phải: Banner sự kiện (Đúng tỉ lệ 4 phần = 40% trên md) có đường viền nét đứt phân cách */}
+                    <div className="relative md:col-span-4 border-t md:border-t-0 md:border-l border-dashed app-border h-48 sm:h-56 md:h-full min-h-[200px] overflow-hidden bg-slate-900">
+                      {ticket.eventPoster ? (
+                        <img
+                          src={ticket.eventPoster}
+                          alt={ticket.eventTitle}
+                          className="h-full w-full object-cover filter brightness-90 transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-slate-800 text-slate-500">
+                          <FiTag className="h-8 w-8 opacity-40" />
+                        </div>
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/40 via-transparent to-transparent pointer-events-none" />
+
+                      {/* Nút 3 chấm menu thao tác (Nổi trên ảnh góc trên bên phải) */}
+                      <div className="absolute top-3 right-3 z-20">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenMenuId((current) => (current === ticket.id ? undefined : ticket.id));
+                            }}
+                            aria-label="Thao tác với vé"
+                            aria-expanded={openMenuId === ticket.id}
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/60 hover:bg-slate-950/85 text-white backdrop-blur-xs border border-white/20 shadow-md transition cursor-pointer"
+                          >
+                            <FiMoreHorizontal className="h-4 w-4" />
+                          </button>
+
+                          {openMenuId === ticket.id && (
+                            <div
+                              onClick={(event) => event.stopPropagation()}
+                              className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-xl border app-border app-bg-card py-1.5 shadow-2xl app-text-main animate-in zoom-in-95 duration-100"
+                            >
+                              {canTransact && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMenuId(undefined);
+                                    downloadTicketAsImage(ticket);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                  <FiDownload className="h-3.5 w-3.5 text-blue-500" /> {t("Tải vé (.PNG)")}
+                                </button>
+                              )}
+                              {canTransact && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMenuId(undefined);
+                                    setResaleTicket(ticket);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                  <FiTag className="h-3.5 w-3.5 text-emerald-500" /> {t("Đăng bán lại")}
+                                </button>
+                              )}
+                              {canTransact && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMenuId(undefined);
+                                    setGiftTicket(ticket);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                  <FiGift className="h-3.5 w-3.5 text-purple-500" /> {t("Tặng vé")}
+                                </button>
+                              )}
+                              <Link
+                                to={`/my-tickets/${ticket.id}`}
+                                onClick={() => setOpenMenuId(undefined)}
+                                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                              >
+                                <FiArrowRight className="h-3.5 w-3.5 text-indigo-500" /> {t("Chi tiết vé")}
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         ) : (
-          /* Empty State */
-          <div className="app-bg-card border app-border rounded-3xl p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm">
-            <div className="w-16 h-16 rounded-3xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
-              <QrCodeIcon className="w-8 h-8" />
+          <div className="mx-auto max-w-lg rounded-2xl border app-border app-bg-card p-10 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40">
+              <FiTag className="h-5 w-5" />
             </div>
-            <h3 className="text-lg font-black app-text-main">Chưa có vé nào trong danh sách</h3>
-            <p className="text-xs app-text-sub leading-relaxed">
-              Bạn chưa mua vé sự kiện nào hoặc chưa có đơn hàng phù hợp với bộ lọc hiện tại.
-            </p>
+            <h2 className="mt-4 text-lg font-bold app-text-main">{t("Không tìm thấy vé phù hợp")}</h2>
+            <p className="mt-2 text-sm app-text-sub">{t("Thử đổi bộ lọc hoặc tìm một sự kiện khác.")}</p>
             <Link
               to="/events"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline"
             >
-              <span>Khám phá sự kiện ngay</span>
-              <FiArrowRight className="w-4 h-4" />
+              {t("Khám phá sự kiện")} <FiArrowRight />
             </Link>
           </div>
         )}
       </div>
 
-      {/* Ticket QR Code Display Modal */}
-      {selectedQrTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-md app-bg-card border app-border rounded-3xl shadow-2xl p-6 md:p-8 space-y-6 app-text-main animate-scaleUp text-center">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b app-border pb-4">
-              <h3 className="text-base font-black uppercase tracking-tight app-text-main">
-                Mã QR Check-in Vé Điện Tử
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelectedQrTicket(null)}
-                className="p-2 rounded-xl hover:bg-slate-500/10 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Event Name */}
-            <div className="space-y-1">
-              <p className="text-xs font-black text-blue-500 uppercase">{selectedQrTicket.eventTitle}</p>
-              <p className="text-xs app-text-sub font-semibold">
-                {selectedQrTicket.ticketTypeName.replace(/seat_\d+_(\d+)_(\d+)/g, (_, r, c) => `Hàng ${String.fromCharCode(65 + parseInt(r))} - Ghế ${parseInt(c) + 1}`)} (x{selectedQrTicket.quantity})
-              </p>
-            </div>
-
-            {/* Large QR Code Display Card */}
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="w-64 h-64 bg-white rounded-3xl p-4 shadow-xl border border-slate-200 flex items-center justify-center overflow-hidden">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-                    selectedQrTicket.qrCode || `HALOTICKET-${selectedQrTicket.bookingCode}`
-                  )}`}
-                  alt="Ticket QR Code"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              {/* Code Box */}
-              <div className="flex items-center justify-center gap-2 p-3 rounded-2xl app-bg-main border app-border w-full">
-                <span className="font-mono font-black text-sm text-blue-500 tracking-wider">
-                  {selectedQrTicket.qrCode || `HALOTICKET-${selectedQrTicket.bookingCode}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    copyQrCode(selectedQrTicket.qrCode || `HALOTICKET-${selectedQrTicket.bookingCode}`)
-                  }
-                  className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 cursor-pointer transition-colors"
-                  title="Sao chép mã"
-                >
-                  {copiedQrCode ? <FiCheck className="w-4 h-4 text-emerald-500" /> : <FiCopy className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="pt-2 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedQrTicket(null)}
-                className="w-1/2 py-3 rounded-2xl app-bg-main border app-border font-extrabold text-xs app-text-sub hover:app-text-main transition-colors cursor-pointer"
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadTicketAsImage(selectedQrTicket)}
-                className="w-1/2 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <FiDownload className="w-4 h-4" />
-                <span>Tải Vé Hình Ảnh</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      {viewerTicket && <TicketViewer ticket={viewerTicket} onClose={() => setViewerTicket(undefined)} />}
+      {resaleTicket && (
+        <ResaleTicketModal ticket={resaleTicket} onClose={() => setResaleTicket(undefined)} onChanged={loadTickets} />
+      )}
+      {giftTicket && (
+        <GiftTicketModal ticket={giftTicket} onClose={() => setGiftTicket(undefined)} onChanged={loadTickets} />
       )}
     </div>
   );

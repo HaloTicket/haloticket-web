@@ -35,6 +35,7 @@ import Checkout from "@/features/tickets/Checkout";
 import BookingSuccess from "@/features/tickets/BookingSuccess";
 import PaymentCallback from "@/features/tickets/PaymentCallback";
 import TicketDetail from "@/features/tickets/TicketDetail";
+import GiftInvitation from "@/features/tickets/GiftInvitation";
 
 // User Feature
 import Profile from "@/features/user/Profile";
@@ -61,6 +62,7 @@ import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
 import ResaleList from "@/features/resale/ResaleList";
 import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
 import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
+import ResaleTransactionResult from "@/features/resale/ResaleTransactionResult";
 
 // Admin Feature
 import AdminDashboard from "@/features/admin/AdminDashboard";
@@ -153,7 +155,9 @@ function AuthHandlers() {
     if (isAdmin) {
       navigate(PATHS.ADMIN_DASHBOARD, { replace: true });
     } else {
-      navigate(PATHS.HOME, { replace: true });
+      const giftReturn = sessionStorage.getItem("haloticket_gift_return");
+      sessionStorage.removeItem("haloticket_gift_return");
+      navigate(giftReturn?.startsWith(PATHS.GIFT_ACCEPT + "?") ? giftReturn : PATHS.HOME, { replace: true });
     }
   };
 
@@ -256,8 +260,16 @@ export const router = createBrowserRouter([
         element: <ResaleTicketCheckout />,
       },
       {
+        path: "/resale-ticket/result/:sagaId",
+        element: <ResaleTransactionResult />,
+      },
+      {
         path: "/my-tickets",
         element: <Navigate to="/profile?tab=tickets" replace />,
+      },
+      {
+        path: PATHS.GIFT_ACCEPT,
+        element: <GiftInvitation />,
       },
       {
         path: "/my-tickets/:id",

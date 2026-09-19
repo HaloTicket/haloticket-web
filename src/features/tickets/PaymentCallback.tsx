@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiCheckCircle, FiXCircle, FiRefreshCw } from "react-icons/fi";
 import { paymentApi } from "@/services/paymentApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
 
 export default function PaymentCallback() {
   const navigate = useNavigate();
@@ -19,49 +20,65 @@ export default function PaymentCallback() {
 
     async function processCallback() {
       try {
-        // handle VNPay response code
+        let isResale = false;
+        try {
+          isResale = JSON.parse(localStorage.getItem("haloticket_pending_order") || "{}").kind === "RESALE";
+        } catch {
+          isResale = false;
+        }
+
         if (vnpResponseCode) {
-          if (vnpResponseCode === "00") {
-            if (isMounted) {
-              setStatus("success");
-              setMessage("Thanh toán thành công! Đang hoàn tất đơn hàng...");
-            }
-          } else {
+          if (vnpResponseCode !== "00") {
             if (isMounted) {
               setStatus("error");
               setMessage(`Thanh toán không thành công. Mã lỗi từ VNPay: ${vnpResponseCode}`);
             }
             return;
           }
+          const confirmation = await paymentApi.confirmVnPayReturn(searchParams);
+          if (confirmation.RspCode !== "00") {
+            throw new Error(confirmation.Message || "VNPay không xác nhận giao dịch");
+          }
         }
 
-        // verify with backend payment-service if bookingId exists
-        if (bookingIdParam) {
+        if (!bookingIdParam) throw new Error("Thiếu mã giao dịch thanh toán");
+
+
+        let paymentCompleted = false;
+        for (let attempt = 0; attempt < 10 && !paymentCompleted; attempt += 1) {
           const verification = await paymentApi.verifyPaymentStatus(bookingIdParam);
-          if (verification && (verification.status === "COMPLETED" || verification.status === "PAID" || verification.status === "SUCCESS")) {
-            if (isMounted) {
-              setStatus("success");
-              setMessage("Xác thực thanh toán thành công!");
+          paymentCompleted = Boolean(verification && ["COMPLETED", "PAID", "SUCCESS"].includes(verification.status));
+          if (!paymentCompleted) await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        }
+        if (!paymentCompleted) throw new Error("Thanh toán chưa được payment-service xác nhận");
+
+        if (isResale) {
+          if (isMounted) setMessage("Thanh toán thành công. Đang chuyển quyền sở hữu vé...");
+          let transferCompleted = false;
+          for (let attempt = 0; attempt < 20 && !transferCompleted; attempt += 1) {
+            const purchase = await marketplaceApi.getResalePurchaseStatus(bookingIdParam);
+            if (["REFUND_PENDING", "REFUNDED", "CANCELLED", "EXPIRED"].includes(purchase.status)) {
+              throw new Error("Giao dịch chuyển vé không hoàn tất và đang được xử lý hoàn tiền");
             }
+            transferCompleted = purchase.status === "COMPLETED";
+            if (!transferCompleted) await new Promise((resolve) => window.setTimeout(resolve, 1000));
           }
+          if (!transferCompleted) throw new Error("Vé đang được chuyển quyền. Vui lòng kiểm tra lại sau.");
         }
 
-        // delay 1.5 seconds then navigate to booking success
+        if (isMounted) {
+          setStatus("success");
+          setMessage(isResale ? "Vé mới đã được cấp vào Vé của tôi." : "Xác thực thanh toán thành công!");
+        }
         setTimeout(() => {
-          if (isMounted) {
-            // clean up pending order from localStorage
-            localStorage.removeItem("haloticket_pending_order");
-            navigate("/booking-success");
-          }
+          if (isMounted) navigate("/booking-success");
         }, 1500);
 
       } catch (err) {
         console.error("Payment callback verification error:", err);
         if (isMounted) {
-          // if error occurs in demo sandbox, gracefully transition to success
-          setStatus("success");
-          setMessage("Đã ghi nhận thanh toán! Đang chuyển hướng...");
-          setTimeout(() => navigate("/booking-success"), 1500);
+          setStatus("error");
+          setMessage(err instanceof Error ? err.message : "Không thể xác thực giao dịch. Vui lòng thử lại.");
         }
       }
     }

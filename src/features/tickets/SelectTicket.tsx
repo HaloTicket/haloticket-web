@@ -5,6 +5,7 @@ import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { bookingApi } from "@/services/bookingApi";
 import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
+import type { TicketTypeApiResponse } from "@/types";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { PRESET_TEMPLATES } from "@/mock/presetTemplates";
 import { formatCurrency } from "@/utils/formatters";
@@ -23,11 +24,70 @@ export interface CartTicketItem {
   minPerOrder?: number;
 }
 
+interface EventDetailData {
+  title?: string;
+  startTime?: string;
+  endTime?: string;
+  locationName?: string;
+  address?: string;
+  venueName?: string;
+  bannerUrl?: string;
+  posterImage?: string;
+  thumbnailUrl?: string;
+  coverImage?: string;
+  image?: string;
+  [key: string]: unknown;
+}
+
+interface ZoneModalData {
+  id: string;
+  name: string;
+  price: number;
+  color: string;
+  tierId?: string;
+  capacity?: number;
+  minPerOrder: number;
+  maxPerOrder: number;
+}
+
+interface UnfinishedCartItem {
+  quantity?: number;
+  zoneName?: string;
+  [key: string]: unknown;
+}
+
+interface UnfinishedOrderInfo {
+  eventId?: string;
+  quantity?: number;
+  zoneName?: string;
+  expiresAt?: number;
+  timestamp?: number;
+  cartItems?: UnfinishedCartItem[];
+  [key: string]: unknown;
+}
+
+interface RawLayoutZone {
+  id?: string;
+  name?: string;
+  ticketTypeId?: string | null;
+  shapeType?: string;
+  colorCode?: string;
+  fillColor?: string;
+  strokeColor?: string;
+  curvature?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  capacity?: number;
+}
+
 export default function SelectTicket() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [eventData, setEventData] = useState<any>(null);
+  const [eventData, setEventData] = useState<EventDetailData | null>(null);
   const [ticketTypes, setTicketTypes] = useState<SeatTier[]>([]);
   const [seatMap, setSeatMap] = useState<SeatMapDocument | null>(null);
   const [seatStatusMap, setSeatStatusMap] = useState<Record<string, string>>({});
@@ -39,20 +99,28 @@ export default function SelectTicket() {
   const [selectedSeatObjects, setSelectedSeatObjects] = useState<any[]>([]);
 
   // selected zone for quantity selector modal
-  const [activeZoneModal, setActiveZoneModal] = useState<ZoneBlock | null>(null);
+  const [activeZoneModal, setActiveZoneModal] = useState<ZoneModalData | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
 
   // unfinished order modal state (Ảnh 5)
-  const [unfinishedOrder, setUnfinishedOrder] = useState<any | null>(null);
-  const [pendingTimerSeconds, setPendingTimerSeconds] = useState<number>(0);
+  const [unfinishedOrder, setUnfinishedOrder] = useState<UnfinishedOrderInfo | null>(() => {
+    try {
+      const saved = localStorage.getItem("haloticket_pending_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const expiresAt = parsed.expiresAt || (parsed.timestamp ? parsed.timestamp + 15 * 60 * 1000 : null);
+        const now = Date.now();
+        if ((expiresAt && expiresAt > now) || !expiresAt) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
-  // scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  // check for unfinished pending order on mount
-  useEffect(() => {
+  const [pendingTimerSeconds, setPendingTimerSeconds] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("haloticket_pending_order");
       if (saved) {
@@ -60,16 +128,20 @@ export default function SelectTicket() {
         const expiresAt = parsed.expiresAt || (parsed.timestamp ? parsed.timestamp + 15 * 60 * 1000 : null);
         const now = Date.now();
         if (expiresAt && expiresAt > now) {
-          setUnfinishedOrder(parsed);
-          setPendingTimerSeconds(Math.floor((expiresAt - now) / 1000));
+          return Math.floor((expiresAt - now) / 1000);
         } else if (!expiresAt) {
-          setUnfinishedOrder(parsed);
-          setPendingTimerSeconds(14 * 60 + 41);
+          return 14 * 60 + 41;
         }
       }
     } catch {
       // ignore
     }
+    return 0;
+  });
+
+  // scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
   }, []);
 
   // timer countdown for unfinished order modal
@@ -116,7 +188,7 @@ export default function SelectTicket() {
         const types = await ticketApi.getTicketTypesByEventId(id!);
         if (types && types.length > 0) {
           const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
-          mappedTiers = types.map((t: any, idx: number) => ({
+          mappedTiers = types.map((t: TicketTypeApiResponse, idx: number) => ({
             id: t.id,
             name: t.name || "Vé Thường",
             price: t.price || 0,
@@ -146,7 +218,7 @@ export default function SelectTicket() {
         }
 
         if (!doc) {
-          const evTitle = (ev as any)?.title;
+          const evTitle = (ev as { title?: string } | null)?.title;
           const localStr =
             localStorage.getItem(`haloticket_seatmap_draft_${id}`) ||
             (evTitle ? localStorage.getItem(`haloticket_seatmap_draft_${evTitle}`) : null);
@@ -164,12 +236,12 @@ export default function SelectTicket() {
             setSeatMap(doc);
           } else if (layoutData?.zones && Array.isArray(layoutData.zones) && layoutData.zones.length > 0) {
             const syncedZones: Record<string, ZoneBlock> = {};
-            layoutData.zones.forEach((z: any) => {
+            layoutData.zones.forEach((z: RawLayoutZone) => {
               syncedZones[z.id || `zone_${Date.now()}`] = {
                 id: z.id || `zone_${Date.now()}`,
                 name: z.name || "Khu vực",
                 tierId: z.ticketTypeId || undefined,
-                shape: (z.shapeType || "rectangle").toString().toLowerCase() as any,
+                shape: ((z.shapeType || "rectangle").toString().toLowerCase() as ZoneBlock["shape"]) || "rectangle",
                 color: z.colorCode || z.fillColor || "#3b82f6",
                 fillColor: z.fillColor || z.colorCode || "#3b82f6",
                 strokeColor: z.strokeColor || "#2563eb",
@@ -213,11 +285,11 @@ export default function SelectTicket() {
 
     // setup WebSocket STOMP client for real-time seat status updates
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS("http://localhost:8084/ws"), // direct booking-service connection
+      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}`.replace(/\/api\/?$/, "") + "/ws"),
       reconnectDelay: 5000,
       onConnect: () => {
         if (id) {
-          stompClient.subscribe(`/topic/seats/${id}`, (message) => {
+          stompClient.subscribe(`/topic/seats/${id}`, (message: any) => {
             if (message.body) {
               try {
                 const data = JSON.parse(message.body);
@@ -232,8 +304,8 @@ export default function SelectTicket() {
           });
         }
       },
-      onStompError: (frame) => {
-        console.error("Broker reported error: " + frame.headers["message"]);
+      onStompError: (frame: any) => {
+        console.error("Broker reported error: " + frame.headers?.["message"]);
         console.error("Additional details: " + frame.body);
       },
     });
@@ -285,9 +357,9 @@ export default function SelectTicket() {
     }
 
     return [
-      { id: "z1", name: "Khu VVIP", price: 5000000, color: "#7c3aed", tierName: "VVIP", capacity: 100 },
-      { id: "z2", name: "Khu VIP", price: 3000000, color: "#2563eb", tierName: "VIP", capacity: 200 },
-      { id: "z3", name: "Khán đài A (Standing)", price: 1500000, color: "#0891b2", tierName: "GA", capacity: 500 },
+      { id: "z1", name: "Khu VVIP", price: 5000000, color: "#7c3aed", tierName: "VVIP", capacity: 100, tierId: undefined as string | undefined },
+      { id: "z2", name: "Khu VIP", price: 3000000, color: "#2563eb", tierName: "VIP", capacity: 200, tierId: undefined as string | undefined },
+      { id: "z3", name: "Khán đài A (Standing)", price: 1500000, color: "#0891b2", tierName: "GA", capacity: 500, tierId: undefined as string | undefined },
     ];
   }, [zonesList, ticketTypes, seatMap]);
 
@@ -307,8 +379,8 @@ export default function SelectTicket() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [id]);
 
-  // handle Zone selection click
-  const handleZoneClick = (zone: any) => {
+  // Handle Zone selection click
+  const handleZoneClick = (zone: { id: string; name: string; price?: number; color?: string; tierId?: string; capacity?: number }) => {
     setErrorMessage(null);
 
     const seatsInZone = seatMap?.seats?.filter((s) => s.zoneId === zone.id || (zone.name && s.zoneId === zone.name)) || [];
@@ -342,8 +414,12 @@ export default function SelectTicket() {
     const initialQty = existingInCart ? existingInCart.quantity : minQty;
 
     setActiveZoneModal({
-      ...zone,
+      id: zone.id,
+      name: zone.name,
       price,
+      color: zone.color || "#3b82f6",
+      tierId: zone.tierId,
+      capacity: zone.capacity,
       maxPerOrder: tier?.maxPerOrder || 4,
       minPerOrder: minQty,
     });
@@ -809,7 +885,7 @@ export default function SelectTicket() {
                           name: item.name,
                           price: item.price,
                           color: item.color,
-                          tierId: (item as any).tierId,
+                          tierId: item.tierId,
                         })
                       }
                       className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer hover:shadow-xs group ${inCartItem
@@ -967,7 +1043,7 @@ export default function SelectTicket() {
             {/* Item Bullet List */}
             <div className="py-2.5 px-4 rounded-2xl app-bg-main border app-border text-xs font-bold text-left space-y-1">
               {unfinishedOrder.cartItems && Array.isArray(unfinishedOrder.cartItems) ? (
-                unfinishedOrder.cartItems.map((c: any, i: number) => (
+                unfinishedOrder.cartItems.map((c: UnfinishedCartItem, i: number) => (
                   <div key={i} className="app-text-main flex items-center gap-2 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                     <span>{c.quantity} x {c.zoneName}</span>

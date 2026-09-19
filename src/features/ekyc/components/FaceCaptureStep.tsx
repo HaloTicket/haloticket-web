@@ -20,7 +20,7 @@ interface FaceCaptureStepProps {
   onRetake: () => void;
   onNext: () => void;
   onPrev: () => void;
-  returnUrl: string;
+  returnUrl?: string;
   isActive?: boolean;
 }
 
@@ -30,6 +30,7 @@ export function FaceCaptureStep({
   onRetake,
   onNext,
   onPrev,
+  returnUrl,
   isActive = true,
 }: FaceCaptureStepProps) {
   const { t } = useTranslation();
@@ -178,9 +179,13 @@ export function FaceCaptureStep({
     onPrev();
   };
 
+  const targetUrl = returnUrl
+    ? (returnUrl.startsWith("http") ? returnUrl : `${window.location.origin}${returnUrl.startsWith("/") ? returnUrl : `/${returnUrl}`}`)
+    : window.location.href;
+
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(targetUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
     } catch {
@@ -189,7 +194,7 @@ export function FaceCaptureStep({
   };
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    window.location.href
+    targetUrl
   )}`;
 
   const isCameraRunning = Boolean(isActive && cameraStarted && !previewUrl);

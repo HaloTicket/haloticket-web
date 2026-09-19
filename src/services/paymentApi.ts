@@ -7,6 +7,9 @@ import type {
 } from "@/types";
 
 export const paymentApi = {
+  confirmVnPayReturn: async (params: URLSearchParams): Promise<Record<string, string>> => {
+    return axiosClient.get<unknown, Record<string, string>>(`/payments/vnpay/ipn?${params.toString()}`);
+  },
   createPayment: async (request: PaymentCreateRequest): Promise<PaymentResponse | null> => {
     try {
       const response: unknown = await axiosClient.post("/payments", request);
@@ -127,11 +130,4 @@ export const paymentApi = {
     }
   },
 
-  mockPaymentSuccess: async (bookingId: string): Promise<void> => {
-    try {
-      await axiosClient.post(`/payments/sepay/webhook`, { code: bookingId });
-    } catch (err) {
-      console.error("Failed to mock payment success:", err);
-    }
-  },
 };

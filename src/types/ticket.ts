@@ -27,6 +27,21 @@ export interface TicketTypeApiResponse {
   status: string;
 }
 
+export interface OwnedTicketApiResponse {
+  id: string;
+  bookingCode?: string | null;
+  eventId: string;
+  ticketTypeId?: string | null;
+  ticketTypeName?: string | null;
+  price?: number | null;
+  originalPrice?: number | null;
+  acquisitionType?: "PRIMARY" | "RESALE" | "GIFT" | string | null;
+  status?: string | null;
+  qrCode?: string | null;
+  qrVersion?: number | null;
+  issuedAt?: string | null;
+}
+
 export interface SeatLayoutZoneDto {
   id?: string;
   name: string;

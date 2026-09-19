@@ -37,6 +37,8 @@ export function getCachedUserProfile(): UserProfile | null {
     const payload = parseJwt(token);
     if (payload) {
       return {
+        id: payload.sub,
+        keycloakId: payload.sub,
         email: payload.email || "user@haloticket.vn",
         fullName: payload.name || payload.preferred_username || "Khách hàng HaloTicket",
         gender: "OTHER",
@@ -60,6 +62,10 @@ export function setCachedUserProfile(profile: UserProfile, notify = false): void
 }
 
 export const userApi = {
+  findGiftRecipient: (email: string) =>
+    axiosClient.get<unknown, { userId: string; email: string; fullName: string }>(
+      `/users/gift-recipient?email=${encodeURIComponent(email.trim())}`,
+    ),
   syncCurrentUser: async (): Promise<UserProfile> => {
     const response = await axiosClient.get<unknown, UserProfile>("/users/me");
     setCachedUserProfile(response, true);
