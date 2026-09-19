@@ -9,11 +9,15 @@ export const EventManageLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [eventData, setEventData] = useState<Record<string, unknown> | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (eventId) {
       eventApi.getEventById(eventId).then((data) => {
         if (data) setEventData(data);
+      });
+      eventApi.getMyRoleInEvent(eventId).then((role) => {
+        setMyRole(role);
       });
     }
   }, [eventId]);
@@ -23,6 +27,7 @@ export const EventManageLayout: React.FC = () => {
       {/* Left Sidebar Navigation */}
       <EventManageSidebar
         eventData={eventData}
+        myRole={myRole}
         isSidebarOpen={isSidebarOpen}
         isCollapsed={isCollapsed}
         onCloseSidebar={() => setIsSidebarOpen(false)}
@@ -39,7 +44,7 @@ export const EventManageLayout: React.FC = () => {
 
         {/* Dynamic Page Content View */}
         <main className="flex-1 px-4 py-2 md:px-8 md:py-6 overflow-y-auto">
-          <Outlet />
+          <Outlet context={{ myRole }} />
         </main>
       </div>
     </div>

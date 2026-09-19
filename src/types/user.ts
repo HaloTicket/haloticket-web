@@ -5,9 +5,8 @@ export interface UserProfile {
   fullName: string;
   phoneNumber?: string;
   avatarUrl?: string;
-  isActive?: boolean;
   gender?: "MALE" | "FEMALE" | "OTHER";
-  status?: string;
+  status?: "ACTIVE" | "INACTIVE" | "BANNED";
   roles?: string[];
   createdAt?: string;
 }

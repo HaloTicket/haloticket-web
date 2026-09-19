@@ -131,7 +131,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               type="button"
               onClick={onCancel}
               disabled={isLoading}
-              className={`px-5 py-1.5 rounded-xl ${activeCancelBtn} disabled:opacity-50 text-sm font-extrabold`}
+              className={`px-5 py-2.5 rounded-xl ${activeCancelBtn} disabled:opacity-50 text-sm font-extrabold`}
             >
               {cancelText}
             </button>

@@ -16,6 +16,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "MANAGER" | "CHECKIN_STAFF">("ADMIN");
 
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,11 +38,17 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     onClose();
   };
 
+  const roles = [
+    { value: "ADMIN", label: "Quản trị viên" },
+    { value: "MANAGER", label: "Quản lý" },
+    { value: "CHECKIN_STAFF", label: "Nhân viên - Checkin" }
+  ];
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md app-bg-card border app-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md app-bg-card border app-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="p-4 border-b app-border flex items-center justify-between app-bg-subnav">
+        <div className="p-4 border-b app-border flex items-center justify-between app-bg-subnav rounded-t-2xl">
           <h2 className="text-base font-bold app-text-main flex items-center gap-2">
             Thêm thành viên
           </h2>
@@ -69,22 +77,40 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             />
           </div>
 
-          <div>
+          <div className="relative">
             <label className="block text-xs font-semibold app-text-main mb-1.5">
               Thêm vai trò *
             </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as "ADMIN" | "MANAGER" | "CHECKIN_STAFF")}
-              className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs focus:outline-none focus:border-blue-500"
+            <div 
+              className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs cursor-pointer flex justify-between items-center hover:border-blue-500 transition-colors"
+              onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
             >
-              <option value="ADMIN">Quản trị viên</option>
-              <option value="MANAGER">Quản lý</option>
-              <option value="CHECKIN_STAFF">Nhân viên - Checkin</option>
-            </select>
+              <span>{roles.find(r => r.value === role)?.label}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${isRoleDropdownOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            
+            {isRoleDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIsRoleDropdownOpen(false)}></div>
+                <div className="absolute top-full mt-2 w-full app-bg-card border app-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {roles.map((r) => (
+                    <div
+                      key={r.value}
+                      className={`px-4 py-3 text-xs cursor-pointer transition-colors ${role === r.value ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
+                      onClick={() => {
+                        setRole(r.value as "ADMIN" | "MANAGER" | "CHECKIN_STAFF");
+                        setIsRoleDropdownOpen(false);
+                      }}
+                    >
+                      {r.label}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="pt-4 border-t app-border flex items-center justify-end gap-3">
+          <div className="pt-4 border-t app-border flex items-center justify-end gap-3 rounded-b-2xl">
             <button
               type="button"
               onClick={onClose}

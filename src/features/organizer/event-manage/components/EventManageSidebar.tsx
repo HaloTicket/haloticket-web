@@ -23,6 +23,7 @@ interface EventManageSidebarProps {
     title?: string;
     [key: string]: unknown;
   } | null;
+  myRole?: string | null;
   isSidebarOpen: boolean;
   isCollapsed: boolean;
   onCloseSidebar: () => void;
@@ -31,6 +32,7 @@ interface EventManageSidebarProps {
 
 export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
   eventData,
+  myRole,
   isSidebarOpen,
   isCollapsed,
   onCloseSidebar,
@@ -39,7 +41,10 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
   const { eventId } = useParams<{ eventId: string }>();
   const location = useLocation();
 
-  const navGroups = [
+  const isFullAccess = myRole === "OWNER" || myRole === "ADMIN";
+  const isManager = myRole === "MANAGER";
+
+  const allNavGroups = [
     {
       groupTitle: "BÁO CÁO",
       items: [
@@ -47,16 +52,19 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           label: "Phân tích",
           path: `/organizer/events/${eventId}/manage/overview`,
           icon: <FiPieChart className="w-4.5 h-4.5 shrink-0" />,
+          visible: isFullAccess || isManager,
         },
         {
           label: "Danh sách đơn hàng",
           path: `/organizer/events/${eventId}/manage/orders`,
           icon: <FiFileText className="w-4.5 h-4.5 shrink-0" />,
+          visible: isFullAccess || isManager,
         },
         {
           label: "Check-in",
           path: `/organizer/events/${eventId}/manage/checkin`,
           icon: <FiCheckCircle className="w-4.5 h-4.5 shrink-0" />,
+          visible: true, // everyone can see check-in
         },
       ],
     },
@@ -67,21 +75,25 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           label: "Thành viên",
           path: `/organizer/events/${eventId}/manage/members`,
           icon: <FiUsers className="w-4.5 h-4.5 shrink-0" />,
+          visible: isFullAccess || isManager,
         },
         {
           label: "Chỉnh sửa",
           path: `/organizer/events/${eventId}/manage/edit`,
           icon: <FiEdit3 className="w-4.5 h-4.5 shrink-0" />,
+          visible: isFullAccess,
         },
         {
           label: "Thiết kế sơ đồ ghế",
           path: `/organizer/events/${eventId}/manage/seating`,
           icon: <FiGrid className="w-4.5 h-4.5 shrink-0" />,
+          visible: isFullAccess,
         },
         {
           label: "Cài đặt hạng vé",
           path: `/organizer/events/${eventId}/manage/ticket-assign`,
           icon: <FaTicketAlt className="w-4 h-4 shrink-0" />,
+          visible: isFullAccess,
         },
       ],
     },
@@ -92,10 +104,16 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           label: "Voucher",
           path: `/organizer/events/${eventId}/manage/vouchers`,
           icon: <FiTag className="w-4.5 h-4.5 shrink-0" />,
+          visible: isFullAccess,
         },
       ],
     },
   ];
+
+  const navGroups = allNavGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => item.visible)
+  })).filter(group => group.items.length > 0);
 
   return (
     <>

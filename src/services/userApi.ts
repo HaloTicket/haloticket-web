@@ -31,7 +31,7 @@ export function getCachedUserProfile(): UserProfile | null {
     // fallback below
   }
 
-  // Fallback: derive from access_token if possible
+  // fallback: derive from access_token if possible
   const token = getKeycloakSession().getCurrentToken();
   if (token) {
     const payload = parseJwt(token);
@@ -42,7 +42,7 @@ export function getCachedUserProfile(): UserProfile | null {
         email: payload.email || "user@haloticket.vn",
         fullName: payload.name || payload.preferred_username || "Khách hàng HaloTicket",
         gender: "OTHER",
-        isActive: true,
+        status: "ACTIVE",
         roles: payload.realm_access?.roles || ["CUSTOMER"],
       };
     }
@@ -73,7 +73,7 @@ export const userApi = {
   },
 
   getProfile: async (): Promise<UserProfile> => {
-    // Return existing in-flight request if one is already pending
+    // return existing in-flight request if one is already pending
     if (inFlightProfilePromise) {
       return inFlightProfilePromise;
     }
@@ -94,14 +94,14 @@ export const userApi = {
       const cached = getCachedUserProfile();
       if (cached) return cached;
 
-      // Default mock user profile when logged in but backend endpoint unreachable
+      // default mock user profile when logged in but backend endpoint unreachable
       const fallbackProfile: UserProfile = {
         id: "u-default",
         email: "minh.nguyen@haloticket.vn",
         fullName: "Nguyễn Văn Minh",
         phoneNumber: "0901234567",
         gender: "MALE",
-        isActive: true,
+        status: "ACTIVE",
         roles: ["CUSTOMER"],
         createdAt: new Date().toISOString(),
       };

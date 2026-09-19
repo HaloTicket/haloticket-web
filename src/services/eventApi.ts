@@ -134,4 +134,73 @@ export const eventApi = {
       return null;
     }
   },
+
+  // Member Management APIs
+  getEventMembers: async (eventId: string): Promise<any[]> => {
+    try {
+      const response = await axiosClient.get(`/events/${eventId}/members`);
+      return Array.isArray(response) ? response : [];
+    } catch (err) {
+      console.error("Failed to get event members:", err);
+      return [];
+    }
+  },
+
+  inviteEventMember: async (eventId: string, email: string, role: string): Promise<any> => {
+    try {
+      const response = await axiosClient.post(`/events/${eventId}/members`, { email, role });
+      return response;
+    } catch (err) {
+      console.error("Failed to invite event member:", err);
+      throw err;
+    }
+  },
+
+  changeEventMemberRole: async (eventId: string, assignmentId: string, newRole: string): Promise<any> => {
+    try {
+      const response = await axiosClient.put(`/events/${eventId}/members/${assignmentId}/role?newRole=${newRole}`);
+      return response;
+    } catch (err) {
+      console.error("Failed to change event member role:", err);
+      throw err;
+    }
+  },
+
+  changeEventMemberStatus: async (eventId: string, assignmentId: string, newStatus: string): Promise<any> => {
+    try {
+      const response = await axiosClient.put(`/events/${eventId}/members/${assignmentId}/status?newStatus=${newStatus}`);
+      return response;
+    } catch (err) {
+      console.error("Failed to change event member status:", err);
+      throw err;
+    }
+  },
+
+  removeEventMember: async (eventId: string, assignmentId: string): Promise<void> => {
+    try {
+      await axiosClient.delete(`/events/${eventId}/members/${assignmentId}`);
+    } catch (err) {
+      console.error("Failed to remove event member:", err);
+      throw err;
+    }
+  },
+
+  transferOwner: async (eventId: string, assignmentId: string): Promise<void> => {
+    try {
+      await axiosClient.post(`/events/${eventId}/members/${assignmentId}/transfer-owner`);
+    } catch (err) {
+      console.error("Failed to transfer owner:", err);
+      throw err;
+    }
+  },
+
+  getMyRoleInEvent: async (eventId: string): Promise<string | null> => {
+    try {
+      const response = await axiosClient.get(`/events/${eventId}/members/my-role`);
+      return (typeof response === "string") ? response : null;
+    } catch (err) {
+      console.error("Failed to get my role in event:", err);
+      return null;
+    }
+  }
 };
