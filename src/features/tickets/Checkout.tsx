@@ -25,6 +25,7 @@ export default function Checkout() {
     BookingOrderData & {
       eventPoster?: string | null;
       cartItems?: any[];
+      items?: any[];
       seatIds?: string[];
       zoneId?: string;
       seatNames?: Record<string, string>;
@@ -312,6 +313,8 @@ export default function Checkout() {
     setIsRecipientModalOpen(true);
   };
 
+
+
   // final order submission after recipient info confirmation
   const handleFinalPaymentSubmit = async (recipientData: RecipientInfoData) => {
     try {
@@ -320,8 +323,9 @@ export default function Checkout() {
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
       const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : (order.zoneId ? [order.zoneId] : []);
 
-      // call real bookingApi backend
-      const userId = localStorage.getItem("haloticket_session_id") || "ANONYMOUS";
+      // use logged in user ID if available, otherwise fallback to session ID
+      const profile = await userApi.getProfile().catch(() => null);
+      const userId = profile?.keycloakId || localStorage.getItem("haloticket_session_id") || "ANONYMOUS";
       const bookingRes = await bookingApi.createBooking({
         eventId: activeEventId || "",
         customerId: userId,
@@ -329,29 +333,39 @@ export default function Checkout() {
         customerName: recipientData.recipientName,
         totalAmount: finalTotalAmount,
         seatIds,
+        items: order.items,
       });
 
       const bookingId = bookingRes?.id || `booking_${Date.now()}`;
       const bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
       setActiveBookingId(bookingId);
 
-      // Save to my_tickets cache - 1 physical ticket per seat
-      const newTickets = seatIds.map((seatId: string, idx: number) => {
+      // save to my_tickets cache - 1 physical ticket per seat or per quantity
+      const numTickets = (order.seatIds && order.seatIds.length > 0) ? order.seatIds.length : (order.quantity || 1);
+      
+      const newTickets = Array.from({ length: numTickets }).map((_, idx) => {
+        const seatId = (order.seatIds && order.seatIds.length > 0) ? order.seatIds[idx] : (order.zoneId || "TICKET");
         let seatLabel = order.seatNames?.[seatId];
-        // fallback if not present
-        if (!seatLabel) {
-           const match = seatId.match(/seat_\d+_(\d+)_(\d+)/);
-           if (match) {
-             const rowName = String.fromCharCode(65 + parseInt(match[1])); // 0 -> A, 1 -> B
-             const colName = parseInt(match[2]) + 1;
-             seatLabel = `Hàng ${rowName} - Ghế ${colName}`;
-           } else {
-             seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
-           }
-        }
-        // Extract zone name from the ticketTypeName summary (e.g. "Khán đài S3 (Ghế...)")
         let zoneNameStr = order.ticketTypeName.split("(")[0].trim();
         if (!zoneNameStr) zoneNameStr = "Vé Sự kiện";
+        
+        let displayTicketName = zoneNameStr;
+
+        if (order.seatIds && order.seatIds.length > 0) {
+           if (!seatLabel) {
+             const match = seatId.match(/seat_\d+_(\d+)_(\d+)/);
+             if (match) {
+               const rowName = String.fromCharCode(65 + parseInt(match[1]));
+               const colName = parseInt(match[2]) + 1;
+               seatLabel = `Hàng ${rowName} - Ghế ${colName}`;
+             } else {
+               seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
+             }
+           }
+           displayTicketName = `Hạng vé ${zoneNameStr}: ${seatLabel}`;
+        } else {
+           displayTicketName = `Hạng vé ${zoneNameStr}`;
+        }
 
         return {
           id: `${bookingId}-${idx}`,
@@ -361,24 +375,24 @@ export default function Checkout() {
           eventTime: order.eventTime,
           eventLocation: order.eventLocation,
           eventPoster: order.eventPoster,
-          ticketTypeName: `${zoneNameStr} (${seatLabel})`,
+          ticketTypeName: displayTicketName,
           seatId: seatId,
           quantity: 1,
-          totalAmount: finalTotalAmount / seatIds.length,
+          totalAmount: finalTotalAmount / numTickets,
           customerName: recipientData.recipientName || fullName,
           customerPhone: recipientData.phone || phoneOrCccd,
           customerEmail: recipientData.email || email,
           shippingAddress: `${recipientData.address}, ${recipientData.ward}, ${recipientData.city}`,
           paymentMethod: selectedPaymentMethod,
           purchaseDate: new Date().toISOString(),
-          qrCode: `HALOTICKET-${bookingId}-${seatId}`,
+          qrCode: `HALOTICKET-${bookingId}-${seatId}-${idx}`,
           status: "UPCOMING"
         };
       });
       const existingMyTickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
       localStorage.setItem("haloticket_my_tickets", JSON.stringify([...newTickets, ...existingMyTickets]));
       
-      // Save order summary for success screen
+      // save order summary for success screen
       localStorage.setItem("haloticket_last_order", JSON.stringify({
          bookingId: bookingId,
          eventTitle: order.eventTitle,
@@ -386,7 +400,7 @@ export default function Checkout() {
          totalAmount: finalTotalAmount,
          quantity: seatIds.length
       }));
-      // Option 1: VNPay gateway
+      // option 1: VNPay gateway
       if (selectedPaymentMethod === "vnpay") {
         const vnpayUrl = await paymentApi.createVnPayUrl(
           finalTotalAmount,
@@ -399,7 +413,7 @@ export default function Checkout() {
         }
       }
 
-      // Option 2: VietQR / SePay fast transfer
+      // option 2: VietQR / SePay fast transfer
       if (selectedPaymentMethod === "vietqr" || selectedPaymentMethod === "sepay") {
         const qrPayload = await paymentApi.createVietQrPayload(finalTotalAmount, bookingCode, bookingId);
         if (qrPayload) {
@@ -410,7 +424,7 @@ export default function Checkout() {
         }
       }
 
-      // Option 3: MoMo e-wallet
+      // option 3: MoMo e-wallet
       if (selectedPaymentMethod === "momo") {
         const momoUrl = await paymentApi.createMoMoUrl(
           finalTotalAmount,
@@ -423,7 +437,7 @@ export default function Checkout() {
         }
       }
 
-      // Option 4: ZaloPay e-wallet
+      // option 4: ZaloPay e-wallet
       if (selectedPaymentMethod === "zalopay") {
         const zalopayUrl = await paymentApi.createZaloPayUrl(
           finalTotalAmount,
@@ -436,7 +450,7 @@ export default function Checkout() {
         }
       }
 
-      // Option 5: ShopeePay e-wallet
+      // option 5: ShopeePay e-wallet
       if (selectedPaymentMethod === "shopeepay") {
         const shopeepayUrl = await paymentApi.createShopeePayUrl(
           finalTotalAmount,
@@ -449,7 +463,7 @@ export default function Checkout() {
         }
       }
 
-      // Fallback direct confirmation
+      // fallback direct confirmation
       localStorage.removeItem("haloticket_pending_order");
       setIsRecipientModalOpen(false);
       navigate("/booking-success");

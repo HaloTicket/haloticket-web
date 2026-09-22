@@ -23,14 +23,22 @@ export interface BookingItem {
   ticketQuantity: number;
 }
 
+export interface BookingItemRequest {
+  ticketTypeId: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface BookingCreateRequest {
   eventId: string;
+  showtimeId?: string;
   customerId?: string;
   customerEmail?: string;
   customerName?: string;
   voucherId?: string;
   totalAmount: number;
   seatIds?: string[];
+  items?: BookingItemRequest[];
 }
 
 export interface BookingResponse {

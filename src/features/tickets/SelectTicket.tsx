@@ -87,6 +87,7 @@ export default function SelectTicket() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+
   const [eventData, setEventData] = useState<EventDetailData | null>(null);
   const [ticketTypes, setTicketTypes] = useState<SeatTier[]>([]);
   const [seatMap, setSeatMap] = useState<SeatMapDocument | null>(null);
@@ -556,9 +557,13 @@ export default function SelectTicket() {
         .map((item) => {
           if (item.zoneId === zoneId) {
             const nextQty = item.quantity + delta;
-            if (nextQty <= 0) return null;
+            const minQty = item.minPerOrder || 1;
             const maxQty = item.maxPerOrder || 4;
-            return { ...item, quantity: Math.min(maxQty, nextQty) };
+            
+            if (nextQty < minQty && delta < 0) return null; // remove if going below min
+            if (nextQty <= 0) return null;
+            
+            return { ...item, quantity: Math.min(maxQty, Math.max(minQty, nextQty)) };
           }
           return item;
         })
@@ -644,6 +649,11 @@ export default function SelectTicket() {
       zoneName: firstItem.zoneName,
       ticketTypeName: ticketSummaryText,
       cartItems: cart,
+      items: cart.map(c => ({
+          ticketTypeId: c.tierId || c.zoneId,
+          quantity: c.quantity,
+          unitPrice: c.price
+      })),
       seatIds: selectedSeatObjects.length > 0 
            ? selectedSeatObjects.map(s => s.id) 
            : Array.from({length: cartTotalTickets}).map((_, i) => `${firstItem.zoneId}-GA-${Date.now()}-${i+1}`),
@@ -992,7 +1002,7 @@ export default function SelectTicket() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setSelectedQuantity((q) => Math.max(1, q - 1))}
+                  onClick={() => setSelectedQuantity((q) => Math.max(activeZoneModal.minPerOrder || 1, q - 1))}
                   className="w-9 h-9 rounded-xl border app-border app-bg-card hover:border-blue-500 font-bold app-text-main text-base flex items-center justify-center cursor-pointer transition-colors"
                 >
                   -
@@ -1002,7 +1012,7 @@ export default function SelectTicket() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setSelectedQuantity((q) => Math.min(10, q + 1))}
+                  onClick={() => setSelectedQuantity((q) => Math.min(activeZoneModal.maxPerOrder || 10, q + 1))}
                   className="w-9 h-9 rounded-xl border border-blue-500 bg-blue-600 text-white font-bold text-base flex items-center justify-center cursor-pointer transition-transform active:scale-95 shadow-xs"
                 >
                   +

@@ -26,7 +26,7 @@ export default function VietQrModal({
   const [copiedAccountNo, setCopiedAccountNo] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  // Get target expiresAt timestamp from prop or localStorage
+  // get target expiresAt timestamp from prop or localStorage
   const getTargetExpiresAt = () => {
     if (expiresAt && expiresAt > Date.now()) return expiresAt;
     try {
@@ -46,7 +46,7 @@ export default function VietQrModal({
   );
   const [isExpired, setIsExpired] = useState<boolean>(false);
 
-  // Sync target timestamp when modal opens or expiresAt prop changes
+  // sync target timestamp when modal opens or expiresAt prop changes
   useEffect(() => {
     if (isOpen) {
       const target = getTargetExpiresAt();
@@ -88,8 +88,10 @@ export default function VietQrModal({
     if (!isOpen || !bookingId || isExpired) return;
 
     let isMounted = true;
-    
-    const interval = setInterval(async () => {
+    let timerId: NodeJS.Timeout;
+
+    const checkStatus = async () => {
+      if (!isMounted) return;
       try {
         const payment = await paymentApi.verifyPaymentStatus(bookingId);
         if (
@@ -97,17 +99,33 @@ export default function VietQrModal({
           payment &&
           (payment.status === "COMPLETED" || payment.status === "PAID" || payment.status === "SUCCESS")
         ) {
-          clearInterval(interval);
           onSuccess();
+          return; // stop polling
         }
       } catch (err) {
         console.warn("Polling payment status error:", err);
       }
-    }, 3000);
+      
+      if (isMounted) {
+        timerId = setTimeout(checkStatus, 3000);
+      }
+    };
+
+    // initial call
+    checkStatus();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkStatus();
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isOpen, bookingId, isExpired, onSuccess]);
 

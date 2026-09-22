@@ -24,6 +24,7 @@ import { PATHS } from "@/routes/paths";
 import { formatCurrency } from "@/utils/formatters";
 import type { OwnedTicketApiResponse } from "@/types";
 import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
+import { TablePagination } from "@/components/common/TablePagination";
 
 type TicketFilter = "ALL" | "UPCOMING" | "USED" | "TRANSFERRED";
 type TicketUiStatus = "UPCOMING" | "USED" | "SELLING" | "GIFTING" | "TRANSFERRED" | "CANCELLED";
@@ -50,6 +51,7 @@ export interface TicketItem {
   section?: string;
   row?: string;
   seatNumber?: string;
+  seatName?: string;
 }
 
 const STATUS_PRESENTATION: Record<TicketUiStatus, { labelKey: string; className: string }> = {
@@ -133,6 +135,7 @@ async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketIt
       rawStatus,
       status: mapTicketStatus(rawStatus),
       qrCode: item.qrCode || undefined,
+      seatName: item.seatName || undefined,
     };
   });
 }
@@ -235,7 +238,7 @@ function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => 
         aria-label={t("Vé điện tử")}
       >
         {/* Banner header */}
-        <div className="relative h-36 bg-slate-900">
+        <div className="relative h-28 bg-slate-900">
           {ticket.eventPoster && (
             <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover filter brightness-85" />
           )}
@@ -258,7 +261,7 @@ function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => 
           </div>
         </div>
 
-        <div className="space-y-4 p-5 sm:p-6">
+        <div className="space-y-3 p-4 sm:p-5">
           <div>
             <h2 className="text-lg font-black leading-snug app-text-main">{ticket.eventTitle}</h2>
             <p className="mt-2 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
@@ -289,7 +292,7 @@ function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => 
           {isLocked ? (
             /* Ảnh 2: Vé đang bị khóa */
             <div className="overflow-hidden rounded-2xl border border-amber-500/30 bg-slate-50 dark:bg-slate-900 shadow-md">
-              <div className="relative flex aspect-square w-48 sm:w-56 mx-auto items-center justify-center p-3">
+              <div className="relative flex aspect-square w-40 sm:w-48 mx-auto items-center justify-center p-3">
                 <img
                   src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
                   alt="QR Locked"
@@ -313,7 +316,7 @@ function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => 
           ) : (
             /* Ảnh 1: Vé có hiệu lực - che bằng ổ khóa, nhấn để xem */
             <div className="space-y-3">
-              <div className="mx-auto w-full max-w-[240px] overflow-hidden rounded-2xl border app-border bg-white dark:bg-slate-900 shadow-lg">
+              <div className="mx-auto w-full max-w-[200px] overflow-hidden rounded-2xl border app-border bg-white dark:bg-slate-900 shadow-lg">
                 <button
                   type="button"
                   onClick={() => setIsRevealed((prev) => !prev)}
@@ -477,6 +480,8 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
   const [viewerTicket, setViewerTicket] = useState<TicketItem>();
   const [resaleTicket, setResaleTicket] = useState<TicketItem>();
   const [giftTicket, setGiftTicket] = useState<TicketItem>();
+  const [currentPage, setCurrentPage] = useState(1);
+
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -485,6 +490,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       const response = await ticketApi.getMyTickets();
       const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
       setTickets(hydrated);
+      // Let client-side pagination handle totalPages and totalElements
     } catch (err) {
       console.error("loadTickets failed:", err);
       setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
@@ -495,27 +501,8 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
 
   useEffect(() => {
     if (!embedded) window.scrollTo(0, 0);
-    let active = true;
-    ticketApi
-      .getMyTickets()
-      .then(async (response) => {
-        const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
-        if (active) {
-          setTickets(hydrated);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("loadTickets failed:", err);
-        if (active) {
-          setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
-          setLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [embedded, t]);
+    loadTickets();
+  }, [embedded, loadTickets]);
 
   const counts = useMemo(
     () => ({
@@ -546,6 +533,15 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       }),
     [activeTab, searchQuery, tickets]
   );
+  
+  // Client-side pagination
+  const pageSize = 12;
+  const currentTotalElements = filteredTickets.length;
+  const currentTotalPages = Math.ceil(currentTotalElements / pageSize) || 1;
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredTickets.slice(startIndex, startIndex + pageSize);
+  }, [filteredTickets, currentPage, pageSize]);
 
   const tabs: Array<{ value: TicketFilter; labelKey: string }> = [
     { value: "ALL", labelKey: "Tất cả" },
@@ -576,7 +572,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
               />
             </label>
           </div>
-          <div className="mt-5 flex gap-1 overflow-x-auto border-t app-border pt-4" role="tablist">
+          <div className="mt-5 flex gap-2 overflow-x-auto border-t app-border pt-4 pb-2 scrollbar-hide" role="tablist">
             {tabs.map((tab) => (
               <button
                 key={tab.value}
@@ -584,14 +580,14 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
                 role="tab"
                 aria-selected={activeTab === tab.value}
                 onClick={() => setActiveTab(tab.value)}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition-all focus:outline-none cursor-pointer border ${
                   activeTab === tab.value
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "app-text-sub hover:bg-slate-500/10 hover:app-text-main"
+                    ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                    : "bg-transparent border-slate-200 dark:border-slate-800 app-text-sub hover:bg-slate-100 dark:hover:bg-slate-800 hover:app-text-main"
                 }`}
               >
                 {t(tab.labelKey)}{" "}
-                <span className={activeTab === tab.value ? "text-blue-100" : "app-text-muted"}>
+                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-black ${activeTab === tab.value ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-800 app-text-muted"}`}>
                   {counts[tab.value]}
                 </span>
               </button>
@@ -618,18 +614,11 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
           </div>
         ) : filteredTickets.length ? (
           <div className="space-y-4">
-            {filteredTickets.map((ticket) => {
+            {paginatedTickets.map((ticket) => {
               const canTransact = ticket.rawStatus === "VALID";
               const isResale = ticket.acquisitionType === "RESALE";
 
               return (
-                /* 
-                 * THẺ VÉ DẠNG CUỐNG VÉ (TICKET-STUB):
-                 * - Tỉ lệ 6 : 4 (6 phần thông tin bên trái md:col-span-6, 4 phần banner bên phải md:col-span-4).
-                 * - Đồng bộ màu sắc với nền sáng / tối (app-bg-card, app-border, app-text-main, app-bg-page).
-                 * - Bấm trực tiếp vào thẻ vé để mở modal xem vé.
-                 * - Rãnh khuyết bán nguyệt 2 đầu đường nét đứt (-top-3.5, -bottom-3.5, app-bg-page).
-                 */
                 <article
                   key={ticket.id}
                   tabIndex={0}
@@ -649,54 +638,56 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
                   >
                     {t("Xem vé")}
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-10 min-h-[220px]">
+                  <div className="grid grid-cols-1 md:grid-cols-10 min-h-[140px]">
                     {/* Cột trái: Thông tin vé (Đúng tỉ lệ 6 phần = 60% trên md) */}
-                    <div className="relative p-6 sm:p-7 md:col-span-6 flex flex-col justify-between space-y-4 sm:space-y-5 app-bg-card">
-                      <div className="space-y-3">
+                    <div className="relative p-4 sm:p-5 md:col-span-6 flex flex-col justify-between space-y-3 sm:space-y-4 app-bg-card">
+                      <div className="space-y-2">
                         {/* Hàng badge: Bán lại vé (nếu resale) + Trạng thái vé */}
                         <div className="flex flex-wrap items-center gap-2">
                           {isResale && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-xs">
-                              <FiTag className="h-3.5 w-3.5" /> {t("Bán lại vé")}
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                              <FiTag className="h-3 w-3" /> {t("Bán lại vé")}
                             </span>
                           )}
                           <StatusBadge status={ticket.status} />
                         </div>
 
                         {/* Tiêu đề sự kiện (Tăng kích thước, rõ nét) */}
-                        <h2 className="text-lg sm:text-xl lg:text-2xl font-black app-text-main leading-snug tracking-tight line-clamp-2">
+                        <h2 className="text-base sm:text-lg lg:text-xl font-black app-text-main leading-snug tracking-tight line-clamp-1">
                           {ticket.eventTitle}
                         </h2>
 
                         {/* Thời gian & Địa điểm (Tăng kích thước và độ rõ ràng) */}
-                        <div className="space-y-2 text-xs sm:text-sm font-medium app-text-sub">
-                          <p className="flex items-center gap-2.5">
-                            <FiCalendar className="shrink-0 text-blue-600 dark:text-blue-400 h-4 w-4" />
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium app-text-sub">
+                          <p className="flex items-center gap-1.5">
+                            <FiCalendar className="shrink-0 text-blue-600 dark:text-blue-400 h-3.5 w-3.5" />
                             <span className="truncate font-semibold app-text-main">{ticket.eventTime}</span>
                           </p>
-                          <p className="flex items-center gap-2.5">
-                            <FiMapPin className="shrink-0 text-blue-600 dark:text-blue-400 h-4 w-4" />
-                            <span className="truncate">{ticket.eventLocation}</span>
+                          <p className="flex items-center gap-1.5">
+                            <FiMapPin className="shrink-0 text-blue-600 dark:text-blue-400 h-3.5 w-3.5" />
+                            <span className="truncate max-w-[200px]">{ticket.eventLocation}</span>
                           </p>
                         </div>
                       </div>
 
                       {/* Hàng thông tin hạng vé & Giá vé đồng bộ màu sắc */}
-                      <div className="pt-3 border-t app-border flex flex-wrap items-end justify-between gap-3">
-                        <div className="space-y-1">
+                      <div className="pt-2 border-t app-border flex flex-wrap items-end justify-between gap-2">
+                        <div className="space-y-0.5">
                           <span className="text-xs sm:text-sm font-bold app-text-main block">
-                            {ticket.ticketTypeName} · <span className="text-blue-600 dark:text-blue-400 font-extrabold">{ticket.quantity} {t("vé")}</span>
+                            {ticket.ticketTypeName}
                           </span>
-                          <span className="font-mono text-xs app-text-sub block">
-                            {t("Mã vé:")} <strong className="font-bold app-text-main">{ticket.bookingCode}</strong>
-                          </span>
+                          {ticket.seatName && (
+                            <span className="text-[11px] font-medium app-text-sub block">
+                              Ghế: {ticket.seatName}
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-right">
-                          <strong className="block text-lg sm:text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                          <strong className="block text-base sm:text-lg font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
                             {formatCurrency(ticket.totalAmount)}
                           </strong>
-                          <span className="text-xs font-semibold app-text-sub block">
+                          <span className="text-[10px] font-semibold app-text-sub block uppercase tracking-wider">
                             {isResale ? t("Giá mua vé bán lại") : t("Giá vé")}
                           </span>
                         </div>
@@ -714,7 +705,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
                     </div>
 
                     {/* Cột phải: Banner sự kiện (Đúng tỉ lệ 4 phần = 40% trên md) có đường viền nét đứt phân cách */}
-                    <div className="relative md:col-span-4 border-t md:border-t-0 md:border-l border-dashed app-border h-48 sm:h-56 md:h-full min-h-[200px] overflow-hidden bg-slate-900">
+                    <div className="relative md:col-span-4 border-t md:border-t-0 md:border-l border-dashed app-border h-32 sm:h-40 md:h-full min-h-[140px] overflow-hidden bg-slate-900">
                       {ticket.eventPoster ? (
                         <img
                           src={ticket.eventPoster}
@@ -820,12 +811,25 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
         )}
       </div>
 
+      {/* Pagination */}
+      {!loading && !loadError && currentTotalPages > 1 && (
+        <div className="mt-8 pt-6 border-t app-border flex justify-center">
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={currentTotalPages}
+            totalItems={currentTotalElements}
+            pageSize={pageSize}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
+        </div>
+      )}
+
       {viewerTicket && <TicketViewer ticket={viewerTicket} onClose={() => setViewerTicket(undefined)} />}
       {resaleTicket && (
-        <ResaleTicketModal ticket={resaleTicket} onClose={() => setResaleTicket(undefined)} onChanged={loadTickets} />
+        <ResaleTicketModal ticket={resaleTicket} onClose={() => setResaleTicket(undefined)} onChanged={() => loadTickets()} />
       )}
       {giftTicket && (
-        <GiftTicketModal ticket={giftTicket} onClose={() => setGiftTicket(undefined)} onChanged={loadTickets} />
+        <GiftTicketModal ticket={giftTicket} onClose={() => setGiftTicket(undefined)} onChanged={() => loadTickets()} />
       )}
     </div>
   );

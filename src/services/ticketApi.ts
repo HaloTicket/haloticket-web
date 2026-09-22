@@ -9,8 +9,14 @@ import type {
 
 export const ticketApi = {
   getMyTickets: async (): Promise<OwnedTicketApiResponse[]> => {
-    const response = await axiosClient.get<unknown, unknown>("/tickets/mine");
-    return Array.isArray(response) ? (response as OwnedTicketApiResponse[]) : [];
+    const response = await axiosClient.get("/tickets/mine");
+    // handle both old array format and new Page format
+    if (Array.isArray(response)) {
+      return response as OwnedTicketApiResponse[];
+    } else if (response && Array.isArray((response as any).content)) {
+      return (response as any).content as OwnedTicketApiResponse[];
+    }
+    return [];
   },
 
   getMyTicket: async (ticketId: string): Promise<OwnedTicketApiResponse> => {

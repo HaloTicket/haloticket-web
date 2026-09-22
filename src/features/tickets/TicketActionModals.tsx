@@ -19,13 +19,13 @@ interface ModalProps {
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4" role="presentation">
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-lg sm:rounded-2xl" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900">
+      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border app-border app-bg-card shadow-xl sm:max-w-lg sm:rounded-2xl" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b app-border app-bg-card px-5 py-3.5">
           <div>
-            <p className="text-xs font-normal text-slate-500 dark:text-slate-400">Marketplace</p>
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+            <p className="text-xs font-normal app-text-muted">Marketplace</p>
+            <h2 className="text-base font-semibold app-text-main">{title}</h2>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label="Đóng">
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 app-text-muted hover:bg-slate-500/10 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Đóng">
             <FiX className="h-5 w-5" />
           </button>
         </div>
@@ -403,15 +403,15 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
         )}
 
         {/* Sticky footer */}
-        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2.5 border-t border-slate-200 bg-white px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900 sm:-mx-6 sm:-mb-6 sm:px-6">
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2.5 border-t app-border app-bg-card px-5 py-3.5 sm:-mx-6 sm:-mb-6 sm:px-6">
           {isTerminal ? (
-            <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Đóng</button>
+            <button type="button" onClick={onClose} className="rounded-lg border app-border app-bg-card px-4 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10">Đóng</button>
           ) : sagaId ? (
             // Polling — no actions
             null
           ) : step === 1 ? (
             <>
-              <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Hủy</button>
+              <button type="button" onClick={onClose} className="rounded-lg border app-border app-bg-card px-4 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10">Hủy</button>
               {eligibility?.eligible && (
                 <button type="button" onClick={() => setStep(2)} disabled={!priceValid} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
                   Tiếp tục
@@ -420,13 +420,13 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
             </>
           ) : step === 2 ? (
             <>
-              <button type="button" onClick={() => setStep(1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Quay lại</button>
+              <button type="button" onClick={() => setStep(1)} className="rounded-lg border app-border app-bg-card px-4 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10">Quay lại</button>
               <button type="button" onClick={submit} disabled={!accepted} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
                 <span className="inline-flex items-center gap-1.5"><FiTag /> Xác nhận đăng bán</span>
               </button>
             </>
           ) : (
-            <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Hủy</button>
+            <button type="button" onClick={onClose} className="rounded-lg border app-border app-bg-card px-4 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10">Hủy</button>
           )}
         </div>
       </div>
@@ -570,7 +570,7 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
               {/* Group category */}
               <div className="rounded-xl border border-slate-200 bg-white overflow-hidden dark:border-slate-800 dark:bg-slate-900">
                 <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2 text-xs font-semibold text-blue-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-blue-400">
-                  🎟️ {ticket.ticketTypeName}
+                  {ticket.ticketTypeName}
                 </div>
 
                 <label className="flex cursor-pointer items-center justify-between p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
@@ -717,7 +717,7 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
             {/* Ticket Breakdown Table */}
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 text-xs">
               <div className="border-b border-slate-100 bg-slate-50 px-3.5 py-2 font-semibold text-blue-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-blue-400">
-                🎟️ {ticket.ticketTypeName} <span className="text-[11px] font-normal text-slate-500">x1</span>
+                {ticket.ticketTypeName} <span className="text-[11px] font-normal text-slate-500">x1</span>
               </div>
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50/50 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
@@ -777,7 +777,7 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
         )}
 
         {/* Footer Actions */}
-        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2.5 border-t border-slate-200 bg-white px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900 sm:-mx-6 sm:-mb-6 sm:px-6">
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2.5 border-t app-border app-bg-card px-5 py-3.5 sm:-mx-6 sm:-mb-6 sm:px-6">
           <button
             type="button"
             onClick={

@@ -8,18 +8,22 @@ import { ticketApi } from "@/services/ticketApi";
 
 vi.mock("@/services/ticketApi", () => ({
   ticketApi: {
-    getMyTickets: vi.fn().mockResolvedValue([
-      {
-        id: "ticket-1",
-        bookingCode: "BOOKING-1",
-        eventId: "event-1",
-        ticketTypeName: "VIP",
-        price: 120000,
-        status: "VALID",
-        qrCode: "qr-ticket-1",
-        issuedAt: "2026-09-15T10:00:00Z",
-      },
-    ]),
+    getMyTickets: vi.fn().mockResolvedValue({
+      content: [
+        {
+          id: "ticket-1",
+          bookingCode: "BOOKING-1",
+          eventId: "event-1",
+          ticketTypeName: "VIP",
+          price: 120000,
+          status: "VALID",
+          qrCode: "qr-ticket-1",
+          issuedAt: "2026-09-15T10:00:00Z",
+        },
+      ],
+      totalPages: 1,
+      totalElements: 1
+    }),
   },
 }));
 
@@ -54,18 +58,22 @@ describe("MyTickets", () => {
   });
 
   it("does not expose a check-in QR for a used ticket", async () => {
-    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce([
-      {
-        id: "ticket-used",
-        bookingCode: "BOOKING-USED",
-        eventId: "event-1",
-        ticketTypeName: "VIP",
-        price: 120000,
-        status: "USED",
-        qrCode: "qr-ticket-used",
-        issuedAt: "2026-09-15T10:00:00Z",
-      },
-    ]);
+    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce({
+      content: [
+        {
+          id: "ticket-used",
+          bookingCode: "BOOKING-USED",
+          eventId: "event-1",
+          ticketTypeName: "VIP",
+          price: 120000,
+          status: "USED",
+          qrCode: "qr-ticket-used",
+          issuedAt: "2026-09-15T10:00:00Z",
+        },
+      ],
+      totalPages: 1,
+      totalElements: 1
+    });
 
     render(
       <MemoryRouter>
@@ -81,18 +89,22 @@ describe("MyTickets", () => {
   });
 
   it("shows Đang bán badge and hides Đăng bán lại for LOCKED_FOR_RESALE ticket", async () => {
-    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce([
-      {
-        id: "t1",
-        bookingCode: "BOOK-1",
-        eventId: "event-1",
-        ticketTypeName: "GA",
-        price: 100000,
-        status: "LOCKED_FOR_RESALE",
-        qrCode: "qr1",
-        issuedAt: "2026-09-18T00:00:00Z",
-      } as any,
-    ]);
+    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce({
+      content: [
+        {
+          id: "t1",
+          bookingCode: "BOOK-1",
+          eventId: "event-1",
+          ticketTypeName: "GA",
+          price: 100000,
+          status: "LOCKED_FOR_RESALE",
+          qrCode: "qr1",
+          issuedAt: "2026-09-18T00:00:00Z",
+        } as any,
+      ],
+      totalPages: 1,
+      totalElements: 1
+    });
     render(
       <MemoryRouter>
         <MyTickets embedded />
@@ -104,18 +116,22 @@ describe("MyTickets", () => {
   });
 
   it("shows Đang tặng badge and hides gift action for LOCKED_FOR_TRANSFER ticket", async () => {
-    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce([
-      {
-        id: "t2",
-        bookingCode: "BOOK-2",
-        eventId: "event-1",
-        ticketTypeName: "VIP",
-        price: 200000,
-        status: "LOCKED_FOR_TRANSFER",
-        qrCode: "qr2",
-        issuedAt: "2026-09-18T00:00:00Z",
-      } as any,
-    ]);
+    vi.mocked(ticketApi.getMyTickets).mockResolvedValueOnce({
+      content: [
+        {
+          id: "t2",
+          bookingCode: "BOOK-2",
+          eventId: "event-1",
+          ticketTypeName: "VIP",
+          price: 200000,
+          status: "LOCKED_FOR_TRANSFER",
+          qrCode: "qr2",
+          issuedAt: "2026-09-18T00:00:00Z",
+        } as any,
+      ],
+      totalPages: 1,
+      totalElements: 1
+    });
     render(
       <MemoryRouter>
         <MyTickets embedded />

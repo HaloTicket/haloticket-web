@@ -202,5 +202,52 @@ export const eventApi = {
       console.error("Failed to get my role in event:", err);
       return null;
     }
+  },
+
+  getEventAnalytics: async (eventId: string, timeRange: "24h" | "30d" = "30d"): Promise<any> => {
+    try {
+      const response = await axiosClient.get(`/events/${eventId}/analytics`, {
+        params: { timeRange }
+      });
+      return response;
+    } catch (err) {
+      console.error("Failed to get event analytics:", err);
+      throw err;
+    }
+  },
+
+  logEventView: async (eventId: string): Promise<void> => {
+    try {
+      let sessionId = localStorage.getItem("halo_session_id");
+      if (!sessionId) {
+        sessionId = Math.random().toString(36).substring(2, 15);
+        localStorage.setItem("halo_session_id", sessionId);
+      }
+      
+      const userStr = localStorage.getItem("user");
+      let userId = null;
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userId = user.id;
+        } catch (e) { }
+      }
+
+      await axiosClient.post(`/events/${eventId}/view`, { sessionId, userId });
+    } catch (err) {
+      console.error("Failed to log event view:", err);
+    }
+  },
+
+  getEventBookings: async (eventId: string, search: string = "", showtimeId: string = "", page: number = 0, size: number = 20): Promise<any> => {
+    try {
+      const response = await axiosClient.get(`/bookings/events/${eventId}/organizer`, {
+        params: { search, showtimeId, page, size }
+      });
+      return response;
+    } catch (err) {
+      console.error("Failed to get event bookings:", err);
+      throw err;
+    }
   }
 };

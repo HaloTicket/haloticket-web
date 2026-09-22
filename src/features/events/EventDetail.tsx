@@ -32,6 +32,8 @@ export default function EventDetail() {
       if (isMounted) {
         setEventData(data as unknown as EventDetailData);
         setIsLoading(false);
+        // log view asynchronously without blocking UI
+        eventApi.logEventView(id).catch(console.error);
       }
     });
 

@@ -42,7 +42,7 @@ export default function TicketDetail() {
       const item = await ticketApi.getMyTicket(ticketId);
       const event = await eventApi.getEventById(item.eventId).catch(() => null);
 
-      // 1. Fetch real recipient name from booking or authenticated user profile
+      // 1. fetch real recipient name from booking or authenticated user profile
       let realName = (item as unknown as { customerName?: string }).customerName;
       if (!realName && item.bookingCode) {
         try {
@@ -68,7 +68,7 @@ export default function TicketDetail() {
       }
       setRecipientName(realName || t("Khách hàng"));
 
-      // 2. Format event date/time
+      // 2. format event date/time
       const startTimeStr = event?.startTime ? String(event.startTime) : "";
       const formattedTime = startTimeStr
         ? new Intl.DateTimeFormat("vi-VN", {
@@ -105,7 +105,7 @@ export default function TicketDetail() {
         qrCode: item.qrCode || undefined,
       });
 
-      // 3. If ticket is currently locked for resale, look up the listing ID to allow cancel
+      // 3. if ticket is currently locked for resale, look up the listing ID to allow cancel
       if (rawStatus === "LOCKED_FOR_RESALE" || mapTicketStatus(rawStatus) === "SELLING") {
         try {
           const listingsPage = await marketplaceApi.getMyListings(0, 50);
@@ -161,27 +161,16 @@ export default function TicketDetail() {
     }
   };
 
-  // Seat extraction
+  // seat extraction
   const { formattedTicketType, seatDisplay } = useMemo(() => {
     if (!ticket) return { formattedTicketType: "", seatDisplay: null };
-    const rawType = ticket.ticketTypeName;
-    const seatMatch = rawType.match(/seat_\d+_(\d+)_(\d+)/);
-    if (seatMatch) {
-      const rowLetter = String.fromCharCode(65 + parseInt(seatMatch[1], 10));
-      const seatNum = parseInt(seatMatch[2], 10) + 1;
-      const cleanType = rawType.replace(/seat_\d+_\d+_\d+/, "").trim();
-      return {
-        formattedTicketType: cleanType || t("Vé tiêu chuẩn"),
-        seatDisplay: `Hàng ${rowLetter} · Ghế ${seatNum}`,
-      };
-    }
     return {
-      formattedTicketType: rawType,
-      seatDisplay: null,
+      formattedTicketType: ticket.ticketTypeName,
+      seatDisplay: ticket.seatName || null,
     };
-  }, [ticket, t]);
+  }, [ticket]);
 
-  // Timeline builder
+  // timeline builder
   const timelineEvents = useMemo(() => {
     if (!ticket) return [];
     const events: Array<{ title: string; desc?: string; time?: string; dotColor: string }> = [];
@@ -197,7 +186,7 @@ export default function TicketDetail() {
         }).format(issuedDate)
       : null;
 
-    // 1. Issuance
+    // 1. issuance
     events.push({
       title: t("Vé được phát hành"),
       desc: ticket.acquisitionType === "RESALE"
@@ -209,7 +198,7 @@ export default function TicketDetail() {
       dotColor: "bg-[#2166F3]",
     });
 
-    // 2. Ownership confirmation
+    // 2. ownership confirmation
     events.push({
       title: t("Vé đã chuyển vào tài khoản"),
       desc: t("Sẵn sàng quản lý và sử dụng"),
@@ -217,7 +206,7 @@ export default function TicketDetail() {
       dotColor: "bg-emerald-500",
     });
 
-    // 3. Resale / Gifting
+    // 3. resale / gifting
     if (isSelling) {
       events.push({
         title: t("Đăng bán lại trên Marketplace"),
@@ -233,7 +222,7 @@ export default function TicketDetail() {
       });
     }
 
-    // 4. Used
+    // 4. used
     if (ticket.status === "USED") {
       events.push({
         title: t("Đã check-in sự kiện"),
@@ -247,12 +236,12 @@ export default function TicketDetail() {
 
   if (loadError) {
     return (
-      <div className="w-full flex-1 bg-[#F3F6FA] flex flex-col items-center justify-center min-h-[450px] p-6 text-center">
+      <div className="w-full flex-1 app-bg-page flex flex-col items-center justify-center min-h-[450px] p-6 text-center">
         <p className="text-sm font-semibold text-rose-600 mb-4">{loadError}</p>
         <button
           type="button"
           onClick={() => navigate(PATHS.MY_TICKETS)}
-          className="px-4 py-2 rounded-md bg-[#2166F3] text-white text-xs font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
+          className="px-4 py-2 rounded-md bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
         >
           {t("Quay lại vé của tôi")}
         </button>
@@ -262,21 +251,21 @@ export default function TicketDetail() {
 
   if (!ticket) {
     return (
-      <div className="w-full flex-1 bg-[#F3F6FA] flex items-center justify-center min-h-[450px]">
-        <div className="w-8 h-8 border-3 border-[#2166F3] border-t-transparent rounded-full animate-spin" />
+      <div className="w-full flex-1 app-bg-page flex items-center justify-center min-h-[450px]">
+        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="w-full flex-1 bg-[#F3F6FA] text-[#172033] font-sans pb-16">
+    <div className="w-full flex-1 app-bg-page app-text-main font-sans pb-16">
       <div className="max-w-[1000px] mx-auto px-4 sm:px-6 pt-6 space-y-6">
         {/* Back Link */}
         <div>
           <button
             type="button"
             onClick={() => navigate(PATHS.MY_TICKETS)}
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#64748B] hover:text-[#2166F3] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-sm font-medium app-text-muted hover:text-blue-600 transition-colors cursor-pointer"
           >
             <FiArrowLeft className="w-4 h-4" />
             <span>{t("Quay lại vé của tôi")}</span>
@@ -285,7 +274,7 @@ export default function TicketDetail() {
 
         {/* Page Title & Status Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold text-[#172033] tracking-tight leading-snug">
+          <h1 className="text-2xl font-bold app-text-main tracking-tight leading-snug">
             {ticket.eventTitle}
           </h1>
 
@@ -316,39 +305,39 @@ export default function TicketDetail() {
         </div>
 
         {/* 1. Event Header Card (Poster + Thông tin sự kiện) */}
-        <div className="bg-white border border-[#D7DFEA] rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 shadow-xs">
+        <div className="app-bg-card border app-border rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 shadow-xs">
           {ticket.eventPoster ? (
             <img
               src={ticket.eventPoster}
               alt={ticket.eventTitle}
-              className="w-full sm:w-[120px] h-36 sm:h-[160px] object-cover rounded-md border border-[#E2E8F0] shrink-0"
+              className="w-full sm:w-[120px] h-36 sm:h-[160px] object-cover rounded-md border app-border shrink-0"
             />
           ) : (
-            <div className="w-full sm:w-[120px] h-36 sm:h-[160px] bg-slate-100 rounded-md border border-[#E2E8F0] flex items-center justify-center text-slate-400 shrink-0">
+            <div className="w-full sm:w-[120px] h-36 sm:h-[160px] bg-slate-100 dark:bg-slate-800 rounded-md border app-border flex items-center justify-center text-slate-400 shrink-0">
               <FiCalendar className="w-8 h-8" />
             </div>
           )}
 
           <div className="flex-1 min-w-0 space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
                 {t("Vé điện tử chính thức")}
               </span>
               {ticket.acquisitionType === "RESALE" && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
                   <FiTag className="w-3 h-3" />
                   {t("Vé mua từ sàn bán lại")}
                 </span>
               )}
             </div>
 
-            <h2 className="text-lg sm:text-xl font-bold text-[#172033] line-clamp-2 leading-snug">
+            <h2 className="text-lg sm:text-xl font-bold app-text-main line-clamp-2 leading-snug">
               {ticket.eventTitle}
             </h2>
 
-            <div className="space-y-1.5 text-xs sm:text-sm text-[#64748B]">
-              <p className="flex items-center gap-2 font-medium text-[#172033]">
-                <FiCalendar className="w-4 h-4 text-[#2166F3] shrink-0" />
+            <div className="space-y-1.5 text-xs sm:text-sm app-text-muted">
+              <p className="flex items-center gap-2 font-medium app-text-main">
+                <FiCalendar className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>{ticket.eventTime}</span>
               </p>
               <p className="flex items-center gap-2">
@@ -363,44 +352,44 @@ export default function TicketDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Cột trái: Thông tin vé (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="bg-white border border-[#D7DFEA] rounded-lg p-5 sm:p-6 shadow-xs space-y-5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+            <div className="app-bg-card border app-border rounded-lg p-5 sm:p-6 shadow-xs space-y-5">
+              <h3 className="text-xs font-bold uppercase tracking-wider app-text-muted">
                 {t("THÔNG TIN VÉ")}
               </h3>
 
-              <div className="divide-y divide-[#EEF2F6] text-sm">
+              <div className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                 <div className="py-3 flex items-center justify-between">
-                  <span className="text-xs font-medium text-[#64748B]">{t("Hạng vé")}</span>
-                  <span className="font-semibold text-[#172033]">{formattedTicketType}</span>
+                  <span className="text-xs font-medium app-text-muted">{t("Hạng vé")}</span>
+                  <span className="font-semibold app-text-main">{formattedTicketType}</span>
                 </div>
 
                 {seatDisplay && (
                   <div className="py-3 flex items-center justify-between">
-                    <span className="text-xs font-medium text-[#64748B]">{t("Vị trí ngồi")}</span>
-                    <span className="font-semibold text-[#172033]">{seatDisplay}</span>
+                    <span className="text-xs font-medium app-text-muted">{t("Vị trí ngồi")}</span>
+                    <span className="font-semibold app-text-main">{seatDisplay}</span>
                   </div>
                 )}
 
                 <div className="py-3 flex items-center justify-between">
-                  <span className="text-xs font-medium text-[#64748B]">{t("Số lượng")}</span>
-                  <span className="font-semibold text-[#172033]">{ticket.quantity} {t("vé")}</span>
+                  <span className="text-xs font-medium app-text-muted">{t("Số lượng")}</span>
+                  <span className="font-semibold app-text-main">{ticket.quantity} {t("vé")}</span>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <span className="text-xs font-medium text-[#64748B]">{t("Người nhận vé")}</span>
-                  <span className="font-semibold text-[#172033]">{recipientName}</span>
+                  <span className="text-xs font-medium app-text-muted">{t("Người nhận vé")}</span>
+                  <span className="font-semibold app-text-main">{recipientName}</span>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <span className="text-xs font-medium text-[#64748B]">
+                  <span className="text-xs font-medium app-text-muted">
                     {ticket.acquisitionType === "RESALE" ? t("Giá mua lại") : t("Tổng tiền")}
                   </span>
                   <div className="text-right">
-                    <span className="font-semibold text-[#172033] font-mono">
+                    <span className="font-semibold app-text-main font-mono">
                       {formatCurrency(ticket.totalAmount)}
                     </span>
                     {ticket.originalPrice && ticket.originalPrice !== ticket.totalAmount && (
-                      <span className="block text-xs text-[#64748B] line-through font-mono">
+                      <span className="block text-xs app-text-muted line-through font-mono">
                         {formatCurrency(ticket.originalPrice)}
                       </span>
                     )}
@@ -409,18 +398,18 @@ export default function TicketDetail() {
               </div>
 
               {/* Divider & Booking Code */}
-              <div className="border-t border-[#D9E0EA] pt-4">
-                <div className="flex items-center justify-between bg-[#F8FAFC] border border-[#E2E8F0] rounded-md p-3">
+              <div className="border-t app-border pt-4">
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border app-border rounded-md p-3">
                   <div>
-                    <span className="text-[11px] font-medium text-[#64748B] block">{t("Mã vé")}</span>
-                    <span className="font-mono font-bold text-sm text-[#172033] tracking-wide">
+                    <span className="text-[11px] font-medium app-text-muted block">{t("Mã vé")}</span>
+                    <span className="font-mono font-bold text-sm app-text-main tracking-wide">
                       {ticket.bookingCode}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={copyCode}
-                    className="p-1.5 rounded hover:bg-slate-200/60 text-slate-600 hover:text-[#2166F3] transition-colors cursor-pointer"
+                    className="p-1.5 rounded hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
                     title={t("Sao chép mã")}
                   >
                     {copiedCode ? <FiCheck className="w-4 h-4 text-emerald-600" /> : <FiCopy className="w-4 h-4" />}
@@ -477,8 +466,8 @@ export default function TicketDetail() {
 
           {/* Cột phải: Mã QR Check-in (5 cols) */}
           <div className="lg:col-span-5">
-            <div className="bg-white border border-[#D7DFEA] rounded-lg p-5 sm:p-6 shadow-xs flex flex-col items-center text-center space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B] self-start">
+            <div className="app-bg-card border app-border rounded-lg p-5 sm:p-6 shadow-xs flex flex-col items-center text-center space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider app-text-muted self-start">
                 {t("MÃ QR CHECK-IN")}
               </h3>
 
@@ -539,7 +528,7 @@ export default function TicketDetail() {
               ) : (
                 /* Khối QR có hiệu lực, sẵn sàng check-in */
                 <div className="w-full py-2 flex flex-col items-center space-y-4">
-                  <div className="relative p-2 bg-white border border-[#E2E8F0] rounded-lg shadow-2xs">
+                  <div className="relative p-2 app-bg-card border app-border rounded-lg shadow-2xs">
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeString)}`}
                       alt="QR Check-in"
@@ -593,23 +582,23 @@ export default function TicketDetail() {
         </div>
 
         {/* 3. Lịch sử vé (Ticket History / Timeline) */}
-        <div className="bg-white border border-[#D7DFEA] rounded-lg p-5 sm:p-6 shadow-xs space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+        <div className="app-bg-card border app-border rounded-lg p-5 sm:p-6 shadow-xs space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider app-text-muted">
             {t("LỊCH SỬ VÉ")}
           </h3>
 
-          <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+          <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
             {timelineEvents.map((item, idx) => (
               <div key={idx} className="relative flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
                 <div className="flex items-start gap-2.5">
-                  <span className={`absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white ${item.dotColor}`} />
+                  <span className={`absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${item.dotColor}`} />
                   <div>
-                    <p className="text-sm font-semibold text-[#172033]">{item.title}</p>
-                    {item.desc && <p className="text-xs text-[#64748B] mt-0.5">{item.desc}</p>}
+                    <p className="text-sm font-semibold app-text-main">{item.title}</p>
+                    {item.desc && <p className="text-xs app-text-muted mt-0.5">{item.desc}</p>}
                   </div>
                 </div>
                 {item.time && (
-                  <span className="text-xs font-mono text-[#64748B] sm:text-right shrink-0">
+                  <span className="text-xs font-mono app-text-muted sm:text-right shrink-0">
                     {item.time}
                   </span>
                 )}

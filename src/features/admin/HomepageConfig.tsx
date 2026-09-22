@@ -852,7 +852,7 @@ export const HomepageConfig: React.FC = () => {
                     return (
                       <div key={sec.id} className="space-y-3">
                         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
-                          <span className="text-xs font-bold text-emerald-600 uppercase">{translate("🎟️ Vé Resale Nhượng lại Hot (Khớp lệnh ngay)")}</span>
+                          <span className="text-xs font-bold text-emerald-600 uppercase">{translate("Vé Resale Nhượng lại Hot (Khớp lệnh ngay)")}</span>
                           <span className="text-[10px] text-emerald-600 font-semibold">{translate("Khám phá vé →")}</span>
                         </div>
                         <div className="p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 text-xs space-y-1">

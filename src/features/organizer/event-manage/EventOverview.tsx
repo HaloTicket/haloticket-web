@@ -6,18 +6,58 @@ import {
   FiEye,
   FiArrowUpRight,
 } from "react-icons/fi";
+import {
+  ComposedChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
+
+import { eventApi } from "@/services/eventApi";
+import { useParams } from "react-router-dom";
 
 export const EventOverview: React.FC = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [timeRange, setTimeRange] = useState<"24h" | "30d">("30d");
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // sample data metrics for current event overview
-  const totalRevenueTarget = 46050000;
-  const currentRevenue = 12500000;
-  const revenuePercent = Math.round((currentRevenue / totalRevenueTarget) * 100);
+  React.useEffect(() => {
+    if (!eventId) return;
+    let isMounted = true;
+    setIsLoading(true);
+    
+    eventApi.getEventAnalytics(eventId, timeRange).then((data) => {
+      if (isMounted && data) {
+        setAnalytics(data);
+        setIsLoading(false);
+      }
+    }).catch(() => {
+      if (isMounted) setIsLoading(false);
+    });
 
-  const totalTicketsTarget = 2978;
-  const currentTicketsSold = 820;
-  const ticketsPercent = Math.round((currentTicketsSold / totalTicketsTarget) * 100);
+    return () => { isMounted = false; };
+  }, [eventId, timeRange]);
+
+  const totalRevenueTarget = analytics?.totalRevenueTarget || 1;
+  const currentRevenue = analytics?.currentRevenue || 0;
+  let revenuePercent = Math.round((currentRevenue / totalRevenueTarget) * 100);
+  if (revenuePercent > 100) revenuePercent = 100;
+  if (totalRevenueTarget === 0) revenuePercent = 0;
+
+  const totalTicketsTarget = analytics?.totalTicketsTarget || 1;
+  const currentTicketsSold = analytics?.currentTicketsSold || 0;
+  let ticketsPercent = Math.round((currentTicketsSold / totalTicketsTarget) * 100);
+  if (ticketsPercent > 100) ticketsPercent = 100;
+  if (totalTicketsTarget === 0) ticketsPercent = 0;
+
+  if (isLoading) {
+    return <div className="p-8 text-center app-text-muted text-sm font-bold">Đang tải dữ liệu...</div>;
+  }
 
   return (
     <div className="space-y-2 animate-in fade-in duration-200">
@@ -53,7 +93,8 @@ export const EventOverview: React.FC = () => {
               {currentRevenue.toLocaleString("vi-VN")} đ
             </h3>
             <p className="text-xs font-medium app-text-muted">
-              Mục tiêu: <strong className="app-text-main">{totalRevenueTarget.toLocaleString("vi-VN")} đ</strong>
+              Mục tiêu: <strong className="app-text-main">{totalRevenueTarget.toLocaleString("vi-VN")} đ</strong> 
+              <span className="text-amber-500 font-bold ml-1">(Đạt {revenuePercent}%)</span>
             </p>
           </div>
 
@@ -90,6 +131,7 @@ export const EventOverview: React.FC = () => {
             </h3>
             <p className="text-xs font-medium app-text-muted">
               Tổng phát hành: <strong className="app-text-main">{totalTicketsTarget.toLocaleString("vi-VN")} vé</strong>
+              <span className="text-emerald-500 font-bold ml-1">(Đạt {ticketsPercent}%)</span>
             </p>
           </div>
 
@@ -125,9 +167,9 @@ export const EventOverview: React.FC = () => {
             <span>Lượt truy cập</span>
             <FiEye className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-xl font-black app-text-main">1,420</p>
+          <p className="text-xl font-black app-text-main">{analytics?.pageViews?.toLocaleString("vi-VN") || 0}</p>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-            <FiArrowUpRight className="w-3 h-3" /> +12.5% so với kỳ trước
+            <FiArrowUpRight className="w-3 h-3" /> Theo dõi lượt xem
           </p>
         </div>
 
@@ -136,9 +178,9 @@ export const EventOverview: React.FC = () => {
             <span>Người dùng</span>
             <FiUsers className="w-4 h-4 text-purple-500" />
           </div>
-          <p className="text-xl font-black app-text-main">980</p>
+          <p className="text-xl font-black app-text-main">{analytics?.uniqueUsers?.toLocaleString("vi-VN") || 0}</p>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-            <FiArrowUpRight className="w-3 h-3" /> +8.3% người xem mới
+            <FiArrowUpRight className="w-3 h-3" /> Người xem duy nhất
           </p>
         </div>
 
@@ -147,9 +189,9 @@ export const EventOverview: React.FC = () => {
             <span>Người mua</span>
             <FiShoppingBag className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-xl font-black app-text-main">412</p>
+          <p className="text-xl font-black app-text-main">{analytics?.buyers?.toLocaleString("vi-VN") || 0}</p>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-            <FiArrowUpRight className="w-3 h-3" /> +15% thanh toán hoàn tất
+            <FiArrowUpRight className="w-3 h-3" /> Tài khoản đã thanh toán
           </p>
         </div>
 
@@ -158,9 +200,9 @@ export const EventOverview: React.FC = () => {
             <span>Tỉ lệ chuyển đổi</span>
             <FiTrendingUp className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-xl font-black app-text-main">42.04 %</p>
+          <p className="text-xl font-black app-text-main">{analytics?.conversionRate || 0} %</p>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-            <FiArrowUpRight className="w-3 h-3" /> Tăng trưởng ổn định
+            <FiArrowUpRight className="w-3 h-3" /> Người mua / Người dùng
           </p>
         </div>
       </div>
@@ -185,30 +227,30 @@ export const EventOverview: React.FC = () => {
           </div>
         </div>
 
-        {/* Visual Dual Chart Bars */}
-        <div className="h-64 pt-4 flex items-end justify-between gap-3 px-4 border-b app-border relative">
-          {[
-            { label: "Tuần 1", rev: 35, tickets: 40 },
-            { label: "Tuần 2", rev: 60, tickets: 65 },
-            { label: "Tuần 3", rev: 85, tickets: 90 },
-            { label: "Tuần 4", rev: 45, tickets: 55 },
-          ].map((bar, idx) => (
-            <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-              <div className="w-full flex items-end justify-center gap-2 h-full max-w-[80px]">
-                <div
-                  style={{ height: `${bar.rev}%` }}
-                  className="w-1/2 bg-purple-600 hover:bg-purple-500 rounded-t-lg transition-all duration-300 relative"
-                  title={`Doanh thu: ${bar.rev}%`}
-                />
-                <div
-                  style={{ height: `${bar.tickets}%` }}
-                  className="w-1/2 bg-emerald-500 hover:bg-emerald-400 rounded-t-lg transition-all duration-300 relative"
-                  title={`Vé bán: ${bar.tickets}%`}
-                />
-              </div>
-              <span className="text-[11px] font-bold app-text-muted">{bar.label}</span>
-            </div>
-          ))}
+        {/* Visual Dual Chart Bars via Recharts */}
+        <div className="h-[300px] w-full pt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={analytics?.growthMetrics?.length > 0 ? analytics.growthMetrics : [
+                { label: "Tuần 1", revPercent: 35, ticketsPercent: 40 },
+                { label: "Tuần 2", revPercent: 60, ticketsPercent: 65 },
+                { label: "Tuần 3", revPercent: 85, ticketsPercent: 90 },
+                { label: "Tuần 4", revPercent: 45, ticketsPercent: 55 },
+              ]}
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                itemStyle={{ color: '#f8fafc', fontWeight: 'bold' }}
+              />
+              <Bar dataKey="revPercent" name="Doanh thu (%)" fill="#9333ea" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              <Bar dataKey="ticketsPercent" name="Số vé bán (%)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              <Line type="monotone" dataKey="revPercent" name="Đường tăng trưởng" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

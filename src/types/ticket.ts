@@ -40,6 +40,7 @@ export interface OwnedTicketApiResponse {
   qrCode?: string | null;
   qrVersion?: number | null;
   issuedAt?: string | null;
+  seatName?: string | null;
 }
 
 export interface SeatLayoutZoneDto {

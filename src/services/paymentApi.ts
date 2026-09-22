@@ -119,7 +119,7 @@ export const paymentApi = {
 
   verifyPaymentStatus: async (bookingId: string): Promise<PaymentResponse | null> => {
     try {
-      const response: unknown = await axiosClient.get(`/payments/verify/${bookingId}`);
+      const response: unknown = await axiosClient.get(`/payments/verify/${bookingId}?_t=${Date.now()}`);
       if (response && typeof response === "object") {
         return response as PaymentResponse;
       }

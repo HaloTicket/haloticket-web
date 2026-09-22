@@ -26,6 +26,8 @@ export interface TicketTier {
   priceValue: number;
   available: boolean;
   statusText?: string;
+  minPerOrder?: number;
+  maxPerOrder?: number;
 }
 
 export interface Showtime {
