@@ -19,6 +19,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
+  const showtimeIdParam = searchParams.get("showtimeId");
 
   // load pending order data from localStorage or fallback
   const [order] = useState<
@@ -52,6 +53,7 @@ export default function Checkout() {
   });
 
   const activeEventId = order.eventId || eventIdParam;
+  const activeShowtimeId = order.showtimeId || showtimeIdParam;
 
   // step navigation: 1 = Customer Info Form & Questionnaire, 2 = Payment Methods & Summary
   const [step, setStep] = useState<number>(1);
@@ -70,7 +72,7 @@ export default function Checkout() {
   // recipient info modal state (image 3)
   const [isRecipientModalOpen, setIsRecipientModalOpen] = useState(false);
 
-  // VietQR modal state
+  // vietQR modal state
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const [vietQrData, setVietQrData] = useState<VietQrPayloadResponse | null>(null);
   const [activeBookingId, setActiveBookingId] = useState<string>("");
@@ -113,7 +115,7 @@ export default function Checkout() {
         const userId = localStorage.getItem("haloticket_session_id");
         if (userId && order?.seatIds) {
           order.seatIds.forEach((seatId: string) => {
-            bookingApi.releaseSeat({ eventId: activeEventId as string, seatId, userId }).catch(console.error);
+            bookingApi.releaseSeat({ eventId: activeEventId as string, showtimeId: activeShowtimeId as string, seatId, userId }).catch(console.error);
           });
         }
         setIsTimeoutModalOpen(true);
@@ -162,7 +164,7 @@ export default function Checkout() {
           const poster = (ev.thumbnailUrl || ev.posterImage || ev.bannerUrl || ev.image || null) as string | null;
           if (poster) setEventPosterUrl(poster);
 
-          // Parse customQuestions from backend
+          // parse customQuestions
           const rawQ = ev.customQuestions || ev.questions;
           let parsedQ: CustomQuestionItem[] = [];
           if (typeof rawQ === "string") {
@@ -197,7 +199,7 @@ export default function Checkout() {
   const [agreedTerms1, setAgreedTerms1] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // Load profile from userApi
+  // load profile from userApi
   useEffect(() => {
     let isMounted = true;
     async function loadUserProfile() {
@@ -219,10 +221,28 @@ export default function Checkout() {
   }, []);
 
   // voucher & discount state
+  const [vouchers, setVouchers] = useState<any[]>([]);
   const [voucherInput, setVoucherInput] = useState("");
-  const [appliedVoucher, setAppliedVoucher] = useState<string | null>(null);
+  const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [voucherError, setVoucherError] = useState<string>("");
+
+  useEffect(() => {
+    if (!activeEventId) return;
+    let isMounted = true;
+    async function loadVouchers() {
+      try {
+        const fetchedVouchers = await eventApi.getVouchersByEventId(activeEventId as string);
+        if (isMounted) setVouchers(fetchedVouchers);
+      } catch (err) {
+        console.warn("Failed to load vouchers", err);
+      }
+    }
+    loadVouchers();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeEventId]);
 
   const subtotalAmount = order.totalAmount ?? ((order.price || 0) * (order.quantity || 1));
   const finalTotal = Math.max(0, subtotalAmount - discountAmount);
@@ -231,26 +251,49 @@ export default function Checkout() {
     const code = voucherInput.trim().toUpperCase();
     if (!code) return;
 
-    if (code === "HALO50" || code === "VOUCHER50") {
-      setDiscountAmount(50000);
-      setAppliedVoucher(code);
-      setVoucherError("");
-      showToast("success", "Đã áp dụng mã giảm giá 50.000đ!");
-    } else if (code === "HALO100" || code === "VOUCHER100") {
-      setDiscountAmount(100000);
-      setAppliedVoucher(code);
-      setVoucherError("");
-      showToast("success", "Đã áp dụng mã giảm giá 100.000đ!");
-    } else if (code === "HALO10" || code === "DISCOUNT10") {
-      const discount = Math.round(subtotalAmount * 0.1);
-      setDiscountAmount(discount);
-      setAppliedVoucher(code);
-      setVoucherError("");
-      showToast("success", `Đã áp dụng mã giảm 10% (${formatCurrency(discount)})!`);
-    } else {
+    const matchedVoucher = vouchers.find(v => v.code === code && (v.status === "ACTIVE" || v.isActive === true));
+    if (!matchedVoucher) {
       setVoucherError("Mã khuyến mãi không hợp lệ hoặc đã hết hạn.");
       showToast("error", "Mã khuyến mãi không hợp lệ.");
+      return;
     }
+
+    // check date validity
+    const now = new Date().getTime();
+    if (matchedVoucher.startDate && new Date(matchedVoucher.startDate).getTime() > now) {
+      setVoucherError("Mã khuyến mãi chưa có hiệu lực.");
+      showToast("error", "Mã khuyến mãi chưa có hiệu lực.");
+      return;
+    }
+    if (matchedVoucher.endDate && new Date(matchedVoucher.endDate).getTime() < now) {
+      setVoucherError("Mã khuyến mãi đã hết hạn.");
+      showToast("error", "Mã khuyến mãi đã hết hạn.");
+      return;
+    }
+
+    // check showtime applicability
+    if (matchedVoucher.applyScope === "SPECIFIC_SHOWTIMES") {
+      if (!activeShowtimeId || !matchedVoucher.applicableShowtimes?.includes(activeShowtimeId)) {
+        setVoucherError("Mã khuyến mãi không áp dụng cho suất diễn này.");
+        showToast("error", "Mã khuyến mãi không áp dụng cho suất diễn này.");
+        return;
+      }
+    }
+
+    let discount = 0;
+    if (matchedVoucher.discountType === "PERCENTAGE") {
+      discount = Math.round(subtotalAmount * (matchedVoucher.discountValue / 100));
+    } else {
+      discount = matchedVoucher.discountValue || 0;
+    }
+    
+    // cap discount if greater than subtotal
+    discount = Math.min(discount, subtotalAmount);
+
+    setDiscountAmount(discount);
+    setAppliedVoucher(matchedVoucher);
+    setVoucherError("");
+    showToast("success", `Đã áp dụng mã giảm ${formatCurrency(discount)}!`);
   };
 
   const handleRemoveVoucher = () => {
@@ -328,9 +371,11 @@ export default function Checkout() {
       const userId = profile?.keycloakId || localStorage.getItem("haloticket_session_id") || "ANONYMOUS";
       const bookingRes = await bookingApi.createBooking({
         eventId: activeEventId || "",
+        showtimeId: activeShowtimeId as string,
         customerId: userId,
         customerEmail: recipientData.email,
         customerName: recipientData.recipientName,
+        voucherId: appliedVoucher?.id,
         totalAmount: finalTotalAmount,
         seatIds,
         items: order.items,
@@ -754,7 +799,7 @@ export default function Checkout() {
                 {appliedVoucher ? (
                   <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30">
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                      Mã đã áp dụng: <strong>{appliedVoucher}</strong> (-{formatCurrency(discountAmount)})
+                      Mã đã áp dụng: <strong>{appliedVoucher.code}</strong> (-{formatCurrency(discountAmount)})
                     </span>
                     <button
                       type="button"

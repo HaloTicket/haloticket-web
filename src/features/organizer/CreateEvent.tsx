@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import React, { useState, useEffect, useRef } from "react";
-import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors } from "@/types/organizer";
+import type { TicketItem, ShowtimeItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors } from "@/types/organizer";
 import CreateEventStepper from "./components/create-event/CreateEventStepper";
 import Step1EventInfo from "./components/create-event/Step1EventInfo";
 import Step2TicketsAndTime from "./components/create-event/Step2TicketsAndTime";
@@ -137,6 +137,73 @@ export const CreateEvent: React.FC = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [showtimes, setShowtimes] = useState<ShowtimeItem[]>([]);
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (start <= end) {
+        const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        const newShowtimes: ShowtimeItem[] = [];
+        
+        if (diffHours >= 24) {
+          let currentDate = new Date(start);
+          currentDate.setHours(0, 0, 0, 0);
+          
+          let tempEnd = new Date(end);
+          tempEnd.setHours(0, 0, 0, 0);
+          
+          let dayCount = 1;
+          while (currentDate <= tempEnd) {
+            const displayStr = currentDate.toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' });
+            
+            const dayStart = new Date(currentDate);
+            dayStart.setHours(start.getHours(), start.getMinutes(), start.getSeconds());
+            
+            const dayEnd = new Date(currentDate);
+            dayEnd.setHours(end.getHours(), end.getMinutes(), end.getSeconds());
+            
+            const stStr = formatDatetimeLocal(dayStart.toISOString()) || "";
+            const etStr = formatDatetimeLocal(dayEnd.toISOString()) || "";
+
+            newShowtimes.push({
+              id: Date.now().toString() + Math.random().toString(),
+              name: `Suất ${dayCount}: Ngày ${displayStr}`,
+              startTime: stStr,
+              endTime: etStr,
+              saleStartTime: "",
+              saleEndTime: ""
+            });
+            currentDate.setDate(currentDate.getDate() + 1);
+            dayCount++;
+          }
+        } else {
+          const startStr = startDate.length === 16 ? startDate + ":00" : startDate;
+          const endStr = endDate.length === 16 ? endDate + ":00" : endDate;
+          
+          newShowtimes.push({
+            id: Date.now().toString(),
+            name: "Suất 1",
+            startTime: startStr,
+            endTime: endStr,
+            saleStartTime: "",
+            saleEndTime: ""
+          });
+        }
+        
+        setShowtimes(prev => newShowtimes.map(ns => {
+           const existing = prev.find(p => p.name === ns.name);
+           if (existing) {
+             return { ...ns, saleStartTime: existing.saleStartTime, saleEndTime: existing.saleEndTime, id: existing.id };
+           }
+           return ns;
+        }));
+      }
+    } else {
+      setShowtimes([]);
+    }
+  }, [startDate, endDate]);
 
   // step 3: settings
   const [isPrivate, setIsPrivate] = useState(false);
@@ -273,7 +340,7 @@ export const CreateEvent: React.FC = () => {
               }
             }
             if (Array.isArray(parsedTickets)) {
-              type RawTicket = Partial<TicketItem> & { start_sale_date?: string; end_sale_date?: string };
+              type RawTicket = Partial<TicketItem>;
               const mappedTickets: TicketItem[] = (parsedTickets as RawTicket[]).map((t, idx: number) => ({
                 id: String(t.id || `ticket_${idx}_${Date.now()}`),
                 name: t.name || "",
@@ -282,8 +349,6 @@ export const CreateEvent: React.FC = () => {
                 totalQuantity: t.totalQuantity ?? 100,
                 minPerOrder: t.minPerOrder ?? 1,
                 maxPerOrder: t.maxPerOrder ?? 5,
-                startSaleDate: t.startSaleDate || t.start_sale_date || "",
-                endSaleDate: t.endSaleDate || t.end_sale_date || "",
                 description: t.description || "",
                 image: t.image || null
               }));
@@ -426,6 +491,8 @@ export const CreateEvent: React.FC = () => {
 
         const activeEventId = currentEventIdRef.current;
 
+        const showtimesPayload = showtimes;
+
         const { uploadedPoster, uploadedBanner, uploadedLogo, uploadedGallery } =
           await processAllImagesToS3(posterImage, bannerImage, organizerLogo, galleryImages);
 
@@ -449,6 +516,7 @@ export const CreateEvent: React.FC = () => {
           startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
           endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
           tickets,
+          showtimes: showtimesPayload.length > 0 ? showtimesPayload : undefined,
           isPrivate,
           confirmationMessage,
           enableCustomQuestions,
@@ -636,26 +704,6 @@ export const CreateEvent: React.FC = () => {
       errs.tickets = "Vui lòng tạo ít nhất một hạng vé!";
     }
 
-    if (startDate && endDate) {
-      const evtStart = new Date(startDate);
-      const evtEnd = new Date(endDate);
-      for (const t of tickets) {
-        if (t.startSaleDate && t.endSaleDate) {
-          if (new Date(t.endSaleDate) <= new Date(t.startSaleDate)) {
-            errs.tickets = `Loại vé "${t.name}": Thời gian kết thúc bán vé phải diễn ra sau thời gian bắt đầu bán vé!`;
-            break;
-          }
-        }
-        if (t.startSaleDate && new Date(t.startSaleDate) >= evtStart) {
-          errs.tickets = `Loại vé "${t.name}": Thời gian bắt đầu bán vé phải diễn ra trước thời gian bắt đầu sự kiện!`;
-          break;
-        }
-        if (t.endSaleDate && new Date(t.endSaleDate) > evtEnd) {
-          errs.tickets = `Loại vé "${t.name}": Thời gian kết thúc bán vé không thể diễn ra sau thời gian kết thúc sự kiện!`;
-          break;
-        }
-      }
-    }
 
     setStep2Errors(errs);
     if (Object.keys(errs).length === 0) {
@@ -727,6 +775,8 @@ export const CreateEvent: React.FC = () => {
 
       const activeEventId = currentEventIdRef.current;
 
+      const showtimesPayload = showtimes;
+
       const payload = {
         eventId: activeEventId,
         userId: currentUserId,
@@ -748,6 +798,7 @@ export const CreateEvent: React.FC = () => {
         startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
         endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
         tickets,
+        showtimes: showtimesPayload.length > 0 ? showtimesPayload : undefined,
         isPrivate,
         confirmationMessage,
         enableCustomQuestions,
@@ -887,6 +938,8 @@ export const CreateEvent: React.FC = () => {
             endDate={endDate}
             setEndDate={setEndDate}
             tickets={tickets}
+            showtimes={showtimes}
+            setShowtimes={setShowtimes}
             errors={step2Errors}
             onOpenAddTicketModal={() => {
               setEditingTicket(null);
@@ -968,8 +1021,6 @@ export const CreateEvent: React.FC = () => {
       {showAddTicketModal && (
         <AddTicketModal
           initialTicket={editingTicket}
-          eventStartDate={startDate}
-          eventEndDate={endDate}
           onClose={() => {
             setShowAddTicketModal(false);
             setEditingTicket(null);

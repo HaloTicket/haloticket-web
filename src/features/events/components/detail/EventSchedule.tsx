@@ -26,8 +26,69 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
 
   // ensure showtimes list calculated dynamically from event startTime & endTime
   const showtimes: Showtime[] = useMemo(() => {
+    const eventAny = event as any;
+    let rawTickets = eventAny.tickets || eventAny.ticketTypes;
+    
+    if (typeof rawTickets === "string") {
+      try {
+        const parsed = JSON.parse(rawTickets);
+        if (Array.isArray(parsed)) rawTickets = parsed;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (Array.isArray(rawTickets)) {
+      rawTickets = rawTickets.filter((tc: any, index: number, self: any[]) =>
+        index === self.findIndex((t: any) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
+      );
+    }
+
+    const defaultTickets: TicketTier[] = Array.isArray(rawTickets) && rawTickets.length > 0
+      ? rawTickets.map((t: any, tIdx: number) => ({
+          id: `t_raw_${tIdx}`,
+          name: t.name || "Vé Thường",
+          price: typeof t.price === "number" ? `${t.price.toLocaleString("vi-VN")} đ` : String(t.price || "0 đ"),
+          priceValue: typeof t.price === "number" ? t.price : (parseFloat(String(t.price).replace(/[^0-9]/g, "")) || 1000000),
+          available: t.totalQuantity ? t.totalQuantity > 0 : t.available !== false,
+        }))
+      : [
+          { id: `t_vip`, name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
+          { id: `t_std`, name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
+        ];
+
     if (event.showtimes && event.showtimes.length > 0) {
-      return event.showtimes;
+      return event.showtimes.map((st: any) => {
+        const start = st.startTime ? new Date(st.startTime) : new Date();
+        const end = st.endTime ? new Date(st.endTime) : new Date(start.getTime() + 4 * 60 * 60 * 1000);
+        
+        const startHours = String(start.getHours()).padStart(2, "0");
+        const startMins = String(start.getMinutes()).padStart(2, "0");
+        const endHours = String(end.getHours()).padStart(2, "0");
+        const endMins = String(end.getMinutes()).padStart(2, "0");
+        const timeRangeStr = `${startHours}:${startMins} - ${endHours}:${endMins}`;
+        
+        const dayNum = start.getDate();
+        const monthNum = start.getMonth() + 1;
+        const yearNum = start.getFullYear();
+        const dateStr = `${dayNum} Tháng ${monthNum < 10 ? "0" + monthNum : monthNum}, ${yearNum}`;
+        const fullDateTime = `${timeRangeStr}, ${dateStr}`;
+
+        return {
+          id: st.id,
+          name: st.name,
+          dateStr,
+          timeStr: timeRangeStr,
+          fullDateTime,
+          dayNumber: dayNum,
+          monthNumber: monthNum,
+          yearNumber: yearNum,
+          isOpen: true,
+          tickets: defaultTickets,
+          saleStartTime: st.saleStartTime,
+          saleEndTime: st.saleEndTime,
+        };
+      });
     }
 
     const start = event.startTime ? new Date(event.startTime) : new Date(2026, 9, 17, 19, 0);
@@ -58,21 +119,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
       const dateStr = `${dayNum} Tháng ${monthNum < 10 ? "0" + monthNum : monthNum}, ${yearNum}`;
       const fullDateTime = `${timeRangeStr}, ${dateStr}`;
 
-      const eventAny = event as any;
-      const rawTickets = eventAny.tickets || eventAny.ticketTypes;
-      const tickets: TicketTier[] =
-        Array.isArray(rawTickets) && rawTickets.length > 0
-          ? rawTickets.map((t: any, tIdx: number) => ({
-            id: `t_${idx}_${tIdx}`,
-            name: t.name || "Vé Thường",
-            price: typeof t.price === "number" ? `${t.price.toLocaleString("vi-VN")} đ` : String(t.price || "0 đ"),
-            priceValue: typeof t.price === "number" ? t.price : 1000000,
-            available: t.totalQuantity ? t.totalQuantity > 0 : t.available !== false,
-          }))
-          : [
-            { id: `t_${idx}_vip`, name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
-            { id: `t_${idx}_std`, name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
-          ];
+      const tickets: TicketTier[] = defaultTickets;
 
       showtimeList.push({
         id: `st_${idx}_${curr.getTime()}`,
@@ -210,7 +257,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
           <div className="space-y-4">
             {showtimes.map((st) => {
               const isExpanded = expandedShowtimeId === st.id;
-              const hasAvailableTickets = st.tickets.some((t) => t.available);
+              const hasAvailableTickets = st.tickets ? st.tickets.some((t) => t.available) : true;
 
               return (
                 <div
@@ -235,9 +282,33 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     </div>
 
                     {(() => {
+                      const parseSafeDate = (dateVal: any): Date | null => {
+                        if (!dateVal) return null;
+                        if (Array.isArray(dateVal)) {
+                          const [y, m, d, h = 0, min = 0, s = 0] = dateVal;
+                          return new Date(y, m - 1, d, h, min, s);
+                        }
+                        const d = new Date(dateVal);
+                        if (isNaN(d.getTime())) return null;
+                        return d;
+                      };
                       const now = new Date();
-                      const saleStart = event.ticketSaleStartDate ? new Date(event.ticketSaleStartDate) : null;
+                      const saleStart = parseSafeDate((st as any).saleStartTime) || parseSafeDate(event.ticketSaleStartDate);
+                      const saleEnd = parseSafeDate((st as any).saleEndTime) || parseSafeDate(event.ticketSaleEndDate);
                       const isUpcoming = saleStart && now < saleStart;
+                      const isEnded = saleEnd && now > saleEnd;
+
+                      if (isEnded) {
+                        return (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-5 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-400 font-extrabold text-xs md:text-sm rounded-xl border border-slate-300 dark:border-zinc-700 cursor-not-allowed shrink-0"
+                          >
+                            {translate("Ngừng Bán vé")}
+                          </button>
+                        );
+                      }
 
                       if (isUpcoming) {
                         return (
@@ -258,7 +329,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               if (onSelectTicket) {
-                                onSelectTicket(st, st.tickets[0]);
+                                onSelectTicket(st, st.tickets ? st.tickets[0] : ({} as any));
                               } else {
                                 handleToggleShowtime(st.id);
                               }
@@ -290,7 +361,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                       </h4>
 
                       <div className="grid grid-cols-1 gap-2.5">
-                        {st.tickets.map((t) => (
+                        {st.tickets?.map((t) => (
                           <div
                             key={t.id}
                             className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${t.available
@@ -421,31 +492,76 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                   </span>
                 </h4>
 
-                {activeDayShowtimes.map((st) => (
-                  <div
-                    key={st.id}
-                    className="p-3.5 rounded-xl app-bg-card border app-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-                  >
-                    <div>
-                      <div className="font-extrabold text-sm app-text-main">{st.timeStr}</div>
-                      <div className="text-xs app-text-muted mt-0.5">
-                        {st.tickets.length} {translate("loại vé khả dụng")}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onSelectTicket && st.tickets && st.tickets[0]) {
-                          onSelectTicket(st, st.tickets[0]);
-                        }
-                      }}
-                      className="px-4 py-2 gradient-btn text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
+                {activeDayShowtimes.map((st) => {
+                  const parseSafeDate = (dateVal: any): Date | null => {
+                    if (!dateVal) return null;
+                    if (Array.isArray(dateVal)) {
+                      const [y, m, d, h = 0, min = 0, s = 0] = dateVal;
+                      return new Date(y, m - 1, d, h, min, s);
+                    }
+                    const d = new Date(dateVal);
+                    if (isNaN(d.getTime())) return null;
+                    return d;
+                  };
+                  const now = new Date();
+                  const saleStart = parseSafeDate((st as any).saleStartTime) || parseSafeDate(event.ticketSaleStartDate);
+                  const saleEnd = parseSafeDate((st as any).saleEndTime) || parseSafeDate(event.ticketSaleEndDate);
+                  const isUpcoming = saleStart && now < saleStart;
+                  const isEnded = saleEnd && now > saleEnd;
+                  const hasAvailableTickets = st.tickets ? st.tickets.some((t) => t.available) : true;
+                  
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-3.5 rounded-xl app-bg-card border app-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
                     >
-                      {translate("Mua vé ngay")}
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <div className="font-extrabold text-sm app-text-main">{st.timeStr}</div>
+                        <div className="text-xs app-text-muted mt-0.5">
+                          {st.tickets?.length || 0} {translate("loại vé khả dụng")}
+                        </div>
+                      </div>
+
+                      {isEnded ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-400 font-extrabold text-xs rounded-xl shadow-none cursor-not-allowed border border-slate-300 dark:border-zinc-700"
+                        >
+                          {translate("Ngừng Bán vé")}
+                        </button>
+                      ) : isUpcoming ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-brand-primary font-extrabold text-xs rounded-xl border border-brand-primary/30 cursor-not-allowed"
+                        >
+                          {translate("Sắp mở bán")}
+                        </button>
+                      ) : hasAvailableTickets ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onSelectTicket && st.tickets && st.tickets[0]) {
+                              onSelectTicket(st, st.tickets[0]);
+                            }
+                          }}
+                          className="px-4 py-2 gradient-btn text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
+                        >
+                          {translate("Mua vé ngay")}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-400 font-extrabold text-xs rounded-xl shadow-none cursor-not-allowed border border-slate-300 dark:border-zinc-700"
+                        >
+                          {translate("Đã hết vé")}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-slate-100 dark:bg-zinc-800/50 text-center text-xs md:text-sm app-text-muted">

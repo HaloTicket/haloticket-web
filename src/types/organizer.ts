@@ -6,10 +6,17 @@ export interface TicketItem {
   totalQuantity: number;
   minPerOrder: number;
   maxPerOrder: number;
-  startSaleDate: string;
-  endSaleDate: string;
   description: string;
   image?: string | null;
+}
+
+export interface ShowtimeItem {
+  id?: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  saleStartTime?: string;
+  saleEndTime?: string;
 }
 
 export interface CustomQuestionItem {

@@ -7,8 +7,6 @@ export interface TicketTypeApiRequest {
   totalQuantity?: number;
   minPerOrder?: number;
   maxPerOrder?: number;
-  startSaleDate?: string;
-  endSaleDate?: string;
   description?: string;
 }
 
@@ -21,8 +19,6 @@ export interface TicketTypeApiResponse {
   totalQuantity: number;
   minPerOrder: number;
   maxPerOrder: number;
-  startSaleDate?: string;
-  endSaleDate?: string;
   description?: string;
   status: string;
 }

@@ -6,28 +6,12 @@ import type { TicketItem } from "@/types/organizer";
 
 interface AddTicketModalProps {
   initialTicket?: TicketItem | null;
-  eventStartDate?: string;
-  eventEndDate?: string;
   onClose: () => void;
   onSave: (ticket: TicketItem) => void;
 }
 
-const formatDatetimeLocal = (dateStr?: string | null) => {
-  if (!dateStr) return "";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr.slice(0, 16).replace(" ", "T");
-    const pad = (n: number) => (n < 10 ? "0" + n : n);
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return dateStr.slice(0, 16).replace(" ", "T");
-  }
-};
-
 export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   initialTicket,
-  eventStartDate,
-  eventEndDate,
   onClose,
   onSave
 }) => {
@@ -38,8 +22,6 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   const [newTicketTotalQuantity, setNewTicketTotalQuantity] = useState(initialTicket?.totalQuantity ?? 100);
   const [newTicketMinOrder, setNewTicketMinOrder] = useState(initialTicket?.minPerOrder ?? 1);
   const [newTicketMaxOrder, setNewTicketMaxOrder] = useState(initialTicket?.maxPerOrder ?? 5);
-  const [newTicketStartSale, setNewTicketStartSale] = useState(formatDatetimeLocal(initialTicket?.startSaleDate) || "");
-  const [newTicketEndSale, setNewTicketEndSale] = useState(formatDatetimeLocal(initialTicket?.endSaleDate) || "");
   const [newTicketDescription, setNewTicketDescription] = useState(initialTicket?.description || "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -52,29 +34,6 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
       return;
     }
 
-    // start sale must be before end sale
-    if (newTicketStartSale && newTicketEndSale) {
-      if (new Date(newTicketEndSale) <= new Date(newTicketStartSale)) {
-        setErrorMsg(translate("Thời gian kết thúc bán vé phải diễn ra sau thời gian bắt đầu bán vé!"));
-        return;
-      }
-    }
-
-    // start sale must be before event start date
-    if (newTicketStartSale && eventStartDate) {
-      if (new Date(newTicketStartSale) >= new Date(eventStartDate)) {
-        setErrorMsg(translate("Thời gian bắt đầu bán vé phải diễn ra trước thời gian bắt đầu sự kiện!"));
-        return;
-      }
-    }
-
-    // end sale must be before event end date
-    if (newTicketEndSale && eventEndDate) {
-      if (new Date(newTicketEndSale) > new Date(eventEndDate)) {
-        setErrorMsg(translate("Thời gian kết thúc bán vé không thể diễn ra sau thời gian kết thúc sự kiện!"));
-        return;
-      }
-    }
 
     const created: TicketItem = {
       id: initialTicket?.id || Date.now().toString(),
@@ -84,8 +43,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
       totalQuantity: Number(newTicketTotalQuantity),
       minPerOrder: Number(newTicketMinOrder),
       maxPerOrder: Number(newTicketMaxOrder),
-      startSaleDate: newTicketStartSale,
-      endSaleDate: newTicketEndSale,
+
       description: newTicketDescription,
       image: initialTicket?.image || null
     };
@@ -189,27 +147,6 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
             </div>
           </div>
 
-          {/* Sale Dates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Ngày bắt đầu bán vé")}</label>
-              <input
-                type="datetime-local"
-                value={newTicketStartSale}
-                onChange={(e) => setNewTicketStartSale(e.target.value)}
-                className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border cursor-pointer"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Ngày kết thúc bán vé")}</label>
-              <input
-                type="datetime-local"
-                value={newTicketEndSale}
-                onChange={(e) => setNewTicketEndSale(e.target.value)}
-                className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border cursor-pointer"
-              />
-            </div>
-          </div>
 
           {/* Ticket Description */}
           <div className="space-y-1">

@@ -37,6 +37,20 @@ export const ticketApi = {
     }
   },
 
+  // get ticket types for a showtime
+  getTicketTypesByShowtimeId: async (showtimeId: string): Promise<TicketTypeApiResponse[]> => {
+    try {
+      const response: unknown = await axiosClient.get(`/tickets/types/showtime/${showtimeId}`);
+      if (Array.isArray(response)) {
+        return response as TicketTypeApiResponse[];
+      }
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch ticket types for showtime:", err);
+      return [];
+    }
+  },
+
   // sync/save ticket types for an event
   syncTicketTypesForEvent: async (eventId: string, requests: TicketTypeApiRequest[]): Promise<TicketTypeApiResponse[]> => {
     try {
@@ -94,9 +108,10 @@ export const ticketApi = {
   },
 
   // get realtime seat status map
-  getSeatStatus: async (eventId: string): Promise<Record<string, string>> => {
+  getSeatStatus: async (eventId: string, showtimeId?: string): Promise<Record<string, string>> => {
     try {
-      const response: unknown = await axiosClient.get(`/tickets/seat-status?eventId=${eventId}`);
+      const url = showtimeId ? `/tickets/seat-status?eventId=${eventId}&showtimeId=${showtimeId}` : `/tickets/seat-status?eventId=${eventId}`;
+      const response: unknown = await axiosClient.get(url);
       if (response && typeof response === "object") {
         return response as Record<string, string>;
       }

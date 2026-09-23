@@ -11,7 +11,7 @@ import {
 import { TablePagination } from "@/components/common/TablePagination";
 import { eventApi } from "@/services/eventApi";
 import * as XLSX from "xlsx";
-import { format } from "date-fns";
+
 import OrderDetailsModal from "./components/OrderDetailsModal";
 
 export const EventOrderList: React.FC = () => {
@@ -19,6 +19,7 @@ export const EventOrderList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showtimeId, setShowtimeId] = useState("");
+  const [isShowtimeDropdownOpen, setIsShowtimeDropdownOpen] = useState(false);
 
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -166,44 +167,59 @@ export const EventOrderList: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <select
-              value={showtimeId}
-              onChange={(e) => {
-                setShowtimeId(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2.5 text-xs font-bold bg-white dark:bg-slate-900 border-2 border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 app-text-main w-full sm:w-56 appearance-none cursor-pointer transition-all duration-200"
-              style={{ backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239ba3af%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 0.8rem top 50%", backgroundSize: "0.65rem auto" }}
-            >
-              <option value="">Tất cả suất diễn</option>
-              {(() => {
-                if (!eventDetails?.startTime || !eventDetails?.endTime) return null;
-                const start = new Date(eventDetails.startTime);
-                const end = new Date(eventDetails.endTime);
-                if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
-                
-                const showtimes = [];
-                let currentDate = new Date(start);
-                currentDate.setHours(0, 0, 0, 0);
-                
-                const endDate = new Date(end);
-                endDate.setHours(0, 0, 0, 0);
-                
-                let dayCount = 1;
-                while (currentDate <= endDate) {
-                  const dateStr = format(currentDate, "yyyy-MM-dd");
-                  const displayStr = format(currentDate, "dd/MM/yyyy");
-                  showtimes.push(
-                    <option key={dateStr} value={dateStr}>
-                      Suất {dayCount}: Ngày {displayStr}
-                    </option>
-                  );
-                  currentDate.setDate(currentDate.getDate() + 1);
-                  dayCount++;
-                }
-                return showtimes;
-              })()}
-            </select>
+            <div className="relative w-full sm:w-56">
+              <div 
+                className="px-4 py-2.5 text-xs font-bold app-bg-card border-2 border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 app-text-main cursor-pointer flex justify-between items-center transition-all duration-200"
+                onClick={() => setIsShowtimeDropdownOpen(!isShowtimeDropdownOpen)}
+              >
+                <span className="truncate">
+                  {showtimeId === "" 
+                    ? "Tất cả suất diễn" 
+                    : (eventDetails?.showtimes?.find((s: any) => s.id === showtimeId)?.name || 
+                       new Date(eventDetails?.showtimes?.find((s: any) => s.id === showtimeId)?.startTime).toLocaleString("vi-VN", {
+                         day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+                       }))
+                  }
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 transition-transform duration-200 ${isShowtimeDropdownOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+              
+              {isShowtimeDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsShowtimeDropdownOpen(false)}></div>
+                  <div className="absolute top-full right-0 mt-2 w-full min-w-[200px] app-bg-card border app-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div
+                      className={`px-4 py-3 text-xs cursor-pointer transition-colors ${showtimeId === "" ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
+                      onClick={() => {
+                        setShowtimeId("");
+                        setCurrentPage(1);
+                        setIsShowtimeDropdownOpen(false);
+                      }}
+                    >
+                      Tất cả suất diễn
+                    </div>
+                    {eventDetails?.showtimes?.map((st: any, idx: number) => {
+                      const displayStr = new Date(st.startTime).toLocaleString("vi-VN", {
+                        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+                      });
+                      return (
+                        <div
+                          key={st.id}
+                          className={`px-4 py-3 text-xs cursor-pointer transition-colors ${showtimeId === st.id ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
+                          onClick={() => {
+                            setShowtimeId(st.id);
+                            setCurrentPage(1);
+                            setIsShowtimeDropdownOpen(false);
+                          }}
+                        >
+                          Suất {idx + 1}: {st.name || displayStr}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

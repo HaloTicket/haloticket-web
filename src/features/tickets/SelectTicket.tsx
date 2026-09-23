@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
@@ -36,6 +36,12 @@ interface EventDetailData {
   thumbnailUrl?: string;
   coverImage?: string;
   image?: string;
+  showtimes?: Array<{
+    id: string;
+    name?: string;
+    startTime?: string;
+    endTime?: string;
+  }>;
   [key: string]: unknown;
 }
 
@@ -86,14 +92,17 @@ interface RawLayoutZone {
 export default function SelectTicket() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-
-
+  const [searchParams] = useSearchParams();
+  const showtimeIdFromUrl = searchParams.get("showtimeId");
   const [eventData, setEventData] = useState<EventDetailData | null>(null);
   const [ticketTypes, setTicketTypes] = useState<SeatTier[]>([]);
   const [seatMap, setSeatMap] = useState<SeatMapDocument | null>(null);
   const [seatStatusMap, setSeatStatusMap] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // showtime selection
+  const [selectedShowtimeId, setSelectedShowtimeId] = useState<string | null>(null);
 
   // cart of selected tickets from multiple zones
   const [cart, setCart] = useState<CartTicketItem[]>([]);
@@ -179,33 +188,19 @@ export default function SelectTicket() {
       try {
         setIsLoading(true);
         // 1. fetch event detail
-        const ev = await eventApi.getEventById(id!);
+        const ev = (await eventApi.getEventById(id!)) as EventDetailData | null;
         if (isMounted && ev) {
           setEventData(ev);
-        }
-
-        // 2. fetch ticket types
-        let mappedTiers: SeatTier[] = [];
-        const types = await ticketApi.getTicketTypesByEventId(id!);
-        if (types && types.length > 0) {
-          const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
-          mappedTiers = types.map((t: TicketTypeApiResponse, idx: number) => ({
-            id: t.id,
-            name: t.name || "Vé Thường",
-            price: t.price || 0,
-            color: colors[idx % colors.length],
-            isFree: t.isFree ?? t.price === 0,
-            totalQuantity: t.totalQuantity ?? 100,
-            minPerOrder: t.minPerOrder ?? 1,
-            maxPerOrder: t.maxPerOrder ?? 5,
-            startSaleDate: t.startSaleDate,
-            endSaleDate: t.endSaleDate,
-            description: t.description || "",
-          }));
-          if (isMounted) {
-            setTicketTypes(mappedTiers);
+          if (ev.showtimes && Array.isArray(ev.showtimes) && ev.showtimes.length > 0) {
+            if (showtimeIdFromUrl && ev.showtimes.some(st => st.id === showtimeIdFromUrl)) {
+              setSelectedShowtimeId(showtimeIdFromUrl);
+            } else {
+              setSelectedShowtimeId(ev.showtimes[0].id);
+            }
           }
         }
+
+        const mappedTiers: SeatTier[] = [];
 
         // 3. fetch seat layout from backend DB or localStorage or fallback to preset
         let doc: SeatMapDocument | null = null;
@@ -270,11 +265,7 @@ export default function SelectTicket() {
           }
         }
 
-        // 4. fetch realtime seat status map
-        const statusData = await ticketApi.getSeatStatus(id!);
-        if (isMounted && statusData) {
-          setSeatStatusMap(statusData);
-        }
+        // 4. seat status is now fetched in the showtime effect
       } catch (err) {
         console.warn("Failed loading ticket selection data:", err);
       } finally {
@@ -283,6 +274,58 @@ export default function SelectTicket() {
     }
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!selectedShowtimeId || !id) return;
+    let isMounted = true;
+
+    async function loadShowtimeData() {
+      // fetch ticket types for this showtime
+      let types = await ticketApi.getTicketTypesByShowtimeId(selectedShowtimeId!);
+      if (!types || types.length === 0) {
+        types = await ticketApi.getTicketTypesByEventId(id!);
+      }
+      if (isMounted) {
+        if (types && types.length > 0) {
+          const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
+          const mappedTiers = types.map((t: TicketTypeApiResponse, idx: number) => ({
+            id: t.id,
+            name: t.name || "Vé Thường",
+            price: t.price || 0,
+            color: colors[idx % colors.length],
+            isFree: t.isFree ?? t.price === 0,
+            totalQuantity: t.totalQuantity ?? 100,
+            minPerOrder: t.minPerOrder ?? 1,
+            maxPerOrder: t.maxPerOrder ?? 5,
+
+            description: t.description || "",
+          }));
+          setTicketTypes(mappedTiers);
+        } else {
+          setTicketTypes([]);
+        }
+      }
+
+      // get realtime seat status for this showtime
+      const statusMap = await ticketApi.getSeatStatus(id!, selectedShowtimeId!);
+      if (isMounted) {
+        setSeatStatusMap(statusMap);
+      }
+    }
+
+    loadShowtimeData();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, selectedShowtimeId]);
+
+  useEffect(() => {
+    if (!id) return;
 
     // setup WebSocket STOMP client for real-time seat status updates
     const stompClient = new Client({
@@ -314,7 +357,6 @@ export default function SelectTicket() {
     stompClient.activate();
 
     return () => {
-      isMounted = false;
       stompClient.deactivate();
     };
   }, [id]);
@@ -329,8 +371,11 @@ export default function SelectTicket() {
   const priceLegend = useMemo(() => {
     if (zonesList.length > 0) {
       return zonesList.map((z, idx) => {
-        const tier = ticketTypes.find((t) => t.id === z.tierId);
-        const price = z.price ?? tier?.price ?? 1000000 + (idx % 4) * 500000;
+        const tier = ticketTypes.find((t) => t.id === z.tierId) || 
+          ticketTypes.find(t => t.name.trim().toLowerCase() === (z.name || "").trim().toLowerCase()) || 
+          ticketTypes.find(t => (z.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase())) || 
+          (ticketTypes.length === 1 ? ticketTypes[0] : undefined);
+        const price = tier?.price !== undefined ? tier.price : (z.price ?? 0);
         const colors = ["#f59e0b", "#9333ea", "#2563eb", "#10b981", "#f97316", "#ec4899", "#475569", "#06b6d4"];
         const color = z.color || tier?.color || colors[idx % colors.length];
         return {
@@ -407,8 +452,11 @@ export default function SelectTicket() {
       }
     }
 
-    const tier = ticketTypes.find((t) => t.id === zone.tierId);
-    const price = zone.price ?? tier?.price ?? 1000000;
+    const tier = ticketTypes.find((t) => t.id === zone.tierId) || 
+      ticketTypes.find(t => t.name.trim().toLowerCase() === (zone.name || "").trim().toLowerCase()) || 
+      ticketTypes.find(t => (zone.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase())) || 
+      (ticketTypes.length === 1 ? ticketTypes[0] : undefined);
+    const price = tier?.price !== undefined ? tier.price : (zone.price ?? 0);
     const minQty = tier?.minPerOrder || 1;
 
     const existingInCart = cart.find((item) => item.zoneId === zone.id);
@@ -464,7 +512,9 @@ export default function SelectTicket() {
 
       // select seat
       const zone = seatMap?.zones?.[seat.zoneId] || (seatMap?.zones && Object.values(seatMap.zones).find((z: any) => z.id === seat.zoneId || z.name === seat.zoneId));
-      const tier = ticketTypes.find((t) => t.id === zone?.tierId);
+      const tier = ticketTypes.find((t) => t.id === zone?.tierId) || 
+        ticketTypes.find(t => t.name.trim().toLowerCase() === (zone?.name || "").trim().toLowerCase()) ||
+        ticketTypes.find(t => (zone?.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase()));
       const maxQty = tier?.maxPerOrder || zone?.maxPerOrder || 4;
 
       const currentZoneSeatsCount = selectedSeatObjects.filter((s) => s.zoneId === seat.zoneId || s.zoneId === zone?.id).length;
@@ -476,7 +526,7 @@ export default function SelectTicket() {
       const updatedSeats = [...selectedSeatObjects, seat];
       setSelectedSeatObjects(updatedSeats);
 
-      const price = zone?.price ?? tier?.price ?? 1000000;
+      const price = tier?.price !== undefined ? tier.price : (zone?.price ?? 1000000);
       const zoneId = zone?.id || seat.zoneId || "zone_default";
       const zoneName = zone?.name || seat.zoneId || "Khu vực có ghế";
 
@@ -508,7 +558,9 @@ export default function SelectTicket() {
     setErrorMessage(null);
     if (!activeZoneModal) return;
 
-    const tier = ticketTypes.find((t) => t.id === activeZoneModal.tierId);
+    const tier = ticketTypes.find((t) => t.id === activeZoneModal.tierId) ||
+      ticketTypes.find(t => t.name.trim().toLowerCase() === (activeZoneModal.name || "").trim().toLowerCase()) ||
+      ticketTypes.find(t => (activeZoneModal.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase()));
     const maxQty = tier?.maxPerOrder || activeZoneModal.maxPerOrder || 4;
     const minQty = tier?.minPerOrder || activeZoneModal.minPerOrder || 1;
 
@@ -522,7 +574,7 @@ export default function SelectTicket() {
       return;
     }
 
-    const price = activeZoneModal.price ?? tier?.price ?? 1000000;
+    const price = tier?.price !== undefined ? tier.price : (activeZoneModal.price ?? 1000000);
 
     setCart((prevCart) => {
       const exists = prevCart.some((item) => item.zoneId === activeZoneModal.id);
@@ -599,7 +651,7 @@ export default function SelectTicket() {
       setIsLoading(true);
       try {
         const holdResults = await Promise.all(
-          selectedSeatObjects.map((s) => bookingApi.holdSeat({ eventId: id!, seatId: s.id, userId: userId! }))
+          selectedSeatObjects.map((s) => bookingApi.holdSeat({ eventId: id!, showtimeId: selectedShowtimeId!, seatId: s.id, userId: userId! }))
         );
         const allSuccess = holdResults.every((res) => res === true);
         if (!allSuccess) {
@@ -639,6 +691,7 @@ export default function SelectTicket() {
 
     const bookingPayload = {
       eventId: id,
+      showtimeId: selectedShowtimeId,
       eventTitle: eventData?.title || "Sự kiện HaloTicket 2026",
       eventTime: eventData?.startTime
         ? `${new Date(eventData.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date(eventData.startTime).toLocaleDateString("vi-VN")}`
@@ -680,7 +733,7 @@ export default function SelectTicket() {
     };
 
     localStorage.setItem("haloticket_pending_order", JSON.stringify(bookingPayload));
-    navigate(`/checkout?eventId=${id}&qty=${cartTotalTickets}`);
+    navigate(`/checkout?eventId=${id}&showtimeId=${selectedShowtimeId}&qty=${cartTotalTickets}`);
   };
 
   if (isLoading) {
@@ -797,6 +850,41 @@ export default function SelectTicket() {
                 </div>
               </div>
             </div>
+
+            {/* Showtime Selection Tabs (Only show if not pre-selected from URL) */}
+            {!showtimeIdFromUrl && eventData?.showtimes && eventData.showtimes.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <h3 className="text-xs font-black app-text-main uppercase tracking-wider flex items-center gap-1.5">
+                  <FiCalendar className="w-4 h-4" />
+                  <span>Chọn Suất Diễn</span>
+                </h3>
+                <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto custom-scrollbar">
+                  {eventData.showtimes.map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => {
+                        setSelectedShowtimeId(st.id);
+                        setCart([]);
+                        setSelectedSeatObjects([]);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                        selectedShowtimeId === st.id
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "app-bg-main app-text-main app-border hover:border-blue-500 hover:text-blue-500"
+                      }`}
+                    >
+                      {st.name || new Date(st.startTime!).toLocaleString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric"
+                      })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Selected Tickets Cart List */}
             {cart.length > 0 && (
@@ -991,7 +1079,7 @@ export default function SelectTicket() {
             <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between text-xs">
               <span className="font-extrabold app-text-sub">Giá mở bán / vé:</span>
               <span className="font-black text-blue-600 dark:text-blue-400 text-sm font-mono">
-                {formatCurrency(activeZoneModal.price ?? 1000000)}
+                {formatCurrency(activeZoneModal.price ?? 0)}
               </span>
             </div>
 
@@ -1024,7 +1112,7 @@ export default function SelectTicket() {
             <div className="flex items-center justify-between pt-2 border-t app-border text-xs font-bold">
               <span className="app-text-sub">Tổng giá trị khu vực:</span>
               <span className="text-base font-black text-blue-600 dark:text-blue-400 font-mono">
-                {formatCurrency((activeZoneModal.price ?? 1000000) * selectedQuantity)}
+                {formatCurrency((activeZoneModal.price ?? 0) * selectedQuantity)}
               </span>
             </div>
 

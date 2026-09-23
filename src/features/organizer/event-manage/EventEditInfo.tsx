@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors } from "@/types/organizer";
+import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors, ShowtimeItem } from "@/types/organizer";
 import CreateEventStepper from "@/features/organizer/components/create-event/CreateEventStepper";
 import Step1EventInfo from "@/features/organizer/components/create-event/Step1EventInfo";
 import Step2TicketsAndTime from "@/features/organizer/components/create-event/Step2TicketsAndTime";
@@ -108,8 +108,74 @@ export const EventEditInfo: React.FC = () => {
   const [taxName, setTaxName] = useState("");
   const [taxAddress, setTaxAddress] = useState("");
   const [taxCode, setTaxCode] = useState("");
+  const [showtimes, setShowtimes] = useState<ShowtimeItem[]>([]);
 
-  // Auto-clamp currentStep if enableCustomQuestions changes
+  useEffect(() => {
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (start <= end) {
+        const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        const newShowtimes: ShowtimeItem[] = [];
+        
+        if (diffHours >= 24) {
+          let currentDate = new Date(start);
+          let dayCount = 1;
+          while (currentDate < end) {
+            const currentEndTime = new Date(currentDate);
+            currentEndTime.setHours(end.getHours(), end.getMinutes(), 0, 0);
+            if (currentEndTime < currentDate) {
+              currentEndTime.setDate(currentEndTime.getDate() + 1);
+            }
+            if (currentEndTime > end) currentEndTime.setTime(end.getTime());
+            
+            const displayStr = currentDate.toLocaleDateString("vi-VN", {
+              day: "2-digit", month: "2-digit", year: "numeric"
+            });
+            const stStr = formatDatetimeLocal(currentDate.toISOString()) || "";
+            const etStr = formatDatetimeLocal(currentEndTime.toISOString()) || "";
+
+            newShowtimes.push({
+              id: Date.now().toString() + Math.random().toString(),
+              name: `Suất ${dayCount}: Ngày ${displayStr}`,
+              startTime: stStr,
+              endTime: etStr,
+              saleStartTime: "",
+              saleEndTime: ""
+            });
+            
+            currentDate.setDate(currentDate.getDate() + 1);
+            currentDate.setHours(start.getHours(), start.getMinutes(), 0, 0);
+            dayCount++;
+          }
+        } else {
+          const startStr = startDate.length === 16 ? startDate + ":00" : startDate;
+          const endStr = endDate.length === 16 ? endDate + ":00" : endDate;
+          
+          newShowtimes.push({
+            id: Date.now().toString(),
+            name: "Suất 1",
+            startTime: startStr,
+            endTime: endStr,
+            saleStartTime: "",
+            saleEndTime: ""
+          });
+        }
+        
+        setShowtimes(prev => newShowtimes.map(ns => {
+           const existing = prev.find(p => p.name === ns.name);
+           if (existing) {
+             return { ...ns, saleStartTime: existing.saleStartTime, saleEndTime: existing.saleEndTime, id: existing.id };
+           }
+           return ns;
+        }));
+      }
+    } else {
+      setShowtimes([]);
+    }
+  }, [startDate, endDate]);
+
+  // auto-clamp currentStep if enableCustomQuestions changes
   const totalSteps = enableCustomQuestions ? 5 : 4;
   useEffect(() => {
     if (!enableCustomQuestions && currentStep > 4) {
@@ -137,6 +203,7 @@ export const EventEditInfo: React.FC = () => {
       organizerLogo: overrides?.organizerLogo ?? organizerLogo,
       startDate: overrides?.startDate ?? startDate,
       endDate: overrides?.endDate ?? endDate,
+      showtimes: overrides?.showtimes ?? showtimes,
       tickets: overrides?.tickets ?? tickets,
       isPrivate: overrides?.isPrivate ?? isPrivate,
       confirmationMessage: overrides?.confirmationMessage ?? confirmationMessage,
@@ -154,8 +221,8 @@ export const EventEditInfo: React.FC = () => {
     });
   };
 
-  // Load ALL existing event data if eventId is available
-  // Fetches payout account from payment-service (/api/payments/organizer-payout-account) and event details from event-service
+  // load ALL existing event data if eventId is available
+  // fetches payout account from payment-service (/api/payments/organizer-payout-account) and event details from event-service
   useEffect(() => {
     if (!eventId) return;
     let isMounted = true;
@@ -165,7 +232,7 @@ export const EventEditInfo: React.FC = () => {
         const cachedUser = getCachedUserProfile();
         const currentUserId = cachedUser?.id || cachedUser?.keycloakId;
 
-        // 1. Fetch real payout account from payment-service via organizerApi
+        // 1. fetch real payout account from payment-service via organizerApi
         let payoutAccount: any = null;
         let orgProfile: any = null;
         if (currentUserId) {
@@ -181,11 +248,11 @@ export const EventEditInfo: React.FC = () => {
           }
         }
 
-        // 2. Fetch event details from event-service via eventApi
+        // 2. fetch event details from event-service via eventApi
         const ev: any = await eventApi.getEventById(eventId);
         if (!isMounted || !ev) return;
 
-        // Step 1 fields
+        // step 1 fields
         const loadedTitle = ev.title || "Sự kiện HaloTicket";
         const loadedCategory = ev.categoryName || ev.category || "Nhạc sống";
         const loadedLocType = (ev.locationType as "offline" | "online") || "offline";
@@ -208,26 +275,46 @@ export const EventEditInfo: React.FC = () => {
           }
         }
 
-        // Organizer fields (with fallback from organizerApi profile or cached user)
+        // organizer fields (with fallback from organizerApi profile or cached user)
         const loadedOrgName = ev.organizerName || ev.organizer?.name || orgProfile?.name || orgProfile?.organizerName || cachedUser?.fullName || "";
         const loadedOrgInfo = ev.organizerInfo || ev.organizer?.description || orgProfile?.description || "";
         const loadedOrgLogo = ev.organizerLogo || ev.organizer?.avatar || orgProfile?.avatar || orgProfile?.organizerLogo || null;
 
-        // Step 2: dates & tickets
+        // step 2: dates & tickets
         const loadedStart = ev.startTime || ev.startDate ? formatDatetimeLocal((ev.startTime || ev.startDate) as string) : "";
         const loadedEnd = ev.endTime || ev.endDate ? formatDatetimeLocal((ev.endTime || ev.endDate) as string) : "";
 
+        if (Array.isArray(ev.showtimes) && ev.showtimes.length > 0) {
+          const mappedShowtimes = ev.showtimes.map((st: any) => ({
+            id: st.id || Date.now().toString(),
+            name: st.name || "Suất diễn",
+            startTime: st.startTime ? formatDatetimeLocal(st.startTime) : "",
+            endTime: st.endTime ? formatDatetimeLocal(st.endTime) : "",
+            saleStartTime: st.saleStartTime ? formatDatetimeLocal(st.saleStartTime) : "",
+            saleEndTime: st.saleEndTime ? formatDatetimeLocal(st.saleEndTime) : ""
+          }));
+          setShowtimes(mappedShowtimes);
+        }
+
         let loadedTickets: TicketItem[] = [];
         const rawT = ev.ticketCategories || ev.tickets;
+        let parsedRawT: any[] = [];
         if (typeof rawT === "string") {
           try {
             const parsed = JSON.parse(rawT);
-            if (Array.isArray(parsed)) loadedTickets = parsed;
+            if (Array.isArray(parsed)) parsedRawT = parsed;
           } catch {
             // ignore
           }
-        } else if (Array.isArray(rawT) && rawT.length > 0) {
-          loadedTickets = rawT.map((tc: any, i: number) => ({
+        } else if (Array.isArray(rawT)) {
+          parsedRawT = rawT;
+        }
+
+        if (parsedRawT.length > 0) {
+          const uniqueRawT = parsedRawT.filter((tc: any, index: number, self: any[]) =>
+            index === self.findIndex((t: any) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
+          );
+          loadedTickets = uniqueRawT.map((tc: any, i: number) => ({
             id: String(tc.id || `tc_${i}_${Date.now()}`),
             name: tc.name || "Hạng vé",
             price: typeof tc.price === "number" ? tc.price : (parseFloat(String(tc.price).replace(/[^0-9]/g, "")) || 0),
@@ -235,18 +322,16 @@ export const EventEditInfo: React.FC = () => {
             totalQuantity: tc.totalQuantity ?? tc.quantity ?? 100,
             minPerOrder: tc.minPerOrder ?? 1,
             maxPerOrder: tc.maxPerOrder ?? 5,
-            startSaleDate: tc.startSaleDate || tc.start_sale_date || "",
-            endSaleDate: tc.endSaleDate || tc.end_sale_date || "",
             description: tc.description || "",
           }));
         }
 
-        // Step 3: Settings
+        // step 3: Settings
         const loadedIsPrivate = typeof ev.isPrivate === "boolean" ? ev.isPrivate : false;
         const loadedConfMsg = ev.confirmationMessage || "";
         const loadedEnableQuestions = typeof ev.enableCustomQuestions === "boolean" ? ev.enableCustomQuestions : false;
 
-        // Step 4: Questions
+        // step 4: Questions
         const loadedQScope = ev.questionScope || "order";
         let loadedQuestions: CustomQuestionItem[] = [];
         const rawQ = ev.customQuestions || ev.questions;
@@ -261,7 +346,7 @@ export const EventEditInfo: React.FC = () => {
           loadedQuestions = rawQ;
         }
 
-        // Step 5: Real Payment & VAT Invoice fields loaded directly from event-service & payment-service
+        // step 5: Real Payment & VAT Invoice fields loaded directly from event-service & payment-service
         const loadedAccHolder =
           ev.accountHolder ||
           ev.bankAccountHolder ||
@@ -349,7 +434,7 @@ export const EventEditInfo: React.FC = () => {
         setRejectionNotesText(noteTextParsed);
         setRejectedFields(loadedRejectedFields);
 
-        // Update React Form States with authentic data from backend services
+        // update React Form States with authentic data from backend services
         setTitle(loadedTitle);
         setCategory(loadedCategory);
         setLocationType(loadedLocType);
@@ -385,7 +470,7 @@ export const EventEditInfo: React.FC = () => {
         setTaxAddress(loadedTaxAddress);
         setTaxCode(loadedTaxCode);
 
-        // Build Initial Snapshot
+        // build initial snapshot
         const snap = JSON.stringify({
           title: loadedTitle,
           category: loadedCategory,
@@ -430,7 +515,7 @@ export const EventEditInfo: React.FC = () => {
     };
   }, [eventId]);
 
-  // Dynamic step titles based on enableCustomQuestions
+  // dynamic step titles based on enableCustomQuestions
   const stepTitles = enableCustomQuestions
     ? [
         "1. Thông tin sự kiện",
@@ -499,7 +584,7 @@ export const EventEditInfo: React.FC = () => {
     setQuestions((prev) => prev.filter((q) => q.id !== qId));
   };
 
-  // Update Event Info handler (Only saves & notifies admin if data actually changed!)
+  // update event info handler (only saves & notifies admin if data actually changed!)
   const handleUpdateEvent = async () => {
     const currentSnap = getFormSnapshotString();
 
@@ -534,6 +619,7 @@ export const EventEditInfo: React.FC = () => {
         organizerLogo: uploadedLogo,
         startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
         endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
+        showtimes: showtimes.length > 0 ? showtimes : undefined,
         ticketCategories: tickets,
         tickets,
         isPrivate,
@@ -553,7 +639,7 @@ export const EventEditInfo: React.FC = () => {
         status: eventStatus,
       };
 
-      // 1. Update event details in event-service
+      // 1. update event details in event-service
       const eventApiWithUpdate = eventApi as unknown as { updateEvent?: (id: string, p: unknown) => Promise<unknown> };
       if (eventId && typeof eventApiWithUpdate.updateEvent === "function") {
         await eventApiWithUpdate.updateEvent(eventId, payload);
@@ -561,7 +647,7 @@ export const EventEditInfo: React.FC = () => {
         await eventApi.createEventApprovalRequest(payload);
       }
 
-      // 2. Save/Sync payout account in payment-service directly
+      // 2. save/sync payout account in payment-service directly
       const cachedUser = getCachedUserProfile();
       const currentUserId = cachedUser?.id || cachedUser?.keycloakId;
       if (accountHolder && accountNumber) {
@@ -578,7 +664,7 @@ export const EventEditInfo: React.FC = () => {
         });
       }
 
-      // 3. Publish real-time notification to Admin
+      // 3. publish real-time notification to Admin
       await notificationApi.publishNotification({
         userId: "ADMIN",
         type: "EVENT_UPDATED",
@@ -586,10 +672,10 @@ export const EventEditInfo: React.FC = () => {
         message: `Sự kiện "${title}" đã được Ban tổ chức cập nhật thông tin.`,
       });
 
-      // 4. Update initial snapshot to match current state
+      // 4. update initial snapshot to match current state
       setInitialSnapshot(currentSnap);
 
-      // 5. Show success Toast for Organizer
+      // 5. show success toast for organizer
       showToast("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin.", "success");
     } catch (err) {
       console.error("Failed to update event details:", err);
@@ -753,6 +839,8 @@ export const EventEditInfo: React.FC = () => {
           endDate={endDate}
           setEndDate={setEndDate}
           tickets={tickets}
+          showtimes={showtimes}
+          setShowtimes={setShowtimes}
           errors={step2Errors}
           onOpenAddTicketModal={() => {
             setEditingTicket(null);
@@ -827,8 +915,6 @@ export const EventEditInfo: React.FC = () => {
       {showAddTicketModal && (
         <AddTicketModal
           initialTicket={editingTicket}
-          eventStartDate={startDate}
-          eventEndDate={endDate}
           onClose={() => {
             setShowAddTicketModal(false);
             setEditingTicket(null);

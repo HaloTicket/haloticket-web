@@ -20,48 +20,99 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
 
   const salesStatus = React.useMemo(() => {
     const now = new Date();
-    const saleStart = event.ticketSaleStartDate ? new Date(event.ticketSaleStartDate) : null;
-    const saleEnd = event.ticketSaleEndDate ? new Date(event.ticketSaleEndDate) : null;
+    
+    const parseSafeDate = (dateVal: any): Date | null => {
+      if (!dateVal) return null;
+      if (Array.isArray(dateVal)) {
+        const [y, m, d, h = 0, min = 0, s = 0] = dateVal;
+        return new Date(y, m - 1, d, h, min, s);
+      }
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return null;
+      return d;
+    };
+    
+    // fallbacks to global sale times if needed
+    const globalSaleStart = parseSafeDate(event.ticketSaleStartDate);
+    const globalSaleEnd = parseSafeDate(event.ticketSaleEndDate);
 
-    if (saleStart && now < saleStart) {
-      return { isClosed: true, buttonText: translate("Chưa mở bán") };
-    }
-    if (saleEnd && now > saleEnd) {
-      return { isClosed: true, buttonText: translate("Đã hết hạn bán vé") };
-    }
-
-    const rawTickets = (event as any).tickets || (event as any).ticketTypes;
-    let totalAvailable = 0;
-    let hasTicketData = false;
-
-    if (Array.isArray(rawTickets) && rawTickets.length > 0) {
-      hasTicketData = true;
-      rawTickets.forEach((t: any) => {
-        const q = t.totalQuantity ?? t.quantity ?? 100;
-        const s = t.soldQuantity ?? 0;
-        if (t.available !== false && q - s > 0) {
-          totalAvailable += q - s;
-        }
-      });
-    }
+    let hasAnyShowtimeUpcoming = false;
+    let hasAnyShowtimeOnSale = false;
+    let hasAnyTicketsAvailable = false;
+    let earliestSaleStart: Date | null = null;
 
     if (Array.isArray(event.showtimes) && event.showtimes.length > 0) {
-      hasTicketData = true;
       event.showtimes.forEach((st: any) => {
+        const saleStart = parseSafeDate(st.saleStartTime) || globalSaleStart;
+        const saleEnd = parseSafeDate(st.saleEndTime) || globalSaleEnd;
+        const isUpcoming = saleStart && now < saleStart;
+        const isEnded = saleEnd && now > saleEnd;
+        const isActive = !isUpcoming && !isEnded;
+
+        if (isUpcoming) hasAnyShowtimeUpcoming = true;
+        if (isActive) hasAnyShowtimeOnSale = true;
+        
+        if (isUpcoming && saleStart) {
+          if (!earliestSaleStart || saleStart < earliestSaleStart) {
+            earliestSaleStart = saleStart;
+          }
+        }
+
+        // check ticket availability for this showtime
         if (Array.isArray(st.tickets)) {
           st.tickets.forEach((t: any) => {
-            if (t.available) totalAvailable += 1;
+            const q = t.totalQuantity ?? t.quantity ?? 100;
+            const s = t.soldQuantity ?? 0;
+            if (t.available !== false && q - s > 0) {
+              hasAnyTicketsAvailable = true;
+            }
           });
+        } else {
+          // if no specific tickets attached, assume available if showtime is active
+          hasAnyTicketsAvailable = true;
         }
       });
+    } else {
+      // no showtimes, fallback to global checking
+      const isUpcoming = globalSaleStart && now < globalSaleStart;
+      const isEnded = globalSaleEnd && now > globalSaleEnd;
+      if (isUpcoming) {
+        hasAnyShowtimeUpcoming = true;
+        earliestSaleStart = globalSaleStart;
+      }
+      if (!isUpcoming && !isEnded) hasAnyShowtimeOnSale = true;
+
+      const rawTickets = (event as any).tickets || (event as any).ticketTypes;
+      if (Array.isArray(rawTickets) && rawTickets.length > 0) {
+        rawTickets.forEach((t: any) => {
+          const q = t.totalQuantity ?? t.quantity ?? 100;
+          const s = t.soldQuantity ?? 0;
+          if (t.available !== false && q - s > 0) {
+            hasAnyTicketsAvailable = true;
+          }
+        });
+      }
     }
 
-    const isSoldOut = (event as any).isSoldOut || (hasTicketData && totalAvailable === 0);
+    const isSoldOut = (event as any).isSoldOut || (!hasAnyTicketsAvailable && !hasAnyShowtimeUpcoming);
+
     if (isSoldOut) {
       return { isClosed: true, buttonText: translate("Đã hết vé") };
     }
 
-    return { isClosed: false, buttonText: translate("Mua vé ngay") };
+    if (hasAnyShowtimeOnSale) {
+      return { isClosed: false, buttonText: translate("Mua vé ngay") };
+    }
+
+    if (hasAnyShowtimeUpcoming && earliestSaleStart) {
+      return {
+        isClosed: true,
+        buttonText: `${translate("Chưa mở bán")} (${earliestSaleStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${earliestSaleStart.toLocaleDateString("vi-VN")})`,
+      };
+    }
+
+    // default catch-all
+    return { isClosed: true, buttonText: translate("Ngừng Bán vé") };
   }, [event]);
 
   return (

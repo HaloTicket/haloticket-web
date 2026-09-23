@@ -135,7 +135,18 @@ export const eventApi = {
     }
   },
 
-  // Member Management APIs
+  // voucher management
+  getVouchersByEventId: async (eventId: string): Promise<any[]> => {
+    try {
+      const response = await axiosClient.get(`/events/${eventId}/vouchers`);
+      return Array.isArray(response) ? response : [];
+    } catch (err) {
+      console.warn("Failed to get vouchers:", err);
+      return [];
+    }
+  },
+
+  // member management APIs
   getEventMembers: async (eventId: string): Promise<any[]> => {
     try {
       const response = await axiosClient.get(`/events/${eventId}/members`);
@@ -203,13 +214,12 @@ export const eventApi = {
       return null;
     }
   },
-
   getEventAnalytics: async (eventId: string, timeRange: "24h" | "30d" = "30d"): Promise<any> => {
     try {
       const response = await axiosClient.get(`/events/${eventId}/analytics`, {
         params: { timeRange }
       });
-      return response;
+      return response.data || response;
     } catch (err) {
       console.error("Failed to get event analytics:", err);
       throw err;

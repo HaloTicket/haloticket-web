@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiPlus, FiTrash2, FiEdit2, FiTag, FiClock, FiInfo, FiCalendar, FiDollarSign, FiChevronRight } from 'react-icons/fi';
+import { FiX, FiPlus, FiTrash2, FiEdit2, FiTag, FiClock, FiInfo, FiDollarSign, FiChevronRight } from 'react-icons/fi';
 import type { SeatTier, TierManagerModalProps } from '@/types/seating';
 
 export const TierManagerModal: React.FC<TierManagerModalProps> = ({
@@ -20,8 +20,6 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   const [totalQuantity, setTotalQuantity] = useState<number>(100);
   const [minPerOrder, setMinPerOrder] = useState<number>(1);
   const [maxPerOrder, setMaxPerOrder] = useState<number>(5);
-  const [startSaleDate, setStartSaleDate] = useState<string>('');
-  const [endSaleDate, setEndSaleDate] = useState<string>('');
   const [description, setDescription] = useState('');
 
   useEffect(() => {
@@ -40,38 +38,9 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setTotalQuantity(100);
     setMinPerOrder(1);
     setMaxPerOrder(5);
-    setStartSaleDate('');
-    setEndSaleDate('');
     setDescription('');
   };
 
-  const formatForDateTimeLocal = (dateVal?: any): string => {
-    if (!dateVal) return '';
-    if (Array.isArray(dateVal)) {
-      const [y, m, d, h = 0, min = 0] = dateVal;
-      const pad = (num: number) => String(num).padStart(2, '0');
-      return `${y}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(min)}`;
-    }
-    let str = String(dateVal).trim();
-    if (!str) return '';
-
-    str = str.replace(' ', 'T');
-    const match = str.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
-    if (match) {
-      return `${match[1]}T${match[2]}`;
-    }
-    const dateOnlyMatch = str.match(/^(\d{4}-\d{2}-\d{2})$/);
-    if (dateOnlyMatch) {
-      return `${dateOnlyMatch[1]}T00:00`;
-    }
-
-    const d = new Date(str);
-    if (!isNaN(d.getTime())) {
-      const pad = (num: number) => String(num).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    return '';
-  };
 
   const handleStartEdit = (tier: SeatTier) => {
     setEditingTierId(tier.id);
@@ -81,8 +50,6 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setTotalQuantity(tier.totalQuantity ?? 100);
     setMinPerOrder(tier.minPerOrder ?? 1);
     setMaxPerOrder(tier.maxPerOrder ?? 5);
-    setStartSaleDate(formatForDateTimeLocal(tier.startSaleDate));
-    setEndSaleDate(formatForDateTimeLocal(tier.endSaleDate));
     setDescription(tier.description || '');
   };
 
@@ -99,8 +66,6 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
       totalQuantity: Number(totalQuantity) || 100,
       minPerOrder: Number(minPerOrder) || 1,
       maxPerOrder: Number(maxPerOrder) || 5,
-      startSaleDate: startSaleDate || undefined,
-      endSaleDate: endSaleDate || undefined,
       description: description.trim(),
     };
 
@@ -252,17 +217,6 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                           <strong className="app-text-main font-mono font-bold">{tier.minPerOrder ?? 1} - {tier.maxPerOrder ?? 5} vé</strong>
                         </div>
 
-                        {(tier.startSaleDate || tier.endSaleDate) && (
-                          <div className="flex flex-col gap-0.5 text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-xl border border-amber-200 dark:border-amber-800/60 mt-1">
-                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
-                              <FiCalendar className="w-3 h-3 text-amber-500" /> Thời gian mở bán:
-                            </span>
-                            <span className="font-mono text-[10px] font-bold">
-                              {tier.startSaleDate ? tier.startSaleDate.replace('T', ' ') : 'Bắt đầu ngay'} ⟶ {tier.endSaleDate ? tier.endSaleDate.replace('T', ' ') : 'Hết vé'}
-                            </span>
-                          </div>
-                        )}
-
                         {tier.description && (
                           <div className="app-text-main text-[11px] italic app-bg-card p-2 rounded-xl border app-border mt-1">
                             "{tier.description}"
@@ -374,28 +328,6 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                         value={maxPerOrder}
                         onChange={(e) => setMaxPerOrder(Number(e.target.value))}
                         className="w-full px-3 py-2 rounded-xl app-bg-card border app-border text-xs font-mono font-bold text-center app-text-main"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dates Row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold app-text-muted mb-1">Ngày bắt đầu bán vé *</label>
-                      <input
-                        type="datetime-local"
-                        value={startSaleDate}
-                        onChange={(e) => setStartSaleDate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl app-bg-card border app-border text-xs font-mono font-bold app-text-main"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold app-text-muted mb-1">Ngày kết thúc bán vé *</label>
-                      <input
-                        type="datetime-local"
-                        value={endSaleDate}
-                        onChange={(e) => setEndSaleDate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl app-bg-card border app-border text-xs font-mono font-bold app-text-main"
                       />
                     </div>
                   </div>

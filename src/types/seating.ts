@@ -36,8 +36,6 @@ export interface SeatTier {
   totalQuantity?: number;
   minPerOrder?: number;
   maxPerOrder?: number;
-  startSaleDate?: string;
-  endSaleDate?: string;
 }
 
 export interface Seat {

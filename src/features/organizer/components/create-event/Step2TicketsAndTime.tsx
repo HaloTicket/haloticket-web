@@ -1,15 +1,17 @@
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatDatetimeLocal } from "@/utils/formatters";
 import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiClock, FiCalendar, FiPlus, FiTrash2, FiEdit3, FiChevronLeft, FiChevronRight, FiAlertCircle, FiBookmark } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
-import type { TicketItem, Step2Errors } from "@/types/organizer";
+import type { TicketItem, ShowtimeItem, Step2Errors } from "@/types/organizer";
 
 interface Step2TicketsAndTimeProps {
   startDate: string;
   setStartDate: (v: string) => void;
   endDate: string;
   setEndDate: (v: string) => void;
+  showtimes: ShowtimeItem[];
+  setShowtimes: React.Dispatch<React.SetStateAction<ShowtimeItem[]>>;
   tickets: TicketItem[];
   errors: Step2Errors;
   onOpenAddTicketModal: () => void;
@@ -25,8 +27,10 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   setStartDate,
   endDate,
   setEndDate,
-  tickets,
-  errors,
+  showtimes = [],
+  setShowtimes,
+  tickets = [],
+  errors = {},
   onOpenAddTicketModal,
   onEditTicket,
   onDeleteTicket,
@@ -86,7 +90,62 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
               </p>
             )}
           </div>
-        </div>
+          </div>
+
+        {/* Generated Showtimes UI */}
+        {showtimes.length > 0 && (
+          <div className="pt-6 border-t app-border space-y-4">
+            <h4 className="text-sm font-bold app-text-main flex items-center gap-2">
+              <FiCalendar className="w-4 h-4 text-primary-500" />
+              {translate("Cài đặt thời gian bán vé cho suất diễn")}
+            </h4>
+            <div className="grid grid-cols-1 gap-4">
+              {showtimes.map((st, idx) => (
+                <div key={st.id} className="p-4 rounded-xl border app-border bg-app-bg space-y-3">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <div className="font-extrabold text-sm app-text-main text-primary-500">{st.name}</div>
+                    <div className="text-xs app-text-muted font-medium bg-app-subnav px-3 py-1.5 rounded-lg border app-border">
+                      {formatDatetimeLocal(st.startTime)} - {formatDatetimeLocal(st.endTime)}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Thời gian bắt đầu bán vé")}</label>
+                      <input
+                        type="datetime-local"
+                        value={st.saleStartTime}
+                        onChange={(e) => {
+                          setShowtimes(prev => {
+                            const newSt = [...prev];
+                            newSt[idx] = { ...newSt[idx], saleStartTime: e.target.value };
+                            return newSt;
+                          });
+                        }}
+                        className={`w-full px-3 py-2 bg-app-bg text-app-text-main rounded-xl border ${!st.saleStartTime ? 'border-rose-500 ring-1 ring-rose-500' : 'app-border'} focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-medium text-xs`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Thời gian kết thúc bán vé")}</label>
+                      <input
+                        type="datetime-local"
+                        value={st.saleEndTime}
+                        onChange={(e) => {
+                          setShowtimes(prev => {
+                            const newSt = [...prev];
+                            newSt[idx] = { ...newSt[idx], saleEndTime: e.target.value };
+                            return newSt;
+                          });
+                        }}
+                        className={`w-full px-3 py-2 bg-app-bg text-app-text-main rounded-xl border ${!st.saleEndTime ? 'border-rose-500 ring-1 ring-rose-500' : 'app-border'} focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-medium text-xs`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ticket Categories List */}
@@ -142,14 +201,6 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
                       <span>•</span>
                       <span>{translate("Số lượng:")} {t.totalQuantity} {translate("vé")}</span>
                     </div>
-                    {(t.startSaleDate || t.endSaleDate) && (
-                      <div className="text-[11px] app-text-muted flex items-center gap-1 mt-1 font-medium">
-                        <FiClock className="w-3 h-3 text-blue-500 shrink-0" />
-                        <span>
-                          Mở bán: {t.startSaleDate ? t.startSaleDate.replace("T", " ") : "Chưa đặt"} - {t.endSaleDate ? t.endSaleDate.replace("T", " ") : "Chưa đặt"}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
 

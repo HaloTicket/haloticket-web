@@ -1,5 +1,6 @@
 export interface BookingOrderData {
   eventId?: string;
+  showtimeId?: string;
   eventTitle: string;
   eventTime: string;
   eventLocation: string;

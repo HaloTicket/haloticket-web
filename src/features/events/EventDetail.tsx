@@ -62,14 +62,40 @@ export default function EventDetail() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleGoToSelectTicket = () => {
+  const handleGoToSelectTicket = (showtimeId?: string | any) => {
     const token = localStorage.getItem("access_token");
     if (!token) {
       navigate(`/login?returnUrl=/events/${id}`);
       return;
     }
-    if (id) {
-      navigate(`/events/${id}/select-ticket`);
+    
+    if (typeof showtimeId === "string") {
+      navigate(`/events/${id}/select-ticket?showtimeId=${showtimeId}`);
+      return;
+    }
+    
+    // check active showtimes
+    if (!eventData) return;
+    
+    const now = new Date();
+    const activeShowtimes = eventData.showtimes?.filter((st: any) => {
+      const saleStart = st.saleStartTime ? new Date(st.saleStartTime) : (eventData.ticketSaleStartDate ? new Date(eventData.ticketSaleStartDate as string) : null);
+      const saleEnd = st.saleEndTime ? new Date(st.saleEndTime) : (eventData.ticketSaleEndDate ? new Date(eventData.ticketSaleEndDate as string) : null);
+      const isUpcoming = saleStart && now < saleStart;
+      const isEnded = saleEnd && now > saleEnd;
+      return !isUpcoming && !isEnded;
+    }) || [];
+
+    if (activeShowtimes.length === 1) {
+      navigate(`/events/${id}/select-ticket?showtimeId=${activeShowtimes[0].id}`);
+    } else {
+      const scheduleEl = document.getElementById("event-schedule-section");
+      if (scheduleEl) {
+        scheduleEl.scrollIntoView({ behavior: "smooth" });
+      } else {
+        const firstShowtime = eventData.showtimes?.[0]?.id || "st_default_1";
+        navigate(`/events/${id}/select-ticket?showtimeId=${firstShowtime}`);
+      }
     }
   };
 
@@ -120,10 +146,12 @@ export default function EventDetail() {
             <EventDescription event={eventData} />
 
             {/* Schedule & Tickets */}
-            <EventSchedule
-              event={eventData}
-              onSelectTicket={() => handleGoToSelectTicket()}
-            />
+            <div id="event-schedule-section">
+              <EventSchedule
+                event={eventData}
+                onSelectTicket={(st) => handleGoToSelectTicket(st.id)}
+              />
+            </div>
 
             {/* Organizer Section */}
             <EventOrganizer organizer={eventData.organizer} event={eventData} />

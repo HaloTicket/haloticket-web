@@ -28,11 +28,11 @@ export const EventVouchers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Modals state
+  // modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [editingVoucher, setEditingVoucher] = useState<VoucherItem | null>(null);
 
-  // Confirm Modal state
+  // confirm Modal state
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
     title: string;
@@ -73,26 +73,23 @@ export const EventVouchers: React.FC = () => {
 
       setVouchers(vList);
 
-      // Derive showtimes from event data if available
-      if (evData) {
-        const startStr = (evData.startTime || evData.startDate || "") as string;
-        const endStr = (evData.endTime || evData.endDate || "") as string;
-        const extraDays = (evData.extraDaysCount as number) || 0;
-
-        const options: Array<{ id: string; label: string }> = [];
-        if (startStr) {
-          options.push({ id: "st-1", label: `Suất 1: ${startStr}` });
-        }
-        if (endStr && endStr !== startStr) {
-          options.push({ id: "st-2", label: `Suất 2: ${endStr}` });
-        }
-        for (let i = 1; i <= extraDays; i++) {
-          options.push({ id: `st-extra-${i}`, label: `Suất ${options.length + 1}: Ngày thứ ${i + 1}` });
-        }
-        if (options.length > 0) {
+      // derive showtimes from event data if available
+        if (evData && Array.isArray(evData.showtimes) && evData.showtimes.length > 0) {
+          const options = evData.showtimes.map((st: any, idx: number) => {
+            const displayStr = new Date(st.startTime).toLocaleString("vi-VN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return {
+              id: st.id,
+              label: `Suất ${idx + 1}: ${st.name || displayStr}`
+            };
+          });
           setShowtimeOptions(options);
         }
-      }
     } catch (err) {
       console.error("Failed to load vouchers from backend:", err);
       showToast("Không thể tải danh sách voucher từ hệ thống", "error");
@@ -121,7 +118,7 @@ export const EventVouchers: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // trigger Status Toggle Confirm Modal
+  // trigger status toggle confirm modal
   const promptToggleStatus = (voucher: VoucherItem) => {
     const nextStatusText = voucher.isActive ? "TẮT" : "BẬT";
     setConfirmState({
@@ -150,7 +147,7 @@ export const EventVouchers: React.FC = () => {
     });
   };
 
-  // trigger Delete Confirm Modal
+  // trigger delete confirm modal
   const promptDeleteVoucher = (voucher: VoucherItem) => {
     setConfirmState({
       isOpen: true,

@@ -93,8 +93,7 @@ export const EventOverview: React.FC = () => {
               {currentRevenue.toLocaleString("vi-VN")} đ
             </h3>
             <p className="text-xs font-medium app-text-muted">
-              Mục tiêu: <strong className="app-text-main">{totalRevenueTarget.toLocaleString("vi-VN")} đ</strong> 
-              <span className="text-amber-500 font-bold ml-1">(Đạt {revenuePercent}%)</span>
+              Mục tiêu: <strong className="app-text-main">{totalRevenueTarget.toLocaleString("vi-VN")} đ</strong>
             </p>
           </div>
 
@@ -131,7 +130,6 @@ export const EventOverview: React.FC = () => {
             </h3>
             <p className="text-xs font-medium app-text-muted">
               Tổng phát hành: <strong className="app-text-main">{totalTicketsTarget.toLocaleString("vi-VN")} vé</strong>
-              <span className="text-emerald-500 font-bold ml-1">(Đạt {ticketsPercent}%)</span>
             </p>
           </div>
 

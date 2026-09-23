@@ -76,7 +76,7 @@ export const EventSeatingAssigner: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
-  // Custom confirmation modal state
+  // custom confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -93,7 +93,7 @@ export const EventSeatingAssigner: React.FC = () => {
     }, 4000);
   };
 
-  // Fetch Event, Draft SeatMap, and Tiers
+  // fetch Event, Draft SeatMap, and Tiers
   useEffect(() => {
     let isMounted = true;
 
@@ -104,7 +104,7 @@ export const EventSeatingAssigner: React.FC = () => {
           setEventName(((eventRes as any).title as string) || "Sự kiện");
         }
 
-        // Fetch ticket tiers first
+        // fetch ticket tiers first
         let mappedTiers: SeatTier[] = [];
         const tiersRes = await ticketApi.getTicketTypesByEventId(activeEventId);
         if (tiersRes && tiersRes.length > 0) {
@@ -118,10 +118,14 @@ export const EventSeatingAssigner: React.FC = () => {
             totalQuantity: t.totalQuantity ?? 100,
             minPerOrder: t.minPerOrder ?? 1,
             maxPerOrder: t.maxPerOrder ?? 5,
-            startSaleDate: t.startSaleDate || undefined,
-            endSaleDate: t.endSaleDate || undefined,
             description: t.description || "",
           }));
+
+          // deduplicate by name 
+          mappedTiers = mappedTiers.filter((t, index, self) =>
+            index === self.findIndex((tc) => tc.name.trim().toLowerCase() === t.name.trim().toLowerCase())
+          );
+
           if (isMounted) {
             setBackendTiers(mappedTiers);
           }
@@ -129,7 +133,7 @@ export const EventSeatingAssigner: React.FC = () => {
 
         const effectiveLoadedTiers = mappedTiers.length ? mappedTiers : DEFAULT_EVENT_TICKET_TIERS;
 
-        // Fetch draft layout from backend
+        // fetch draft layout
         let doc: SeatMapDocument | null = null;
         const draftRes = await ticketApi.getSeatLayoutByEventId(activeEventId);
 
@@ -141,7 +145,7 @@ export const EventSeatingAssigner: React.FC = () => {
           }
         }
 
-        // If backend draft is missing or empty, check localStorage draft
+        // if backend draft is missing or empty, check localStorage draft
         if (!doc || (!doc.zones && !doc.seats) || (Object.keys(doc.zones || {}).length === 0 && (doc.seats || []).length === 0)) {
           const loadedEventTitle = ((eventRes as any)?.title as string) || eventName;
           const localStr =
@@ -161,7 +165,7 @@ export const EventSeatingAssigner: React.FC = () => {
           if (doc) {
             const rawZones = safeClone(doc.zones || {});
 
-            // Pair zone.tierId with DB ticket type IDs (by ID match or Tier Name match)
+            // pair zone.tierId with DB ticket type IDs (by ID match or Tier Name match)
             const syncedZones: Record<string, ZoneBlock> = {};
             Object.entries(rawZones).forEach(([zId, z]) => {
               let tierId = z.tierId;
@@ -179,7 +183,7 @@ export const EventSeatingAssigner: React.FC = () => {
               };
             });
 
-            // If draftRes returns seatZones array from DB, use backend ticketTypeId if present
+            // if draftRes returns seatZones array from DB, use backend ticketTypeId if present
             if (draftRes?.zones && Array.isArray(draftRes.zones)) {
               draftRes.zones.forEach((sz: any) => {
                 if (sz.id && syncedZones[sz.id] && sz.ticketTypeId) {
@@ -196,7 +200,7 @@ export const EventSeatingAssigner: React.FC = () => {
               setCanvasSettings(doc.canvasSettings);
             }
           } else if (draftRes?.zones && Array.isArray(draftRes.zones) && draftRes.zones.length > 0) {
-            // Construct zones from backend draftRes.zones array
+            // construct zones from backend draftRes.zones array
             const syncedZones: Record<string, ZoneBlock> = {};
             draftRes.zones.forEach((z: any) => {
               let parsedPoints = undefined;
@@ -227,7 +231,7 @@ export const EventSeatingAssigner: React.FC = () => {
             });
             setZones(syncedZones);
           } else {
-            // Fallback template layout only if no draft exists anywhere
+            // fallback template layout only if no draft exists anywhere
             const sample = PRESET_TEMPLATES[0];
             setZones(safeClone(sample.zones || {}));
             setSeats(safeClone(sample.seats || []));
@@ -271,13 +275,13 @@ export const EventSeatingAssigner: React.FC = () => {
     const currentZone = zones[zoneId];
     if (!currentZone) return;
 
-    // Clear tier assignment
+    // clear tier assignment
     if (!tierId) {
       applyZoneTier(zoneId, '');
       return;
     }
 
-    // 1:1 Zone-Tier Constraint Check: Each ticket tier can only be assigned to 1 zone
+    // 1:1 zone-tier constraint check: each ticket tier can only be assigned to 1 zone
     const otherZoneWithTier = Object.values(zones).find(
       (z) => z.id !== zoneId && z.tierId === tierId
     );
@@ -294,7 +298,7 @@ export const EventSeatingAssigner: React.FC = () => {
       return;
     }
 
-    // Seat count vs Ticket totalQuantity Warning Check
+    // seat count vs ticket totalQuantity Warning Check
     const targetTier = effectiveTiers.find((t) => t.id === tierId);
     const zoneSeatCount = seats.filter((s) => s.zoneId === zoneId).length || currentZone.capacity || 0;
     const tierTotalQty = targetTier?.totalQuantity ?? 100;
@@ -316,7 +320,7 @@ export const EventSeatingAssigner: React.FC = () => {
     applyZoneTier(zoneId, tierId);
   };
 
-  // Export Seat Map as PNG Image (White background + centered large title)
+  // export Seat Map as PNG Image (White background + centered large title)
   const handleExportPNG = () => {
     const payload: SeatMapDocument = {
       version: '2.0',
@@ -364,7 +368,7 @@ export const EventSeatingAssigner: React.FC = () => {
     try {
       setIsSaving(true);
 
-      // 1. Sync ticket tiers (types) to backend DB
+      // 1. dync ticket tiers (types) to backend DB
       let syncedTiers: SeatTier[] = effectiveTiers;
       if (effectiveTiers && effectiveTiers.length > 0) {
         const requests = effectiveTiers.map((t) => ({
@@ -376,8 +380,6 @@ export const EventSeatingAssigner: React.FC = () => {
           totalQuantity: t.totalQuantity ?? 100,
           minPerOrder: t.minPerOrder ?? 1,
           maxPerOrder: t.maxPerOrder ?? 5,
-          startSaleDate: t.startSaleDate,
-          endSaleDate: t.endSaleDate,
           description: t.description,
         }));
         const responseTiers = await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
@@ -392,15 +394,13 @@ export const EventSeatingAssigner: React.FC = () => {
             totalQuantity: t.totalQuantity ?? 100,
             minPerOrder: t.minPerOrder ?? 1,
             maxPerOrder: t.maxPerOrder ?? 5,
-            startSaleDate: t.startSaleDate || undefined,
-            endSaleDate: t.endSaleDate || undefined,
             description: t.description || "",
           }));
           setBackendTiers(syncedTiers);
         }
       }
 
-      // Map old tier IDs to real synced DB tier IDs
+      // map old tier IDs to real synced DB tier IDs
       const tierIdMap = new Map<string, string>();
       effectiveTiers.forEach((oldTier) => {
         const matchedNewTier = syncedTiers.find(
@@ -411,7 +411,7 @@ export const EventSeatingAssigner: React.FC = () => {
         }
       });
 
-      // Update zones with real synced DB tier IDs
+      // update zones with real synced DB tier IDs
       const updatedZones: Record<string, ZoneBlock> = {};
       Object.entries(zones).forEach(([zId, z]) => {
         const mappedTierId = z.tierId ? (tierIdMap.get(z.tierId) || z.tierId) : undefined;
@@ -421,7 +421,7 @@ export const EventSeatingAssigner: React.FC = () => {
         };
       });
 
-      // Update seats with real synced DB tier IDs
+      // update seats with real synced DB tier IDs
       const updatedSeats = seats.map((s) => {
         const zone = updatedZones[s.zoneId];
         const mappedTierId = s.tierId
@@ -436,7 +436,7 @@ export const EventSeatingAssigner: React.FC = () => {
       setZones(updatedZones);
       setSeats(updatedSeats);
 
-      // 2. Publish seat layout
+      // 2. publish seat layout
       const payload: SeatMapDocument = {
         version: "2.0",
         timestamp: new Date().toISOString(),
@@ -881,8 +881,6 @@ export const EventSeatingAssigner: React.FC = () => {
               totalQuantity: t.totalQuantity ?? 100,
               minPerOrder: t.minPerOrder ?? 1,
               maxPerOrder: t.maxPerOrder ?? 5,
-              startSaleDate: t.startSaleDate,
-              endSaleDate: t.endSaleDate,
               description: t.description,
             }));
             const responseTiers = await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
@@ -897,8 +895,6 @@ export const EventSeatingAssigner: React.FC = () => {
                 totalQuantity: t.totalQuantity ?? 100,
                 minPerOrder: t.minPerOrder ?? 1,
                 maxPerOrder: t.maxPerOrder ?? 5,
-                startSaleDate: t.startSaleDate || undefined,
-                endSaleDate: t.endSaleDate || undefined,
                 description: t.description || "",
               }));
               setBackendTiers(mapped);

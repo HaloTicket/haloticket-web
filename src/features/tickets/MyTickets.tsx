@@ -490,7 +490,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       const response = await ticketApi.getMyTickets();
       const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
       setTickets(hydrated);
-      // Let client-side pagination handle totalPages and totalElements
+      // let client-side pagination handle totalPages and totalElements
     } catch (err) {
       console.error("loadTickets failed:", err);
       setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
@@ -534,8 +534,8 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
     [activeTab, searchQuery, tickets]
   );
   
-  // Client-side pagination
-  const pageSize = 12;
+  // client-side pagination
+  const pageSize = 3;
   const currentTotalElements = filteredTickets.length;
   const currentTotalPages = Math.ceil(currentTotalElements / pageSize) || 1;
   const paginatedTickets = useMemo(() => {

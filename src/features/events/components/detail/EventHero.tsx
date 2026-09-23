@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { FiCalendar, FiMapPin, FiChevronRight } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { EventDetailData } from "@/types";
-import { formatCurrency, formatDate, parseVndAmount } from "@/utils/formatters";
+import { formatCurrency, parseVndAmount } from "@/utils/formatters";
 
 interface EventHeroProps {
   event: EventDetailData;
@@ -15,7 +15,7 @@ interface EventHeroProps {
 export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, isResaleTag = false }) => {
   useTranslation();
 
-  // Calculate dynamic minimum price across all ticket types / showtimes
+  // calculate dynamic minimum price across all ticket types / showtimes
   const { displayPrice } = useMemo(() => {
     const prices: number[] = [];
     if (event.minPrice !== undefined && event.minPrice !== null) {
@@ -64,68 +64,135 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
     return { displayPrice: translate("Miễn phí") };
   }, [event]);
 
-  // Calculate buy ticket button status according to sale schedule and ticket availability
+  // calculate buy ticket button status according to sale schedule and ticket availability
   const salesStatus = useMemo(() => {
     const now = new Date();
-    const saleStart = event.ticketSaleStartDate ? new Date(event.ticketSaleStartDate) : null;
-    const saleEnd = event.ticketSaleEndDate ? new Date(event.ticketSaleEndDate) : null;
+    
+    const parseSafeDate = (dateVal: any): Date | null => {
+      if (!dateVal) return null;
+      if (Array.isArray(dateVal)) {
+        const [y, m, d, h = 0, min = 0, s = 0] = dateVal;
+        return new Date(y, m - 1, d, h, min, s);
+      }
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return null;
+      return d;
+    };
+    
+    // fallbacks to global sale times if needed
+    const globalSaleStart = parseSafeDate(event.ticketSaleStartDate);
+    const globalSaleEnd = parseSafeDate(event.ticketSaleEndDate);
 
-    if (saleStart && now < saleStart) {
-      return {
-        isClosed: true,
-        buttonText: `${translate("Chưa mở bán")} (${saleStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${saleStart.toLocaleDateString("vi-VN")})`,
-      };
-    }
-
-    if (saleEnd && now > saleEnd) {
-      return {
-        isClosed: true,
-        buttonText: translate("Đã hết hạn bán vé"),
-      };
-    }
-
-    const rawTickets = (event as any).tickets || (event as any).ticketTypes;
-    let totalAvailable = 0;
-    let hasTicketData = false;
-
-    if (Array.isArray(rawTickets) && rawTickets.length > 0) {
-      hasTicketData = true;
-      rawTickets.forEach((t: any) => {
-        const q = t.totalQuantity ?? t.quantity ?? 100;
-        const s = t.soldQuantity ?? 0;
-        if (t.available !== false && q - s > 0) {
-          totalAvailable += q - s;
-        }
-      });
-    }
+    let hasAnyShowtimeUpcoming = false;
+    let hasAnyShowtimeOnSale = false;
+    let hasAnyTicketsAvailable = false;
+    let earliestSaleStart: Date | null = null;
 
     if (Array.isArray(event.showtimes) && event.showtimes.length > 0) {
-      hasTicketData = true;
       event.showtimes.forEach((st: any) => {
+        const saleStart = parseSafeDate(st.saleStartTime) || globalSaleStart;
+        const saleEnd = parseSafeDate(st.saleEndTime) || globalSaleEnd;
+        const isUpcoming = saleStart && now < saleStart;
+        const isEnded = saleEnd && now > saleEnd;
+        const isActive = !isUpcoming && !isEnded;
+
+        if (isUpcoming) hasAnyShowtimeUpcoming = true;
+        if (isActive) hasAnyShowtimeOnSale = true;
+        
+        if (isUpcoming && saleStart) {
+          if (!earliestSaleStart || saleStart < earliestSaleStart) {
+            earliestSaleStart = saleStart;
+          }
+        }
+
+        // check ticket availability for this showtime
         if (Array.isArray(st.tickets)) {
           st.tickets.forEach((t: any) => {
-            if (t.available) totalAvailable += 1;
+            const q = t.totalQuantity ?? t.quantity ?? 100;
+            const s = t.soldQuantity ?? 0;
+            if (t.available !== false && q - s > 0) {
+              hasAnyTicketsAvailable = true;
+            }
           });
+        } else {
+          // if no specific tickets attached, assume available if showtime is active
+          hasAnyTicketsAvailable = true;
         }
       });
+    } else {
+      // no showtimes, fallback to global checking
+      const isUpcoming = globalSaleStart && now < globalSaleStart;
+      const isEnded = globalSaleEnd && now > globalSaleEnd;
+      if (isUpcoming) {
+        hasAnyShowtimeUpcoming = true;
+        earliestSaleStart = globalSaleStart;
+      }
+      if (!isUpcoming && !isEnded) hasAnyShowtimeOnSale = true;
+
+      const rawTickets = (event as any).tickets || (event as any).ticketTypes;
+      if (Array.isArray(rawTickets) && rawTickets.length > 0) {
+        rawTickets.forEach((t: any) => {
+          const q = t.totalQuantity ?? t.quantity ?? 100;
+          const s = t.soldQuantity ?? 0;
+          if (t.available !== false && q - s > 0) {
+            hasAnyTicketsAvailable = true;
+          }
+        });
+      }
     }
 
-    const isSoldOut = (event as any).isSoldOut || (hasTicketData && totalAvailable === 0);
+    const isSoldOut = (event as any).isSoldOut || (!hasAnyTicketsAvailable && !hasAnyShowtimeUpcoming);
+
     if (isSoldOut) {
+      return { isClosed: true, buttonText: translate("Đã hết vé") };
+    }
+
+    if (hasAnyShowtimeOnSale) {
+      return { isClosed: false, buttonText: translate("Mua vé ngay") };
+    }
+
+    if (hasAnyShowtimeUpcoming && earliestSaleStart) {
       return {
         isClosed: true,
-        buttonText: translate("Đã hết vé"),
+        buttonText: `${translate("Chưa mở bán")} (${earliestSaleStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${earliestSaleStart.toLocaleDateString("vi-VN")})`,
       };
     }
 
-    return {
-      isClosed: false,
-      buttonText: translate("Mua vé ngay"),
-    };
+    // default catch-all
+    return { isClosed: true, buttonText: translate("Ngừng Bán vé") };
   }, [event]);
 
-  const extraDaysCount = event.extraDaysCount || (event.showtimes && event.showtimes.length > 1 ? event.showtimes.length - 1 : 0);
-  const displayDate = event.datesSummary || (event.startTime ? formatDate(event.startTime) : translate("Sắp diễn ra"));
+  let displayDate = translate("Sắp diễn ra");
+  const formatDt = (dtStr: string) => `${new Date(dtStr).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}, ${new Date(dtStr).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
+  
+  let finalStart = event.startTime;
+  let finalEnd = event.endTime;
+
+  if ((event as any).showtimes && (event as any).showtimes.length > 0) {
+    const sts = (event as any).showtimes;
+    const startDates = sts.map((st: any) => new Date(st.startTime || st.fullDateTime || finalStart).getTime()).filter((t: number) => !isNaN(t));
+    const endDates = sts.map((st: any) => new Date(st.endTime || st.fullDateTime || finalEnd || st.startTime || finalStart).getTime()).filter((t: number) => !isNaN(t));
+    
+    if (startDates.length > 0) finalStart = new Date(Math.min(...startDates)).toISOString();
+    if (endDates.length > 0) finalEnd = new Date(Math.max(...endDates)).toISOString();
+  }
+
+  if (finalStart && finalEnd) {
+    const startObj = new Date(finalStart);
+    const endObj = new Date(finalEnd);
+    if (startObj.toDateString() === endObj.toDateString() && startObj.getTime() !== endObj.getTime()) {
+       // same day, different times
+       displayDate = `${startObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${endObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}, ${startObj.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
+    } else if (startObj.getTime() !== endObj.getTime()) {
+       // different days
+       displayDate = `${formatDt(finalStart)} - ${formatDt(finalEnd)}`;
+    } else {
+       // exact same time
+       displayDate = formatDt(finalStart);
+    }
+  } else if (finalStart) {
+    displayDate = formatDt(finalStart);
+  }
   const locationName = event.locationName || translate("Địa điểm chưa cập nhật");
   const posterImage = event.posterImage || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80";
 
@@ -168,14 +235,6 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
                 <div className="font-extrabold app-text-brand leading-tight">
                   {displayDate}
                 </div>
-                {extraDaysCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={onBuyTicketsClick}
-                    className="mt-1 inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-brand-primary/10 app-text-brand border border-brand-primary/20 hover:bg-brand-primary hover:text-white transition-colors cursor-pointer"
-                  >
-                    +{extraDaysCount} {translate("ngày khác")}</button>
-                )}
               </div>
             </div>
 

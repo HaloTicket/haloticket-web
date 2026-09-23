@@ -32,7 +32,7 @@ export const EventOrganizer: React.FC<EventOrganizerProps> = ({ organizer, event
         <span>{translate("Ban tổ chức")}</span>
       </h2>
 
-      <div className="app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-lg flex items-center gap-4.5">
+      <div className="app-bg-card border app-border rounded-3xl p-5 md:p-6 md:py-8 shadow-lg flex items-center gap-4.5">
         <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border app-border shrink-0 bg-slate-900 shadow-md">
           <img
             src={avatar}
