@@ -76,6 +76,7 @@ export default function Checkout() {
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const [vietQrData, setVietQrData] = useState<VietQrPayloadResponse | null>(null);
   const [activeBookingId, setActiveBookingId] = useState<string>("");
+  const [activeBookingCode, setActiveBookingCode] = useState<string>("");
 
   // custom questions loaded from event-service
   const [customQuestions, setCustomQuestions] = useState<CustomQuestionItem[]>([]);
@@ -369,21 +370,27 @@ export default function Checkout() {
       // use logged in user ID if available, otherwise fallback to session ID
       const profile = await userApi.getProfile().catch(() => null);
       const userId = profile?.keycloakId || localStorage.getItem("haloticket_session_id") || "ANONYMOUS";
-      const bookingRes = await bookingApi.createBooking({
-        eventId: activeEventId || "",
-        showtimeId: activeShowtimeId as string,
-        customerId: userId,
-        customerEmail: recipientData.email,
-        customerName: recipientData.recipientName,
-        voucherId: appliedVoucher?.id,
-        totalAmount: finalTotalAmount,
-        seatIds,
-        items: order.items,
-      });
+      let bookingId = activeBookingId;
+      let bookingCode = activeBookingCode;
 
-      const bookingId = bookingRes?.id || `booking_${Date.now()}`;
-      const bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
-      setActiveBookingId(bookingId);
+      if (!bookingId) {
+        const bookingRes = await bookingApi.createBooking({
+          eventId: activeEventId || "",
+          showtimeId: activeShowtimeId as string,
+          customerId: userId,
+          customerEmail: recipientData.email,
+          customerName: recipientData.recipientName,
+          voucherId: appliedVoucher?.id,
+          totalAmount: finalTotalAmount,
+          seatIds,
+          items: order.items,
+        });
+
+        bookingId = bookingRes?.id || `booking_${Date.now()}`;
+        bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
+        setActiveBookingId(bookingId);
+        setActiveBookingCode(bookingCode);
+      }
 
       // save to my_tickets cache - 1 physical ticket per seat or per quantity
       const numTickets = (order.seatIds && order.seatIds.length > 0) ? order.seatIds.length : (order.quantity || 1);
@@ -512,10 +519,12 @@ export default function Checkout() {
       localStorage.removeItem("haloticket_pending_order");
       setIsRecipientModalOpen(false);
       navigate("/booking-success");
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Payment error:", err);
       setIsRecipientModalOpen(false);
-      showToast("error", "Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.");
+      const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message 
+        || "Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.";
+      showToast("error", errorMsg);
     } finally {
       setIsSubmitting(false);
     }

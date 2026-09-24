@@ -59,6 +59,7 @@ export default function BookingSuccess() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
+    localStorage.removeItem("haloticket_pending_order");
     ticketApi
       .getMyTickets()
       .then((tickets) => {

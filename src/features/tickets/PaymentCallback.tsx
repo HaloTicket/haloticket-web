@@ -69,6 +69,7 @@ export default function PaymentCallback() {
         if (isMounted) {
           setStatus("success");
           setMessage(isResale ? "Vé mới đã được cấp vào Vé của tôi." : "Xác thực thanh toán thành công!");
+          localStorage.removeItem("haloticket_pending_order");
         }
         setTimeout(() => {
           if (isMounted) navigate("/booking-success");
