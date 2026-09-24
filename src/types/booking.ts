@@ -46,6 +46,9 @@ export interface BookingResponse {
   id: string;
   bookingCode: string;
   customerId: string;
+  customerName?: string;
+  customerEmail?: string;
+  eventId?: string;
   totalAmount: number;
   status: string;
   expiredAt: string;
