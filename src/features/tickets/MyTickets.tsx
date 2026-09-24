@@ -20,6 +20,7 @@ import {
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import { getCachedUserProfile } from "@/services/userApi";
 import { PATHS } from "@/routes/paths";
 import { formatCurrency } from "@/utils/formatters";
 import type { OwnedTicketApiResponse } from "@/types";
@@ -209,36 +210,52 @@ function StatusBadge({ status }: { status: TicketUiStatus }) {
 }
 
 /**
- * Modal Xem vé điện tử:
+ * Modal Xem vé điện tử (đồng bộ giao diện với Chi tiết vé):
  * - Nếu vé Đang bán hoặc bị khóa: hiển thị QR mờ kèm ổ khóa đè lên và mô tả cảnh báo.
- * - Nếu vé có hiệu lực: mặc định che QR bằng ổ khóa và thanh "Nhấn vào ảnh để xem mã QR" (Ảnh 1).
+ * - Nếu vé có hiệu lực: bấm vào QR để xem, bấm cái nữa để che QR.
+ * - Hiển thị đầy đủ Thông tin vé, Hạng vé, Người nhận vé, Mã vé có nút copy, nút Đăng bán lại & Tặng vé.
  */
-function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => void }) {
+interface TicketViewerProps {
+  ticket: TicketItem;
+  onClose: () => void;
+  onResale?: (ticket: TicketItem) => void;
+  onGift?: (ticket: TicketItem) => void;
+}
+
+function TicketViewer({ ticket, onClose, onResale, onGift }: TicketViewerProps) {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
 
   const isSelling = ticket.status === "SELLING" || ticket.rawStatus === "LOCKED_FOR_RESALE";
   const isLocked = isSelling || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode;
   const code = ticket.qrCode || "";
 
-  const copyCode = async () => {
-    if (!code) return;
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+  const cachedProfile = getCachedUserProfile();
+  const recipientName =
+    ticket.customerName ||
+    cachedProfile?.fullName?.trim() ||
+    cachedProfile?.email ||
+    t("Khách hàng");
+
+  const copyBookingCode = async () => {
+    const codeToCopy = ticket.bookingCode || ticket.id;
+    if (!codeToCopy) return;
+    await navigator.clipboard.writeText(codeToCopy);
+    setCopiedCode(true);
+    window.setTimeout(() => setCopiedCode(false), 2000);
   };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs">
       <div
-        className="w-full max-w-md overflow-hidden rounded-3xl border app-border app-bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden rounded-3xl border app-border app-bg-card shadow-2xl animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-label={t("Vé điện tử")}
       >
         {/* Banner header */}
-        <div className="relative h-28 bg-slate-900">
+        <div className="relative h-28 sm:h-32 shrink-0 bg-slate-900">
           {ticket.eventPoster && (
             <img src={ticket.eventPoster} alt={ticket.eventTitle} className="h-full w-full object-cover filter brightness-85" />
           )}
@@ -246,7 +263,7 @@ function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => 
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-3.5 top-3.5 rounded-full bg-slate-950/70 p-2 text-white hover:bg-slate-950 transition cursor-pointer"
+            className="absolute right-3.5 top-3.5 rounded-full bg-slate-950/70 p-2 text-white hover:bg-slate-950 transition cursor-pointer z-10"
             aria-label="Đóng"
           >
             <FiX className="h-5 w-5" />
@@ -261,131 +278,210 @@ function TicketViewer({ ticket, onClose }: { ticket: TicketItem; onClose: () => 
           </div>
         </div>
 
-        <div className="space-y-3 p-4 sm:p-5">
+        {/* Scrollable body synchronized with TicketDetail */}
+        <div className="overflow-y-auto p-5 sm:p-6 space-y-4">
+          {/* Thông tin sự kiện cơ bản */}
           <div>
-            <h2 className="text-lg font-black leading-snug app-text-main">{ticket.eventTitle}</h2>
-            <p className="mt-2 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
-              <FiCalendar className="text-blue-600 shrink-0" />
-              <span>{ticket.eventTime}</span>
-            </p>
-            <p className="mt-1 flex items-center gap-2 text-xs sm:text-sm app-text-sub">
-              <FiMapPin className="text-blue-600 shrink-0" />
-              <span className="truncate">{ticket.eventLocation}</span>
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between border-y app-border py-3 text-sm">
-            <span className="font-semibold app-text-main">
-              {ticket.ticketTypeName} · {ticket.quantity} {t("vé")}
-            </span>
-            <div className="text-right">
-              <strong className="block text-blue-600 dark:text-blue-400 font-mono font-bold text-base">
-                {formatCurrency(ticket.totalAmount)}
-              </strong>
-              <span className="text-xs app-text-sub font-medium block">
-                {ticket.acquisitionType === "RESALE" ? t("Giá mua vé bán lại") : t("Giá vé")}
-              </span>
+            <h2 className="text-lg sm:text-xl font-black leading-snug app-text-main">{ticket.eventTitle}</h2>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm app-text-sub">
+              <p className="flex items-center gap-1.5">
+                <FiCalendar className="text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>{ticket.eventTime}</span>
+              </p>
+              <p className="flex items-center gap-1.5">
+                <FiMapPin className="text-blue-600 dark:text-blue-400 shrink-0" />
+                <span className="truncate max-w-[240px]">{ticket.eventLocation}</span>
+              </p>
             </div>
           </div>
 
-          {/* Khối hiển thị QR Code bảo mật */}
-          {isLocked ? (
-            /* Ảnh 2: Vé đang bị khóa */
-            <div className="overflow-hidden rounded-2xl border border-amber-500/30 bg-slate-50 dark:bg-slate-900 shadow-md">
-              <div className="relative flex aspect-square w-40 sm:w-48 mx-auto items-center justify-center p-3">
-                <img
-                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
-                  alt="QR Locked"
-                  className="h-full w-full object-contain filter blur-[5px] grayscale opacity-20 pointer-events-none select-none"
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shadow-lg">
-                    <FiLock className="h-6 w-6" />
-                  </div>
-                </div>
+          {/* Section: THÔNG TIN VÉ (đồng bộ hoàn toàn chi tiết vé) */}
+          <div className="rounded-xl border app-border p-4 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider app-text-muted">
+              {t("THÔNG TIN VÉ")}
+            </h3>
+            <div className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+              <div className="py-2 flex justify-between items-center">
+                <span className="text-slate-500">{t("Hạng vé")}</span>
+                <span className="font-semibold app-text-main">{ticket.ticketTypeName}</span>
               </div>
-              <div className="border-t border-amber-500/20 bg-amber-500/10 px-4 py-3 text-center">
-                <p className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                  {t("Mã QR đang bị khóa")}
-                </p>
-                <p className="mt-1 text-[11px] text-amber-800/80 dark:text-amber-200/80 leading-relaxed font-medium">
-                  {t("Vé đang bán, đang chuyển quyền, đã sử dụng hoặc đã hủy nên không thể dùng để check-in.")}
-                </p>
+              <div className="py-2 flex justify-between items-center">
+                <span className="text-slate-500">{t("Số lượng")}</span>
+                <span className="font-semibold app-text-main">{ticket.quantity} {t("vé")}</span>
               </div>
-            </div>
-          ) : (
-            /* Ảnh 1: Vé có hiệu lực - che bằng ổ khóa, nhấn để xem */
-            <div className="space-y-3">
-              <div className="mx-auto w-full max-w-[200px] overflow-hidden rounded-2xl border app-border bg-white dark:bg-slate-900 shadow-lg">
-                <button
-                  type="button"
-                  onClick={() => setIsRevealed((prev) => !prev)}
-                  className="group relative block w-full text-left cursor-pointer focus:outline-none"
-                  aria-label={isRevealed ? t("Nhấn vào ảnh để che mã QR") : t("Nhấn vào ảnh để xem mã QR")}
-                >
-                  <div className="relative flex aspect-square w-full items-center justify-center bg-white p-3">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(code)}`}
-                      alt="Mã QR check-in"
-                      className={`h-full w-full object-contain transition-all duration-300 ${
-                        isRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
-                      }`}
-                    />
-                    {!isRevealed && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900/90 text-white shadow-lg transition-transform group-hover:scale-110">
-                          <FiLock className="h-5 w-5" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Dải hướng dẫn giống Ảnh 1 */}
-                  <div className="bg-slate-800 hover:bg-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 py-2.5 px-3 text-center transition-colors">
-                    <p className="text-xs font-semibold text-white tracking-wide flex items-center justify-center gap-1.5">
-                      {isRevealed ? (
-                        <>
-                          <FiEyeOff className="h-3.5 w-3.5" />
-                          <span>{t("Nhấn vào ảnh để che mã QR")}</span>
-                        </>
-                      ) : (
-                        <>
-                          <FiLock className="h-3.5 w-3.5" />
-                          <span>{t("Nhấn vào ảnh để xem mã QR")}</span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </button>
-              </div>
-
-              {isRevealed && (
-                <div className="space-y-2 text-center animate-in fade-in duration-150">
-                  <p className="text-[11px] app-text-muted">{t("Xuất trình mã này tại cổng check-in")}</p>
-                  <button
-                    type="button"
-                    onClick={copyCode}
-                    className="inline-flex max-w-full items-center gap-2 rounded-lg border app-border px-3 py-1.5 font-mono text-xs app-text-main hover:bg-slate-500/10 cursor-pointer"
-                  >
-                    <span className="truncate max-w-[200px]">{code}</span>
-                    {copied ? <FiCheck className="shrink-0 text-emerald-600" /> : <FiCopy className="shrink-0" />}
-                  </button>
+              {ticket.seatName && (
+                <div className="py-2 flex justify-between items-center">
+                  <span className="text-slate-500">{t("Chỗ ngồi / Ghế")}</span>
+                  <span className="font-semibold app-text-main">{ticket.seatName}</span>
                 </div>
               )}
+              <div className="py-2 flex justify-between items-center">
+                <span className="text-slate-500">{t("Người nhận vé")}</span>
+                <span className="font-bold app-text-main uppercase tracking-tight">{recipientName}</span>
+              </div>
+              <div className="py-2 flex justify-between items-center">
+                <span className="text-slate-500">{ticket.acquisitionType === "RESALE" ? t("Giá mua vé bán lại") : t("Tổng tiền")}</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400 font-mono text-sm">
+                  {formatCurrency(ticket.totalAmount)}
+                </span>
+              </div>
             </div>
-          )}
 
-          <div className="flex items-center justify-between gap-3 pt-2">
-            <p className="truncate font-mono text-xs app-text-muted">{t("Mã vé:")} {ticket.bookingCode}</p>
-            {!isLocked && (
+            {/* Box Mã vé với nút copy (chuẩn TicketDetail) */}
+            <div className="mt-2 p-3 rounded-lg bg-white dark:bg-slate-900 border app-border flex items-center justify-between">
+              <div className="min-w-0 pr-2">
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                  {t("Mã vé")}
+                </p>
+                <p className="text-xs font-mono font-bold app-text-main truncate">
+                  {ticket.bookingCode || ticket.id}
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => downloadTicketAsImage(ticket)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border app-border px-3 py-1.5 text-xs font-semibold app-text-main hover:bg-slate-500/10 cursor-pointer"
+                onClick={copyBookingCode}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
+                title={copiedCode ? t("Đã sao chép!") : t("Sao chép mã vé")}
               >
-                <FiDownload /> {t("Tải vé")}
+                {copiedCode ? <FiCheck className="w-4 h-4 text-emerald-600" /> : <FiCopy className="w-4 h-4" />}
               </button>
+            </div>
+          </div>
+
+          {/* Section: MÃ QR CHECK-IN (đồng bộ chi tiết vé) */}
+          <div className="rounded-xl border app-border p-4 sm:p-5 bg-white dark:bg-slate-900/60 shadow-2xs flex flex-col items-center text-center space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider app-text-muted self-start">
+              {t("MÃ QR CHECK-IN")}
+            </h3>
+
+            {isLocked ? (
+              <div className="w-full flex flex-col items-center space-y-3">
+                <div className="w-full max-w-[240px] overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shadow-xs">
+                  <div className="relative flex aspect-square w-full items-center justify-center p-4">
+                    <img
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HALOTICKET_LOCKED"
+                      alt="QR Locked"
+                      className="h-full w-full object-contain filter blur-[5px] grayscale opacity-20 pointer-events-none select-none"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100/95 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-sm">
+                        <FiLock className="h-6 w-6" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 px-4 py-3 text-center">
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                      {t("Mã QR đang bị khóa")}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                      {isSelling
+                        ? t("Vé đang đăng bán trên sàn Marketplace. Mã QR sẽ được kích hoạt khi giao dịch kết thúc.")
+                        : t("Vé đang bán, đang chuyển quyền, đã sử dụng hoặc đã hủy nên không thể dùng để check-in.")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full py-1 flex flex-col items-center space-y-3">
+                <div className="relative p-2 app-bg-card border app-border rounded-lg shadow-2xs group">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(code)}`}
+                    alt="Mã QR check-in"
+                    className={`w-44 h-44 object-contain transition-all duration-200 ${
+                      isRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsRevealed((prev) => !prev)}
+                    className={`absolute inset-0 flex flex-col items-center justify-center rounded-lg cursor-pointer text-white transition-all ${
+                      !isRevealed
+                        ? "bg-slate-900/40 hover:bg-slate-900/55 opacity-100"
+                        : "bg-slate-950/60 opacity-0 group-hover:opacity-100 backdrop-blur-[2px]"
+                    }`}
+                    aria-label={isRevealed ? t("Bấm để che QR") : t("Bấm để xem QR")}
+                    title={isRevealed ? t("Bấm để che QR") : t("Bấm để xem QR")}
+                  >
+                    {!isRevealed ? (
+                      <>
+                        <FiLock className="w-6 h-6 mb-1 transition-transform group-hover:scale-110" />
+                        <span className="text-xs font-medium">{t("Bấm để xem QR")}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiEyeOff className="w-6 h-6 mb-1 transition-transform group-hover:scale-110" />
+                        <span className="text-xs font-medium">{t("Bấm để che QR")}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold app-text-main">
+                    {t("Mã vé sẵn sàng check-in")}
+                  </p>
+                  <p className="text-xs app-text-sub">
+                    {t("Xuất trình mã này tại cổng soát vé sự kiện.")}
+                  </p>
+                </div>
+
+                <div className="w-full space-y-2 pt-2 border-t app-border">
+                  <button
+                    type="button"
+                    onClick={() => downloadTicketAsImage(ticket)}
+                    className="w-full py-2 px-3 rounded-md bg-[#2166F3] hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <FiDownload className="w-4 h-4" />
+                    <span>{t("Tải ảnh vé về máy")}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRevealed((prev) => !prev)}
+                    className="w-full py-1 text-xs app-text-muted hover:app-text-main font-medium transition-colors cursor-pointer"
+                  >
+                    {isRevealed ? t("Che mã QR bảo mật") : t("Hiện mã QR")}
+                  </button>
+                </div>
+              </div>
             )}
+          </div>
+
+          {/* Action buttons: Đăng bán lại & Tặng vé (nếu hợp lệ) + Link xem chi tiết vé */}
+          <div className="space-y-2.5 pt-1">
+            {!isLocked && ticket.status === "UPCOMING" && ticket.rawStatus === "VALID" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {onResale && (
+                  <button
+                    type="button"
+                    onClick={() => onResale(ticket)}
+                    className="w-full py-2.5 px-4 rounded-md border border-emerald-600 bg-emerald-50/50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+                  >
+                    <FiTag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>{t("Đăng bán vé lại")}</span>
+                  </button>
+                )}
+                {onGift && (
+                  <button
+                    type="button"
+                    onClick={() => onGift(ticket)}
+                    className="w-full py-2.5 px-4 rounded-md border border-[#2166F3] text-[#2166F3] hover:bg-blue-50/60 dark:hover:bg-blue-950/20 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+                  >
+                    <FiGift className="w-4 h-4 text-[#2166F3]" />
+                    <span>{t("Tặng vé cho bạn bè")}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            <Link
+              to={`/my-tickets/${ticket.id}`}
+              onClick={onClose}
+              className="w-full py-2.5 px-4 rounded-md border app-border text-center text-xs font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>{t("Xem chi tiết vé đầy đủ")}</span>
+              <FiArrowRight className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            </Link>
           </div>
         </div>
       </div>
@@ -824,7 +920,20 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
         </div>
       )}
 
-      {viewerTicket && <TicketViewer ticket={viewerTicket} onClose={() => setViewerTicket(undefined)} />}
+      {viewerTicket && (
+        <TicketViewer
+          ticket={viewerTicket}
+          onClose={() => setViewerTicket(undefined)}
+          onResale={(t) => {
+            setViewerTicket(undefined);
+            setResaleTicket(t);
+          }}
+          onGift={(t) => {
+            setViewerTicket(undefined);
+            setGiftTicket(t);
+          }}
+        />
+      )}
       {resaleTicket && (
         <ResaleTicketModal ticket={resaleTicket} onClose={() => setResaleTicket(undefined)} onChanged={() => loadTickets()} />
       )}

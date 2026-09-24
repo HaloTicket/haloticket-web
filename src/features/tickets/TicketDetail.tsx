@@ -9,6 +9,7 @@ import {
   FiCopy,
   FiCheck,
   FiLock,
+  FiEyeOff,
   FiTag,
   FiShield,
   FiGift,
@@ -20,7 +21,7 @@ import { eventApi } from "@/services/eventApi";
 import { bookingApi } from "@/services/bookingApi";
 import { userApi, getCachedUserProfile } from "@/services/userApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
-import { GiftTicketModal } from "./TicketActionModals";
+import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
 import { PATHS } from "@/routes/paths";
 
 export default function TicketDetail() {
@@ -33,6 +34,7 @@ export default function TicketDetail() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isQrRevealed, setIsQrRevealed] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showResaleModal, setShowResaleModal] = useState(false);
   const [recipientName, setRecipientName] = useState<string>("");
   const [activeListingId, setActiveListingId] = useState<string | null>(null);
   const [isCancellingResale, setIsCancellingResale] = useState(false);
@@ -448,15 +450,24 @@ export default function TicketDetail() {
                 </div>
               )}
 
-              {/* Tặng vé Button if VALID and not selling */}
+              {/* Action Buttons: Đăng bán vé lại & Tặng vé cho bạn bè if VALID and not selling */}
               {!isLocked && ticket.status === "UPCOMING" && ticket.rawStatus === "VALID" && (
-                <div className="pt-2">
+                <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowResaleModal(true)}
+                    className="w-full py-2.5 px-4 rounded-md border border-emerald-600 bg-emerald-50/50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+                  >
+                    <FiTag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>{t("Đăng bán vé lại")}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setShowGiftModal(true)}
-                    className="w-full py-2.5 px-4 rounded-md border border-[#2166F3] text-[#2166F3] hover:bg-blue-50/60 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-2.5 px-4 rounded-md border border-[#2166F3] text-[#2166F3] hover:bg-blue-50/60 dark:hover:bg-blue-950/20 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
                   >
-                    <FiGift className="w-4 h-4" />
+                    <FiGift className="w-4 h-4 text-[#2166F3]" />
                     <span>{t("Tặng vé cho bạn bè")}</span>
                   </button>
                 </div>
@@ -528,7 +539,7 @@ export default function TicketDetail() {
               ) : (
                 /* Khối QR có hiệu lực, sẵn sàng check-in */
                 <div className="w-full py-2 flex flex-col items-center space-y-4">
-                  <div className="relative p-2 app-bg-card border app-border rounded-lg shadow-2xs">
+                  <div className="relative p-2 app-bg-card border app-border rounded-lg shadow-2xs group">
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeString)}`}
                       alt="QR Check-in"
@@ -536,16 +547,29 @@ export default function TicketDetail() {
                         isQrRevealed ? "filter-none opacity-100" : "filter blur-[6px] grayscale opacity-30 select-none"
                       }`}
                     />
-                    {!isQrRevealed && (
-                      <button
-                        type="button"
-                        onClick={() => setIsQrRevealed(true)}
-                        className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 rounded-lg cursor-pointer text-white hover:bg-slate-900/50 transition-colors"
-                      >
-                        <FiLock className="w-6 h-6 mb-1" />
-                        <span className="text-xs font-medium">{t("Bấm để xem QR")}</span>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsQrRevealed((prev) => !prev)}
+                      className={`absolute inset-0 flex flex-col items-center justify-center rounded-lg cursor-pointer text-white transition-all ${
+                        !isQrRevealed
+                          ? "bg-slate-900/40 hover:bg-slate-900/55 opacity-100"
+                          : "bg-slate-950/60 opacity-0 group-hover:opacity-100 backdrop-blur-[2px]"
+                      }`}
+                      aria-label={isQrRevealed ? t("Bấm để che QR") : t("Bấm để xem QR")}
+                      title={isQrRevealed ? t("Bấm để che QR") : t("Bấm để xem QR")}
+                    >
+                      {!isQrRevealed ? (
+                        <>
+                          <FiLock className="w-6 h-6 mb-1 transition-transform group-hover:scale-110" />
+                          <span className="text-xs font-medium">{t("Bấm để xem QR")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiEyeOff className="w-6 h-6 mb-1 transition-transform group-hover:scale-110" />
+                          <span className="text-xs font-medium">{t("Bấm để che QR")}</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   <div className="space-y-1">
@@ -613,6 +637,17 @@ export default function TicketDetail() {
           ticket={ticket}
           onClose={() => setShowGiftModal(false)}
           onChanged={() => navigate(PATHS.MY_TICKETS)}
+        />
+      )}
+
+      {showResaleModal && (
+        <ResaleTicketModal
+          ticket={ticket}
+          onClose={() => setShowResaleModal(false)}
+          onChanged={() => {
+            setShowResaleModal(false);
+            if (id) loadTicketData(id);
+          }}
         />
       )}
     </div>

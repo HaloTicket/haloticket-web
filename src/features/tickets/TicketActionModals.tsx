@@ -375,9 +375,21 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
                   </Link>
                 </div>
               </div>
+            ) : eligibility?.reasonCode === "RESALE_POLICY_NOT_CONFIGURED" ? (
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Ban tổ chức chưa bật bán lại vé cho sự kiện này.
+              </p>
+            ) : eligibility?.reasonCode === "RESALE_DISABLED" ? (
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Ban tổ chức đang tắt tính năng bán lại vé cho sự kiện này.
+              </p>
+            ) : eligibility?.reasonCode === "RESALE_DEADLINE_PASSED" ? (
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Sự kiện đã hết thời gian nhận đăng bán lại vé.
+              </p>
             ) : (
               <p className="text-xs text-amber-800 dark:text-amber-300">
-                Vé không đủ điều kiện bán lại hoặc thời gian nhận đăng bán đã kết thúc.
+                Vé này hiện không đủ điều kiện bán lại.
               </p>
             )}
           </div>

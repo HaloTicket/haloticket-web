@@ -577,6 +577,19 @@
   "Đang tải vé từ hệ thống…": "Loading tickets from system…",
   "Không thể tải vé từ hệ thống. Hãy thử lại sau.": "Unable to load tickets from system. Please try again later.",
   "Không tìm thấy vé phù hợp": "No matching tickets found",
-  "Thử đổi bộ lọc hoặc tìm một sự kiện khác.": "Try changing filters or searching for another event.",
-  "Khám phá sự kiện": "Explore events"
+  "Khám phá sự kiện": "Explore events",
+  "Bấm để xem QR": "Click to view QR",
+  "Bấm để che QR": "Click to hide QR",
+  "Che mã QR bảo mật": "Hide QR code",
+  "Hiện mã QR": "Show QR code",
+  "Mã vé sẵn sàng check-in": "Ticket code ready for check-in",
+  "Xuất trình mã này tại cổng soát vé sự kiện.": "Present this code at event check-in gate.",
+  "Tải ảnh vé về máy": "Download ticket image",
+  "Đăng bán vé lại": "Resell ticket",
+  "Tặng vé cho bạn bè": "Gift ticket to friend",
+  "Xem chi tiết vé đầy đủ": "View full ticket details",
+  "Chỗ ngồi / Ghế": "Seat / Chair",
+  "MÃ QR CHECK-IN": "CHECK-IN QR CODE",
+  "THÔNG TIN VÉ": "TICKET INFORMATION",
+  "Mã vé": "Ticket code"
 }
