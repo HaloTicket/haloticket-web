@@ -11,7 +11,7 @@ import type {
 export const eventTransferApi = {
   getSettings: (eventId: string) =>
     axiosClient.get<unknown, TransferSettingsData>(
-      `/api/events/${eventId}/transfer-settings`
+      `/events/${eventId}/transfer-settings`
     ),
 
   updateResalePolicy: (
@@ -29,7 +29,7 @@ export const eventTransferApi = {
     }
   ) =>
     axiosClient.put<unknown, ResalePolicyData>(
-      `/api/events/${eventId}/resale-policy`,
+      `/events/${eventId}/resale-policy`,
       data
     ),
 
@@ -46,17 +46,17 @@ export const eventTransferApi = {
     }
   ) =>
     axiosClient.put<unknown, GiftPolicyData>(
-      `/api/events/${eventId}/gift-policy`,
+      `/events/${eventId}/gift-policy`,
       data
     ),
 
   getListings: (eventId: string, page = 0, size = 20, status?: string) =>
     axiosClient.get<unknown, PageData<OrganizerListingItem>>(
-      `/api/marketplace/organizer/events/${eventId}/listings?page=${page}&size=${size}${status ? `&status=${status}` : ""}`
+      `/marketplace/organizer/events/${eventId}/listings?page=${page}&size=${size}${status ? `&status=${status}` : ""}`
     ),
 
   getGifts: (eventId: string, page = 0, size = 20, status?: string) =>
     axiosClient.get<unknown, PageData<OrganizerGiftItem>>(
-      `/api/marketplace/organizer/events/${eventId}/gifts?page=${page}&size=${size}${status ? `&status=${status}` : ""}`
+      `/marketplace/organizer/events/${eventId}/gifts?page=${page}&size=${size}${status ? `&status=${status}` : ""}`
     ),
 };
