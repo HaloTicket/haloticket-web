@@ -57,6 +57,7 @@ import { EventVouchers } from "@/features/organizer/event-manage/EventVouchers";
 import { EventSeatingMap } from "@/features/organizer/event-manage/EventSeatingMap";
 import { EventSeatingAssigner } from "@/features/organizer/event-manage/EventSeatingAssigner";
 import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
+import EventTransfers from "@/features/organizer/event-manage/EventTransfers";
 
 // Resale Feature
 import ResaleList from "@/features/resale/ResaleList";
@@ -400,6 +401,10 @@ export const router = createBrowserRouter([
       {
         path: "edit",
         element: <EventEditInfo />,
+      },
+      {
+        path: "transfers",
+        element: <EventTransfers />,
       },
     ],
   },

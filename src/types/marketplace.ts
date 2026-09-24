@@ -43,7 +43,8 @@ export interface TicketListing {
   maxPriceSnapshot?: number | null;
   quantity?: number | null;
   allowRetail?: boolean | null;
-  status: "ACTIVE" | "RESERVED" | "SOLD" | "CANCELLED" | "EXPIRED";
+  status: "ACTIVE" | "RESERVED" | "SOLD" | "CANCELLED" | "EXPIRED" | "PAUSED_BY_EVENT";
+  pauseReason?: string | null;
   expiresAt?: string | null;
   publishedAt?: string | null;
 }
