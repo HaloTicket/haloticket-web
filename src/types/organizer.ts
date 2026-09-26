@@ -8,6 +8,8 @@ export interface TicketItem {
   maxPerOrder: number;
   description: string;
   image?: string | null;
+  status?: string;
+  showtimeId?: string;
 }
 
 export interface ShowtimeItem {
@@ -17,6 +19,7 @@ export interface ShowtimeItem {
   endTime: string;
   saleStartTime?: string;
   saleEndTime?: string;
+  tickets?: TicketItem[];
 }
 
 export interface CustomQuestionItem {
