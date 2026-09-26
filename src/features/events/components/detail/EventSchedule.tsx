@@ -305,7 +305,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                             disabled
                             className="px-5 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-400 font-extrabold text-xs md:text-sm rounded-xl border border-slate-300 dark:border-zinc-700 cursor-not-allowed shrink-0"
                           >
-                            {translate("Ngừng Bán vé")}
+                            {translate("NGƯNG BÁN ONLINE")}
                           </button>
                         );
                       }
@@ -317,7 +317,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                             disabled
                             className="px-5 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-500 font-extrabold text-xs md:text-sm rounded-xl border border-slate-300 dark:border-zinc-700 cursor-not-allowed shrink-0"
                           >
-                            {translate("Chưa mở bán")}
+                            {translate("SẮP MỞ BÁN")}
                           </button>
                         );
                       }
@@ -336,7 +336,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                             }}
                             className="px-5 py-2.5 gradient-btn text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md cursor-pointer transition-all shrink-0 active:scale-95"
                           >
-                            {translate("Mua vé ngay")}
+                            {translate("ĐANG BÁN VÉ")}
                           </button>
                         );
                       }
@@ -347,7 +347,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                           disabled
                           className="px-5 py-2.5 bg-slate-200 dark:bg-zinc-800 text-slate-400 font-extrabold text-xs md:text-sm rounded-xl border border-slate-300 dark:border-zinc-700 cursor-not-allowed shrink-0"
                         >
-                          {translate("Đã hết vé")}
+                          {translate("HẾT VÉ")}
                         </button>
                       );
                     })()}
@@ -556,7 +556,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                           disabled
                           className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-400 font-extrabold text-xs rounded-xl shadow-none cursor-not-allowed border border-slate-300 dark:border-zinc-700"
                         >
-                          {translate("Đã hết vé")}
+                          {translate("HẾT VÉ")}
                         </button>
                       )}
                     </div>

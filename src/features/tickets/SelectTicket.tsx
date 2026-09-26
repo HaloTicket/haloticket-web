@@ -371,10 +371,27 @@ export default function SelectTicket() {
   const priceLegend = useMemo(() => {
     if (zonesList.length > 0) {
       return zonesList.map((z, idx) => {
-        const tier = ticketTypes.find((t) => t.id === z.tierId) || 
-          ticketTypes.find(t => t.name.trim().toLowerCase() === (z.name || "").trim().toLowerCase()) || 
-          ticketTypes.find(t => (z.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase())) || 
-          (ticketTypes.length === 1 ? ticketTypes[0] : undefined);
+        let tier = ticketTypes.find((t) => t.id === z.tierId);
+        
+        if (!tier && seatMap?.ticketTiers && z.tierId) {
+          const originalTier = seatMap.ticketTiers.find((t: any) => t.id === z.tierId);
+          if (originalTier) {
+             tier = ticketTypes.find(t => t.name.trim().toLowerCase() === originalTier.name.trim().toLowerCase());
+          }
+        }
+        
+        if (!tier) {
+           tier = ticketTypes.find(t => t.name.trim().toLowerCase() === (z.name || "").trim().toLowerCase());
+        }
+        
+        if (!tier) {
+           const sortedTypes = [...ticketTypes].sort((a, b) => b.name.length - a.name.length);
+           tier = sortedTypes.find(t => (z.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase()));
+        }
+        
+        if (!tier && ticketTypes.length === 1) {
+           tier = ticketTypes[0];
+        }
         const price = tier?.price !== undefined ? tier.price : (z.price ?? 0);
         const colors = ["#f59e0b", "#9333ea", "#2563eb", "#10b981", "#f97316", "#ec4899", "#475569", "#06b6d4"];
         const color = z.color || tier?.color || colors[idx % colors.length];
@@ -383,7 +400,7 @@ export default function SelectTicket() {
           name: z.name,
           price,
           color,
-          tierId: z.tierId,
+          tierId: tier?.id || z.tierId,
           tierName: tier?.name || z.name,
           capacity: z.capacity || seatMap?.seats?.filter((s) => s.zoneId === z.id).length || 100,
         };
@@ -512,9 +529,9 @@ export default function SelectTicket() {
 
       // select seat
       const zone = seatMap?.zones?.[seat.zoneId] || (seatMap?.zones && Object.values(seatMap.zones).find((z: any) => z.id === seat.zoneId || z.name === seat.zoneId));
-      const tier = ticketTypes.find((t) => t.id === zone?.tierId) || 
-        ticketTypes.find(t => t.name.trim().toLowerCase() === (zone?.name || "").trim().toLowerCase()) ||
-        ticketTypes.find(t => (zone?.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase()));
+      const legendItem = priceLegend.find(p => p.id === (zone?.id || seat.zoneId) || p.name === (zone?.name || seat.zoneId));
+      const tier = ticketTypes.find(t => t.id === legendItem?.tierId || t.name === legendItem?.tierName);
+      
       const maxQty = tier?.maxPerOrder || zone?.maxPerOrder || 4;
 
       const currentZoneSeatsCount = selectedSeatObjects.filter((s) => s.zoneId === seat.zoneId || s.zoneId === zone?.id).length;
@@ -526,22 +543,22 @@ export default function SelectTicket() {
       const updatedSeats = [...selectedSeatObjects, seat];
       setSelectedSeatObjects(updatedSeats);
 
-      const price = tier?.price !== undefined ? tier.price : (zone?.price ?? 1000000);
+      const price = legendItem?.price !== undefined ? legendItem.price : (zone?.price ?? 1000000);
       const zoneId = zone?.id || seat.zoneId || "zone_default";
       const zoneName = zone?.name || seat.zoneId || "Khu vực có ghế";
 
       setCart((prev) => {
         const existing = prev.find((i) => i.zoneId === zoneId);
         if (existing) {
-          return prev.map((i) => (i.zoneId === zoneId ? { ...i, quantity: i.quantity + 1 } : i));
+          return prev.map((i) => (i.zoneId === zoneId ? { ...i, quantity: i.quantity + 1, price } : i));
         }
         return [
           ...prev,
           {
             zoneId,
             zoneName,
-            tierId: tier?.id,
-            tierName: tier?.name || "Vé Tiêu Chuẩn",
+            tierId: legendItem?.tierId || tier?.id,
+            tierName: legendItem?.tierName || tier?.name || "Vé Tiêu Chuẩn",
             price,
             quantity: 1,
             color: zone?.color || "#3b82f6",
@@ -558,9 +575,9 @@ export default function SelectTicket() {
     setErrorMessage(null);
     if (!activeZoneModal) return;
 
-    const tier = ticketTypes.find((t) => t.id === activeZoneModal.tierId) ||
-      ticketTypes.find(t => t.name.trim().toLowerCase() === (activeZoneModal.name || "").trim().toLowerCase()) ||
-      ticketTypes.find(t => (activeZoneModal.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase()));
+    const legendItem = priceLegend.find(p => p.id === activeZoneModal.id);
+    const tier = ticketTypes.find(t => t.id === legendItem?.tierId || t.name === legendItem?.tierName);
+
     const maxQty = tier?.maxPerOrder || activeZoneModal.maxPerOrder || 4;
     const minQty = tier?.minPerOrder || activeZoneModal.minPerOrder || 1;
 
@@ -574,7 +591,7 @@ export default function SelectTicket() {
       return;
     }
 
-    const price = tier?.price !== undefined ? tier.price : (activeZoneModal.price ?? 1000000);
+    const price = legendItem?.price !== undefined ? legendItem.price : (activeZoneModal.price ?? 1000000);
 
     setCart((prevCart) => {
       const exists = prevCart.some((item) => item.zoneId === activeZoneModal.id);
@@ -588,8 +605,8 @@ export default function SelectTicket() {
         const newItem: CartTicketItem = {
           zoneId: activeZoneModal.id,
           zoneName: activeZoneModal.name,
-          tierId: activeZoneModal.tierId,
-          tierName: `${activeZoneModal.name} (${tier?.name || "Vé Thường"})`,
+          tierId: legendItem?.tierId || activeZoneModal.tierId,
+          tierName: `${activeZoneModal.name} (${legendItem?.tierName || tier?.name || "Vé Thường"})`,
           price,
           quantity: selectedQuantity,
           color: activeZoneModal.color || "#3b82f6",
@@ -707,9 +724,29 @@ export default function SelectTicket() {
           quantity: c.quantity,
           unitPrice: c.price
       })),
-      seatIds: selectedSeatObjects.length > 0 
-           ? selectedSeatObjects.map(s => s.id) 
-           : Array.from({length: cartTotalTickets}).map((_, i) => `${firstItem.zoneId}-GA-${Date.now()}-${i+1}`),
+      seatIds: (() => {
+        if (selectedSeatObjects.length > 0) {
+          const orderedSeatIds: string[] = [];
+          cart.forEach(c => {
+            const seats = selectedSeatObjects.filter(s => s.zoneId === c.zoneId || s.zoneId === c.zoneName);
+            orderedSeatIds.push(...seats.map(s => s.id));
+          });
+          // include any leftover seats just in case
+          const added = new Set(orderedSeatIds);
+          selectedSeatObjects.forEach(s => {
+            if (!added.has(s.id)) orderedSeatIds.push(s.id);
+          });
+          return orderedSeatIds;
+        } else {
+          const gaSeatIds: string[] = [];
+          cart.forEach(c => {
+            for (let i = 0; i < c.quantity; i++) {
+              gaSeatIds.push(`${c.zoneId}-GA-${Date.now()}-${i+1}`);
+            }
+          });
+          return gaSeatIds;
+        }
+      })(),
       seatNames: selectedSeatObjects.reduce((acc, s) => {
            if (s.row && (s.col !== undefined || s.number !== undefined)) {
                acc[s.id] = `Hàng ${s.row} - Ghế ${s.col ?? s.number}`;

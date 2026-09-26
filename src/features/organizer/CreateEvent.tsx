@@ -17,6 +17,8 @@ import { mediaApi } from "@/services/mediaApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { ekycApi } from "@/services/ekycApi";
 import { formatDatetimeLocal } from "@/utils/formatters";
+import { useNavigate } from "react-router-dom";
+import { PATHS } from "@/routes/paths";
 
 interface DraftEventItem extends Partial<EventApiData> {
   id: string;
@@ -84,8 +86,10 @@ export const CreateEvent: React.FC = () => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, []);
 
+  const navigate = useNavigate();
+
   // modals state
-  const [showNoticeModal, setShowNoticeModal] = useState(true);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showEkycModal, setShowEkycModal] = useState(false);
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -96,12 +100,19 @@ export const CreateEvent: React.FC = () => {
     let active = true;
     ekycApi.getOrganizerEligibility()
       .then((res) => {
-        if (active && !res.eligible) {
-          setShowEkycModal(true);
+        if (active) {
+          if (!res.eligible) {
+            setShowEkycModal(true);
+          } else {
+            setShowNoticeModal(true);
+          }
         }
       })
       .catch(() => {
-        // endpoint offline/error
+        // endpoint offline/error or 403 forbidden
+        if (active) {
+          setShowEkycModal(true);
+        }
       });
     return () => { active = false; };
   }, []);
@@ -148,10 +159,29 @@ export const CreateEvent: React.FC = () => {
         const newShowtimes: ShowtimeItem[] = [];
         
         if (diffHours >= 24) {
+          const startHour = start.getHours() + start.getMinutes() / 60 + start.getSeconds() / 3600;
+          const endHour = end.getHours() + end.getMinutes() / 60 + end.getSeconds() / 3600;
+          
+          let dailyDurationMs = 0;
+          if (startHour <= endHour) {
+             dailyDurationMs = (end.getTime() % 86400000) - (start.getTime() % 86400000);
+             if (dailyDurationMs < 0) dailyDurationMs += 86400000;
+          } else {
+             // overnight showtime
+             dailyDurationMs = ((24 - startHour) + endHour) * 3600000;
+          }
+          
+          // fallback if calculated duration is 0, make it at least 1 hour
+          if (dailyDurationMs === 0) dailyDurationMs = 3600000;
+
           let currentDate = new Date(start);
           currentDate.setHours(0, 0, 0, 0);
           
           let tempEnd = new Date(end);
+          if (startHour > endHour) {
+            // if overnight, the last showtime starts on the day before tempEnd
+            tempEnd.setDate(tempEnd.getDate() - 1);
+          }
           tempEnd.setHours(0, 0, 0, 0);
           
           let dayCount = 1;
@@ -159,10 +189,9 @@ export const CreateEvent: React.FC = () => {
             const displayStr = currentDate.toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' });
             
             const dayStart = new Date(currentDate);
-            dayStart.setHours(start.getHours(), start.getMinutes(), start.getSeconds());
+            dayStart.setHours(start.getHours(), start.getMinutes(), start.getSeconds(), 0);
             
-            const dayEnd = new Date(currentDate);
-            dayEnd.setHours(end.getHours(), end.getMinutes(), end.getSeconds());
+            const dayEnd = new Date(dayStart.getTime() + dailyDurationMs);
             
             const stStr = formatDatetimeLocal(dayStart.toISOString()) || "";
             const etStr = formatDatetimeLocal(dayEnd.toISOString()) || "";
@@ -249,12 +278,17 @@ export const CreateEvent: React.FC = () => {
 
         // fetch organizer profile
         if (currentUserId) {
-          const orgProfile = await organizerApi.getOrganizerProfile(currentUserId);
-          if (isMounted && orgProfile && orgProfile.name) {
-            setOrganizerName(orgProfile.name);
-            if (orgProfile.description) setOrganizerInfo(orgProfile.description);
-            if (orgProfile.avatar) setOrganizerLogo(orgProfile.avatar);
-            setIsOrganizerPreFilled(true);
+          try {
+            const orgProfile = await organizerApi.getOrganizerProfile(currentUserId);
+            if (isMounted && orgProfile && orgProfile.name) {
+              setOrganizerName(orgProfile.name);
+              if (orgProfile.description) setOrganizerInfo(orgProfile.description);
+              if (orgProfile.avatar) setOrganizerLogo(orgProfile.avatar);
+              setIsOrganizerPreFilled(true);
+            }
+          } catch (error) {
+            // expected to fail with 403 if user hasn't verified ekyc
+            console.log("Organizer profile not found or forbidden, falling back to empty.");
           }
         }
 
@@ -341,17 +375,27 @@ export const CreateEvent: React.FC = () => {
             }
             if (Array.isArray(parsedTickets)) {
               type RawTicket = Partial<TicketItem>;
-              const mappedTickets: TicketItem[] = (parsedTickets as RawTicket[]).map((t, idx: number) => ({
-                id: String(t.id || `ticket_${idx}_${Date.now()}`),
-                name: t.name || "",
-                price: t.price ?? 0,
-                isFree: t.isFree ?? (t.price === 0),
-                totalQuantity: t.totalQuantity ?? 100,
-                minPerOrder: t.minPerOrder ?? 1,
-                maxPerOrder: t.maxPerOrder ?? 5,
-                description: t.description || "",
-                image: t.image || null
-              }));
+              const mappedTickets: TicketItem[] = [];
+              const seenNames = new Set<string>();
+              (parsedTickets as RawTicket[]).forEach((t, idx: number) => {
+                const name = t.name || "";
+                if (!seenNames.has(name)) {
+                  seenNames.add(name);
+                  mappedTickets.push({
+                    id: String(t.id || `ticket_${idx}_${Date.now()}`),
+                    name: name,
+                    price: t.price ?? 0,
+                    isFree: t.isFree ?? (t.price === 0),
+                    totalQuantity: t.totalQuantity ?? 100,
+                    minPerOrder: t.minPerOrder ?? 1,
+                    maxPerOrder: t.maxPerOrder ?? 5,
+                    status: t.status || "ACTIVE",
+                    showtimeId: t.showtimeId || undefined,
+                    description: t.description || "",
+                    image: t.image || null
+                  });
+                }
+              });
               setTickets(mappedTickets);
             }
           }
@@ -491,7 +535,10 @@ export const CreateEvent: React.FC = () => {
 
         const activeEventId = currentEventIdRef.current;
 
-        const showtimesPayload = showtimes;
+        const showtimesPayload = showtimes.map(st => ({
+          ...st,
+          tickets: tickets.length > 0 ? tickets : st.tickets
+        }));
 
         const { uploadedPoster, uploadedBanner, uploadedLogo, uploadedGallery } =
           await processAllImagesToS3(posterImage, bannerImage, organizerLogo, galleryImages);
@@ -775,7 +822,10 @@ export const CreateEvent: React.FC = () => {
 
       const activeEventId = currentEventIdRef.current;
 
-      const showtimesPayload = showtimes;
+      const showtimesPayload = showtimes.map(st => ({
+        ...st,
+        tickets: tickets.length > 0 ? tickets : st.tickets
+      }));
 
       const payload = {
         eventId: activeEventId,
@@ -1015,7 +1065,16 @@ export const CreateEvent: React.FC = () => {
       {showNoticeModal && <NoticeModal onClose={() => setShowNoticeModal(false)} />}
 
       {/* Modal eKYC required */}
-      <EkycRequiredModal isOpen={showEkycModal} onClose={() => setShowEkycModal(false)} />
+      <EkycRequiredModal 
+        isOpen={showEkycModal} 
+        onClose={() => {
+          if (window.history.length > 2) {
+            navigate(-1);
+          } else {
+            navigate(PATHS.HOME);
+          }
+        }} 
+      />
 
       {/* Modal 2: create or edit ticket */}
       {showAddTicketModal && (

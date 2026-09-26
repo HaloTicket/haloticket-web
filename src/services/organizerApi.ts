@@ -8,8 +8,10 @@ export const organizerApi = {
       const url = userId ? `/events/organizer-profile?userId=${encodeURIComponent(userId)}` : "/events/organizer-profile";
       const response: unknown = await axiosClient.get(url);
       return response as OrganizerProfileData;
-    } catch (err) {
-      console.warn("Failed to fetch organizer profile:", err);
+    } catch (err: any) {
+      if (err?.response?.status !== 403) {
+        console.warn("Failed to fetch organizer profile:", err);
+      }
       return null;
     }
   },
