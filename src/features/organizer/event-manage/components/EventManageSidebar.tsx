@@ -13,7 +13,8 @@ import {
   FiX,
   FiChevronLeft,
   FiChevronRight,
-  FiRepeat
+  FiRepeat,
+  FiClock
 } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 
@@ -94,6 +95,12 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           label: "Cài đặt hạng vé",
           path: `/organizer/events/${eventId}/manage/ticket-assign`,
           icon: <FaTicketAlt className="w-4 h-4 shrink-0" />,
+          visible: isFullAccess,
+        },
+        {
+          label: "Quản lý suất diễn",
+          path: `/organizer/events/${eventId}/manage/showtimes`,
+          icon: <FiClock className="w-4 h-4 shrink-0" />,
           visible: isFullAccess,
         },
         {

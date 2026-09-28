@@ -119,21 +119,42 @@ export const EventEditInfo: React.FC = () => {
         const newShowtimes: ShowtimeItem[] = [];
         
         if (diffHours >= 24) {
+          const startHour = start.getHours() + start.getMinutes() / 60 + start.getSeconds() / 3600;
+          const endHour = end.getHours() + end.getMinutes() / 60 + end.getSeconds() / 3600;
+          
+          let dailyDurationMs = 0;
+          if (startHour <= endHour) {
+             dailyDurationMs = (end.getTime() % 86400000) - (start.getTime() % 86400000);
+             if (dailyDurationMs < 0) dailyDurationMs += 86400000;
+          } else {
+             // overnight showtime
+             dailyDurationMs = ((24 - startHour) + endHour) * 3600000;
+          }
+          
+          // fallback if calculated duration is 0, make it at least 1 hour
+          if (dailyDurationMs === 0) dailyDurationMs = 3600000;
+
           let currentDate = new Date(start);
+          currentDate.setHours(0, 0, 0, 0);
+          
+          let tempEnd = new Date(end);
+          if (startHour > endHour) {
+            // if overnight, the last showtime starts on the day before tempEnd
+            tempEnd.setDate(tempEnd.getDate() - 1);
+          }
+          tempEnd.setHours(0, 0, 0, 0);
+          
           let dayCount = 1;
-          while (currentDate < end) {
-            const currentEndTime = new Date(currentDate);
-            currentEndTime.setHours(end.getHours(), end.getMinutes(), 0, 0);
-            if (currentEndTime < currentDate) {
-              currentEndTime.setDate(currentEndTime.getDate() + 1);
-            }
-            if (currentEndTime > end) currentEndTime.setTime(end.getTime());
+          while (currentDate <= tempEnd) {
+            const displayStr = currentDate.toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' });
             
-            const displayStr = currentDate.toLocaleDateString("vi-VN", {
-              day: "2-digit", month: "2-digit", year: "numeric"
-            });
-            const stStr = formatDatetimeLocal(currentDate.toISOString()) || "";
-            const etStr = formatDatetimeLocal(currentEndTime.toISOString()) || "";
+            const dayStart = new Date(currentDate);
+            dayStart.setHours(start.getHours(), start.getMinutes(), start.getSeconds(), 0);
+            
+            const dayEnd = new Date(dayStart.getTime() + dailyDurationMs);
+            
+            const stStr = formatDatetimeLocal(dayStart.toISOString()) || "";
+            const etStr = formatDatetimeLocal(dayEnd.toISOString()) || "";
 
             newShowtimes.push({
               id: Date.now().toString() + Math.random().toString(),
@@ -143,9 +164,7 @@ export const EventEditInfo: React.FC = () => {
               saleStartTime: "",
               saleEndTime: ""
             });
-            
             currentDate.setDate(currentDate.getDate() + 1);
-            currentDate.setHours(start.getHours(), start.getMinutes(), 0, 0);
             dayCount++;
           }
         } else {

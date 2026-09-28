@@ -393,54 +393,62 @@ export default function Checkout() {
       }
 
       // save to my_tickets cache - 1 physical ticket per seat or per quantity
-      const numTickets = (order.seatIds && order.seatIds.length > 0) ? order.seatIds.length : (order.quantity || 1);
+      const newTickets: any[] = [];
+      let globalTicketIdx = 0;
       
-      const newTickets = Array.from({ length: numTickets }).map((_, idx) => {
-        const seatId = (order.seatIds && order.seatIds.length > 0) ? order.seatIds[idx] : (order.zoneId || "TICKET");
-        let seatLabel = order.seatNames?.[seatId];
-        let zoneNameStr = order.ticketTypeName.split("(")[0].trim();
-        if (!zoneNameStr) zoneNameStr = "Vé Sự kiện";
-        
-        let displayTicketName = zoneNameStr;
+      const cartItemsToProcess = (order.cartItems && order.cartItems.length > 0) 
+        ? order.cartItems 
+        : [{ zoneId: order.zoneId, zoneName: order.ticketTypeName.split("(")[0].trim(), price: finalTotalAmount / (order.quantity || 1), quantity: order.quantity || 1 }];
 
-        if (order.seatIds && order.seatIds.length > 0) {
-           if (!seatLabel) {
-             const match = seatId.match(/seat_\d+_(\d+)_(\d+)/);
-             if (match) {
-               const rowName = String.fromCharCode(65 + parseInt(match[1]));
-               const colName = parseInt(match[2]) + 1;
-               seatLabel = `Hàng ${rowName} - Ghế ${colName}`;
-             } else {
-               seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
+      cartItemsToProcess.forEach((cartItem: any) => {
+        for (let i = 0; i < cartItem.quantity; i++) {
+          const seatId = (order.seatIds && order.seatIds.length > globalTicketIdx) ? order.seatIds[globalTicketIdx] : (cartItem.zoneId || "TICKET");
+          let seatLabel = order.seatNames?.[seatId];
+          let zoneNameStr = cartItem.zoneName || cartItem.tierName || "Vé Sự kiện";
+          
+          let displayTicketName = zoneNameStr;
+
+          if (order.seatIds && order.seatIds.length > 0) {
+             if (!seatLabel) {
+               const match = seatId.match(/seat_\d+_(\d+)_(\d+)/);
+               if (match) {
+                 const rowName = String.fromCharCode(65 + parseInt(match[1], 10));
+                 const colName = parseInt(match[2], 10) + 1;
+                 seatLabel = `Hàng ${rowName} - Ghế ${colName}`;
+               } else {
+                 seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
+               }
              }
-           }
-           displayTicketName = `Hạng vé ${zoneNameStr}: ${seatLabel}`;
-        } else {
-           displayTicketName = `Hạng vé ${zoneNameStr}`;
-        }
+             displayTicketName = `Hạng vé ${zoneNameStr}: ${seatLabel}`;
+          } else {
+             displayTicketName = `Hạng vé ${zoneNameStr}`;
+          }
 
-        return {
-          id: `${bookingId}-${idx}`,
-          bookingCode: `${bookingCode}-${idx+1}`,
-          eventId: activeEventId,
-          eventTitle: order.eventTitle,
-          eventTime: order.eventTime,
-          eventLocation: order.eventLocation,
-          eventPoster: order.eventPoster,
-          ticketTypeName: displayTicketName,
-          seatId: seatId,
-          quantity: 1,
-          totalAmount: finalTotalAmount / numTickets,
-          customerName: recipientData.recipientName || fullName,
-          customerPhone: recipientData.phone || phoneOrCccd,
-          customerEmail: recipientData.email || email,
-          shippingAddress: `${recipientData.address}, ${recipientData.ward}, ${recipientData.city}`,
-          paymentMethod: selectedPaymentMethod,
-          purchaseDate: new Date().toISOString(),
-          qrCode: `HALOTICKET-${bookingId}-${seatId}-${idx}`,
-          status: "UPCOMING"
-        };
+          newTickets.push({
+            id: `${bookingId}-${globalTicketIdx}`,
+            bookingCode: `${bookingCode}-${globalTicketIdx+1}`,
+            eventId: activeEventId,
+            eventTitle: order.eventTitle,
+            eventTime: order.eventTime,
+            eventLocation: order.eventLocation,
+            eventPoster: order.eventPoster,
+            ticketTypeName: displayTicketName,
+            seatId: seatId,
+            quantity: 1,
+            totalAmount: cartItem.price,
+            customerName: recipientData.recipientName || fullName,
+            customerPhone: recipientData.phone || phoneOrCccd,
+            customerEmail: recipientData.email || email,
+            shippingAddress: `${recipientData.address || ""}, ${recipientData.ward || ""}, ${recipientData.city || ""}`.replace(/^, | , | ,$/g, "").trim(),
+            paymentMethod: selectedPaymentMethod,
+            purchaseDate: new Date().toISOString(),
+            qrCode: `HALOTICKET-${bookingId}-${seatId}-${globalTicketIdx}`,
+            status: "UPCOMING"
+          });
+          globalTicketIdx++;
+        }
       });
+
       const existingMyTickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
       localStorage.setItem("haloticket_my_tickets", JSON.stringify([...newTickets, ...existingMyTickets]));
       
@@ -783,12 +791,38 @@ export default function Checkout() {
                 CHỌN PHƯƠNG THỨC THANH TOÁN
               </h2>
 
-              {/* Delivery Email Banner */}
-              <div className="app-bg-card border app-border rounded-2xl p-6 space-y-1 shadow-sm">
-                <h3 className="text-xs font-black uppercase tracking-wider text-blue-500">Thông tin nhận vé</h3>
-                <p className="text-xs font-bold app-text-main">
-                  Vé điện tử sẽ được gửi về Email: <span className="text-blue-600 dark:text-blue-400">{email}</span>
-                </p>
+              {/* Delivery Info & Custom Questions Banner */}
+              <div className="app-bg-card border app-border rounded-2xl p-6 space-y-4 shadow-sm">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">Thông tin người nhận</h3>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold app-text-main">
+                      Họ tên: <span className="text-blue-600 dark:text-blue-400">{fullName}</span>
+                    </p>
+                    <p className="text-xs font-bold app-text-main">
+                      SĐT / CCCD: <span className="text-blue-600 dark:text-blue-400">{phoneOrCccd}</span>
+                    </p>
+                    <p className="text-xs font-bold app-text-main">
+                      Email nhận vé: <span className="text-blue-600 dark:text-blue-400">{email}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {hasCustomQuestions && (
+                  <div className="pt-4 border-t app-border">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">Thông tin khảo sát bổ sung</h3>
+                    <div className="space-y-3">
+                      {customQuestions.map((q, idx) => (
+                        <div key={q.id || idx} className="text-xs">
+                          <span className="font-bold app-text-main block mb-1">{idx + 1}. {q.title}</span>
+                          <span className="font-extrabold text-blue-600 dark:text-blue-400 pl-3 block">
+                            {q.type === 'checkbox' ? (answers[q.id] ? "Đồng ý" : "Không") : (answers[q.id] ? String(answers[q.id]) : "---")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Promo Code Coupon Box */}
