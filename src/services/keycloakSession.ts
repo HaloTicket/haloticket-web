@@ -39,8 +39,14 @@ interface GoogleAuthMessageEvent {
 
 interface BrowserWindowLike {
   open(url: string, target?: string, features?: string): PopupLike | null;
-  addEventListener(type: string, listener: (event?: GoogleAuthMessageEvent) => void): void;
-  removeEventListener(type: string, listener: (event?: GoogleAuthMessageEvent) => void): void;
+  addEventListener(
+    type: string,
+    listener: (event?: GoogleAuthMessageEvent) => void,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: (event?: GoogleAuthMessageEvent) => void,
+  ): void;
 }
 
 interface ScreenLike {
@@ -61,7 +67,10 @@ export interface KeycloakSessionOptions {
   location?: Pick<Location, "origin">;
   silentCheckSsoRedirectUri?: string;
   tokenRefreshLeewaySeconds?: number;
-  refreshRequest?: (refreshToken: string, clientId: string) => Promise<RefreshedTokens>;
+  refreshRequest?: (
+    refreshToken: string,
+    clientId: string,
+  ) => Promise<RefreshedTokens>;
 }
 
 export interface RefreshedTokens {
@@ -74,6 +83,7 @@ export interface KeycloakSession {
   init(options?: Partial<KeycloakInitOptions>): Promise<boolean>;
   loginWithGoogle(): Promise<void>;
   getAccessToken(): Promise<string | null>;
+  forceRefreshAccessToken(): Promise<string | null>;
   getCurrentToken(): string | null;
   getCurrentIdToken(): string | null;
   getCurrentRefreshToken(): string | null;
@@ -115,16 +125,26 @@ export function isTokenExpired(token: string): boolean {
 
 function secondsUntilExpiry(token: string): number | null {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof payload.exp === "number" ? payload.exp - Date.now() / 1000 : null;
-  } catch { return null; }
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    return typeof payload.exp === "number"
+      ? payload.exp - Date.now() / 1000
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function tokenClientId(token: string): string {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
     return typeof payload.azp === "string" ? payload.azp : "user-service";
-  } catch { return "user-service"; }
+  } catch {
+    return "user-service";
+  }
 }
 
 export function createKeycloakSession(
@@ -144,22 +164,31 @@ export function createKeycloakSession(
   const refreshLeeway = options.tokenRefreshLeewaySeconds ?? 30;
   const browserWindow =
     options.window ??
-    (typeof window === "undefined" ? undefined : (window as unknown as BrowserWindowLike));
+    (typeof window === "undefined"
+      ? undefined
+      : (window as unknown as BrowserWindowLike));
   const keycloakOrigin =
     options.keycloakOrigin ??
     new URL(
-      options.config?.url ?? import.meta.env.VITE_KEYCLOAK_URL ?? "http://localhost:9080",
+      options.config?.url ??
+        import.meta.env.VITE_KEYCLOAK_URL ??
+        "http://localhost:9080",
     ).origin;
   let refreshPromise: Promise<string | null> | undefined;
-  const requestRefresh = options.refreshRequest ?? (async (refreshToken: string, clientId: string) => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken, clientId }),
+  const requestRefresh =
+    options.refreshRequest ??
+    (async (refreshToken: string, clientId: string) => {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}/auth/refresh`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken, clientId }),
+        },
+      );
+      if (!response.ok) throw new Error("Session refresh failed");
+      return response.json() as Promise<RefreshedTokens>;
     });
-    if (!response.ok) throw new Error("Session refresh failed");
-    return response.json() as Promise<RefreshedTokens>;
-  });
   const refreshStoredToken = async (): Promise<string | null> => {
     const refreshToken = storage?.getItem("refresh_token");
     const accessToken = storage?.getItem(legacyTokenKey);
@@ -167,12 +196,17 @@ export function createKeycloakSession(
     refreshPromise ??= requestRefresh(refreshToken, tokenClientId(accessToken))
       .then((tokens) => {
         storage?.setItem?.(legacyTokenKey, tokens.accessToken);
-        storage?.setItem?.("refresh_token", tokens.refreshToken || refreshToken);
+        storage?.setItem?.(
+          "refresh_token",
+          tokens.refreshToken || refreshToken,
+        );
         if (tokens.idToken) storage?.setItem?.("id_token", tokens.idToken);
         return tokens.accessToken;
       })
       .catch(() => null)
-      .finally(() => { refreshPromise = undefined; });
+      .finally(() => {
+        refreshPromise = undefined;
+      });
     return refreshPromise;
   };
 
@@ -199,16 +233,17 @@ export function createKeycloakSession(
       } as const;
 
       if (!browserWindow) {
-        await keycloak.login(
-          { ...googleLoginOptions, redirectUri: `${location.origin}/` } as unknown as Parameters<
-            KeycloakLike["login"]
-          >[0],
-        );
+        await keycloak.login({
+          ...googleLoginOptions,
+          redirectUri: `${location.origin}/`,
+        } as unknown as Parameters<KeycloakLike["login"]>[0]);
         return;
       }
 
       const authUrl = keycloak.createLoginUrl(
-        googleLoginOptions as unknown as Parameters<KeycloakLike["createLoginUrl"]>[0],
+        googleLoginOptions as unknown as Parameters<
+          KeycloakLike["createLoginUrl"]
+        >[0],
       );
       const screenInfo: ScreenLike =
         options.screen ??
@@ -263,7 +298,8 @@ export function createKeycloakSession(
           if (data.status === "success" && data.token) {
             storage?.setItem?.(legacyTokenKey, data.token);
             if (data.idToken) storage?.setItem?.("id_token", data.idToken);
-            if (data.refreshToken) storage?.setItem?.("refresh_token", data.refreshToken);
+            if (data.refreshToken)
+              storage?.setItem?.("refresh_token", data.refreshToken);
             try {
               const raw = data.idToken || data.token;
               const base64Url = raw.split(".")[1];
@@ -272,20 +308,28 @@ export function createKeycloakSession(
                 const jsonPayload = decodeURIComponent(
                   atob(base64)
                     .split("")
-                    .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                    .map(
+                      (c) =>
+                        "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2),
+                    )
                     .join(""),
                 );
                 const payload = JSON.parse(jsonPayload);
                 if (payload?.email && typeof payload.email === "string") {
                   let rawName =
                     (typeof payload.name === "string" && payload.name) ||
-                    (typeof payload.given_name === "string" && payload.given_name) ||
-                    (typeof payload.preferred_username === "string" && payload.preferred_username) ||
+                    (typeof payload.given_name === "string" &&
+                      payload.given_name) ||
+                    (typeof payload.preferred_username === "string" &&
+                      payload.preferred_username) ||
                     payload.email.split("@")[0];
                   if (typeof rawName === "string") {
                     rawName = rawName.replace(/\s+HaloTicket$/i, "").trim();
                   }
-                  const picture = typeof payload.picture === "string" ? payload.picture : undefined;
+                  const picture =
+                    typeof payload.picture === "string"
+                      ? payload.picture
+                      : undefined;
                   const accountToSave = {
                     name: rawName || payload.email.split("@")[0],
                     email: payload.email,
@@ -299,7 +343,9 @@ export function createKeycloakSession(
                   );
                   if (typeof window !== "undefined") {
                     window.dispatchEvent(
-                      new CustomEvent("google-account-updated", { detail: accountToSave }),
+                      new CustomEvent("google-account-updated", {
+                        detail: accountToSave,
+                      }),
                     );
                   }
                 }
@@ -313,7 +359,11 @@ export function createKeycloakSession(
           settle(() => reject(new Error("Google login was cancelled")));
         };
         const handleMessage = (event?: GoogleAuthMessageEvent) => {
-          if (!event || ![location.origin, keycloakOrigin].includes(event.origin)) return;
+          if (
+            !event ||
+            ![location.origin, keycloakOrigin].includes(event.origin)
+          )
+            return;
           if (event.source && event.source !== popup) return;
           handleAuthResult(event.data);
         };
@@ -328,12 +378,35 @@ export function createKeycloakSession(
         try {
           if (typeof BroadcastChannel !== "undefined") {
             broadcastChannel = new BroadcastChannel("haloticket-google-auth");
-            broadcastChannel.onmessage = (event) => handleAuthResult(event.data);
+            broadcastChannel.onmessage = (event) =>
+              handleAuthResult(event.data);
           }
         } catch {
           // BroadcastChannel is not available in every browser mode.
         }
       });
+    },
+
+    forceRefreshAccessToken: async () => {
+      if (keycloak.authenticated && keycloak.token) {
+        try {
+          await keycloak.updateToken(-1);
+          if (keycloak.token && !isTokenExpired(keycloak.token)) {
+            return keycloak.token;
+          }
+        } catch {
+          // Token refresh failed
+        }
+      }
+      const raw = storage?.getItem(legacyTokenKey);
+      if (raw) {
+        const refreshed = await refreshStoredToken();
+        if (refreshed) return refreshed;
+        storage?.removeItem?.(legacyTokenKey);
+        storage?.removeItem?.("id_token");
+        storage?.removeItem?.("refresh_token");
+      }
+      return null;
     },
 
     getAccessToken: async () => {
@@ -366,25 +439,41 @@ export function createKeycloakSession(
     },
 
     getCurrentToken: () => {
-      if (keycloak.token && !isTokenExpired(keycloak.token)) return keycloak.token;
+      if (keycloak.token && !isTokenExpired(keycloak.token))
+        return keycloak.token;
       const legacy = storage?.getItem(legacyTokenKey);
       if (legacy && !isTokenExpired(legacy)) return legacy;
       return null;
     },
 
-    getCurrentIdToken: () => keycloak.idToken ?? storage?.getItem("id_token") ?? null,
+    getCurrentIdToken: () =>
+      keycloak.idToken ?? storage?.getItem("id_token") ?? null,
 
-    getCurrentRefreshToken: () => keycloak.refreshToken ?? storage?.getItem("refresh_token") ?? null,
+    getCurrentRefreshToken: () =>
+      keycloak.refreshToken ?? storage?.getItem("refresh_token") ?? null,
 
     isAuthenticated: () => {
-      if (keycloak.authenticated && keycloak.token && !isTokenExpired(keycloak.token)) return true;
+      if (
+        keycloak.authenticated &&
+        keycloak.token &&
+        !isTokenExpired(keycloak.token)
+      )
+        return true;
       const legacy = storage?.getItem(legacyTokenKey);
-      return Boolean((legacy && !isTokenExpired(legacy)) || storage?.getItem("refresh_token"));
+      return Boolean(
+        (legacy && !isTokenExpired(legacy)) ||
+        storage?.getItem("refresh_token"),
+      );
     },
 
     logout: async (redirectUri = `${location.origin}/`) => {
       const idToken = keycloak.idToken ?? storage?.getItem("id_token");
-      for (const key of ["access_token", "refresh_token", "id_token", "haloticket_user_profile"]) {
+      for (const key of [
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "haloticket_user_profile",
+      ]) {
         storage?.removeItem?.(key);
       }
       // End the browser SSO session even when the current app token came from

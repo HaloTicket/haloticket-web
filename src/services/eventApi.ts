@@ -259,5 +259,33 @@ export const eventApi = {
       console.error("Failed to get event bookings:", err);
       throw err;
     }
+  },
+
+  getEventCheckins: async (eventId: string, showtimeId: string = ""): Promise<any[]> => {
+    try {
+      const response: any = await axiosClient.get(`/tickets/checkin/events/${eventId}`, {
+        params: showtimeId ? { showtimeId } : {}
+      });
+      return Array.isArray(response) ? response : (response.data || []);
+    } catch (err) {
+      console.error("Failed to get event checkins:", err);
+      return [];
+    }
+  },
+
+  checkinTicket: async (eventId: string, qrCodeHash: string, showtimeId?: string): Promise<any> => {
+    try {
+      const response = await axiosClient.post(`/tickets/checkin`, {
+        eventId,
+        qrCodeHash,
+        showtimeId: showtimeId || null,
+        deviceInfo: 'Web Browser',
+        staffAssignmentId: 'web-admin-session'
+      });
+      return response;
+    } catch (err) {
+      console.error("Failed to checkin ticket:", err);
+      throw err;
+    }
   }
 };

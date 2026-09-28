@@ -52,52 +52,62 @@ axiosClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {
     const originalRequest = error.config as
-      | (typeof error.config & AuthRequestMetadata)
-      | undefined;
+      (typeof error.config & AuthRequestMetadata) | undefined;
     if (
       error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
-      if (originalRequest.headers) {
-        if (typeof originalRequest.headers.delete === "function") {
-          originalRequest.headers.delete("Authorization");
-          originalRequest.headers.delete("authorization");
+      const session = getKeycloakSession();
+      if (originalRequest._hadAuthSession) {
+        const newToken = await session.forceRefreshAccessToken();
+        if (newToken) {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          }
+          try {
+            const retryRes = await axios(originalRequest);
+            return retryRes.data;
+          } catch (retryErr: any) {
+            if (retryErr.response?.status === 401) {
+              console.warn(
+                "Unauthorized API call after token refresh:",
+                originalRequest.url,
+              );
+              window.dispatchEvent(new CustomEvent("session-expired"));
+            }
+            return Promise.reject(retryErr);
+          }
         } else {
-          delete (originalRequest.headers as Record<string, unknown>).Authorization;
-          delete (originalRequest.headers as Record<string, unknown>).authorization;
-        }
-      }
-      try {
-        const retryRes = await axios({
-          ...originalRequest,
-          headers: {
-            ...originalRequest.headers,
-            Authorization: undefined,
-            authorization: undefined,
-          },
-        });
-        return retryRes.data;
-      } catch (retryErr) {
-        console.warn("Unauthorized API call after retry:", originalRequest.url);
-        // if request requires authentication and failed with 401, dispatch session-expired
-        if (originalRequest._hadAuthSession || getKeycloakSession().isAuthenticated()) {
+          // could not refresh token, session is truly expired
+          console.warn(
+            "Session expired during token refresh for:",
+            originalRequest.url,
+          );
           window.dispatchEvent(new CustomEvent("session-expired"));
+          return Promise.reject(error);
         }
-        return Promise.reject(retryErr);
+      } else {
+        console.warn(
+          "Unauthorized API call for public endpoint:",
+          originalRequest.url,
+        );
+        return Promise.reject(error);
       }
     }
 
     if (error.response?.status === 401) {
       console.warn("Unauthorized API call:", error.config?.url);
-      if (originalRequest?._hadAuthSession || getKeycloakSession().isAuthenticated()) {
+      if (
+        originalRequest?._hadAuthSession ||
+        getKeycloakSession().isAuthenticated()
+      ) {
         window.dispatchEvent(new CustomEvent("session-expired"));
       }
     }
     return Promise.reject(error);
   },
 );
-
 
 export default axiosClient;
