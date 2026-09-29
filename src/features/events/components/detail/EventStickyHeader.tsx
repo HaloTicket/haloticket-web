@@ -25,7 +25,8 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
       if (!dateVal) return null;
       if (Array.isArray(dateVal)) {
         const [y, m, d, h = 0, min = 0, s = 0] = dateVal;
-        return new Date(y, m - 1, d, h, min, s);
+        const parsed = new Date(y, m - 1, d, h, min, s);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
       }
       const d = new Date(dateVal);
       if (isNaN(d.getTime())) return null;
@@ -39,6 +40,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
     let hasAnyShowtimeUpcoming = false;
     let hasAnyShowtimeOnSale = false;
     let hasAnyTicketsAvailable = false;
+    let hasTicketInventory = false;
     let earliestSaleStart: Date | null = null;
 
     if (Array.isArray(event.showtimes) && event.showtimes.length > 0) {
@@ -60,6 +62,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
 
         // check ticket availability for this showtime
         if (Array.isArray(st.tickets)) {
+          hasTicketInventory ||= st.tickets.length > 0;
           st.tickets.forEach((t: any) => {
             const q = t.totalQuantity ?? t.quantity ?? 100;
             const s = t.soldQuantity ?? 0;
@@ -84,6 +87,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
 
       const rawTickets = (event as any).tickets || (event as any).ticketTypes;
       if (Array.isArray(rawTickets) && rawTickets.length > 0) {
+        hasTicketInventory = true;
         rawTickets.forEach((t: any) => {
           const q = t.totalQuantity ?? t.quantity ?? 100;
           const s = t.soldQuantity ?? 0;
@@ -94,7 +98,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
       }
     }
 
-    const isSoldOut = (event as any).isSoldOut || (!hasAnyTicketsAvailable && !hasAnyShowtimeUpcoming);
+    const isSoldOut = (event as any).isSoldOut || (hasTicketInventory && !hasAnyTicketsAvailable && !hasAnyShowtimeUpcoming);
 
     if (isSoldOut) {
       return { isClosed: true, buttonText: translate("Đã hết vé") };

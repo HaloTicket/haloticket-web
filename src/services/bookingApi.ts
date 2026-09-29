@@ -2,6 +2,11 @@ import axiosClient from "./axiosClient";
 import type { BookingCreateRequest, BookingResponse } from "@/types";
 
 export const bookingApi = {
+  getMyBookings: async (): Promise<BookingResponse[]> => {
+    const response: unknown = await axiosClient.get("/bookings/my");
+    return Array.isArray(response) ? response as BookingResponse[] : [];
+  },
+
   createBooking: async (request: BookingCreateRequest): Promise<BookingResponse | null> => {
     try {
       const response: unknown = await axiosClient.post("/bookings", request);
