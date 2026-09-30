@@ -11,6 +11,7 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
 import type { NotificationItem, UserProfile } from "@/types";
 import { AdminHeader } from "./admin/AdminHeader";
+import { AdminBreadcrumb } from "./admin/AdminBreadcrumb";
 import { AdminSidebar } from "./admin/AdminSidebar";
 import "./admin/admin.css";
 
@@ -98,8 +99,8 @@ export function AdminLayout() {
   return <div className={`admin-shell ${isCollapsed ? "is-collapsed" : ""}`}>
     <AdminSidebar collapsed={isCollapsed} mobileOpen={isMobileOpen} pendingEventsCount={pendingEventsCount} onMobileClose={closeMobile} onExpand={() => setIsCollapsed(false)} onToggleCollapse={() => setIsCollapsed((value) => !value)} />
     <div className="admin-workspace" inert={isMobileOpen}>
-      <AdminHeader isDark={isDark} toggleTheme={toggleTheme} userProfile={userProfile} notifications={notifications} unreadCount={unreadCount} showProfileMenu={showProfileMenu} onToggleProfileMenu={() => setShowProfileMenu((value) => !value)} onCloseProfileMenu={() => setShowProfileMenu(false)} onMobileOpen={() => setIsMobileOpen(true)} mobileMenuButtonRef={mobileMenuButtonRef} onMarkAllAsRead={markAllAsRead} onNotificationClick={handleNotificationClick} onLogout={handleLogout} />
-      <main className="admin-main"><Outlet /></main>
+      <AdminHeader collapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed((value) => !value)} isDark={isDark} toggleTheme={toggleTheme} userProfile={userProfile} notifications={notifications} unreadCount={unreadCount} showProfileMenu={showProfileMenu} onToggleProfileMenu={() => setShowProfileMenu((value) => !value)} onCloseProfileMenu={() => setShowProfileMenu(false)} onMobileOpen={() => setIsMobileOpen(true)} mobileMenuButtonRef={mobileMenuButtonRef} onMarkAllAsRead={markAllAsRead} onNotificationClick={handleNotificationClick} onLogout={handleLogout} />
+      <main className="admin-main"><AdminBreadcrumb /><Outlet /></main>
     </div>
     <NotificationToast toast={latestToast} onToastClick={handleNotificationClick} onClose={clearToast} actionText={label("Nhấn để kiểm duyệt ngay →", "Review now →")} accentColor="blue" />
   </div>;

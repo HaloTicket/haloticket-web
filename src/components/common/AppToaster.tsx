@@ -24,15 +24,14 @@ export function AppToaster() {
   }, []);
 
   return <Toaster
-    className="app-toaster"
     position="top-right"
     theme={isDark ? "dark" : "light"}
     richColors
     closeButton
     visibleToasts={3}
     duration={4000}
-    offset={{ top: "20px", right: "20px" }}
-    mobileOffset={{ top: "calc(16px + env(safe-area-inset-top))", right: "16px", left: "16px" }}
+    offset={32}
+    mobileOffset={16}
     toastOptions={{ closeButtonAriaLabel: t("Đóng thông báo") }}
     containerAriaLabel={t("Thông báo")}
   />;

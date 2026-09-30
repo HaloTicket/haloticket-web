@@ -107,9 +107,9 @@ Inputs use `40px` desktop height and `44px` mobile height, `12px` radius, strong
 
 The public header is sticky, translucent, and token-backed with `14px` blur. Future admin navigation must live in the same Vite app, under `src/features/admin/*` and `src/layouts/AdminLayout.tsx`.
 
-The admin shell uses a 256px sidebar (80px collapsed) and a 72px header. Below 1024px the sidebar becomes a 256px overlay drawer with a backdrop, focus containment, Escape dismissal, and 44px mobile targets. Navigation groups are collapsible; selecting a group while the desktop sidebar is collapsed expands it and reveals its links. Route metadata drives selected navigation and breadcrumbs, including event detail IDs. Do not display health or review counts unless they come from a successful data source.
+The admin shell follows the Homespace layout: a 256px sidebar (80px collapsed) and a solid 80px topbar. The topbar contains the sidebar toggle and pill search on the left, with language, theme, notification and a bordered account pill on the right. Breadcrumbs belong in the content above the single page heading, not in the topbar. Below 1024px the sidebar becomes a 256px overlay drawer with a backdrop, focus containment, Escape dismissal, and 44px mobile targets. Navigation groups are collapsible; selecting a group while the desktop sidebar is collapsed expands it and reveals its links. Route metadata drives selected navigation and breadcrumbs, including event detail IDs. Do not display health or review counts unless they come from a successful data source.
 
-Admin-specific runtime rules live in `src/layouts/admin/admin.css` under `.admin-shell`. The shell uses a 22px heading, 14px body and table text, and 12–13px metadata. Its motion tokens are fast 150ms, normal 190ms, and layout 280ms. Entry uses ease-out opacity; width changes use ease-in-out. Reduced-motion preference removes decorative animation and transitions. Admin surfaces use neutral token-backed backgrounds and borders; these rules do not affect public pages.
+Admin-specific runtime rules live in `src/layouts/admin/admin.css` under `.admin-shell`. Page headings use 25px, body and forms 14–15px, and metadata 13px. Content fills the workspace with 24px gutters, increasing to 32px on desktop. List headings pair with compact statistics; search, filters and actions share a toolbar panel. Table and pagination share one 16px-radius surface. Dialogs use a centered 24px-radius panel, 24px padding, an icon tile and separated header, with a dark blurred overlay. Keep Radix focus handling and pending guards. Its motion tokens are fast 150ms, normal 190ms, and layout 280ms. Reduced-motion preference covers dialog portals too. Ordinary feedback uses the same stock Sonner rich-color, close-button presentation as Homespace: 356px width, 8px radius, 32px top/right desktop offsets and 16px mobile offsets. Critical action errors stay in dialogs; dangerous actions retain AlertDialog confirmation.
 
 ### Badges & Status Chips
 
@@ -137,9 +137,9 @@ Spacing scale:
 Layout rules:
 
 - Public container max width is `1200px`.
-- Admin shell max reference is `1440px`.
+- Admin content fills its workspace; `1440px` is a verification viewport, not a content width cap.
 - Mobile gutter is `16px`.
-- Header height is `72px`.
+- Public header height is `72px`; admin topbar height is `80px`.
 - Event grids collapse by reducing columns, not by shrinking text below token scale.
 - Checkout is one column on mobile and content + summary on desktop.
 - Admin is sidebar/topbar/content; keep filters and tables aligned.
@@ -208,7 +208,7 @@ Quick reference:
 - Surface: `#ffffff` on `#ffffff` light, `#0f172a` on `#020817` dark.
 - Font: `Plus Jakarta Sans`.
 - Public radius: `16px` cards, pill badges.
-- Admin radius: `8px` to `12px`, border-first surfaces.
+- Admin radius: `12px` controls, `16px` panels, `24px` dialogs/account popovers, bordered account pill.
 - Folder rule: use the existing `src` structure; do not split apps.
 
 Sample prompts:

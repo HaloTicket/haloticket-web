@@ -87,23 +87,26 @@ export function EventApproval() {
   if (legacyEventId) return <Navigate to={approvalDetailUrl(legacyEventId, location.search)} replace />;
 
   return (
-    <div className="space-y-5">
-      <AdminPageHeader title={t("Kiểm Duyệt Yêu Cầu Đăng Tải & Cập Nhật Sự Kiện")} description={t("Đánh giá hồ sơ, địa điểm, hạng vé và thông tin Ban Tổ Chức trước khi công khai mở bán vé.")} actions={<button type="button" onClick={() => setRefreshKey((key) => key + 1)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border app-border app-bg-card px-4 text-sm font-semibold app-text-main"><FiRefreshCw aria-hidden="true" />{t("Làm mới")}</button>} />
-      <AdminStatusTabs value={status} onChange={(next) => changeQuery("status", next)} options={[
+    <div className="space-y-6">
+      <AdminPageHeader title={t("Kiểm Duyệt Yêu Cầu Đăng Tải & Cập Nhật Sự Kiện")} description={t("Đánh giá hồ sơ, địa điểm, hạng vé và thông tin Ban Tổ Chức trước khi công khai mở bán vé.")} />
+      <section className="overflow-hidden rounded-2xl border app-border app-bg-card" aria-label={t("Trạng thái")}>
+        <div className="px-4 sm:px-5"><AdminStatusTabs value={status} onChange={(next) => changeQuery("status", next)} options={[
         { value: "PENDING", label: t("Chờ duyệt mới") },
         { value: "UPDATE_PENDING", label: t("Cần xem xét cập nhật") },
         { value: "APPROVED", label: t("Đã duyệt") },
         { value: "REJECTED", label: t("Bị từ chối") },
         { value: "ALL", label: t("Tất cả") },
-      ]} />
-      <div className="rounded-xl border app-border app-bg-card p-4">
-        <label className="flex min-h-11 w-full items-center gap-2 rounded-lg border app-border app-bg-page px-3 sm:max-w-sm">
-          <FiSearch className="shrink-0 app-text-muted" aria-hidden="true" />
-          <span className="sr-only">{t("Tìm tên sự kiện, BTC")}</span>
-          <input type="search" value={query} onChange={(event) => changeQuery("q", event.target.value)} placeholder={t("Tìm tên sự kiện, BTC...")} className="w-full bg-transparent text-sm app-text-main outline-none" />
-        </label>
-      </div>
-      <section className="overflow-hidden rounded-xl border app-border app-bg-card" aria-label={t("Danh sách duyệt sự kiện")}>
+        ]} /></div>
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <label className="flex min-h-11 w-full items-center gap-2 rounded-xl border app-border app-bg-subnav px-3 sm:max-w-sm">
+            <FiSearch className="shrink-0 app-text-muted" aria-hidden="true" />
+            <span className="sr-only">{t("Tìm tên sự kiện, BTC")}</span>
+            <input type="search" value={query} onChange={(event) => changeQuery("q", event.target.value)} placeholder={t("Tìm tên sự kiện, BTC...")} className="w-full bg-transparent text-sm app-text-main outline-none" />
+          </label>
+          <button type="button" onClick={() => setRefreshKey((key) => key + 1)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border app-border app-bg-card px-4 text-sm font-semibold app-text-main"><FiRefreshCw aria-hidden="true" />{t("Làm mới")}</button>
+        </div>
+      </section>
+      <section className="overflow-hidden rounded-2xl border app-border app-bg-card" aria-label={t("Danh sách duyệt sự kiện")}>
         {loadedStatus !== status && !error ? <AdminDataState state="loading" /> : error ? <AdminDataState state="error" onRetry={() => setRefreshKey((key) => key + 1)} message={t("Không thể tải danh sách sự kiện từ hệ thống.")} /> : events.length === 0 ? <AdminDataState state="empty" message={t("Chưa có yêu cầu sự kiện nào.")} /> : filtered.length === 0 ? <AdminDataState state="no-results" onReset={() => setParams(new URLSearchParams())} message={t("Không tìm thấy yêu cầu sự kiện nào.")} /> : (
           <>
             {loading && <div className="border-b app-border px-4 py-2"><AdminDataState state="refreshing" /></div>}
@@ -116,7 +119,7 @@ export function EventApproval() {
                   <th scope="col" className="px-4 py-3">{t("Trạng thái duyệt")}</th>
                   <th scope="col" className="px-4 py-3 text-right">{t("Thao tác Admin")}</th>
                 </tr></thead>
-                <tbody className="divide-y app-border">{visible.map((event) => <tr key={event.id} className="hover:bg-slate-500/5">
+                <tbody className="divide-y divide-[var(--border-color)]">{visible.map((event) => <tr key={event.id} className="hover:bg-slate-500/5">
                   <td className="px-4 py-3"><div className="flex items-center gap-3">{event.posterImage && <img src={event.posterImage} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />}<div className="min-w-0"><p className="max-w-64 truncate font-semibold app-text-main" title={event.title}>{event.title}</p><p className="app-text-muted">{event.organizerName || t("Chưa cập nhật")}</p></div></div></td>
                   <td className="px-4 py-3"><p className="font-medium app-text-main">{event.categoryName || t("Chưa cập nhật")}</p><p className="app-text-muted">{event.locationName || t("Chưa cập nhật")}</p></td>
                   <td className="px-4 py-3 app-text-main">{event.datesSummary || event.startTime || t("Chưa cập nhật")}</td>
@@ -125,7 +128,7 @@ export function EventApproval() {
                 </tr>)}</tbody>
               </table>
             </div>
-            <div className="px-4 pb-3"><AdminPagination currentPage={page} totalPages={totalPages} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={(next) => changeQuery("page", next === 1 ? "" : String(next))} /></div>
+            <AdminPagination currentPage={page} totalPages={totalPages} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={(next) => changeQuery("page", next === 1 ? "" : String(next))} />
           </>
         )}
       </section>
