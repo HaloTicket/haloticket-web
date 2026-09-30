@@ -23,10 +23,10 @@ export default function GiftInvitation() {
   const [accepted, setAccepted] = useState(false);
   const [state, setState] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(sagaId && getKeycloakSession().isAuthenticated()));
 
   useEffect(() => {
-    if (!sagaId || !getKeycloakSession().isAuthenticated()) { setLoading(false); return; }
+    if (!sagaId || !getKeycloakSession().isAuthenticated()) return;
     marketplaceApi.getGiftInvitation(sagaId, token).then(async (result) => {
       setInvitation(result);
       setState(result.state);
@@ -214,7 +214,13 @@ export default function GiftInvitation() {
 
             {/* ── Ticket Details Card ── */}
             <div className="rounded-xl border app-border app-bg-card p-4 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider app-text-muted mb-3">Vé được tặng</p>
+              <p className="text-sm font-semibold app-text-muted mb-3">Vé được tặng · {invitation.quantity || 1} vé</p>
+              {invitation.tickets?.length ? <ul className="divide-y app-border rounded-lg border app-border">
+                {invitation.tickets.map(ticket => <li key={ticket.ticketId} className="flex flex-wrap justify-between gap-2 p-3 text-sm">
+                  <span className="font-semibold">{ticket.ticketTypeName || "Vé"}</span>
+                  <span className="app-text-muted">{ticket.section} · {[ticket.row, ticket.seat].filter(Boolean).join(" · ") || "Vé tự do"}</span>
+                </li>)}
+              </ul> :
               <div className="rounded-lg border app-border p-3 bg-slate-50 dark:bg-slate-800/40">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
@@ -225,7 +231,7 @@ export default function GiftInvitation() {
                 {seatLabel && (
                   <p className="mt-2 text-sm font-semibold">Ghế {seatLabel}</p>
                 )}
-              </div>
+              </div>}
 
               <dl className="mt-4 grid grid-cols-[110px_1fr] gap-y-2.5 text-xs">
                 <dt className="app-text-muted">Suất diễn</dt><dd>{eventTime || "Đang cập nhật"}</dd>

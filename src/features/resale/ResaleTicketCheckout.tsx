@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiAlertTriangle,
   FiArrowLeft,
@@ -13,12 +13,15 @@ import {
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 
+import NotificationModal from "@/components/common/NotificationModal";
 import TicketHoldTimeoutModal from "./components/TicketHoldTimeoutModal";
 import { CancelOrderModal } from "./components/CancelOrderModal";
 import VietQrModal from "@/features/tickets/components/VietQrModal";
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { paymentApi } from "@/services/paymentApi";
+import { getKeycloakSession } from "@/services/keycloakSession";
+import { PATHS } from "@/routes/paths";
 import type { VietQrPayloadResponse } from "@/types";
 import type { ResaleReservation, TicketListing } from "@/types/marketplace";
 
@@ -30,7 +33,7 @@ const money = (value: number) =>
   }).format(value);
 
 const formatDateTime = (value?: unknown) => {
-  if (!value) return "19:00, Hôm nay";
+  if (!value) return "Chưa cập nhật lịch diễn";
   try {
     const d = new Date(String(value));
     return new Intl.DateTimeFormat("vi-VN", {
@@ -54,7 +57,21 @@ export interface NormalizedCustomQuestion {
   options: string[];
 }
 
-type CheckoutStep = "reserve" | "payment";
+type CheckoutStep = "select" | "reserve" | "payment";
+
+function CheckoutLoginModal({ open, onClose, onLogin }: { open: boolean; onClose: () => void; onLogin: () => void }) {
+  return <NotificationModal
+    open={open}
+    title="Đăng nhập để mua vé"
+    message="Bạn có thể xem vé bán lại mà không cần đăng nhập. Hãy đăng nhập để giữ vé và tiếp tục thanh toán."
+    variant="info"
+    onClose={onClose}
+    actions={[
+      { label: "Đăng nhập", variant: "primary", onClick: onLogin },
+      { label: "Ở lại trang", variant: "secondary", onClick: onClose },
+    ]}
+  />;
+}
 
 
 
@@ -121,7 +138,7 @@ export const ResaleTicketCheckout = () => {
   const [error, setError] = useState("");
   const [reserving, setReserving] = useState(false);
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
-  const [step, setStep] = useState<CheckoutStep>("reserve");
+  const [step, setStep] = useState<CheckoutStep>("select");
 
   // Countdown timer: 10 minutes initial duration
   const [secondsRemaining, setSecondsRemaining] = useState(10 * 60);
@@ -138,6 +155,7 @@ export const ResaleTicketCheckout = () => {
   const [cancellingHold, setCancellingHold] = useState(false);
   const [showOwnerModal, setShowOwnerModal] = useState(false);
   const [isOwnerDetected, setIsOwnerDetected] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "VIETQR" | "MOMO" | "ZALOPAY" | "SHOPEEPAY">("VNPAY");
@@ -147,8 +165,8 @@ export const ResaleTicketCheckout = () => {
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const [activeBookingId, setActiveBookingId] = useState<string>("");
 
-  // Ref to prevent duplicate reservation calls on mount
-  const hasAttemptedReserveRef = useRef(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionTerms, setSelectionTerms] = useState(false);
 
   // Fetch listing & event
   useEffect(() => {
@@ -156,6 +174,7 @@ export const ResaleTicketCheckout = () => {
     Promise.all([marketplaceApi.getListing(ticketId), eventApi.getEventById(eventId)])
       .then(([listingData, eventData]) => {
         setListing(listingData);
+        setSelectedIds(listingData.allowRetail === false ? (listingData.ticketIds || [listingData.ticketId]) : []);
         setEvent(eventData);
       })
       .catch(() => setError("Vé này không còn khả dụng hoặc đã được người khác mua."));
@@ -186,44 +205,11 @@ export const ResaleTicketCheckout = () => {
   }, [event]);
 
   const isMyListing = listing?.ownedByCurrentUser === true || isOwnerDetected;
-  const quantity = listing?.quantity || 1;
-
-  // Auto-reserve on mount when listing is loaded (only if not own listing)
-  useEffect(() => {
-    if (!listing || reservation || isMyListing || hasAttemptedReserveRef.current) return;
-    hasAttemptedReserveRef.current = true;
-
-    let isMounted = true;
-    marketplaceApi
-      .reserveListing(listing.id)
-      .then((r) => {
-        if (isMounted) {
-          setReservation(r);
-          setStep("reserve");
-        }
-      })
-      .catch((err: unknown) => {
-        if (!isMounted) return;
-        const axiosErr = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
-        const status = axiosErr?.response?.status;
-        const msg = axiosErr?.response?.data?.message || axiosErr?.message || "";
-
-        if (status === 409 && msg.includes("BUYER_IS_SELLER")) {
-          setIsOwnerDetected(true);
-        } else if (status === 409) {
-          setError("Không thể giữ vé. Vé có thể đã được người khác chọn hoặc đang trong phiên thanh toán.");
-        } else {
-          setError("Không thể giữ vé lúc này. Vui lòng thử lại sau.");
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [listing, reservation, isMyListing]);
+  const quantity = reservation?.quantity ?? (reservation?.ticketIds?.length || selectedIds.length);
 
   // Intercept browser back button when holding ticket (popstate)
   useEffect(() => {
+    if (!reservation) return;
     window.history.pushState(null, "", window.location.href);
 
     const handlePopState = (e: PopStateEvent) => {
@@ -236,7 +222,7 @@ export const ResaleTicketCheckout = () => {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [reservation]);
 
   // Release reservation hold (nhả lock distributed) and return to event listings
   const handleCancelHoldAndLeave = async () => {
@@ -264,11 +250,15 @@ export const ResaleTicketCheckout = () => {
 
   // Manual reserve retry handler if needed
   const handleManualReserve = async () => {
-    if (!listing || reserving || isMyListing) return;
+    if (!getKeycloakSession().isAuthenticated()) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    if (!listing || reserving || isMyListing || !selectedIds.length || !selectionTerms) return;
     setReserving(true);
     setError("");
     try {
-      const r = await marketplaceApi.reserveListing(listing.id);
+      const r = await marketplaceApi.reserveListing(listing.id, undefined, selectedIds);
       setReservation(r);
       setStep("reserve");
     } catch (err: unknown) {
@@ -277,6 +267,7 @@ export const ResaleTicketCheckout = () => {
       const msg = axiosErr?.response?.data?.message || axiosErr?.message || "";
 
       if (status === 409 && msg.includes("BUYER_IS_SELLER")) {
+        setIsOwnerDetected(true);
         setShowOwnerModal(true);
       } else if (status === 409) {
         setError("Không thể giữ vé. Vé có thể đã được người khác chọn hoặc đang trong phiên thanh toán.");
@@ -290,25 +281,16 @@ export const ResaleTicketCheckout = () => {
 
   // Countdown timer: updates seconds remaining and triggers timeout modal on 0
   useEffect(() => {
+    if (!reservation?.reservationExpiresAt) return;
     const updateCountdown = () => {
-      if (reservation?.reservationExpiresAt) {
-        const expiresAt = new Date(reservation.reservationExpiresAt).getTime();
-        const diff = Math.floor((expiresAt - Date.now()) / 1000);
-        if (diff <= 0) {
-          setSecondsRemaining(0);
-          setHasExpired(true);
-          return;
-        }
-        setSecondsRemaining(diff);
-      } else {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            setHasExpired(true);
-            return 0;
-          }
-          return prev - 1;
-        });
+      const expiresAt = new Date(reservation.reservationExpiresAt!).getTime();
+      const diff = Math.floor((expiresAt - Date.now()) / 1000);
+      if (diff <= 0) {
+        setSecondsRemaining(0);
+        setHasExpired(true);
+        return;
       }
+      setSecondsRemaining(diff);
     };
 
     const timer = setInterval(updateCountdown, 1000);
@@ -397,7 +379,7 @@ export const ResaleTicketCheckout = () => {
 
     try {
       // Marketplace transaction is the source of truth for payment and the ownership-transfer Saga.
-      const activeReservation = reservation ?? await marketplaceApi.reserveListing(listing.id);
+      const activeReservation = reservation ?? await marketplaceApi.reserveListing(listing.id, undefined, selectedIds);
       if (!reservation) setReservation(activeReservation);
       const paymentInitiation = await marketplaceApi.startResalePayment(activeReservation.transactionId);
       const currentTxId = paymentInitiation.transactionId;
@@ -407,7 +389,7 @@ export const ResaleTicketCheckout = () => {
       setActiveBookingId(bookingId);
 
       const currentEventTitle = String(event?.title ?? "Sự kiện HaloTicket");
-      const currentTicketTier = listing.ticketTypeName || listing.section || "VIP";
+      const currentTicketTier = listing.ticketTypeName || listing.section || "Vé sự kiện";
 
       // Save order metadata to localStorage for booking-success page
       try {
@@ -494,7 +476,7 @@ export const ResaleTicketCheckout = () => {
     event,
     eventId,
     paymentMethod,
-    navigate,
+    selectedIds,
   ]);
 
   if (error && !listing) {
@@ -527,7 +509,7 @@ export const ResaleTicketCheckout = () => {
 
   const eventTitle = String(event?.title ?? "Sự kiện HaloTicket");
   const eventTime = formatDateTime(event?.startTime);
-  const eventLocation = String(event?.venueName ?? event?.location ?? event?.address ?? "Địa điểm sẽ được cập nhật");
+  const eventLocation = String(event?.venueName ?? event?.locationName ?? event?.location ?? event?.address ?? "Địa điểm sẽ được cập nhật");
   const eventPoster = String(
     event?.bannerUrl ||
     event?.bannerImage ||
@@ -537,11 +519,43 @@ export const ResaleTicketCheckout = () => {
     event?.imageUrl ||
     ""
   );
-  const ticketTier = listing.ticketTypeName || listing.section || "VIP";
-  const totalAmount = listing.price * quantity;
+  const ticketTier = listing.ticketTypeName || listing.section || "Vé sự kiện";
+  const selectedMembers = (reservation?.ticketIds || selectedIds).map(id => listing.tickets?.find(member => member.ticketId === id));
+  const selectedTierNames = [...new Set(selectedMembers.map(member => member?.ticketTypeName || ticketTier))].join(", ");
+  const totalAmount = reservation?.amount ?? listing.price * quantity;
 
   const timerMinutes = String(Math.floor(secondsRemaining / 60)).padStart(2, "0");
   const timerSeconds = String(secondsRemaining % 60).padStart(2, "0");
+
+  if (step === "select") {
+    const members = listing.tickets?.length ? listing.tickets : [{ ticketId: listing.ticketId, ticketTypeName: listing.ticketTypeName, section: listing.section, row: listing.row, seat: listing.seat, price: listing.price }];
+    const allIds = members.map(member => member.ticketId);
+    const noRetail = members.length > 1 && listing.allowRetail === false;
+    return <>
+      <main className="min-h-[75vh] app-bg-page app-text-main px-4 py-8">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <button className="min-h-11 text-sm app-text-muted" onClick={() => navigate(`/resale-ticket/${eventId}`)}>← Vé bán lại</button>
+        <h1 className="border-b app-border pb-4 text-2xl font-semibold">Chọn vé bán lại</h1>
+        <section className="rounded-xl border app-border app-bg-card p-5"><h2 className="font-semibold">{eventTitle}</h2><p className="mt-2 text-sm app-text-muted">{eventTime}</p><p className="mt-1 text-sm app-text-muted">{eventLocation}</p></section>
+        <div className="flex justify-between gap-3"><h2 className="font-semibold">Chọn vé · {selectedIds.length}/{members.length}</h2><span className="text-sm app-text-brand">{noRetail ? "Không bán lẻ" : "Bán lẻ"}</span></div>
+        {noRetail ? <p className="text-sm app-text-muted">Tin đăng yêu cầu mua đủ {members.length} vé trong một đơn hàng.</p> : <label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border app-border px-4 text-sm">Chọn tất cả<input type="checkbox" checked={selectedIds.length === members.length} onChange={event => setSelectedIds(event.target.checked ? allIds : [])} className="h-5 w-5 accent-blue-600" /></label>}
+        <div className="space-y-3">{members.map(member => <label key={member.ticketId} className="flex cursor-pointer items-center gap-4 rounded-xl border app-border app-bg-card p-4">
+          <div className="min-w-0 flex-1 text-sm"><p className="font-semibold">{member.ticketTypeName || ticketTier}</p><p className="mt-1 app-text-muted">{member.section || "Khu vực chung"} · {[member.row, member.seat].filter(Boolean).join(" · ") || "Vé tự do"}</p><p className="mt-2 font-semibold app-text-brand">{money(member.price ?? listing.price)} / vé</p></div>
+          <input type="checkbox" aria-label={`Chọn vé ${member.seat || member.ticketId}`} checked={selectedIds.includes(member.ticketId)} disabled={noRetail} onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, member.ticketId] : ids.filter(id => id !== member.ticketId))} className="h-5 w-5 accent-blue-600" />
+        </label>)}</div>
+        <label className="flex min-h-11 items-start gap-3 text-sm"><input type="checkbox" checked={selectionTerms} onChange={event => setSelectionTerms(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" /><span>Tôi đã kiểm tra vé và đồng ý quy định mua vé bán lại.</span></label>
+        <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t app-border app-bg-card p-4"><div className="text-sm"><p className="app-text-muted">Tạm tính · {selectedIds.length} vé</p><strong>{money(listing.price * selectedIds.length)}</strong></div><button disabled={!selectedIds.length || !selectionTerms || reserving || isMyListing} onClick={handleManualReserve} className="min-h-11 rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white disabled:opacity-40">{reserving ? "Đang giữ vé…" : "Tiếp tục"}</button></div>
+        {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+        {isMyListing && <p role="status" className="text-sm app-text-muted">Đây là vé của bạn. Bạn có thể quản lý tin đăng trong Vé của tôi.</p>}
+      </div>
+      </main>
+      <CheckoutLoginModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        onLogin={() => navigate(PATHS.LOGIN, { state: { from: `/resale-ticket/${eventId}/ticket/${ticketId}` } })}
+      />
+    </>;
+  }
 
   return (
     <div className="min-h-screen app-bg-page app-text-main pb-16 transition-colors font-sans">
@@ -670,7 +684,7 @@ export const ResaleTicketCheckout = () => {
                         <div className="flex items-center justify-between border-b app-border app-bg-subnav px-5 py-4">
                           <div className="flex items-center gap-2">
                             <span className="font-black text-blue-600 dark:text-blue-400 text-base uppercase tracking-wider">
-                              {ticketTier}
+                              {selectedMembers[ticketIdx]?.ticketTypeName || ticketTier}
                             </span>
                             {quantity > 1 && (
                               <span className="rounded bg-black/10 dark:bg-white/10 px-2 py-0.5 text-xs font-semibold app-text-muted">
@@ -978,7 +992,7 @@ export const ResaleTicketCheckout = () => {
 
                 <div className="mt-2.5 flex items-start justify-between text-sm">
                   <div>
-                    <p className="font-black app-text-main">{ticketTier}</p>
+                    <p className="font-black app-text-main">{selectedTierNames || ticketTier}</p>
                     <p className="mt-0.5 text-xs app-text-muted">{money(listing.price)}</p>
                   </div>
                   <div className="text-right">
@@ -1057,6 +1071,12 @@ export const ResaleTicketCheckout = () => {
         open={showOwnerModal}
         onClose={() => setShowOwnerModal(false)}
         onBackToList={() => navigate(`/resale-ticket/${eventId}`)}
+      />
+
+      <CheckoutLoginModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        onLogin={() => navigate(PATHS.LOGIN, { state: { from: `/resale-ticket/${eventId}/ticket/${ticketId}` } })}
       />
 
       {/* Modal hết thời gian giữ vé (Ảnh 1) */}

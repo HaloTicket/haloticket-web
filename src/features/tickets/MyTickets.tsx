@@ -33,6 +33,8 @@ export type TicketUiStatus = "UPCOMING" | "USED" | "SELLING" | "GIFTING" | "TRAN
 
 export interface TicketItem {
   id: string;
+  bookingId?: string;
+  showtimeId?: string;
   bookingCode: string;
   hasBookingCode?: boolean;
   eventId: string;
@@ -136,7 +138,10 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
   return items.map((item) => {
     const event = events.get(item.eventId);
     const rawStatus = item.status || "VALID";
-    const startsAt = typeof event?.startTime === "string" ? event.startTime : undefined;
+    const showtime = Array.isArray(event?.showtimes)
+      ? event.showtimes.find((show: { id?: string }) => show.id === item.showtimeId) : undefined;
+    const startsAt = typeof showtime?.startTime === "string" ? showtime.startTime
+      : typeof event?.startTime === "string" ? event.startTime : undefined;
     const isResale =
       item.acquisitionType === "RESALE" ||
       (item.bookingCode || "").startsWith("RSL-") ||
@@ -144,6 +149,8 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
 
     return {
       id: item.id,
+      bookingId: item.bookingId || undefined,
+      showtimeId: item.showtimeId || undefined,
       bookingCode: item.bookingCode?.trim() || item.id,
       hasBookingCode: Boolean(item.bookingCode?.trim()),
       eventId: item.eventId,
@@ -162,6 +169,9 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
       status: mapTicketStatus(rawStatus),
       qrCode: item.qrCode || undefined,
       seatName: item.seatName || undefined,
+      section: item.section || undefined,
+      row: item.row || undefined,
+      seatNumber: item.seatNumber || undefined,
     };
   });
 }

@@ -67,6 +67,7 @@ export default function BookingSuccess() {
           setLastTicket((prev) =>
             prev || {
               ...tickets[0],
+              bookingId: tickets[0].bookingId ?? undefined,
               eventTitle: tickets[0].eventId ? `Sự kiện ${tickets[0].eventId}` : "Sự kiện HaloTicket",
               quantity: 1,
               totalAmount: tickets[0].price || 0,

@@ -57,10 +57,9 @@ export function OrderCard({
   const orderUrl = PATHS.ORDER_DETAIL(order.bookingCode);
   const seats = order.tickets.map((tk) => tk.seatName).filter(Boolean).join(", ");
   const firstTicket = order.tickets[0];
-  const canTransact =
-    firstTicket &&
-    firstTicket.status === "UPCOMING" &&
-    firstTicket.rawStatus === "VALID";
+  const transactionTicket = order.tickets.find(
+    (ticket) => ticket.status === "UPCOMING" && ticket.rawStatus === "VALID",
+  );
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -225,13 +224,13 @@ export function OrderCard({
                 </button>
               )}
 
-              {canTransact && (
+              {transactionTicket && (
                 <>
                   <button
                     type="button"
                     onClick={() => {
                       onToggleMenu?.(undefined);
-                      onResale?.(firstTicket);
+                      onResale?.(transactionTicket);
                     }}
                     className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >
@@ -243,7 +242,7 @@ export function OrderCard({
                     type="button"
                     onClick={() => {
                       onToggleMenu?.(undefined);
-                      onGift?.(firstTicket);
+                      onGift?.(transactionTicket);
                     }}
                     className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >

@@ -8,6 +8,7 @@ import type {
   ResalePaymentInitiation, ResalePurchaseStatus,
   ResaleEligibility,
   TicketListing,
+  TransferTicketSnapshot,
 } from "@/types/marketplace";
 
 const newIdempotencyKey = () =>
@@ -27,10 +28,10 @@ export const marketplaceApi = {
   getListing: (listingId: string) =>
     axiosClient.get<unknown, TicketListing>(`/marketplace/listings/${encodeURIComponent(listingId)}`),
 
-  reserveListing: (listingId: string, idempotencyKey = newIdempotencyKey()) =>
+  reserveListing: (listingId: string, idempotencyKey = newIdempotencyKey(), ticketIds?: string[]) =>
     axiosClient.post<unknown, ResaleReservation>(
       `/marketplace/listings/${encodeURIComponent(listingId)}/reserve`,
-      null,
+      ticketIds ? { ticketIds } : null,
       { headers: { "Idempotency-Key": idempotencyKey } },
     ),
 
@@ -52,7 +53,7 @@ export const marketplaceApi = {
   getResaleEligibility: (ticketId: string) =>
     axiosClient.get<unknown, ResaleEligibility>(`/marketplace/tickets/${encodeURIComponent(ticketId)}/resale-eligibility`),
 
-  createResaleListing: (request: { ticketId: string; price: number; policyVersion?: number; termsVersion?: string; allowRetail?: boolean }, idempotencyKey = newIdempotencyKey()) =>
+  createResaleListing: (request: { ticketId?: string; ticketIds?: string[]; price: number; policyVersion?: number; termsVersion?: string; allowRetail?: boolean }, idempotencyKey = newIdempotencyKey()) =>
     axiosClient.post<unknown, MarketplaceSagaResponse>("/marketplace/listings", request, { headers: { "Idempotency-Key": idempotencyKey } }),
 
   getSaga: (sagaId: string) =>
@@ -73,6 +74,7 @@ export const marketplaceApi = {
       section: string; row: string; seat: string; message: string;
       recipientEmail: string; expiresAt: string; state: string;
       senderUserId?: string; senderName?: string;
+      ticketIds?: string[]; quantity?: number; tickets?: TransferTicketSnapshot[];
     }>(
       `/marketplace/gifts/${encodeURIComponent(sagaId)}/invitation`, { params: token ? { token } : {} },
     ),
@@ -82,6 +84,7 @@ export const marketplaceApi = {
       sagaId: string; eventId: string; ticketTypeName: string;
       section?: string; row?: string; seat?: string;
       expiresAt: string; senderName?: string;
+      ticketIds?: string[]; quantity?: number; tickets?: TransferTicketSnapshot[];
     }>>(
       "/marketplace/gifts/mine",
     ),
