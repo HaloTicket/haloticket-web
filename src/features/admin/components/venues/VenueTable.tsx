@@ -14,6 +14,7 @@ import type { SystemVenue } from "@/utils/venueUtils";
 
 interface VenueTableProps {
   venues: SystemVenue[];
+  busyId: string | null;
   onToggleVerification: (venue: SystemVenue) => void;
   onEdit: (venue: SystemVenue) => void;
   onDelete: (venue: SystemVenue) => void;
@@ -21,6 +22,7 @@ interface VenueTableProps {
 
 export const VenueTable: React.FC<VenueTableProps> = ({
   venues,
+  busyId,
   onToggleVerification,
   onEdit,
   onDelete
@@ -86,7 +88,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                 <td className="py-3 px-4 font-bold">
                   <span className="flex items-center gap-1">
                     <FiCalendar className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                    <span>{v.eventsHosted || 0} {translate("sự kiện")}</span>
+                    <span>{("eventsHostedKnown" in v && v.eventsHostedKnown === false) ? translate("Chưa có dữ liệu") : `${v.eventsHosted} ${translate("sự kiện")}`}</span>
                   </span>
                 </td>
 
@@ -109,6 +111,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     <button
                       type="button"
                       onClick={() => onToggleVerification(v)}
+                      disabled={busyId !== null}
                       className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
                         v.verified
                           ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-500 hover:text-amber-600"

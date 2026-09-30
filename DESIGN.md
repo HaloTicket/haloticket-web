@@ -107,6 +107,10 @@ Inputs use `40px` desktop height and `44px` mobile height, `12px` radius, strong
 
 The public header is sticky, translucent, and token-backed with `14px` blur. Future admin navigation must live in the same Vite app, under `src/features/admin/*` and `src/layouts/AdminLayout.tsx`.
 
+The admin shell uses a 256px sidebar (80px collapsed) and a 72px header. Below 1024px the sidebar becomes a 256px overlay drawer with a backdrop, focus containment, Escape dismissal, and 44px mobile targets. Navigation groups are collapsible; selecting a group while the desktop sidebar is collapsed expands it and reveals its links. Route metadata drives selected navigation and breadcrumbs, including event detail IDs. Do not display health or review counts unless they come from a successful data source.
+
+Admin-specific runtime rules live in `src/layouts/admin/admin.css` under `.admin-shell`. The shell uses a 22px heading, 14px body and table text, and 12–13px metadata. Its motion tokens are fast 150ms, normal 190ms, and layout 280ms. Entry uses ease-out opacity; width changes use ease-in-out. Reduced-motion preference removes decorative animation and transitions. Admin surfaces use neutral token-backed backgrounds and borders; these rules do not affect public pages.
+
 ### Badges & Status Chips
 
 Badges are pill-shaped. Use red for hot/resale emphasis, success for paid/active/published/completed, amber for pending/low stock/review needed, red for failed/cancelled/expired, and blue for draft/processing/system notes.

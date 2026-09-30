@@ -1,5 +1,6 @@
 import React from "react";
 import { FiSearch, FiX } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 interface AdminSearchFilterBarProps {
   searchQuery: string;
@@ -14,6 +15,7 @@ export const AdminSearchFilterBar: React.FC<AdminSearchFilterBarProps> = ({
   searchPlaceholder = "Tìm kiếm...",
   children
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
       {/* Search Input */}
@@ -23,13 +25,15 @@ export const AdminSearchFilterBar: React.FC<AdminSearchFilterBarProps> = ({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
+          placeholder={t(searchPlaceholder)}
+          aria-label={t(searchPlaceholder)}
           className="w-full bg-transparent text-xs app-text-main placeholder-slate-400 focus:outline-none font-medium"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => onSearchChange("")}
+            aria-label={t("Xóa tìm kiếm")}
             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
           >
             <FiX className="w-3.5 h-3.5" />
