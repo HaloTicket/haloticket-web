@@ -139,7 +139,17 @@ export const EventApproval: React.FC = () => {
           submittedAt: formatTimestamp(item.submittedAt || item.createdAt),
           minPrice: item.minPrice || 0,
           descriptionText: item.descriptionText || item.description || translate("Nội dung mô tả chưa cập nhật."),
-          tickets: Array.isArray(item.tickets) ? item.tickets : [],
+          tickets: (() => {
+            const raw = Array.isArray(item.tickets) ? item.tickets : [];
+            const seen = new Set<string>();
+            return raw.filter((t: any) => {
+              if (t.ticketTypeStatus === "HIDDEN" || t.status === "HIDDEN") return false;
+              const nameKey = (t.name || "").trim().toLowerCase();
+              if (!nameKey || seen.has(nameKey)) return false;
+              seen.add(nameKey);
+              return true;
+            });
+          })(),
           customQuestions: Array.isArray(item.customQuestions) ? item.customQuestions : [],
           galleryImages: Array.isArray(item.galleryImages) ? item.galleryImages : []
         }));

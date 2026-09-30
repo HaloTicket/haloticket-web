@@ -14,6 +14,7 @@ import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import type { NotificationItem } from "@/types";
 import { VietnamFlag, UKFlag } from "./common/FlagIcons";
+import { LoginRequiredModal } from "./common/LoginRequiredModal";
 import {
   FiSearch,
   FiPlusCircle,
@@ -48,6 +49,7 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [failedAvatar, setFailedAvatar] = useState<string>();
   const lang = i18n.resolvedLanguage;
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
@@ -74,6 +76,7 @@ export const Header: React.FC = () => {
     setIsMobileMenuOpen(false);
     setIsAccountOpen(false);
     setIsLangOpen(false);
+    setShowLoginModal(false);
   }
 
   // Check auth and user info on mount & sync across storage/profile events
@@ -268,12 +271,12 @@ export const Header: React.FC = () => {
             onClick={(e) => {
               if (!isAuthenticated) {
                 e.preventDefault();
-                navigate(PATHS.LOGIN);
+                setShowLoginModal(true);
               }
             }}
-            className="hidden lg:inline-flex items-center gap-2 px-2 py-2 text-xs font-semibold app-text-main transition-colors hover:text-blue-600 dark:hover:text-blue-400"
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium app-text-main hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer"
           >
-            <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>{translate("Vé của tôi")}</span>
           </Link>
 
@@ -595,12 +598,26 @@ export const Header: React.FC = () => {
                       <LuLogOut className="h-4 w-4" /> {translate("Đăng xuất")}</button>
                   </div>
                 ) : (
-                  <Link
-                    to={PATHS.LOGIN}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
-                  >
-                    <LuUser className="h-4 w-4" /> {translate("Đăng nhập | Đăng ký")}</Link>
+                  <div className="space-y-2 pt-2 border-t app-border">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setShowLoginModal(true);
+                      }}
+                      className="flex items-center gap-3 text-xs font-semibold py-2.5 px-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors app-text-main w-full border app-border cursor-pointer group"
+                    >
+                      <LuTicket className="h-4 w-4 text-emerald-600 group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300 shrink-0" />
+                      <span>{translate("Vé của tôi")}</span>
+                    </button>
+                    <Link
+                      to={PATHS.LOGIN}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
+                    >
+                      <LuUser className="h-4 w-4" /> {translate("Đăng nhập | Đăng ký")}
+                    </Link>
+                  </div>
                 )}
               </div>
 
@@ -672,6 +689,13 @@ export const Header: React.FC = () => {
           </div>,
           document.body
         )}
+
+      {/* Login Required Modal */}
+      <LoginRequiredModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectUrl={PATHS.MY_TICKETS}
+      />
     </header>
   );
 };

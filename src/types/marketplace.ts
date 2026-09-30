@@ -30,6 +30,8 @@ export interface MarketplaceSagaResponse {
 export interface TicketListing {
   id: string;
   ticketId: string;
+  ticketIds?: string[];
+  tickets?: TransferTicketSnapshot[];
   ticketCode?: string | null;
   ownedByCurrentUser?: boolean;
   eventId?: string | null;
@@ -43,7 +45,8 @@ export interface TicketListing {
   maxPriceSnapshot?: number | null;
   quantity?: number | null;
   allowRetail?: boolean | null;
-  status: "ACTIVE" | "RESERVED" | "SOLD" | "CANCELLED" | "EXPIRED";
+  status: "ACTIVE" | "RESERVED" | "SOLD" | "CANCELLED" | "EXPIRED" | "PAUSED_BY_EVENT";
+  pauseReason?: string | null;
   expiresAt?: string | null;
   publishedAt?: string | null;
 }
@@ -55,6 +58,8 @@ export interface ResaleEventSummary {
 }
 
 export interface ResaleReservation {
+  quantity?: number;
+  ticketIds?: string[];
   transactionId: string;
   listingId: string;
   status: "PENDING_PAYMENT";
@@ -77,10 +82,23 @@ export interface ResalePurchaseStatus {
 }
 
 export interface GiftTicketRequest {
-  ticketId: string;
+  ticketId?: string;
+  ticketIds?: string[];
   recipientEmail: string;
   message?: string;
   acceptedTerms: boolean;
+}
+
+export interface TransferTicketSnapshot {
+  ticketId: string;
+  ticketTypeId?: string | null;
+  showtimeId?: string | null;
+  ticketTypeName?: string | null;
+  section?: string | null;
+  row?: string | null;
+  seat?: string | null;
+  price?: number;
+  originalPrice?: number;
 }
 
 export interface MarketplacePage<T> {

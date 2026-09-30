@@ -9,7 +9,9 @@ import EventStickyHeader from "./components/detail/EventStickyHeader";
 import EventOrganizer from "./components/detail/EventOrganizer";
 import EventCard from "@/components/common/EventCard";
 import { eventApi } from "@/services/eventApi";
+import { PATHS } from "@/routes/paths";
 import { FiGrid } from "react-icons/fi";
+import "./components/detail/EventDetail.css";
 
 import type { EventDetailData, EventApiData } from "@/types";
 
@@ -21,26 +23,40 @@ export default function EventDetail() {
   const [eventData, setEventData] = useState<EventDetailData | null>(null);
   const [recommendedEvents, setRecommendedEvents] = useState<EventApiData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"desc" | "schedule" | "organizer">("desc");
 
   // always scroll to top when opening event detail page & fetch event data from API
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    if (!id) return;
     let isMounted = true;
+    setIsLoading(true);
+    setEventData(null);
+
+    if (!id) {
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
 
     eventApi.getEventById(id).then((data) => {
       if (isMounted) {
         setEventData(data as unknown as EventDetailData);
-        setIsLoading(false);
         // log view asynchronously without blocking UI
-        eventApi.logEventView(id).catch(console.error);
+        void eventApi.logEventView(id);
       }
+    }).catch(() => {
+      if (isMounted) setEventData(null);
+    }).finally(() => {
+      if (isMounted) setIsLoading(false);
     });
 
     eventApi.getAllEvents().then((events) => {
       if (isMounted && events) {
         setRecommendedEvents(events.slice(0, 8));
       }
+    }).catch(() => {
+      if (isMounted) setRecommendedEvents([]);
     });
 
     return () => {
@@ -62,7 +78,7 @@ export default function EventDetail() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleGoToSelectTicket = (showtimeId?: string | any) => {
+  const handleGoToSelectTicket = (showtimeId?: string) => {
     const token = localStorage.getItem("access_token");
     if (!token) {
       navigate(`/login?returnUrl=/events/${id}`);
@@ -78,9 +94,19 @@ export default function EventDetail() {
     if (!eventData) return;
     
     const now = new Date();
-    const activeShowtimes = eventData.showtimes?.filter((st: any) => {
-      const saleStart = st.saleStartTime ? new Date(st.saleStartTime) : (eventData.ticketSaleStartDate ? new Date(eventData.ticketSaleStartDate as string) : null);
-      const saleEnd = st.saleEndTime ? new Date(st.saleEndTime) : (eventData.ticketSaleEndDate ? new Date(eventData.ticketSaleEndDate as string) : null);
+    const parseSaleDate = (value: unknown): Date | null => {
+      if (Array.isArray(value)) {
+        const [year, month, day, hour = 0, minute = 0, second = 0] = value as number[];
+        const date = new Date(year, month - 1, day, hour, minute, second);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+      if (typeof value !== "string" && typeof value !== "number") return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const activeShowtimes = eventData.showtimes?.filter((st) => {
+      const saleStart = parseSaleDate((st as typeof st & { saleStartTime?: unknown }).saleStartTime) || parseSaleDate(eventData.ticketSaleStartDate);
+      const saleEnd = parseSaleDate((st as typeof st & { saleEndTime?: unknown }).saleEndTime) || parseSaleDate(eventData.ticketSaleEndDate);
       const isUpcoming = saleStart && now < saleStart;
       const isEnded = saleEnd && now > saleEnd;
       return !isUpcoming && !isEnded;
@@ -103,7 +129,7 @@ export default function EventDetail() {
     return (
       <div className="w-full min-h-[400px] flex items-center justify-center p-12">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-xs font-extrabold app-text-muted">{translate("Đang tải thông tin sự kiện...")}</p>
         </div>
       </div>
@@ -121,8 +147,22 @@ export default function EventDetail() {
     );
   }
 
+  const scrollToSection = (sectionId: "desc" | "schedule" | "organizer") => {
+    setActiveTab(sectionId);
+    const elementId =
+      sectionId === "desc"
+        ? "event-desc-section"
+        : sectionId === "schedule"
+        ? "event-schedule-section"
+        : "event-organizer-section";
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
-    <div className="w-full transition-colors duration-300">
+    <div className="event-detail-screen w-full transition-colors duration-300">
       {/* Fixed Top Header Bar on Scroll */}
       <EventStickyHeader
         event={eventData}
@@ -132,18 +172,70 @@ export default function EventDetail() {
 
       {/* Main Container with side margins */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-6 md:py-8">
-        {/* Top Physical Ticket Stub Banner*/}
+        {/* Hero Section (Banner + Info Card) */}
         <EventHero
           event={eventData}
           onBuyTicketsClick={handleGoToSelectTicket}
         />
 
-        {/* Compact Sections */}
+        {/* Navigation Tabs (Giới thiệu, Thông tin / Lịch chiếu, Ban tổ chức / Chính sách) */}
+        <div className="event-detail-tabs sticky top-0 z-20 backdrop-blur-md border-b app-border mb-8 -mx-6 px-6 md:-mx-12 md:px-12 lg:-mx-16 lg:px-16 pt-3 pb-0 shadow-2xs">
+          <div className="flex items-center gap-8 overflow-x-auto scrollbar-hide">
+            <button
+              type="button"
+              onClick={() => scrollToSection("desc")}
+              className={`pb-3 text-sm font-extrabold transition-all relative whitespace-nowrap cursor-pointer ${
+                activeTab === "desc"
+                  ? "app-text-brand"
+                  : "app-text-muted app-hover-text-brand"
+              }`}
+            >
+              {translate("Giới thiệu")}
+              {activeTab === "desc" && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => scrollToSection("schedule")}
+              className={`pb-3 text-sm font-extrabold transition-all relative whitespace-nowrap cursor-pointer ${
+                activeTab === "schedule"
+                  ? "app-text-brand"
+                  : "app-text-muted app-hover-text-brand"
+              }`}
+            >
+              {translate("Thông tin & Lịch diễn")}
+              {activeTab === "schedule" && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => scrollToSection("organizer")}
+              className={`pb-3 text-sm font-extrabold transition-all relative whitespace-nowrap cursor-pointer ${
+                activeTab === "organizer"
+                  ? "app-text-brand"
+                  : "app-text-muted app-hover-text-brand"
+              }`}
+            >
+              {translate("Ban tổ chức & Chính sách")}
+              {activeTab === "organizer" && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Content Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-6">
           {/* Main Content Column */}
-          <div className="lg:col-span-8 space-y-8">
+          <div className="lg:col-span-12 space-y-8">
             {/* Collapsible Event Description & Gallery */}
-            <EventDescription event={eventData} />
+            <div id="event-desc-section">
+              <EventDescription event={eventData} />
+            </div>
 
             {/* Schedule & Tickets */}
             <div id="event-schedule-section">
@@ -154,7 +246,9 @@ export default function EventDetail() {
             </div>
 
             {/* Organizer Section */}
-            <EventOrganizer organizer={eventData.organizer} event={eventData} />
+            <div id="event-organizer-section">
+              <EventOrganizer organizer={eventData.organizer} event={eventData} />
+            </div>
           </div>
         </div>
 
@@ -174,12 +268,16 @@ export default function EventDetail() {
           <div className="flex justify-center mt-8">
             <button
               type="button"
+              onClick={() => navigate(PATHS.EVENTS)}
               className="px-8 py-3 gradient-btn text-white font-extrabold text-sm rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               {translate("Xem thêm sự kiện")}</button>
           </div>
         </div>
       </div>
+
+      {/* Bottom spacing for mobile sticky CTA bar */}
+      <div className="lg:hidden h-20" />
     </div>
   );
 }

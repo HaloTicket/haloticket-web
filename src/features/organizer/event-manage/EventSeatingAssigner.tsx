@@ -281,33 +281,26 @@ export const EventSeatingAssigner: React.FC = () => {
       return;
     }
 
-    // 1:1 zone-tier constraint check: each ticket tier can only be assigned to 1 zone
-    const otherZoneWithTier = Object.values(zones).find(
+    // seat count vs ticket totalQuantity Warning Check across all zones sharing this tier
+    const targetTier = effectiveTiers.find((t) => t.id === tierId);
+    const otherZonesWithTier = Object.values(zones).filter(
       (z) => z.id !== zoneId && z.tierId === tierId
     );
-
-    if (otherZoneWithTier) {
-      const targetTier = effectiveTiers.find((t) => t.id === tierId);
-      setConfirmModal({
-        isOpen: true,
-        title: 'Hạng Vé Đã Được Gán Cho Khu Vực Khác',
-        message: `Hạng vé "${targetTier?.name || 'này'}" đã được gán cho khu vực "${otherZoneWithTier.name}".\n\nMỗi hạng vé chỉ được gán cho 1 khu vực duy nhất trên sơ đồ!`,
-        type: 'warning',
-        onConfirm: () => setConfirmModal(null),
-      });
-      return;
-    }
-
-    // seat count vs ticket totalQuantity Warning Check
-    const targetTier = effectiveTiers.find((t) => t.id === tierId);
-    const zoneSeatCount = seats.filter((s) => s.zoneId === zoneId).length || currentZone.capacity || 0;
+    const currentZoneSeatCount = seats.filter((s) => s.zoneId === zoneId).length || currentZone.capacity || 0;
+    const otherZonesSeatCount = otherZonesWithTier.reduce((sum, z) => {
+      const zSeats = seats.filter((s) => s.zoneId === z.id).length || z.capacity || 0;
+      return sum + zSeats;
+    }, 0);
+    const totalAssignedSeats = currentZoneSeatCount + otherZonesSeatCount;
     const tierTotalQty = targetTier?.totalQuantity ?? 100;
 
-    if (targetTier && zoneSeatCount > tierTotalQty) {
+    if (targetTier && totalAssignedSeats > tierTotalQty) {
       setConfirmModal({
         isOpen: true,
         title: 'Cảnh Báo Vượt Sức Chứa Hạng Vé',
-        message: `Khu vực "${currentZone.name}" có ${zoneSeatCount} ghế, lớn hơn tổng số lượng vé mở bán của hạng vé "${targetTier.name}" (${tierTotalQty} vé).\n\nBạn có muốn tiếp tục gán không?`,
+        message: otherZonesWithTier.length > 0
+          ? `Hạng vé "${targetTier.name}" đang được gán cho nhiều khu vực với tổng cộng ${totalAssignedSeats} ghế, lớn hơn tổng số lượng vé mở bán (${tierTotalQty} vé).\n\nBạn có muốn tiếp tục gán không?`
+          : `Khu vực "${currentZone.name}" có ${currentZoneSeatCount} ghế, lớn hơn tổng số lượng vé mở bán của hạng vé "${targetTier.name}" (${tierTotalQty} vé).\n\nBạn có muốn tiếp tục gán không?`,
         type: 'warning',
         onConfirm: () => {
           applyZoneTier(zoneId, tierId);
@@ -631,7 +624,7 @@ export const EventSeatingAssigner: React.FC = () => {
                   <span>Hướng dẫn gán hạng vé</span>
                 </p>
                 <p className="text-[11px] leading-relaxed">
-                  Mỗi khu vực chỉ gán 1 Hạng vé duy nhất. Các ghế trong khu vực đó sẽ tự động kế thừa giá vé.
+                  Chọn hạng vé phù hợp cho từng khu vực (một hạng vé có thể gán cho nhiều khu vực). Các ghế trong khu vực sẽ tự động kế thừa giá và hạng vé tương ứng.
                 </p>
               </div>
 

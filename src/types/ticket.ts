@@ -25,6 +25,11 @@ export interface TicketTypeApiResponse {
 
 export interface OwnedTicketApiResponse {
   id: string;
+  bookingId?: string | null;
+  showtimeId?: string | null;
+  section?: string | null;
+  row?: string | null;
+  seatNumber?: string | null;
   bookingCode?: string | null;
   eventId: string;
   ticketTypeId?: string | null;

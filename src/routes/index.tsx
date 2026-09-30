@@ -35,6 +35,7 @@ import Checkout from "@/features/tickets/Checkout";
 import BookingSuccess from "@/features/tickets/BookingSuccess";
 import PaymentCallback from "@/features/tickets/PaymentCallback";
 import TicketDetail from "@/features/tickets/TicketDetail";
+import OrderDetail from "@/features/tickets/OrderDetail";
 import GiftInvitation from "@/features/tickets/GiftInvitation";
 
 // User Feature
@@ -57,6 +58,7 @@ import { EventVouchers } from "@/features/organizer/event-manage/EventVouchers";
 import { EventSeatingMap } from "@/features/organizer/event-manage/EventSeatingMap";
 import { EventSeatingAssigner } from "@/features/organizer/event-manage/EventSeatingAssigner";
 import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
+import EventTransfers from "@/features/organizer/event-manage/EventTransfers";
 import { EventShowtimes } from "@/features/organizer/event-manage/EventShowtimes";
 
 // Resale Feature
@@ -158,7 +160,12 @@ function AuthHandlers() {
     } else {
       const giftReturn = sessionStorage.getItem("haloticket_gift_return");
       sessionStorage.removeItem("haloticket_gift_return");
-      navigate(giftReturn?.startsWith(PATHS.GIFT_ACCEPT + "?") ? giftReturn : PATHS.HOME, { replace: true });
+      const authRedirect = sessionStorage.getItem("haloticket_auth_redirect");
+      sessionStorage.removeItem("haloticket_auth_redirect");
+      const targetPath = giftReturn?.startsWith(PATHS.GIFT_ACCEPT + "?")
+        ? giftReturn
+        : authRedirect || PATHS.HOME;
+      navigate(targetPath, { replace: true });
     }
   };
 
@@ -267,6 +274,14 @@ export const router = createBrowserRouter([
       {
         path: "/my-tickets",
         element: <Navigate to="/profile?tab=tickets" replace />,
+      },
+      {
+        path: "/my-tickets/orders/:orderCode",
+        element: (
+          <ProtectedRoute>
+            <OrderDetail />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.GIFT_ACCEPT,
@@ -405,6 +420,10 @@ export const router = createBrowserRouter([
       {
         path: "showtimes",
         element: <EventShowtimes />,
+      },
+      {
+        path: "transfers",
+        element: <EventTransfers />,
       },
     ],
   },
