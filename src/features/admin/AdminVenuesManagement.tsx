@@ -131,32 +131,36 @@ export function AdminVenuesManagement() {
   const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const cities = [...new Set(venues.map(v => v.city).filter(Boolean))].sort();
 
-  return <div className="space-y-5">
-    <AdminPageHeader title={t("Quản lý địa điểm")} description={t("Địa điểm được lưu trên hệ thống")} actions={<div className="flex w-full gap-2 sm:w-auto">
-        <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="min-h-11 min-w-11 rounded-lg border app-border app-text-main disabled:opacity-50"><FiRefreshCw className="mx-auto" /></button>
-        <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="min-h-11 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white flex items-center gap-2"><FiPlus />{t("Thêm địa điểm mới")}</button>
-      </div>} />
-    {loadState === "ready" && <VenueStatCards venues={venues} />}
-    <section className="app-bg-card rounded-xl border app-border p-4 sm:p-5 space-y-4">
+  return <div className="space-y-6">
+    <AdminPageHeader title={t("Quản lý địa điểm")} description={t("Địa điểm được lưu trên hệ thống")} actions={loadState === "ready" && <VenueStatCards venues={venues} />} />
+    <section className="overflow-hidden rounded-2xl border app-border app-bg-card">
+      {loadState === "ready" && <div className="px-4 sm:px-5">
+        <AdminStatusTabs value={status} onChange={value => { setStatus(value as Status); setPage(1); }} options={[
+          { value: "ALL", label: t("Tất cả trạng thái"), count: venues.length },
+          { value: "VERIFIED", label: t("Đã xác minh"), count: venues.filter(v => v.verified).length },
+          { value: "UNVERIFIED", label: t("Chưa xác minh"), count: venues.filter(v => !v.verified).length },
+        ]} />
+      </div>}
+      <div className="p-4 sm:p-5">
+        <AdminSearchFilterBar searchQuery={search} onSearchChange={value => { setSearch(value); setPage(1); }} searchPlaceholder={t("Tìm theo tên, địa chỉ, thành phố...")}>
+          <label className="flex items-center gap-2 text-sm app-text-main">{t("Thành phố")}
+            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="min-h-11 rounded-xl border app-border app-bg-subnav px-3 text-sm app-text-main">
+              <option value="ALL">{t("Tất cả thành phố")}</option>
+              {cities.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="min-h-11 min-w-11 rounded-xl border app-border app-text-main disabled:opacity-50"><FiRefreshCw className="mx-auto" /></button>
+          <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white"><FiPlus />{t("Thêm địa điểm mới")}</button>
+        </AdminSearchFilterBar>
+      </div>
+    </section>
+    <section className="overflow-hidden rounded-2xl border app-border app-bg-card">
       {refreshing && <AdminDataState state="refreshing" />}
-      {refreshError && <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm app-text-main">{t("Không thể tải lại danh sách sau thao tác. Dữ liệu hiển thị có thể chưa cập nhật.")} <button type="button" onClick={() => void load()} className="font-bold underline">{t("Thử lại")}</button></div>}
+      {refreshError && <div role="alert" className="border-b border-amber-500/40 p-4 text-sm app-text-main">{t("Không thể tải lại danh sách sau thao tác. Dữ liệu hiển thị có thể chưa cập nhật.")} <button type="button" onClick={() => void load()} className="font-bold underline">{t("Thử lại")}</button></div>}
       {loadState === "error"
         ? <AdminDataState state="error" message={t("Không thể tải địa điểm.")} onRetry={() => void load()} />
         : loadState === "loading" ? <AdminDataState state="loading" />
           : <>
-            <AdminSearchFilterBar searchQuery={search} onSearchChange={value => { setSearch(value); setPage(1); }} searchPlaceholder={t("Tìm theo tên, địa chỉ, thành phố...")}>
-              <label className="flex items-center gap-2 text-sm app-text-main">{t("Thành phố")}
-                <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="min-h-11 rounded-lg border app-border app-bg-card px-3 text-sm app-text-main">
-                  <option value="ALL">{t("Tất cả thành phố")}</option>
-                  {cities.map(value => <option key={value} value={value}>{value}</option>)}
-                </select>
-              </label>
-            </AdminSearchFilterBar>
-            <AdminStatusTabs value={status} onChange={value => { setStatus(value as Status); setPage(1); }} options={[
-              { value: "ALL", label: t("Tất cả trạng thái"), count: venues.length },
-              { value: "VERIFIED", label: t("Đã xác minh"), count: venues.filter(v => v.verified).length },
-              { value: "UNVERIFIED", label: t("Chưa xác minh"), count: venues.filter(v => !v.verified).length },
-            ]} />
             {venues.length === 0 ? <AdminDataState state="empty" message={t("Chưa có địa điểm nào.")} />
               : filtered.length === 0 ? <AdminDataState state="no-results" message={t("Không tìm thấy địa điểm nào phù hợp.")} onReset={() => { setSearch(""); setCity("ALL"); setStatus("ALL"); setPage(1); }} />
                 : <VenueTable venues={visible} busyId={busyId} onToggleVerification={venue => void toggle(venue as AdminVenue)} onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }} onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }} />}

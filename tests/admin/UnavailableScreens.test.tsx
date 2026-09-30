@@ -52,8 +52,8 @@ describe("admin dashboard", () => {
     render(<MemoryRouter><AdminDashboard /></MemoryRouter>);
     expect(eventApi.getApprovalEvents).toHaveBeenCalledWith("PENDING");
     await waitFor(() => expect(screen.getByText("Sự kiện thật")).toBeInTheDocument());
-    expect(within(screen.getByText("Sự kiện chờ duyệt").closest("div.rounded-xl")!).getByText("2")).toBeInTheDocument();
-    expect(within(screen.getByText("Tổng địa điểm").closest("div.rounded-xl")!).getByText("1")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Sự kiện chờ duyệt" })).getByText("2")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Tổng địa điểm" })).getByText("1")).toBeInTheDocument();
     expect(screen.getAllByText("Chưa có dữ liệu")).toHaveLength(2);
     expect(screen.queryByText("Đã duyệt")).not.toBeInTheDocument();
     expect(screen.queryByText(/Sky Tour|99\.9%|8\/8|Max \+20%/i)).not.toBeInTheDocument();
@@ -64,8 +64,8 @@ describe("admin dashboard", () => {
     vi.mocked(venueApi.getAdminVenues).mockResolvedValue([]);
     render(<MemoryRouter><AdminDashboard /></MemoryRouter>);
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
-    expect(within(screen.getByText("Sự kiện chờ duyệt").closest("div.rounded-xl")!).queryByText("0")).not.toBeInTheDocument();
-    expect(within(screen.getByText("Tổng địa điểm").closest("div.rounded-xl")!).getByText("0")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Sự kiện chờ duyệt" })).queryByText("0")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Tổng địa điểm" })).getByText("0")).toBeInTheDocument();
     expect(screen.queryByText("Sự kiện thật")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
     expect(eventApi.getApprovalEvents).toHaveBeenCalledTimes(2);

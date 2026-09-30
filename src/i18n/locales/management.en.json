@@ -1285,5 +1285,7 @@
   "Cảnh báo dịch vụ": "Service alerts",
   "Chỉ tạo cảnh báo sau khi có nguồn kiểm tra và ngưỡng đo được xác nhận.": "Alerts require a confirmed monitoring source and thresholds.",
   "Cấu hình cảnh báo": "Configure alerts",
-  "Duyệt hồ sơ eKYC": "Review eKYC records"
+  "Duyệt hồ sơ eKYC": "Review eKYC records",
+  "Cập nhật thông tin địa điểm trong hệ thống": "Update venue information in the system",
+  "Thêm địa điểm mới vào hệ thống": "Add a new venue to the system"
 }

@@ -17,9 +17,9 @@ export const AdminSearchFilterBar: React.FC<AdminSearchFilterBarProps> = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Search Input */}
-      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 flex-1 sm:max-w-md">
+      <div className="flex min-h-11 flex-1 items-center gap-2 rounded-xl border app-border app-bg-subnav px-3 sm:max-w-md">
         <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
         <input
           type="text"
@@ -27,7 +27,7 @@ export const AdminSearchFilterBar: React.FC<AdminSearchFilterBarProps> = ({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={t(searchPlaceholder)}
           aria-label={t(searchPlaceholder)}
-          className="w-full bg-transparent text-xs app-text-main placeholder-slate-400 focus:outline-none font-medium"
+          className="min-w-0 w-full bg-transparent text-sm app-text-main placeholder-slate-400 focus:outline-none"
         />
         {searchQuery && (
           <button

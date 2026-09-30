@@ -79,19 +79,20 @@ export const VenueModal: React.FC<VenueModalProps> = ({
   return (
     <AdminModal
       title={editingVenue ? translate('Chỉnh Sửa Địa Điểm') : translate('Thêm Địa Điểm Chính Thức')}
+      subtitle={editingVenue ? translate('Cập nhật thông tin địa điểm trong hệ thống') : translate('Thêm địa điểm mới vào hệ thống')}
       icon={<FiHome className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
       onClose={() => { if (!submitLock.current) onClose(); }}
       pending={pending}
-      maxWidth="xl"
+      maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Venue Name */}
         <div>
-          <label htmlFor="venue-name" className="block text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-1.5">
+          <label htmlFor="venue-name" className="block text-sm font-semibold app-text-main mb-1.5">
             {translate("Tên địa điểm")} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <FiHome className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-app-text-muted" />
+            <FiHome className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 app-text-muted" />
             <input
               id="venue-name"
               type="text"
@@ -99,18 +100,18 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               placeholder={translate("VD: Trung Tâm Hội Nghị Gem Center")}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
             />
           </div>
         </div>
 
         {/* Address */}
         <div>
-          <label htmlFor="venue-address" className="block text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-1.5">
+          <label htmlFor="venue-address" className="block text-sm font-semibold app-text-main mb-1.5">
             {translate("Địa chỉ chi tiết")} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <FiMapPin className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-app-text-muted" />
+            <FiMapPin className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 app-text-muted" />
             <input
               id="venue-address"
               type="text"
@@ -118,7 +119,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               placeholder={translate("VD: 8 Nguyễn Bỉnh Khiêm, Đa Kao, Quận 1")}
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
             />
           </div>
         </div>
@@ -126,7 +127,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
         {/* City & Capacity */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="venue-city" className="block text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-1.5">
+            <label htmlFor="venue-city" className="block text-sm font-semibold app-text-main mb-1.5">
               {translate("Tỉnh / Thành phố")}
             </label>
             <input
@@ -136,16 +137,16 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               placeholder={translate("VD: TP. Hồ Chí Minh, Hà Nội")}
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium"
+              className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
             />
           </div>
 
           <div>
-            <label htmlFor="venue-capacity" className="block text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-1.5">
+            <label htmlFor="venue-capacity" className="block text-sm font-semibold app-text-main mb-1.5">
               {translate("Sức chứa tối đa (người)")}
             </label>
             <div className="relative">
-              <FiUsers className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-app-text-muted" />
+              <FiUsers className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 app-text-muted" />
               <input
                 id="venue-capacity"
                 type="number"
@@ -154,7 +155,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
                 required
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
               />
             </div>
           </div>
@@ -163,14 +164,14 @@ export const VenueModal: React.FC<VenueModalProps> = ({
         {/* Venue Type & Verification Status */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="venue-type" className="block text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-1.5">
+            <label htmlFor="venue-type" className="block text-sm font-semibold app-text-main mb-1.5">
               {translate("Loại hình địa điểm")}
             </label>
             <select
               id="venue-type"
               value={formData.type || 'indoor'}
               onChange={(e) => setFormData({ ...formData, type: e.target.value as 'indoor' | 'outdoor' | 'hybrid' })}
-              className="w-full px-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium cursor-pointer"
+              className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors cursor-pointer"
             >
               <option value="indoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Trong nhà (Indoor)")}</option>
               <option value="outdoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Ngoài trời (Outdoor)")}</option>
@@ -179,14 +180,14 @@ export const VenueModal: React.FC<VenueModalProps> = ({
           </div>
 
           <div>
-            <label htmlFor="venue-verified" className="block text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-1.5">
+            <label htmlFor="venue-verified" className="block text-sm font-semibold app-text-main mb-1.5">
               {translate("Trạng thái Xác minh")}
             </label>
             <select
               id="venue-verified"
               value={formData.verified ? 'true' : 'false'}
               onChange={(e) => setFormData({ ...formData, verified: e.target.value === 'true' })}
-              className="w-full px-4 py-2.5 rounded-xl bg-app-bg-card border border-app border-app-border text-app-text-main text-xs focus:outline-none focus:border-blue-500 transition-colors font-medium cursor-pointer"
+              className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors cursor-pointer"
             >
               <option value="true" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Đã xác minh (Official)")}</option>
               <option value="false" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Chờ xác minh (Unverified)")}</option>
@@ -197,19 +198,19 @@ export const VenueModal: React.FC<VenueModalProps> = ({
         {error && <p role="alert" aria-label={translate("Không thể lưu địa điểm")} className="rounded-lg border border-red-500/30 p-3 text-sm text-red-600">{error}</p>}
 
         {/* Modal Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-app border-app-border">
+        <div className="flex justify-end gap-3 pt-4 border-t app-border">
           <button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="px-5 py-2.5 text-xs font-bold rounded-xl border border-app border-app-border text-app-text-muted hover:bg-app-bg-subnav transition-colors cursor-pointer"
+            className="px-5 py-2.5 text-sm font-bold rounded-xl border app-border app-text-muted hover:bg-[var(--bg-subnav)] transition-colors cursor-pointer"
           >
             {translate("Hủy bỏ")}
           </button>
           <button
             type="submit"
             disabled={pending}
-            className="px-5 py-2.5 text-xs font-extrabold rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 cursor-pointer"
+            className="px-5 py-2.5 text-sm font-extrabold rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 cursor-pointer"
           >
             {pending ? translate("Đang lưu...") : editingVenue ? translate('Cập Nhật') : translate('Lưu Địa Điểm')}
           </button>

@@ -32,7 +32,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
   const endItem = Math.min(activePage * size, itemCount);
 
   return (
-    <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+    <div className="flex flex-col items-center justify-between gap-3 border-t app-border px-5 py-4 text-xs sm:flex-row">
       <span className="app-text-muted font-medium">
         {t("Hiển thị")} <strong className="app-text-main">{startItem}-{endItem}</strong> {t("trên tổng số")}{" "}
         <strong className="app-text-main">{itemCount}</strong> {t("mục")}
