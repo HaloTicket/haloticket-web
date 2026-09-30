@@ -70,6 +70,7 @@ import ResaleTransactionResult from "@/features/resale/ResaleTransactionResult";
 // Admin Feature
 import AdminDashboard from "@/features/admin/AdminDashboard";
 import EventApproval from "@/features/admin/EventApproval";
+import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import EkycApproval from "@/features/admin/EkycApproval";
 import ResaleManagement from "@/features/admin/ResaleManagement";
 import UserManagement from "@/features/admin/UserManagement";
@@ -447,6 +448,10 @@ export const router = createBrowserRouter([
       {
         path: PATHS.ADMIN_EVENTS_APPROVAL,
         element: <EventApproval />,
+      },
+      {
+        path: "/admin/events-approval/:eventId",
+        element: <EventApprovalDetail />,
       },
       {
         path: PATHS.ADMIN_EKYC_APPROVAL,

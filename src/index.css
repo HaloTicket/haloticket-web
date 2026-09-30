@@ -1,5 +1,50 @@
 @import "tailwindcss";
 
+/* Sonner 2 injects its own base stylesheet; these variables bind its host to HaloTicket. */
+@media (max-width: 640px) {
+  [data-sonner-toaster][data-x-position="right"] {
+    left: 50% !important;
+    right: auto !important;
+    width: calc(100vw - 32px) !important;
+    transform: translateX(-50%);
+  }
+}
+
+.app-toaster[data-sonner-toaster] {
+  font-family: var(--font-sans);
+  --normal-bg: var(--bg-card);
+  --normal-border: var(--border-color);
+  --normal-text: var(--text-main);
+  --success-bg: color-mix(in srgb, var(--bg-card) 90%, #16a34a);
+  --success-border: color-mix(in srgb, var(--border-color) 75%, #16a34a);
+  --success-text: #166534;
+  --info-bg: color-mix(in srgb, var(--bg-card) 91%, var(--color-brand-primary));
+  --info-border: color-mix(in srgb, var(--border-color) 75%, var(--color-brand-primary));
+  --info-text: #1d4ed8;
+  --warning-bg: color-mix(in srgb, var(--bg-card) 90%, #f59e0b);
+  --warning-border: color-mix(in srgb, var(--border-color) 75%, #f59e0b);
+  --warning-text: #92400e;
+  --error-bg: color-mix(in srgb, var(--bg-card) 90%, #ef4444);
+  --error-border: color-mix(in srgb, var(--border-color) 75%, #ef4444);
+  --error-text: #b91c1c;
+}
+
+.dark .app-toaster[data-sonner-toaster] {
+  --success-text: #4ade80;
+  --info-text: #60a5fa;
+  --warning-text: #fbbf24;
+  --error-text: #fca5a5;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  border-radius: 12px;
+  border-color: var(--border-color);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-title] { font-weight: 700; }
+[data-sonner-toaster] [data-sonner-toast] [data-description] { line-height: 1.45; }
+
 @variant dark (&:where(.dark, .dark *));
 
 @layer base {

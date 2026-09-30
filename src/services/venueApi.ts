@@ -2,6 +2,12 @@ import axiosClient from "./axiosClient";
 import type { VenueApiData } from "@/types";
 
 export const venueApi = {
+  // Admin screens must distinguish an empty database from a failed request.
+  getAdminVenues: async (): Promise<VenueApiData[]> => {
+    const response: unknown = await axiosClient.get("/events/venues");
+    if (!Array.isArray(response)) throw new Error("Invalid venue response");
+    return response as VenueApiData[];
+  },
   // fetch all venues from backend DB
   getVenues: async (): Promise<VenueApiData[]> => {
     try {

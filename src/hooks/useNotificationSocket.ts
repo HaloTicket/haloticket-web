@@ -84,16 +84,6 @@ export function useNotificationSocket(userId: string = "ADMIN") {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [latestToast, setLatestToast] = useState<NotificationItem | null>(null);
 
-  // auto-dismiss toast banner after 5 seconds
-  useEffect(() => {
-    if (latestToast) {
-      const timer = setTimeout(() => {
-        setLatestToast(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [latestToast]);
-
   // load initial notifications from DB
 
   const loadNotifications = useCallback(async () => {

@@ -36,6 +36,7 @@ export const PATHS = {
   ADMIN: "/admin",
   ADMIN_DASHBOARD: "/admin/dashboard",
   ADMIN_EVENTS_APPROVAL: "/admin/events-approval",
+  ADMIN_EVENT_APPROVAL_DETAIL: (id: string | number) => `/admin/events-approval/${encodeURIComponent(String(id))}`,
   ADMIN_EKYC_APPROVAL: "/admin/ekyc-approval",
   ADMIN_RESALE_PRICE_CAP: "/admin/resale-price-cap",
   ADMIN_USERS_PERMISSIONS: "/admin/users-permissions",
