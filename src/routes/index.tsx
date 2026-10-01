@@ -448,7 +448,15 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.ADMIN_SETTINGS,
+        element: <Navigate to={PATHS.ADMIN_SETTINGS_SECTION("profile")} replace />,
+      },
+      {
+        path: "/admin/settings/:section",
         element: <AdminSettings />,
+      },
+      {
+        path: PATHS.ADMIN_IDENTITY_VERIFICATION,
+        element: <EkycVerification />,
       },
       {
         path: PATHS.ADMIN_EVENTS_APPROVAL,

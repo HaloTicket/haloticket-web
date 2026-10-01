@@ -8,7 +8,6 @@ export interface AdminNavItem {
   label: string;
   english: string;
   icon: IconType;
-  available?: boolean;
 }
 
 export interface AdminNavGroup {
@@ -28,16 +27,16 @@ export const adminNavGroups: AdminNavGroup[] = [
     { path: PATHS.ADMIN_VENUES_MANAGEMENT, label: "Quản lý địa điểm", english: "Venue management", icon: FiMapPin },
   ] },
   { id: "operations", label: "VẬN HÀNH", english: "OPERATIONS", items: [
-    { path: PATHS.ADMIN_USERS_PERMISSIONS, label: "Người dùng & phân quyền", english: "Users & permissions", icon: FiUsers, available: false },
-    { path: PATHS.ADMIN_SYSTEM_HEALTH, label: "Trạng thái hệ thống", english: "System status", icon: FiActivity, available: false },
+    { path: PATHS.ADMIN_USERS_PERMISSIONS, label: "Người dùng & phân quyền", english: "Users & permissions", icon: FiUsers },
+    { path: PATHS.ADMIN_SYSTEM_HEALTH, label: "Trạng thái hệ thống", english: "System status", icon: FiActivity },
   ] },
   { id: "market", label: "THỊ TRƯỜNG & GIAO DỊCH", english: "MARKET & TRANSACTIONS", items: [
-    { path: PATHS.ADMIN_RESALE_PRICE_CAP, label: "Vé Resale & giá trần", english: "Resale tickets & price cap", icon: FiTrendingUp, available: false },
-    { path: PATHS.ADMIN_PAYMENTS_MONITORING, label: "Thanh toán & Escrow", english: "Payments & escrow", icon: FiDollarSign, available: false },
+    { path: PATHS.ADMIN_RESALE_PRICE_CAP, label: "Vé Resale & giá trần", english: "Resale tickets & price cap", icon: FiTrendingUp },
+    { path: PATHS.ADMIN_PAYMENTS_MONITORING, label: "Thanh toán & Escrow", english: "Payments & escrow", icon: FiDollarSign },
   ] },
   { id: "content", label: "NỘI DUNG & CẤU HÌNH", english: "CONTENT & SETTINGS", items: [
-    { path: PATHS.ADMIN_HOMEPAGE_CONFIG, label: "Cấu hình trang chủ & Ads", english: "Homepage & ads", icon: FiLayout, available: false },
-    { path: PATHS.ADMIN_CATEGORIES_CONFIG, label: "Danh mục & cấu hình", english: "Categories & configuration", icon: FiSliders, available: false },
+    { path: PATHS.ADMIN_HOMEPAGE_CONFIG, label: "Cấu hình trang chủ & Ads", english: "Homepage & ads", icon: FiLayout },
+    { path: PATHS.ADMIN_CATEGORIES_CONFIG, label: "Danh mục & cấu hình", english: "Categories & configuration", icon: FiSliders },
   ] },
 ];
 

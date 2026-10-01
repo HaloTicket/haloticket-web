@@ -22,12 +22,11 @@ export interface AdminUnavailableScreenProps {
 /** A domain-shaped admin surface for workflows without an admin read/write contract. */
 export function AdminUnavailableScreen({ title, description, reason, action, tableTitle, columns, sections }: AdminUnavailableScreenProps) {
   const { t } = useTranslation();
-  const unavailable = t("Chức năng chưa tích hợp API quản trị", { defaultValue: "Admin API integration is unavailable" });
 
   return <div className="space-y-6">
     <AdminPageHeader title={t(title)} description={t(description)} actions={action && <button type="button" disabled title={reason} className="min-h-11 rounded-lg border app-border app-bg-card px-4 text-sm font-semibold app-text-muted opacity-70 cursor-not-allowed">{t(action)}</button>} />
     <div role="status" className="rounded-2xl border app-border app-bg-subnav px-4 py-4 text-sm app-text-main sm:px-5">
-      <strong className="font-semibold">{unavailable}.</strong> <span className="app-text-muted">{t(reason)}</span>
+      <span className="app-text-muted">{t(reason)}</span>
     </div>
     {tableTitle && columns && <section aria-label={t(tableTitle)} className="overflow-hidden rounded-2xl border app-border app-bg-card">
       <div className="border-b app-border px-4 py-4 sm:px-5"><h2 className="text-sm font-semibold app-text-main">{t(tableTitle)}</h2></div>

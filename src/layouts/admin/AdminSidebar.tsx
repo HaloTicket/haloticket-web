@@ -84,9 +84,6 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active = activePath === item.path;
-                if (item.available === false) return <span key={item.path} className="admin-nav-link is-unavailable" aria-disabled="true" title={label("Chưa tích hợp", "Not available yet")}>
-                  <Icon aria-hidden="true" /><span>{label(item.label, item.english)}</span><small>{label("Chưa tích hợp", "Not available yet")}</small>
-                </span>;
                 return <Link key={item.path} to={item.path} onClick={onMobileClose} className={`admin-nav-link ${active ? "is-active" : ""}`} aria-current={active ? "page" : undefined}>
                   <Icon aria-hidden="true" /><span>{label(item.label, item.english)}</span>
                   {item.path === PATHS.ADMIN_EVENTS_APPROVAL && pendingEventsCount !== null && pendingEventsCount > 0 && <span className="admin-nav-count" aria-label={label(`${pendingEventsCount} sự kiện chờ duyệt`, `${pendingEventsCount} pending events`)}>{pendingEventsCount}</span>}
@@ -97,7 +94,7 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
         })}
       </nav>
       <div className="admin-sidebar-footer">
-        <Link to={PATHS.ADMIN_SETTINGS} onClick={onMobileClose} className={`admin-return-link ${pathname === PATHS.ADMIN_SETTINGS ? "is-active" : ""}`} aria-current={pathname === PATHS.ADMIN_SETTINGS ? "page" : undefined} title={label("Cài đặt", "Settings")} aria-label={label("Cài đặt", "Settings")}><FiSettings aria-hidden="true" />{showLabels && <span>{label("Cài đặt", "Settings")}</span>}</Link>
+        <Link to={PATHS.ADMIN_SETTINGS} onClick={onMobileClose} className={`admin-return-link ${pathname.startsWith(PATHS.ADMIN_SETTINGS) ? "is-active" : ""}`} aria-current={pathname.startsWith(PATHS.ADMIN_SETTINGS) ? "page" : undefined} title={label("Cài đặt", "Settings")} aria-label={label("Cài đặt", "Settings")}><FiSettings aria-hidden="true" />{showLabels && <span>{label("Cài đặt", "Settings")}</span>}</Link>
         <Link to={PATHS.HOME} onClick={onMobileClose} className="admin-return-link" title={label("Về HaloTicket Client", "Back to HaloTicket")}><FiHome aria-hidden="true" />{showLabels && <span>{label("Về HaloTicket Client", "Back to HaloTicket")}</span>}</Link>
         <button type="button" className="admin-collapse-button" onClick={onToggleCollapse} aria-label={collapsed ? label("Mở rộng Sidebar", "Expand sidebar") : label("Thu gọn Sidebar", "Collapse sidebar")}>{collapsed ? <FiChevronRight /> : <FiChevronLeft />}{showLabels && <span>{label("Thu gọn Sidebar", "Collapse sidebar")}</span>}</button>
       </div>

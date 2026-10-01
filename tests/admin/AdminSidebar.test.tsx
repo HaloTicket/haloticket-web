@@ -47,11 +47,11 @@ describe("AdminSidebar", () => {
     expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("marks future destinations unavailable and pins settings below navigation", async () => {
+  it("lets future destinations open their screens without a sidebar status label", async () => {
     render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
     await userEvent.click(screen.getByRole("button", { name: "VẬN HÀNH" }));
-    expect(screen.queryByRole("link", { name: /Người dùng & phân quyền/ })).toBeNull();
-    expect(screen.getByText("Người dùng & phân quyền").closest("[aria-disabled]")?.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("link", { name: "Người dùng & phân quyền" }).getAttribute("href")).toBe("/admin/users-permissions");
+    expect(screen.queryByText("Chưa tích hợp")).toBeNull();
     expect(screen.getByRole("link", { name: "Cài đặt" }).getAttribute("href")).toBe("/admin/settings");
   });
 

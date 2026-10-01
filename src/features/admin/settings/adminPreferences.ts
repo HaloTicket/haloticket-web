@@ -5,9 +5,20 @@ import type { UserProfile } from "@/types";
 export interface AdminPreferences {
   hideEmail: boolean;
   instantNotifications: boolean;
+  activityLogPreview: boolean;
+  pendingEventNotifications: boolean;
+  disputeNotifications: boolean;
+  systemAlertNotifications: boolean;
+  spellCheck: boolean;
+  compressImages: boolean;
+  autoReply: boolean;
 }
 
-const defaults: AdminPreferences = { hideEmail: false, instantNotifications: true };
+const defaults: AdminPreferences = {
+  hideEmail: false, instantNotifications: true, activityLogPreview: true,
+  pendingEventNotifications: true, disputeNotifications: true, systemAlertNotifications: true,
+  spellCheck: true, compressImages: true, autoReply: false,
+};
 const prefix = "haloticket_admin_preferences:";
 const changedEvent = "admin-preferences-changed";
 const storageError = "Không thể lưu cài đặt trên trình duyệt này. Vui lòng kiểm tra quyền lưu trữ và thử lại.";
@@ -30,7 +41,13 @@ export function readAdminPreferences(identity: string | null): { preferences: Ad
     if (typeof parsed === "object" && parsed !== null &&
       "hideEmail" in parsed && typeof parsed.hideEmail === "boolean" &&
       "instantNotifications" in parsed && typeof parsed.instantNotifications === "boolean") {
-      return { preferences: { hideEmail: parsed.hideEmail, instantNotifications: parsed.instantNotifications }, error: null };
+      const values = parsed as Record<string, unknown>;
+      const optional = Object.fromEntries(
+        (Object.keys(defaults) as (keyof AdminPreferences)[])
+          .filter((key) => key !== "hideEmail" && key !== "instantNotifications")
+          .map((key) => [key, typeof values[key] === "boolean" ? values[key] : defaults[key]]),
+      ) as Pick<AdminPreferences, Exclude<keyof AdminPreferences, "hideEmail" | "instantNotifications">>;
+      return { preferences: { hideEmail: parsed.hideEmail, instantNotifications: parsed.instantNotifications, ...optional }, error: null };
     }
     return { preferences: defaults, error: invalidError };
   } catch (error) {

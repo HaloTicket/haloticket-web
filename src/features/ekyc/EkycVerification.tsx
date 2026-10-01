@@ -27,7 +27,9 @@ export default function EkycVerification() {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const returnUrl =
-    params.get("returnUrl") === PATHS.CREATE_EVENT
+    params.get("returnUrl") === PATHS.ADMIN_SETTINGS_SECTION("account-security")
+      ? PATHS.ADMIN_SETTINGS_SECTION("account-security")
+      : params.get("returnUrl") === PATHS.CREATE_EVENT
       ? PATHS.CREATE_EVENT
       : `${PATHS.PROFILE}?tab=ekyc`;
 

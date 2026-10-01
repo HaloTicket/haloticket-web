@@ -53,8 +53,6 @@
 .admin-nav-link:hover { background: var(--bg-card-hover); }
 .admin-nav-link.is-active { background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent); color: var(--color-brand-primary); font-weight: 700; }
 .admin-nav-link span:not(.admin-nav-count) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.admin-nav-link.is-unavailable { color: var(--text-muted); cursor: default; opacity: .72; }
-.admin-nav-link.is-unavailable small { flex: 0 0 auto; font-size: 9px; font-weight: 600; white-space: nowrap; }
 .admin-nav-count { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--color-brand-rose); color: white; font-size: 11px; font-weight: 700; }
 .admin-sidebar-footer { padding-top: 10px; border-top: 1px solid var(--border-color); }
 .admin-collapse-button { display: none; }
