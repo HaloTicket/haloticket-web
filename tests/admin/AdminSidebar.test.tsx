@@ -23,15 +23,42 @@ describe("AdminSidebar", () => {
       return <AdminSidebar collapsed={collapsed} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={(group) => { onExpand(group); setCollapsed(false); }} onToggleCollapse={vi.fn()} />;
     }
     render(<MemoryRouter><Harness /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: "KIỂM DUYỆT" }));
-    expect(onExpand).toHaveBeenCalledWith("moderation");
+    await userEvent.click(screen.getByRole("button", { name: "QUẢN LÝ SỰ KIỆN" }));
+    expect(onExpand).toHaveBeenCalledWith("events");
     expect(screen.getByRole("link", { name: "Kiểm duyệt sự kiện" }).getAttribute("href")).toBe("/admin/events-approval");
+  });
+
+  it("renders a single-item section as a direct link and keeps expanded groups independent", async () => {
+    render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Tổng quan" }).getAttribute("href")).toBe("/admin/dashboard");
+    expect(screen.queryByRole("button", { name: "TỔNG QUAN" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "QUẢN LÝ SỰ KIỆN" }));
+    await userEvent.click(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }));
+    expect(screen.getByRole("button", { name: "QUẢN LÝ SỰ KIỆN" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("keeps other groups expanded while navigating between event pages and settings", async () => {
+    render(<MemoryRouter initialEntries={["/admin/events-approval"]}><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
+    await userEvent.click(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }));
+    await userEvent.click(screen.getByRole("link", { name: "Quản lý địa điểm" }));
+    expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("link", { name: "Cài đặt" }));
+    expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("marks future destinations unavailable and pins settings below navigation", async () => {
+    render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
+    await userEvent.click(screen.getByRole("button", { name: "VẬN HÀNH" }));
+    expect(screen.queryByRole("link", { name: /Người dùng & phân quyền/ })).toBeNull();
+    expect(screen.getByText("Người dùng & phân quyền").closest("[aria-disabled]")?.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("link", { name: "Cài đặt" }).getAttribute("href")).toBe("/admin/settings");
   });
 
   it("closes the mobile drawer after navigation", async () => {
     const onMobileClose = vi.fn();
     render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen pendingEventsCount={null} onMobileClose={onMobileClose} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("link", { name: "Bảng điều khiển" }));
+    await userEvent.click(screen.getByRole("link", { name: "Tổng quan" }));
     expect(onMobileClose).toHaveBeenCalled();
   });
 

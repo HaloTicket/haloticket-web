@@ -63,11 +63,9 @@ export function AdminDashboard() {
   return <div className="space-y-6">
     <AdminPageHeader title={t("Tổng quan quản trị")} description={t("Dữ liệu hiện có từ hệ thống quản trị.")} actions={<button type="button" onClick={refresh} className="inline-flex min-h-11 items-center gap-2 rounded-lg border app-border app-bg-card px-4 text-sm font-semibold app-text-main"><FiRefreshCw aria-hidden="true" />{t("Làm mới")}</button>} />
 
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2">
       {metric("Sự kiện chờ duyệt", events.state === "ready" || events.state === "refreshing" ? String(events.data.length) : "—", events.state === "error" ? "Không thể tải dữ liệu" : events.state === "loading" ? "Đang tải dữ liệu" : events.state === "refreshing" ? "Đang cập nhật dữ liệu…" : "Hàng chờ phê duyệt", PATHS.ADMIN_EVENTS_APPROVAL)}
       {metric("Tổng địa điểm", venues.state === "ready" || venues.state === "refreshing" ? String(venues.data) : "—", venues.state === "error" ? "Không thể tải dữ liệu" : venues.state === "loading" ? "Đang tải dữ liệu" : venues.state === "refreshing" ? "Đang cập nhật dữ liệu…" : "Địa điểm trong hệ thống", PATHS.ADMIN_VENUES_MANAGEMENT)}
-      {metric("Hồ sơ eKYC chờ xác thực", t("Chưa có dữ liệu"), "Chưa có API hàng chờ quản trị")}
-      {metric("Sức khỏe hệ thống", t("Chưa có dữ liệu"), "Chưa có API tổng hợp trạng thái dịch vụ")}
     </div>
 
     <section className="rounded-2xl border app-border app-bg-card p-4 sm:p-5" aria-label={t("Sự kiện đang chờ phê duyệt")}>

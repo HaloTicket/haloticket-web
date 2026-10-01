@@ -69,6 +69,7 @@ import ResaleTransactionResult from "@/features/resale/ResaleTransactionResult";
 
 // Admin Feature
 import AdminDashboard from "@/features/admin/AdminDashboard";
+import AdminSettings from "@/features/admin/settings/AdminSettings";
 import EventApproval from "@/features/admin/EventApproval";
 import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import EkycApproval from "@/features/admin/EkycApproval";
@@ -444,6 +445,10 @@ export const router = createBrowserRouter([
       {
         path: PATHS.ADMIN_DASHBOARD,
         element: <AdminDashboard />,
+      },
+      {
+        path: PATHS.ADMIN_SETTINGS,
+        element: <AdminSettings />,
       },
       {
         path: PATHS.ADMIN_EVENTS_APPROVAL,

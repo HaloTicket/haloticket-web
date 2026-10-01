@@ -9,9 +9,10 @@ export interface NotificationToastProps {
   onClose: () => void;
   actionText?: string;
   accentColor?: "blue" | "emerald";
+  enabled?: boolean;
 }
 
-export function NotificationToast({ toast, onToastClick, onClose, actionText = "Xem chi tiết" }: NotificationToastProps) {
+export function NotificationToast({ toast, onToastClick, onClose, actionText = "Xem chi tiết", enabled = true }: NotificationToastProps) {
   const handlers = useRef({ onToastClick, onClose });
   const currentToastId = useRef<string | null>(null);
   useEffect(() => { handlers.current = { onToastClick, onClose }; }, [onToastClick, onClose]);
@@ -19,6 +20,12 @@ export function NotificationToast({ toast, onToastClick, onClose, actionText = "
 
   useEffect(() => {
     if (!toast) return;
+    if (!enabled) {
+      claimNotificationToast(toast.userId, toast.id);
+      sonnerToast.dismiss(`${toast.userId}:${toast.id}`);
+      handlers.current.onClose();
+      return;
+    }
     const id = claimNotificationToast(toast.userId, toast.id);
     if (!id) return;
     const closeCurrent = () => { if (currentToastId.current === id) handlers.current.onClose(); };
@@ -33,7 +40,7 @@ export function NotificationToast({ toast, onToastClick, onClose, actionText = "
       onDismiss: closeCurrent,
       onAutoClose: closeCurrent,
     });
-  }, [toast, actionText]);
+  }, [toast, actionText, enabled]);
 
   return null;
 }

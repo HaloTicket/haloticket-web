@@ -40,7 +40,7 @@ describe("admin screens without management APIs", () => {
 });
 
 describe("admin dashboard", () => {
-  it("uses the actual pending queue and venue count while leaving unsupported metrics unavailable", async () => {
+  it("uses the actual pending queue and venue count without manual eKYC or unsupported metrics", async () => {
     vi.mocked(eventApi.getApprovalEvents).mockResolvedValue([
       { id: "EV_A", title: "Sự kiện thật", organizerName: "Ban tổ chức A" },
       { id: "EV_B", title: "Sự kiện thứ hai" },
@@ -54,7 +54,8 @@ describe("admin dashboard", () => {
     await waitFor(() => expect(screen.getByText("Sự kiện thật")).toBeInTheDocument());
     expect(within(screen.getByRole("group", { name: "Sự kiện chờ duyệt" })).getByText("2")).toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Tổng địa điểm" })).getByText("1")).toBeInTheDocument();
-    expect(screen.getAllByText("Chưa có dữ liệu")).toHaveLength(2);
+    expect(screen.queryByRole("group", { name: "Hồ sơ eKYC chờ xác thực" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("group")).toHaveLength(2);
     expect(screen.queryByText("Đã duyệt")).not.toBeInTheDocument();
     expect(screen.queryByText(/Sky Tour|99\.9%|8\/8|Max \+20%/i)).not.toBeInTheDocument();
   });

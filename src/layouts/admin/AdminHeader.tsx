@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FiChevronDown, FiChevronUp, FiChevronsLeft, FiChevronsRight, FiLogOut, FiMenu, FiMoon, FiSearch, FiSettings, FiSun, FiUserCheck } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiChevronsLeft, FiChevronsRight, FiLogOut, FiMenu, FiMoon, FiSearch, FiSettings, FiSun } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import { preferenceIdentity, useAdminPreferences } from "@/features/admin/settings/adminPreferences";
 import { PATHS } from "@/routes/paths";
 import type { NotificationItem, UserProfile } from "@/types";
 
@@ -32,7 +33,9 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
   const { t, i18n } = useTranslation();
   const profileRef = useRef<HTMLDivElement>(null);
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
-  const userInitial = (userProfile?.fullName?.[0] || userProfile?.email?.[0] || "A").toUpperCase();
+  const { preferences } = useAdminPreferences(preferenceIdentity(userProfile));
+  const safeName = userProfile?.fullName && (!preferences.hideEmail || !userProfile.fullName.includes("@")) ? userProfile.fullName : label("Tài khoản", "Account");
+  const userInitial = (safeName[0] || "A").toUpperCase();
   const onApprovalPage = pathname === PATHS.ADMIN_EVENTS_APPROVAL;
   const searchValue = onApprovalPage ? new URLSearchParams(search).get("q") ?? "" : "";
 
@@ -69,12 +72,11 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
       <div className="admin-notifications"><NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={onNotificationClick} viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL} viewAllText={label("Xem trang Kiểm duyệt Sự kiện →", "View event moderation →")} titleText={label("Thông báo hệ thống", "System notifications")} /></div>
       <div className="admin-profile" ref={profileRef}>
         <button type="button" className="admin-profile-trigger" onClick={onToggleProfileMenu} aria-expanded={showProfileMenu} aria-haspopup="menu" aria-label={label("Tài khoản quản trị", "Admin account")}>
-          <span className="admin-profile-avatar">{userInitial}</span><span className="admin-profile-name">{userProfile?.fullName || userProfile?.email || label("Tài khoản", "Account")}</span>{showProfileMenu ? <FiChevronUp className="admin-profile-chevron" aria-hidden="true" /> : <FiChevronDown className="admin-profile-chevron" aria-hidden="true" />}
+          <span className="admin-profile-avatar">{userInitial}</span><span className="admin-profile-name">{safeName}</span>{showProfileMenu ? <FiChevronUp className="admin-profile-chevron" aria-hidden="true" /> : <FiChevronDown className="admin-profile-chevron" aria-hidden="true" />}
         </button>
         {showProfileMenu && <div className="admin-profile-menu" role="menu">
-          <div className="admin-profile-summary"><strong>{userProfile?.fullName || label("Tài khoản", "Account")}</strong><small>{userProfile?.email || ""}</small></div>
-          <Link role="menuitem" to={PATHS.ADMIN_USERS_PERMISSIONS} onClick={onCloseProfileMenu}><FiUserCheck />{label("Quản lý phân quyền", "Manage permissions")}</Link>
-          <Link role="menuitem" to={PATHS.ADMIN_CATEGORIES_CONFIG} onClick={onCloseProfileMenu}><FiSettings />{label("Cấu hình hệ thống", "System settings")}</Link>
+          <div className="admin-profile-summary"><strong>{safeName}</strong><small>{preferences.hideEmail ? "••••••" : userProfile?.email || ""}</small></div>
+          <Link role="menuitem" to={PATHS.ADMIN_SETTINGS} onClick={onCloseProfileMenu}><FiSettings />{label("Cài đặt tài khoản", "Account settings")}</Link>
           <button role="menuitem" type="button" onClick={onLogout}><FiLogOut />{label("Đăng xuất Quản trị", "Sign out")}</button>
         </div>}
       </div>

@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { NotificationToast } from "@/components/notifications/NotificationToast";
+import { preferenceIdentity, useAdminPreferences } from "@/features/admin/settings/adminPreferences";
 import { useTheme } from "@/hooks/useTheme";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { PATHS } from "@/routes/paths";
@@ -25,6 +26,7 @@ export function AdminLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => getCachedUserProfile());
+  const { preferences } = useAdminPreferences(preferenceIdentity(userProfile));
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const wasMobileOpen = useRef(false);
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
@@ -102,7 +104,7 @@ export function AdminLayout() {
       <AdminHeader collapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed((value) => !value)} isDark={isDark} toggleTheme={toggleTheme} userProfile={userProfile} notifications={notifications} unreadCount={unreadCount} showProfileMenu={showProfileMenu} onToggleProfileMenu={() => setShowProfileMenu((value) => !value)} onCloseProfileMenu={() => setShowProfileMenu(false)} onMobileOpen={() => setIsMobileOpen(true)} mobileMenuButtonRef={mobileMenuButtonRef} onMarkAllAsRead={markAllAsRead} onNotificationClick={handleNotificationClick} onLogout={handleLogout} />
       <main className="admin-main"><AdminBreadcrumb /><Outlet /></main>
     </div>
-    <NotificationToast toast={latestToast} onToastClick={handleNotificationClick} onClose={clearToast} actionText={label("Nhấn để kiểm duyệt ngay →", "Review now →")} accentColor="blue" />
+    <NotificationToast toast={latestToast} onToastClick={handleNotificationClick} onClose={clearToast} actionText={label("Nhấn để kiểm duyệt ngay →", "Review now →")} accentColor="blue" enabled={preferences.instantNotifications} />
   </div>;
 }
 

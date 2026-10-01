@@ -34,6 +34,7 @@ export const PATHS = {
   EVENT_MANAGE_EDIT: (id: string | number) => `/organizer/events/${id}/manage/edit`,
   EVENT_MANAGE_TRANSFERS: (id: string | number) => `/organizer/events/${id}/manage/transfers`,
   ADMIN: "/admin",
+  ADMIN_SETTINGS: "/admin/settings",
   ADMIN_DASHBOARD: "/admin/dashboard",
   ADMIN_EVENTS_APPROVAL: "/admin/events-approval",
   ADMIN_EVENT_APPROVAL_DETAIL: (id: string | number) => `/admin/events-approval/${encodeURIComponent(String(id))}`,
