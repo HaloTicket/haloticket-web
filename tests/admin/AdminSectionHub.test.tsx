@@ -24,7 +24,7 @@ describe("admin section navigation", () => {
   });
 
   it("resolves every destination to its correct group with unique paths", () => {
-    expect(adminNavGroups).toHaveLength(8);
+    expect(adminNavGroups).toHaveLength(9);
     const items = adminNavGroups.flatMap((group) => group.items);
     expect(new Set(items.map((item) => item.path)).size).toBe(items.length);
     for (const group of adminNavGroups) for (const item of group.items) expect(resolveAdminNavigation(item.path)?.group.id).toBe(group.id);

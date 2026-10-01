@@ -76,6 +76,7 @@ import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import EkycApproval from "@/features/admin/EkycApproval";
 import AdminAiAnalytics from "@/features/admin/AdminAiAnalytics";
 import SystemHealth from "@/features/admin/SystemHealth";
+import AdminAuditLogs from "@/features/admin/AuditLogs";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
 import AdminSectionHub from "@/features/admin/AdminSectionHub";
 import { CustomerUsersPreview, OrganizerUsersPreview, AdministratorUsersPreview } from "@/features/admin/wireframes/UsersEventWireframes";
@@ -513,8 +514,28 @@ export const router = createBrowserRouter([
         element: <Navigate to={PATHS.ADMIN_PAYMENT_TRANSACTIONS} replace />,
       },
       {
+        path: PATHS.ADMIN_SYSTEM_MONITORING,
+        element: <AdminSectionHub />,
+      },
+      {
         path: PATHS.ADMIN_SYSTEM_HEALTH,
         element: <SystemHealth />,
+      },
+      {
+        path: "/admin/monitoring/services",
+        element: <Navigate to={PATHS.ADMIN_SYSTEM_HEALTH} replace />,
+      },
+      {
+        path: PATHS.ADMIN_AUDIT_LOGS,
+        element: <AdminAuditLogs />,
+      },
+      {
+        path: "/admin/monitoring/audit-logs",
+        element: <Navigate to={PATHS.ADMIN_AUDIT_LOGS} replace />,
+      },
+      {
+        path: "/admin/ai-analytics",
+        element: <Navigate to={PATHS.ADMIN_AI_ANALYTICS} replace />,
       },
       {
         path: PATHS.ADMIN_HOMEPAGE_CONFIG,

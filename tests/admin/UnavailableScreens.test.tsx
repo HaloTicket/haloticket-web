@@ -10,7 +10,6 @@ import { EkycApproval } from "@/features/admin/EkycApproval";
 import { HomepageConfig } from "@/features/admin/HomepageConfig";
 import { PaymentMonitoring } from "@/features/admin/PaymentMonitoring";
 import { ResaleManagement } from "@/features/admin/ResaleManagement";
-import { SystemHealth } from "@/features/admin/SystemHealth";
 import { UserManagement } from "@/features/admin/UserManagement";
 import { eventApi } from "@/services/eventApi";
 import { venueApi } from "@/services/venueApi";
@@ -29,7 +28,6 @@ describe("admin screens without management APIs", () => {
     ["homepage", HomepageConfig],
     ["categories", CategoryConfig],
     ["payments", PaymentMonitoring],
-    ["health", SystemHealth],
   ])("%s shows the unavailable contract and disables mutations", (_, Screen) => {
     const { container } = render(<Screen />);
     expect(screen.getAllByRole("status").some((status) => (status.textContent || "").length > 20)).toBe(true);

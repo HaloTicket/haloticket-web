@@ -1,4 +1,4 @@
-import { FiAlertTriangle, FiBarChart2, FiCalendar, FiCheckSquare, FiCreditCard, FiDollarSign, FiGrid, FiImage, FiLayout, FiMapPin, FiMessageSquare, FiRepeat, FiSettings, FiShield, FiSliders, FiTag, FiTrendingUp, FiUser, FiUsers, FiZap } from "react-icons/fi";
+import { FiActivity, FiAlertTriangle, FiBarChart2, FiCalendar, FiCheckSquare, FiCreditCard, FiDollarSign, FiGrid, FiImage, FiLayout, FiMapPin, FiMessageSquare, FiRepeat, FiSettings, FiShield, FiSliders, FiTag, FiTrendingUp, FiUser, FiUsers, FiZap } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { PATHS } from "@/routes/paths";
 
@@ -38,6 +38,10 @@ export const adminNavGroups: AdminNavGroup[] = [
     { path: PATHS.ADMIN_AI_ASSISTANT, label: "Trợ lý AI", english: "AI assistant", icon: FiMessageSquare, description: "Đặt câu hỏi với ngữ cảnh, nguồn dữ liệu và đề xuất xử lý." },
     { path: PATHS.ADMIN_AI_ANOMALIES, label: "Phát hiện bất thường", english: "Anomaly detection", icon: FiAlertTriangle, description: "Xem dấu hiệu bất thường và bằng chứng cần kiểm tra." },
     { path: PATHS.ADMIN_AI_ANALYTICS, label: "Phân tích & đề xuất", english: "Analysis & recommendations", icon: FiBarChart2, description: "Phân tích câu hỏi quản trị và xem gợi ý có nguồn đối chiếu." },
+  ] },
+  { id: "monitoring", path: PATHS.ADMIN_SYSTEM_MONITORING, label: "Giám sát hệ thống", english: "System monitoring", icon: FiActivity, description: "Theo dõi tình trạng microservices, hiệu năng hạ tầng và nhật ký kiểm toán.", items: [
+    { path: PATHS.ADMIN_SYSTEM_HEALTH, label: "Monitoring", english: "Monitoring", icon: FiActivity, description: "Theo dõi trạng thái 12 microservices, tải CPU, RAM và độ trễ." },
+    { path: PATHS.ADMIN_AUDIT_LOGS, label: "Audit Logs", english: "Audit Logs", icon: FiShield, description: "Tra cứu nhật ký kiểm toán, lịch sử hoạt động và sự kiện hệ thống." },
   ] },
   { id: "system", path: PATHS.ADMIN_SYSTEM_SETTINGS, label: "Cài đặt hệ thống", english: "System settings", icon: FiSettings, description: "Cấu hình vận hành, tích hợp và các quy tắc nền tảng.", items: [
     { path: PATHS.ADMIN_SYSTEM_SETTINGS, label: "Cài đặt hệ thống", english: "System settings", icon: FiSliders, description: "Thiết lập chung, quyền, thông báo, tích hợp và nhật ký." },
