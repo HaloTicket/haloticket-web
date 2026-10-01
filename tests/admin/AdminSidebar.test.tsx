@@ -23,42 +23,42 @@ describe("AdminSidebar", () => {
       return <AdminSidebar collapsed={collapsed} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={(group) => { onExpand(group); setCollapsed(false); }} onToggleCollapse={vi.fn()} />;
     }
     render(<MemoryRouter><Harness /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: "QUẢN LÝ SỰ KIỆN" }));
+    await userEvent.click(screen.getByRole("button", { name: "Quản lý sự kiện" }));
     expect(onExpand).toHaveBeenCalledWith("events");
     expect(screen.getByRole("link", { name: "Kiểm duyệt sự kiện" }).getAttribute("href")).toBe("/admin/events-approval");
   });
 
   it("renders a single-item section as a direct link and keeps expanded groups independent", async () => {
     render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
-    expect(screen.getByRole("link", { name: "Tổng quan" }).getAttribute("href")).toBe("/admin/dashboard");
+    expect(screen.getByRole("link", { name: "Tổng quan hệ thống" }).getAttribute("href")).toBe("/admin/dashboard");
     expect(screen.queryByRole("button", { name: "TỔNG QUAN" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "QUẢN LÝ SỰ KIỆN" }));
-    await userEvent.click(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }));
-    expect(screen.getByRole("button", { name: "QUẢN LÝ SỰ KIỆN" }).getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "Quản lý sự kiện" }));
+    await userEvent.click(screen.getByRole("button", { name: "Quản lý thị trường vé" }));
+    expect(screen.getByRole("button", { name: "Quản lý sự kiện" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Quản lý thị trường vé" }).getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps other groups expanded while navigating between event pages and settings", async () => {
     render(<MemoryRouter initialEntries={["/admin/events-approval"]}><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }));
+    await userEvent.click(screen.getByRole("button", { name: "Quản lý thị trường vé" }));
     await userEvent.click(screen.getByRole("link", { name: "Quản lý địa điểm" }));
-    expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
-    await userEvent.click(screen.getByRole("link", { name: "Cài đặt" }));
-    expect(screen.getByRole("button", { name: "THỊ TRƯỜNG & GIAO DỊCH" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Quản lý thị trường vé" }).getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("link", { name: "Cài đặt hệ thống" }));
+    expect(screen.getByRole("button", { name: "Quản lý thị trường vé" }).getAttribute("aria-expanded")).toBe("true");
   });
 
   it("lets future destinations open their screens without a sidebar status label", async () => {
     render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen={false} pendingEventsCount={null} onMobileClose={vi.fn()} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: "VẬN HÀNH" }));
-    expect(screen.getByRole("link", { name: "Người dùng & phân quyền" }).getAttribute("href")).toBe("/admin/users-permissions");
+    await userEvent.click(screen.getByRole("button", { name: "Quản lý người dùng" }));
+    expect(screen.getByRole("link", { name: "Khách hàng" }).getAttribute("href")).toBe("/admin/users/customers");
     expect(screen.queryByText("Chưa tích hợp")).toBeNull();
-    expect(screen.getByRole("link", { name: "Cài đặt" }).getAttribute("href")).toBe("/admin/settings");
+    expect(screen.getByRole("link", { name: "Cài đặt hệ thống" }).getAttribute("href")).toBe("/admin/system-settings");
   });
 
   it("closes the mobile drawer after navigation", async () => {
     const onMobileClose = vi.fn();
     render(<MemoryRouter><AdminSidebar collapsed={false} mobileOpen pendingEventsCount={null} onMobileClose={onMobileClose} onExpand={vi.fn()} onToggleCollapse={vi.fn()} /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("link", { name: "Tổng quan" }));
+    await userEvent.click(screen.getByRole("link", { name: "Tổng quan hệ thống" }));
     expect(onMobileClose).toHaveBeenCalled();
   });
 

@@ -20,6 +20,13 @@ describe("admin route metadata", () => {
     render(<MemoryRouter initialEntries={["/admin/events-approval/EV_123"]}><AdminBreadcrumb /></MemoryRouter>);
     expect(screen.getByRole("link", { name: "Kiểm duyệt sự kiện" }).getAttribute("href")).toBe("/admin/events-approval");
     expect(screen.getByText(/EV_123/).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Quản lý sự kiện" }).getAttribute("href")).toBe("/admin/events");
+  });
+
+  it("shows a group landing page once with normal title capitalization", () => {
+    render(<MemoryRouter initialEntries={["/admin/events"]}><AdminBreadcrumb /></MemoryRouter>);
+    expect(screen.getAllByText("Quản lý sự kiện")).toHaveLength(1);
+    expect(screen.getByText("Quản lý sự kiện").getAttribute("aria-current")).toBe("page");
   });
 
   it("makes unknown routes explicit", () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { NotificationToast } from "@/components/notifications/NotificationToast";
@@ -20,6 +20,8 @@ export function AdminLayout() {
   const { t, i18n } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [pathname]);
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket("ADMIN");
   const [pendingEventsCount, setPendingEventsCount] = useState<number | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);

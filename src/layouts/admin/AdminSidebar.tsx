@@ -64,7 +64,7 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
         <button ref={closeRef} type="button" className="admin-mobile-close admin-icon-button" aria-label={label("Đóng menu", "Close menu")} onClick={onMobileClose}><FiX /></button>
       </div>
       <nav className="admin-sidebar-nav" aria-label={label("Các mục quản trị", "Admin sections")}>
-        {adminNavGroups.map((group) => {
+        {adminNavGroups.filter((group) => group.id !== "system").map((group) => {
           const singleItem = group.items.length === 1;
           const isOpen = !singleItem && showLabels && (openGroups.includes(group.id) || (group.id === activeGroup && !(closedActiveGroup?.path === pathname && closedActiveGroup.id === group.id)));
           const isActive = group.id === activeGroup;
@@ -94,7 +94,7 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
         })}
       </nav>
       <div className="admin-sidebar-footer">
-        <Link to={PATHS.ADMIN_SETTINGS} onClick={onMobileClose} className={`admin-return-link ${pathname.startsWith(PATHS.ADMIN_SETTINGS) ? "is-active" : ""}`} aria-current={pathname.startsWith(PATHS.ADMIN_SETTINGS) ? "page" : undefined} title={label("Cài đặt", "Settings")} aria-label={label("Cài đặt", "Settings")}><FiSettings aria-hidden="true" />{showLabels && <span>{label("Cài đặt", "Settings")}</span>}</Link>
+        <Link to={PATHS.ADMIN_SYSTEM_SETTINGS} onClick={onMobileClose} className={`admin-return-link ${pathname === PATHS.ADMIN_SYSTEM_SETTINGS ? "is-active" : ""}`} aria-current={pathname === PATHS.ADMIN_SYSTEM_SETTINGS ? "page" : undefined} title={label("Cài đặt hệ thống", "System settings")} aria-label={label("Cài đặt hệ thống", "System settings")}><FiSettings aria-hidden="true" />{showLabels && <span>{label("Cài đặt hệ thống", "System settings")}</span>}</Link>
         <Link to={PATHS.HOME} onClick={onMobileClose} className="admin-return-link" title={label("Về HaloTicket Client", "Back to HaloTicket")}><FiHome aria-hidden="true" />{showLabels && <span>{label("Về HaloTicket Client", "Back to HaloTicket")}</span>}</Link>
         <button type="button" className="admin-collapse-button" onClick={onToggleCollapse} aria-label={collapsed ? label("Mở rộng Sidebar", "Expand sidebar") : label("Thu gọn Sidebar", "Collapse sidebar")}>{collapsed ? <FiChevronRight /> : <FiChevronLeft />}{showLabels && <span>{label("Thu gọn Sidebar", "Collapse sidebar")}</span>}</button>
       </div>

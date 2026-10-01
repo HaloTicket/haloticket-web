@@ -73,13 +73,12 @@ import AdminSettings from "@/features/admin/settings/AdminSettings";
 import EventApproval from "@/features/admin/EventApproval";
 import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import EkycApproval from "@/features/admin/EkycApproval";
-import ResaleManagement from "@/features/admin/ResaleManagement";
-import UserManagement from "@/features/admin/UserManagement";
-import CategoryConfig from "@/features/admin/CategoryConfig";
-import PaymentMonitoring from "@/features/admin/PaymentMonitoring";
 import SystemHealth from "@/features/admin/SystemHealth";
-import HomepageConfig from "@/features/admin/HomepageConfig";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
+import AdminSectionHub from "@/features/admin/AdminSectionHub";
+import { CustomerUsersPreview, OrganizerUsersPreview, AdministratorUsersPreview, EventReportsPreview } from "@/features/admin/wireframes/UsersEventWireframes";
+import { PaymentTransactionsPreview, RefundsPreview, OrganizerSettlementsPreview, ResaleTicketsPreview, PricePolicyPreview, TransactionDisputesPreview } from "@/features/admin/wireframes/FinanceMarketWireframes";
+import { HomepageContentPreview, EventCategoriesPreview, AdvertisingBannersPreview, AiAssistantPreview, AiAnomaliesPreview, AiAnalyticsPreview, SystemSettingsPreview } from "@/features/admin/wireframes/ContentAiSystemWireframes";
 
 // Common / Error
 import NotFound from "@/features/common/NotFound";
@@ -446,6 +445,24 @@ export const router = createBrowserRouter([
         path: PATHS.ADMIN_DASHBOARD,
         element: <AdminDashboard />,
       },
+      ...[PATHS.ADMIN_EVENT_MANAGEMENT, PATHS.ADMIN_USER_MANAGEMENT, PATHS.ADMIN_FINANCE, PATHS.ADMIN_TICKET_MARKET, PATHS.ADMIN_CONTENT, PATHS.ADMIN_AI].map((path) => ({ path, element: <AdminSectionHub /> })),
+      { path: PATHS.ADMIN_EVENT_REPORTS, element: <EventReportsPreview /> },
+      { path: PATHS.ADMIN_CUSTOMERS, element: <CustomerUsersPreview /> },
+      { path: PATHS.ADMIN_ORGANIZERS, element: <OrganizerUsersPreview /> },
+      { path: PATHS.ADMIN_ADMINISTRATORS, element: <AdministratorUsersPreview /> },
+      { path: PATHS.ADMIN_PAYMENT_TRANSACTIONS, element: <PaymentTransactionsPreview /> },
+      { path: PATHS.ADMIN_REFUNDS, element: <RefundsPreview /> },
+      { path: PATHS.ADMIN_ORGANIZER_SETTLEMENTS, element: <OrganizerSettlementsPreview /> },
+      { path: PATHS.ADMIN_RESALE_TICKETS, element: <ResaleTicketsPreview /> },
+      { path: PATHS.ADMIN_PRICE_POLICY, element: <PricePolicyPreview /> },
+      { path: PATHS.ADMIN_TRANSACTION_DISPUTES, element: <TransactionDisputesPreview /> },
+      { path: PATHS.ADMIN_HOMEPAGE_CONTENT, element: <HomepageContentPreview /> },
+      { path: PATHS.ADMIN_EVENT_CATEGORIES, element: <EventCategoriesPreview /> },
+      { path: PATHS.ADMIN_ADVERTISING_BANNERS, element: <AdvertisingBannersPreview /> },
+      { path: PATHS.ADMIN_AI_ASSISTANT, element: <AiAssistantPreview /> },
+      { path: PATHS.ADMIN_AI_ANOMALIES, element: <AiAnomaliesPreview /> },
+      { path: PATHS.ADMIN_AI_ANALYTICS, element: <AiAnalyticsPreview /> },
+      { path: PATHS.ADMIN_SYSTEM_SETTINGS, element: <SystemSettingsPreview /> },
       {
         path: PATHS.ADMIN_SETTINGS,
         element: <Navigate to={PATHS.ADMIN_SETTINGS_SECTION("profile")} replace />,
@@ -472,19 +489,19 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.ADMIN_RESALE_PRICE_CAP,
-        element: <ResaleManagement />,
+        element: <Navigate to={PATHS.ADMIN_RESALE_TICKETS} replace />,
       },
       {
         path: PATHS.ADMIN_USERS_PERMISSIONS,
-        element: <UserManagement />,
+        element: <Navigate to={PATHS.ADMIN_CUSTOMERS} replace />,
       },
       {
         path: PATHS.ADMIN_CATEGORIES_CONFIG,
-        element: <CategoryConfig />,
+        element: <Navigate to={PATHS.ADMIN_EVENT_CATEGORIES} replace />,
       },
       {
         path: PATHS.ADMIN_PAYMENTS_MONITORING,
-        element: <PaymentMonitoring />,
+        element: <Navigate to={PATHS.ADMIN_PAYMENT_TRANSACTIONS} replace />,
       },
       {
         path: PATHS.ADMIN_SYSTEM_HEALTH,
@@ -492,7 +509,7 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.ADMIN_HOMEPAGE_CONFIG,
-        element: <HomepageConfig />,
+        element: <Navigate to={PATHS.ADMIN_HOMEPAGE_CONTENT} replace />,
       },
       {
         path: PATHS.ADMIN_VENUES_MANAGEMENT,

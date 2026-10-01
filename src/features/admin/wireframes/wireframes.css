@@ -1,0 +1,57 @@
+.wf-page { display: grid; gap: 20px; min-width: 0; color: var(--text-main); }
+.wf-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.wf-badge { flex: none; border: 1px solid color-mix(in srgb, var(--color-brand-primary) 34%, var(--border-color)); color: var(--color-brand-primary); border-radius: 999px; padding: 5px 11px; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.wf-panel { min-width: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-card); }
+.wf-panel-heading { padding: 18px 20px 12px; }
+.wf-panel-heading h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.wf-panel-heading p { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; }
+.wf-panel > :not(.wf-panel-heading, .wf-table-scroll) { margin: 0 20px 20px; }
+.wf-table-scroll { width: 100%; overflow-x: auto; }
+.wf-table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; }
+.wf-table th { padding: 11px 16px; border-block: 1px solid var(--border-color); background: var(--bg-card-hover); color: var(--text-muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.wf-table td { padding: 13px 16px; border-bottom: 1px solid var(--border-color); font-size: 13px; white-space: nowrap; }
+.wf-table tbody tr:last-child td { border-bottom: 0; }
+.wf-table tbody tr:hover { background: var(--bg-card-hover); }
+.wf-row-link { min-height: 44px; border: 0; padding: 4px 0; background: none; color: var(--color-brand-primary); cursor: pointer; font: inherit; font-weight: 700; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.wf-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 16px; border: 1px solid var(--color-brand-primary); border-radius: 11px; background: var(--color-brand-primary); color: white; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+.wf-button:hover { background: var(--color-brand-hover); }
+.wf-button-secondary { border-color: var(--border-color); background: var(--bg-card); color: var(--text-main); }
+.wf-button-secondary:hover { background: var(--bg-card-hover); }
+.wf-button:disabled { cursor: not-allowed; opacity: .55; }
+.wf-field { display: grid; gap: 6px; min-width: 0; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.wf-field :is(input, select, textarea) { width: 100%; min-height: 44px; border: 1px solid var(--border-color); border-radius: 11px; padding: 9px 12px; background: var(--bg-card); color: var(--text-main); font: inherit; font-size: 13px; font-weight: 500; }
+.wf-field textarea { min-height: 90px; resize: vertical; }
+.wf-field :is(input, select, textarea):focus-visible, .wf-row-link:focus-visible, .wf-button:focus-visible, .wf-tab:focus-visible, .wf-list-button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+.wf-toolbar, .wf-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.wf-toolbar .wf-field { flex: 1 1 180px; }
+.wf-tabs { display: flex; gap: 5px; overflow-x: auto; border-bottom: 1px solid var(--border-color); }
+.wf-tab { flex: none; min-height: 44px; border: 0; border-bottom: 2px solid transparent; padding: 9px 14px; background: none; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+.wf-tab[aria-selected="true"] { border-color: var(--color-brand-primary); color: var(--color-brand-primary); }
+.wf-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wf-metric { min-width: 0; border: 1px solid var(--border-color); border-radius: 14px; padding: 16px; background: var(--bg-card); }
+.wf-metric span { display: block; color: var(--text-muted); font-size: 12px; }
+.wf-metric strong { display: block; margin-top: 10px; font-size: 22px; line-height: 1.2; }
+.wf-metric small { display: block; margin-top: 5px; color: var(--text-muted); }
+.wf-split { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); gap: 16px; align-items: start; }
+.wf-stack { display: grid; gap: 16px; min-width: 0; }
+.wf-list { display: grid; }
+.wf-list-button { display: flex; width: 100%; min-height: 68px; align-items: center; justify-content: space-between; gap: 14px; border: 0; border-bottom: 1px solid var(--border-color); padding: 12px 20px; background: transparent; color: var(--text-main); cursor: pointer; font: inherit; text-align: left; }
+.wf-list-button:last-child { border-bottom: 0; }
+.wf-list-button:hover, .wf-list-button[aria-current="true"] { background: color-mix(in srgb, var(--color-brand-primary) 7%, var(--bg-card)); }
+.wf-list-button span { min-width: 0; }
+.wf-list-button small { display: block; margin-top: 3px; color: var(--text-muted); }
+.wf-chip { display: inline-flex; border-radius: 999px; padding: 4px 9px; background: color-mix(in srgb, var(--color-brand-primary) 11%, var(--bg-card)); color: var(--color-brand-primary); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.wf-detail { display: grid; gap: 0; margin: 0; }
+.wf-detail div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); }
+.wf-detail dt { color: var(--text-muted); }
+.wf-detail dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.wf-copy { color: var(--text-muted); line-height: 1.6; }
+.wf-note { border-left: 3px solid var(--color-brand-primary); padding: 10px 12px; background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--bg-card)); color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.wf-footnote { margin: 0; color: var(--text-muted); font-size: 12px; }
+.wf-timeline { margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 2; }
+.wf-bars { display: grid; gap: 10px; }
+.wf-bar { display: grid; grid-template-columns: 110px minmax(0, 1fr) 90px; gap: 12px; align-items: center; font-size: 12px; }
+.wf-bar-track { height: 12px; border-radius: 999px; background: var(--bg-subnav); overflow: hidden; }
+.wf-bar-track i { display: block; height: 100%; border-radius: inherit; background: var(--color-brand-primary); }
+@media (max-width: 800px) { .wf-split { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .wf-heading { flex-wrap: wrap; } .wf-metrics { grid-template-columns: 1fr; } .wf-panel-heading { padding: 16px; } .wf-panel > :not(.wf-panel-heading, .wf-table-scroll) { margin-inline: 16px; } .wf-bar { grid-template-columns: 75px minmax(0, 1fr) 65px; } }

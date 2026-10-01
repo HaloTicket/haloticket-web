@@ -64,9 +64,9 @@ export function AdminBreadcrumb() {
       <span aria-hidden="true">/</span>
       {route ? (
         <>
-          {route.group.items.length > 1 && (
+          {route.group.items.length > 1 && !route.isGroup && (
             <>
-              <span>{label(route.group.label, route.group.english)}</span>
+              <Link to={route.group.path}>{label(route.group.label, route.group.english)}</Link>
               <span aria-hidden="true">/</span>
             </>
           )}

@@ -40,7 +40,7 @@
 .admin-sidebar-nav::-webkit-scrollbar { display: none; }
 .admin-nav-group + .admin-nav-group { margin-top: 8px; }
 .admin-nav-group-button, .admin-nav-link, .admin-return-link, .admin-collapse-button { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 10px; background: transparent; color: var(--text-muted); text-align: left; text-decoration: none; cursor: pointer; transition: background var(--admin-motion-fast) ease-out, color var(--admin-motion-fast) ease-out; }
-.admin-nav-group-button { font-size: 11px; font-weight: 800; letter-spacing: .055em; }
+.admin-nav-group-button { font-size: 12px; font-weight: 750; letter-spacing: 0; }
 .admin-nav-group-button svg, .admin-nav-link svg, .admin-return-link svg, .admin-collapse-button svg { flex: 0 0 17px; width: 17px; height: 17px; }
 .admin-nav-group-button span { flex: 1; min-width: 0; }
 .admin-nav-group-button:hover, .admin-return-link:hover, .admin-collapse-button:hover { background: var(--bg-card-hover); color: var(--text-main); }
