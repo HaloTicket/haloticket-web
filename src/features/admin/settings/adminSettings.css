@@ -1,7 +1,7 @@
 .admin-settings-container { max-width: 1024px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; color: var(--text-main); animation: admin-settings-enter 180ms ease-out both; }
 @keyframes admin-settings-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* HomeSpace-identical Layout Breadcrumb */
+/* Admin Layout Breadcrumb */
 .admin-settings-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); user-select: none; margin-bottom: 4px; }
 .admin-settings-breadcrumb-parent { color: var(--muted-foreground); cursor: pointer; text-decoration: none; transition: color 150ms ease; }
 .admin-settings-breadcrumb-parent:hover { color: var(--foreground); }
@@ -73,7 +73,7 @@
 .admin-settings-language select { min-width: 124px; min-height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(241, 245, 249, 0.45); color: var(--foreground); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; outline: none; }
 .admin-settings-language select:focus { border-color: var(--primary); background: var(--card); }
 
-/* Exact HomeSpace Inputs and Form Fields */
+/* Standard Admin Inputs and Form Fields */
 .admin-settings input[type="text"],
 .admin-settings input[type="password"],
 .admin-settings input[type="tel"],
@@ -126,7 +126,7 @@
   margin-bottom: 6px;
 }
 
-/* HomeSpace Password Form Card & Submit Button */
+/* Admin Password Form Card & Submit Button */
 .admin-settings form.admin-password-card {
   background: var(--card);
   border: 1px solid var(--border);

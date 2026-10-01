@@ -18,6 +18,8 @@ interface VenueTableProps {
   onToggleVerification: (venue: SystemVenue) => void;
   onEdit: (venue: SystemVenue) => void;
   onDelete: (venue: SystemVenue) => void;
+  page?: number;
+  pageSize?: number;
 }
 
 export const VenueTable: React.FC<VenueTableProps> = ({
@@ -25,7 +27,9 @@ export const VenueTable: React.FC<VenueTableProps> = ({
   busyId,
   onToggleVerification,
   onEdit,
-  onDelete
+  onDelete,
+  page = 1,
+  pageSize = 10,
 }) => {
   const { t: translate } = useTranslation();
 
@@ -34,6 +38,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
       <table className="w-full min-w-[950px] table-fixed text-left text-sm">
         <thead className="app-bg-subnav border-b app-border text-xs font-semibold app-text-muted">
           <tr>
+            <th className="w-14 text-center px-3 py-3 text-xs font-bold uppercase">{translate("STT")}</th>
             <th className="w-[220px] px-4 py-3">{translate("Tên địa điểm")}</th>
             <th className="w-[210px] px-4 py-3">{translate("Địa chỉ chi tiết")}</th>
             <th className="w-[110px] whitespace-nowrap px-4 py-3">{translate("Sức chứa")}</th>
@@ -46,14 +51,18 @@ export const VenueTable: React.FC<VenueTableProps> = ({
         <tbody className="divide-y divide-[var(--border-color)] app-text-main">
           {venues.length === 0 ? (
             <tr>
-              <td colSpan={6} className="py-10 text-center app-text-muted">
+              <td colSpan={7} className="py-10 text-center app-text-muted">
                 <FiMapPin className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-50" />
                 <p className="font-semibold text-xs">{translate("Không tìm thấy địa điểm nào phù hợp.")}</p>
               </td>
             </tr>
           ) : (
-            venues.map((v) => (
+            venues.map((v, index) => (
               <tr key={v.id} className="hover:bg-slate-500/5 transition-colors">
+                {/* STT */}
+                <td className="text-center font-medium text-xs app-text-muted px-3 py-3">
+                  {(page - 1) * pageSize + index + 1}
+                </td>
                 {/* Name */}
                 <td className="py-3 px-4">
                   <div className="min-w-0">

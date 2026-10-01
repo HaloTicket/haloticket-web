@@ -9,7 +9,14 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminStatusTabs } from "@/components/admin/AdminStatusTabs";
 import { eventApi } from "@/services/eventApi";
 import type { ApprovalEventItem } from "@/types";
-import { approvalDetailUrl, displayApprovalStatus, filterApprovalEvents, normalizeApprovalEvents, readApprovalSort, readApprovalStatus } from "./events/approvalModel";
+import {
+  approvalDetailUrl,
+  displayApprovalStatus,
+  filterApprovalEvents,
+  normalizeApprovalEvents,
+  readApprovalSort,
+  readApprovalStatus,
+} from "./events/approvalModel";
 
 const FILTER_KEYS = ["q", "status", "category", "sort", "from", "to", "page"] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,7 +70,9 @@ export function EventApproval() {
       }
     };
     void load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [status, refreshKey]);
 
   useEffect(() => {
@@ -72,23 +81,53 @@ export function EventApproval() {
     return () => window.removeEventListener("approval-events-updated", refresh);
   }, []);
 
-  const categories = useMemo(() => Array.from(new Set(events.map((event) => event.categoryName).filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b, "vi")), [events]);
-  const filtered = useMemo(() => invalidDates ? [] : filterApprovalEvents(events, { status, query, category, sort, from, to }), [events, status, query, category, sort, from, to, invalidDates]);
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(events.map((event) => event.categoryName).filter((value): value is string => Boolean(value)))).sort(
+        (a, b) => a.localeCompare(b, "vi"),
+      ),
+    [events],
+  );
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: events.length,
+      PENDING: 0,
+      UPDATE_PENDING: 0,
+      APPROVED: 0,
+      REJECTED: 0,
+    };
+    events.forEach((event) => {
+      const st = event.eventApprovalStatus;
+      if (st && st in counts) {
+        counts[st] = (counts[st] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [events]);
+
+  const filtered = useMemo(
+    () => (invalidDates ? [] : filterApprovalEvents(events, { status, query, category, sort, from, to })),
+    [events, status, query, category, sort, from, to, invalidDates],
+  );
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     if (!loading && !error && !invalidDates && loadedStatus === status && page > totalPages) {
-      setParams((current) => {
-        const next = new URLSearchParams(current);
-        if (totalPages === 1) next.delete("page");
-        else next.set("page", String(totalPages));
-        return next;
-      }, { replace: true });
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (totalPages === 1) next.delete("page");
+          else next.set("page", String(totalPages));
+          return next;
+        },
+        { replace: true },
+      );
     }
   }, [error, invalidDates, loadedStatus, loading, page, setParams, status, totalPages]);
 
-  const changeQuery = (key: typeof FILTER_KEYS[number], value: string) => {
+  const changeQuery = (key: (typeof FILTER_KEYS)[number], value: string) => {
     setParams((current) => {
       const next = new URLSearchParams(current);
       if (value) next.set(key, value);
@@ -98,72 +137,240 @@ export function EventApproval() {
     });
   };
 
-  const resetFilters = () => setParams((current) => {
-    const next = new URLSearchParams(current);
-    FILTER_KEYS.forEach((key) => next.delete(key));
-    return next;
-  });
+  const resetFilters = () =>
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      FILTER_KEYS.forEach((key) => next.delete(key));
+      return next;
+    });
 
   if (legacyEventId) return <Navigate to={approvalDetailUrl(legacyEventId, location.search)} replace />;
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader title={t("Kiểm duyệt sự kiện")} description={t("Xem và xử lý yêu cầu đăng tải, cập nhật sự kiện.")} actions={<button type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border app-border app-bg-card px-4 text-sm font-semibold app-text-main disabled:opacity-50"><FiRefreshCw aria-hidden="true" className={loading ? "animate-spin" : ""} />{t("Làm mới")}</button>} />
-      <section className="overflow-hidden rounded-2xl border app-border app-bg-card" aria-label={t("Trạng thái")}>
-        <div className="px-4 sm:px-5"><AdminStatusTabs value={status} onChange={(next) => changeQuery("status", next)} options={[
-        { value: "PENDING", label: t("Chờ duyệt mới"), icon: <FiClock /> },
-        { value: "UPDATE_PENDING", label: t("Cần xem xét cập nhật"), icon: <FiRefreshCw /> },
-        { value: "APPROVED", label: t("Đã duyệt"), icon: <FiCheckCircle /> },
-        { value: "REJECTED", label: t("Bị từ chối"), icon: <FiXCircle /> },
-        { value: "ALL", label: t("Tất cả"), icon: <FiLayers /> },
-        ]} /></div>
-        <div className="space-y-3 p-4 sm:p-5">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(160px,220px)_minmax(180px,220px)]">
-            <div className="flex min-h-11 items-center gap-2 rounded-xl border app-border app-bg-subnav px-3 focus-within:ring-2 focus-within:ring-[var(--color-primary)]">
-              <FiSearch className="shrink-0 app-text-muted" aria-hidden="true" />
-              <input type="search" aria-label={t("Tìm sự kiện theo tên, mã hoặc BTC")} value={query} onChange={(event) => changeQuery("q", event.target.value)} placeholder={t("Tìm tên, mã sự kiện hoặc BTC...")} className="min-w-0 w-full bg-transparent text-sm app-text-main outline-none" />
-              {query && <button type="button" onClick={() => changeQuery("q", "")} aria-label={t("Xóa tìm kiếm")} className="inline-flex min-h-11 min-w-11 items-center justify-center app-text-muted"><FiX aria-hidden="true" /></button>}
+      <AdminPageHeader
+        title={t("Kiểm duyệt sự kiện")}
+        description={t("Xem và xử lý yêu cầu đăng tải, cập nhật sự kiện.")}
+        actions={
+          <button
+            type="button"
+            onClick={() => setRefreshKey((key) => key + 1)}
+            disabled={loading}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted/50 transition-colors disabled:opacity-50"
+          >
+            <FiRefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            {t("Làm mới")}
+          </button>
+        }
+      />
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs" aria-label={t("Trạng thái")}>
+        <div className="px-3 sm:px-4">
+          <AdminStatusTabs
+            value={status}
+            onChange={(next) => changeQuery("status", next)}
+            options={[
+              { value: "ALL", label: t("Tất cả"), icon: <FiLayers className="h-4 w-4" />, count: status === "ALL" ? events.length : undefined },
+              { value: "PENDING", label: t("Chờ duyệt"), icon: <FiClock className="h-4 w-4" />, count: status === "ALL" ? statusCounts.PENDING : (status === "PENDING" ? events.length : undefined) },
+              { value: "UPDATE_PENDING", label: t("Cập nhật"), icon: <FiRefreshCw className="h-4 w-4" />, count: status === "ALL" ? statusCounts.UPDATE_PENDING : (status === "UPDATE_PENDING" ? events.length : undefined) },
+              { value: "APPROVED", label: t("Đã duyệt"), icon: <FiCheckCircle className="h-4 w-4" />, count: status === "ALL" ? statusCounts.APPROVED : (status === "APPROVED" ? events.length : undefined) },
+              { value: "REJECTED", label: t("Bị từ chối"), icon: <FiXCircle className="h-4 w-4" />, count: status === "ALL" ? statusCounts.REJECTED : (status === "REJECTED" ? events.length : undefined) },
+            ]}
+          />
+        </div>
+        <div className="p-4 space-y-3 bg-card/60">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <input
+                type="search"
+                aria-label={t("Tìm sự kiện theo tên, mã hoặc BTC")}
+                value={query}
+                onChange={(event) => changeQuery("q", event.target.value)}
+                placeholder={t("Tìm tên, mã sự kiện hoặc BTC...")}
+                className="w-full h-10 rounded-xl bg-muted/40 pl-9 pr-8 text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-600/20 border border-border/80 focus:border-blue-600 transition-all"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => changeQuery("q", "")}
+                  aria-label={t("Xóa tìm kiếm")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                >
+                  <FiX className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              )}
             </div>
-            <select aria-label={t("Thể loại")} value={category} onChange={(event) => changeQuery("category", event.target.value)} className="min-h-11 w-full rounded-xl border app-border app-bg-subnav px-3 text-sm app-text-main">
-              <option value="">{t("Tất cả thể loại")}</option>
-              {category && !categories.includes(category) && <option value={category}>{category}</option>}
-              {categories.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-            <select aria-label={t("Sắp xếp")} value={sort} onChange={(event) => changeQuery("sort", event.target.value === "newest" ? "" : event.target.value)} className="min-h-11 w-full rounded-xl border app-border app-bg-subnav px-3 text-sm app-text-main">
-              <option value="newest">{t("Mới gửi nhất")}</option>
-              <option value="oldest">{t("Gửi lâu nhất")}</option>
-              <option value="title">{t("Tên sự kiện A–Z")}</option>
-            </select>
+            <div className="sm:w-52">
+              <select
+                aria-label={t("Thể loại")}
+                value={category}
+                onChange={(event) => changeQuery("category", event.target.value)}
+                className="w-full h-10 rounded-xl bg-muted/40 px-3 text-xs font-medium text-foreground border border-border/80 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 cursor-pointer transition-all"
+              >
+                <option value="">{t("Tất cả thể loại")}</option>
+                {category && !categories.includes(category) && <option value={category}>{category}</option>}
+                {categories.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:w-52">
+              <select
+                aria-label={t("Sắp xếp")}
+                value={sort}
+                onChange={(event) => changeQuery("sort", event.target.value === "newest" ? "" : event.target.value)}
+                className="w-full h-10 rounded-xl bg-muted/40 px-3 text-xs font-medium text-foreground border border-border/80 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 cursor-pointer transition-all"
+              >
+                <option value="newest">{t("Mới gửi nhất")}</option>
+                <option value="oldest">{t("Gửi lâu nhất")}</option>
+                <option value="title">{t("Tên sự kiện A–Z")}</option>
+              </select>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 border-t app-border pt-3 sm:flex sm:flex-wrap sm:items-end">
-            <span className="col-span-2 flex min-h-11 items-center gap-2 text-sm font-semibold app-text-main"><FiCalendar aria-hidden="true" />{t("Ngày gửi yêu cầu")}</span>
-            <label className="flex min-w-0 flex-col gap-1 text-xs app-text-muted"><span>{t("Từ ngày")}</span><input type="date" value={from} onChange={(event) => changeQuery("from", event.target.value)} className="min-h-11 min-w-0 w-full rounded-xl border app-border app-bg-subnav px-3 text-sm app-text-main [color-scheme:light] dark:[color-scheme:dark]" /></label>
-            <label className="flex min-w-0 flex-col gap-1 text-xs app-text-muted"><span>{t("Đến ngày")}</span><input type="date" value={to} onChange={(event) => changeQuery("to", event.target.value)} className="min-h-11 min-w-0 w-full rounded-xl border app-border app-bg-subnav px-3 text-sm app-text-main [color-scheme:light] dark:[color-scheme:dark]" /></label>
-            <button type="button" onClick={resetFilters} className="col-span-2 ml-auto min-h-11 rounded-xl px-3 text-sm font-semibold app-text-brand hover:underline">{t("Xóa tất cả bộ lọc")}</button>
+          <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-border/60 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground flex items-center gap-1.5">
+              <FiCalendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+              {t("Ngày gửi yêu cầu:")}
+            </span>
+            <label className="flex items-center gap-2">
+              <span className="text-[11px]">{t("Từ ngày:")}</span>
+              <input
+                type="date"
+                aria-label={t("Từ ngày")}
+                value={from}
+                onChange={(event) => changeQuery("from", event.target.value)}
+                className="h-8 rounded-lg bg-muted/40 px-2.5 text-xs text-foreground border border-border focus:border-blue-600 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-[11px]">{t("Đến ngày:")}</span>
+              <input
+                type="date"
+                aria-label={t("Đến ngày")}
+                value={to}
+                onChange={(event) => changeQuery("to", event.target.value)}
+                className="h-8 rounded-lg bg-muted/40 px-2.5 text-xs text-foreground border border-border focus:border-blue-600 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {t("Xóa tất cả bộ lọc")}
+            </button>
           </div>
-          {invalidDates && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{invalidDate ? t("Ngày trong bộ lọc không hợp lệ.") : t("Ngày bắt đầu không được sau ngày kết thúc.")}</p>}
+          {invalidDates && (
+            <p role="alert" className="text-xs text-rose-600 dark:text-rose-400 font-medium pt-1">
+              {invalidDate ? t("Ngày trong bộ lọc không hợp lệ.") : t("Ngày bắt đầu không được sau ngày kết thúc.")}
+            </p>
+          )}
         </div>
       </section>
-      <section className="overflow-hidden rounded-2xl border app-border app-bg-card" aria-label={t("Danh sách duyệt sự kiện")}>
-        {loadedStatus !== status && !error ? <AdminDataState state="loading" /> : error ? <AdminDataState state="error" onRetry={() => setRefreshKey((key) => key + 1)} message={t("Không thể tải danh sách sự kiện từ hệ thống.")} /> : invalidDates ? <AdminDataState state="no-results" onReset={resetFilters} message={t("Hãy chọn khoảng ngày hợp lệ.")} /> : events.length === 0 ? <AdminDataState state="empty" message={t("Chưa có yêu cầu sự kiện nào.")} /> : filtered.length === 0 ? <AdminDataState state="no-results" onReset={resetFilters} message={t("Không tìm thấy yêu cầu sự kiện nào.")} /> : (
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs" aria-label={t("Danh sách duyệt sự kiện")}>
+        {loadedStatus !== status && !error ? (
+          <AdminDataState state="loading" />
+        ) : error ? (
+          <AdminDataState state="error" onRetry={() => setRefreshKey((key) => key + 1)} message={t("Không thể tải danh sách sự kiện từ hệ thống.")} />
+        ) : invalidDates ? (
+          <AdminDataState state="no-results" onReset={resetFilters} message={t("Hãy chọn khoảng ngày hợp lệ.")} />
+        ) : events.length === 0 ? (
+          <AdminDataState state="empty" message={t("Chưa có yêu cầu sự kiện nào.")} />
+        ) : filtered.length === 0 ? (
+          <AdminDataState state="no-results" onReset={resetFilters} message={t("Không tìm thấy yêu cầu sự kiện nào.")} />
+        ) : (
           <>
-            {loading && <div className="border-b app-border px-4 py-2"><AdminDataState state="refreshing" /></div>}
+            {loading && <div className="border-b border-border px-4 py-2"><AdminDataState state="refreshing" /></div>}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="app-bg-subnav text-xs font-semibold app-text-muted"><tr>
-                  <th scope="col" className="px-4 py-3">{t("Sự kiện & BTC")}</th>
-                  <th scope="col" className="px-4 py-3">{t("Thể loại & Địa điểm")}</th>
-                  <th scope="col" className="px-4 py-3">{t("Thời gian diễn ra")}</th>
-                  <th scope="col" className="px-4 py-3">{t("Trạng thái duyệt")}</th>
-                  <th scope="col" className="px-4 py-3 text-right">{t("Thao tác Admin")}</th>
-                </tr></thead>
-                <tbody className="divide-y divide-[var(--border-color)]">{visible.map((event) => <tr key={event.id} className="hover:bg-slate-500/5">
-                  <td className="px-4 py-3"><div className="flex items-center gap-3">{event.posterImage && <img src={event.posterImage} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />}<div className="min-w-0"><p className="max-w-64 truncate font-semibold app-text-main" title={event.title}>{event.title}</p><p className="app-text-muted">{event.organizerName || t("Chưa cập nhật")}</p></div></div></td>
-                  <td className="px-4 py-3"><p className="font-medium app-text-main">{event.categoryName || t("Chưa cập nhật")}</p><p className="app-text-muted">{event.locationName || t("Chưa cập nhật")}</p></td>
-                  <td className="px-4 py-3 app-text-main">{event.datesSummary || event.startTime || t("Chưa cập nhật")}</td>
-                  <td className="px-4 py-3"><span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${displayApprovalStatus(event.eventApprovalStatus).className}`}>{t(displayApprovalStatus(event.eventApprovalStatus).label)}</span></td>
-                  <td className="px-4 py-3 text-right"><Link to={approvalDetailUrl(event.id, location.search)} className="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold app-text-brand hover:underline">{t("Xem hồ sơ")}</Link></td>
-                </tr>)}</tbody>
+                <thead className="bg-muted/40 border-b border-border">
+                  <tr>
+                    <th scope="col" className="w-14 text-center px-3 py-3 text-xs font-bold uppercase text-muted-foreground">
+                      {t("STT")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-xs font-bold uppercase text-muted-foreground">
+                      {t("Sự kiện & BTC")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-xs font-bold uppercase text-muted-foreground">
+                      {t("Thể loại & Địa điểm")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-xs font-bold uppercase text-muted-foreground">
+                      {t("Thời gian diễn ra")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-xs font-bold uppercase text-muted-foreground">
+                      {t("Trạng thái duyệt")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-bold uppercase text-muted-foreground pr-6">
+                      {t("Thao tác Admin")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {visible.map((event, index) => (
+                    <tr key={event.id} className="border-border hover:bg-muted/30 transition-colors">
+                      <td className="text-center font-medium text-xs text-muted-foreground px-3 py-3.5">
+                        {(page - 1) * pageSize + index + 1}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-12 w-16 sm:h-14 sm:w-20 shrink-0 overflow-hidden rounded-xl bg-muted border border-border group">
+                            {event.posterImage ? (
+                              <img
+                                src={event.posterImage}
+                                alt=""
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                <FiLayers className="h-5 w-5 opacity-40" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="max-w-64 truncate text-xs font-bold text-foreground" title={event.title}>
+                              {event.title}
+                            </p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {event.organizerName || t("Chưa cập nhật")}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-foreground">
+                            {event.categoryName || t("Chưa cập nhật")}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {event.locationName || t("Chưa cập nhật")}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-foreground">
+                        {event.datesSummary || event.startTime || t("Chưa cập nhật")}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                            displayApprovalStatus(event.eventApprovalStatus).className
+                          }`}
+                        >
+                          {t(displayApprovalStatus(event.eventApprovalStatus).label)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right pr-6">
+                        <Link
+                          to={approvalDetailUrl(event.id, location.search)}
+                          className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-600/10 transition-colors"
+                        >
+                          {t("Xem hồ sơ")}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
             <AdminPagination

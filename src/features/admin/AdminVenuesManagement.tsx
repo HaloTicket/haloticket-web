@@ -144,14 +144,15 @@ export function AdminVenuesManagement() {
       </div>}
       <div className="p-4 sm:p-5">
         <AdminSearchFilterBar searchQuery={search} onSearchChange={value => { setSearch(value); setPage(1); }} searchPlaceholder={t("Tìm theo tên, địa chỉ, thành phố...")}>
-          <label className="flex items-center gap-2 text-sm app-text-main">{t("Thành phố")}
-            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="min-h-11 rounded-xl border app-border app-bg-subnav px-3 text-sm app-text-main">
+          <label className="flex items-center gap-2 text-xs font-semibold app-text-main">
+            <span className="text-muted-foreground">{t("Thành phố:")}</span>
+            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="h-10 rounded-xl border border-border bg-muted/40 px-3 text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600/20">
               <option value="ALL">{t("Tất cả thành phố")}</option>
               {cities.map(value => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="min-h-11 min-w-11 rounded-xl border app-border app-text-main disabled:opacity-50"><FiRefreshCw className="mx-auto" /></button>
-          <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white"><FiPlus />{t("Thêm địa điểm mới")}</button>
+          <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-2xs hover:bg-muted/50 transition-colors disabled:opacity-50"><FiRefreshCw className={refreshing ? "animate-spin" : ""} /></button>
+          <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition-colors"><FiPlus className="h-4 w-4" />{t("Thêm địa điểm mới")}</button>
         </AdminSearchFilterBar>
       </div>
     </section>
@@ -164,7 +165,7 @@ export function AdminVenuesManagement() {
           : <>
             {venues.length === 0 ? <AdminDataState state="empty" message={t("Chưa có địa điểm nào.")} />
               : filtered.length === 0 ? <AdminDataState state="no-results" message={t("Không tìm thấy địa điểm nào phù hợp.")} onReset={() => { setSearch(""); setCity("ALL"); setStatus("ALL"); setPage(1); }} />
-                : <VenueTable venues={visible} busyId={busyId} onToggleVerification={venue => void toggle(venue as AdminVenue)} onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }} onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }} />}
+                : <VenueTable venues={visible} page={safePage} pageSize={pageSize} busyId={busyId} onToggleVerification={venue => void toggle(venue as AdminVenue)} onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }} onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }} />}
             <AdminPagination
               currentPage={safePage}
               totalPages={totalPages}
