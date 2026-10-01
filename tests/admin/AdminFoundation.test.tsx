@@ -22,7 +22,7 @@ describe("admin data controls", () => {
 
   it("clamps an out-of-range page to the server total", () => {
     const onPageChange = vi.fn();
-    render(<AdminPagination currentPage={9} totalPages={3} totalItems={25} pageSize={10} onPageChange={onPageChange} />);
+    render(<AdminPagination currentPage={9} totalPages={3} totalItems={25} pageSize={10} onPageChange={onPageChange} onPageSizeChange={vi.fn()} />);
     expect(screen.getByText(/21-25/)).toBeInTheDocument();
     expect(screen.getByText("3 / 3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /trang tiếp/i })).toBeDisabled();

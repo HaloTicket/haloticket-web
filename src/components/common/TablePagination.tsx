@@ -7,6 +7,7 @@ interface TablePaginationProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
 }
 
 export const TablePagination: React.FC<TablePaginationProps> = ({
@@ -14,7 +15,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   totalPages,
   totalItems,
   pageSize,
-  onPageChange
+  onPageChange,
+  onPageSizeChange,
 }) => {
   if (totalItems === 0) return null;
 
@@ -45,13 +47,25 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
         <strong className="app-text-main font-black">{totalItems}</strong> mục
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+        <label className="flex items-center gap-2 app-text-muted">
+          <span>Số dòng:</span>
+          <select
+            aria-label="Số dòng trên trang"
+            value={pageSize}
+            onChange={event => onPageSizeChange(Number(event.target.value))}
+            className="min-h-11 rounded-lg border app-border app-bg-card px-2.5 font-semibold app-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/20"
+          >
+            {[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+        <div className="flex items-center gap-1.5">
         {/* Previous Button */}
         <button
           type="button"
           disabled={currentPage === 1}
           onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-          className="w-8 h-8 rounded-xl app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="h-11 w-11 sm:h-9 sm:w-9 rounded-xl app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
           title="Trang trước"
         >
           <FiChevronLeft className="w-4 h-4" />
@@ -61,7 +75,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
         {getPageNumbers().map((p, idx) => {
           if (typeof p === "string") {
             return (
-              <span key={`ellipsis-${idx}`} className="px-1.5 text-xs app-text-muted font-bold">
+              <span key={`ellipsis-${idx}`} className="h-11 px-1.5 text-xs app-text-muted font-bold inline-flex items-center">
                 ...
               </span>
             );
@@ -72,7 +86,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
               key={p}
               type="button"
               onClick={() => onPageChange(p)}
-              className={`w-8 h-8 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+              className={`h-11 w-11 sm:h-9 sm:w-9 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
                 isActive
                   ? "bg-blue-600 dark:bg-blue-500 text-white shadow-xs scale-105"
                   : "app-bg-card border app-border app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -88,11 +102,12 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           type="button"
           disabled={currentPage === totalPages || totalPages === 0}
           onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-          className="w-8 h-8 rounded-xl app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="h-11 w-11 sm:h-9 sm:w-9 rounded-xl app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
           title="Trang tiếp theo"
         >
           <FiChevronRight className="w-4 h-4" />
         </button>
+        </div>
       </div>
     </div>
   );

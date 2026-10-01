@@ -115,15 +115,15 @@ describe("venue management", () => {
   });
 
   it("returns to the last valid page after deleting the only row on page two", async () => {
-    const nine = Array.from({ length: 9 }, (_, index) => ({ ...venue, id: index + 1, name: `Địa điểm ${index + 1}` }));
-    vi.mocked(venueApi.getAdminVenues).mockResolvedValueOnce(nine).mockResolvedValueOnce(nine.slice(0, 8));
+    const eleven = Array.from({ length: 11 }, (_, index) => ({ ...venue, id: index + 1, name: `Địa điểm ${index + 1}` }));
+    vi.mocked(venueApi.getAdminVenues).mockResolvedValueOnce(eleven).mockResolvedValueOnce(eleven.slice(0, 10));
     render(<AdminVenuesManagement />);
     await screen.findByText("Địa điểm 1");
     fireEvent.click(screen.getByRole("button", { name: "Trang tiếp" }));
-    expect(screen.getByText("Địa điểm 9")).toBeTruthy();
+    expect(screen.getByText("Địa điểm 11")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Xóa địa điểm khỏi hệ thống/ }));
     fireEvent.click(screen.getByRole("button", { name: "Xóa Địa Điểm" }));
     await waitFor(() => expect(screen.getByText("Địa điểm 1")).toBeTruthy());
-    expect(screen.queryByText("Địa điểm 9")).toBeNull();
+    expect(screen.queryByText("Địa điểm 11")).toBeNull();
   });
 });

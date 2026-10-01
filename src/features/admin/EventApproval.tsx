@@ -638,10 +638,10 @@ export function EventApproval() {
                         className="border-border hover:bg-blue-50/50 dark:hover:bg-blue-950/20 cursor-pointer transition-colors group"
                         title={t("Nhấp để xem chi tiết hồ sơ")}
                       >
-                        <td className="text-center font-medium text-xs text-muted-foreground px-2 py-3">
+                        <td className="text-center font-medium text-xs text-muted-foreground px-2 py-2">
                           {(page - 1) * pageSize + index + 1}
                         </td>
-                        <td className="px-3 py-3 overflow-hidden">
+                        <td className="px-3 py-2 overflow-hidden">
                           <div className="flex items-center gap-2.5 sm:gap-3">
                             <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-muted border border-border group-hover:border-blue-500/40 transition-colors">
                               {event.posterImage ? (
@@ -669,7 +669,7 @@ export function EventApproval() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           {isUpdate ? (
                             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700 dark:text-sky-300 whitespace-nowrap">
                               <FiRefreshCw className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
@@ -682,7 +682,7 @@ export function EventApproval() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           <div className="space-y-0.5">
                             <p className="text-xs font-medium text-foreground whitespace-nowrap">{submitted.date}</p>
                             {submitted.time && (
@@ -690,7 +690,7 @@ export function EventApproval() {
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           <div className="space-y-0.5">
                             <p className="text-xs font-medium text-foreground whitespace-nowrap">{schedule.date}</p>
                             {schedule.time && (
@@ -698,7 +698,7 @@ export function EventApproval() {
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           {isUpdate ? (
                             <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
                               {t("Chờ duyệt")}
@@ -713,13 +713,13 @@ export function EventApproval() {
                             </span>
                           )}
                         </td>
-                        <td className="w-10 sm:w-12 px-2 py-3 text-center">
+                        <td className="w-12 px-1 py-2 text-center">
                           <Link
                             to={approvalDetailUrl(event.id, location.search)}
                             aria-label={t("Xem hồ sơ")}
                             title={t("Xem chi tiết hồ sơ")}
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 group-hover:translate-x-0.5 transition-all"
+                            className="inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 group-hover:translate-x-0.5 transition-all"
                           >
                             <FiChevronRight className="h-4 w-4" aria-hidden="true" />
                           </Link>

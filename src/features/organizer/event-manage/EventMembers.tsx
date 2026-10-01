@@ -47,7 +47,7 @@ export const EventMembers: React.FC = () => {
   };
 
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchMembers = async () => {
     if (!eventId) return;
@@ -402,6 +402,7 @@ export const EventMembers: React.FC = () => {
             totalItems={filteredMembers.length}
             pageSize={pageSize}
             onPageChange={(page) => setCurrentPage(page)}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           />
         )}
       </div>

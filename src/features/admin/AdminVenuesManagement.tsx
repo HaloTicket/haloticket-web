@@ -16,7 +16,7 @@ import { VenueTable } from "./components/venues/VenueTable";
 
 type AdminVenue = SystemVenue & { type?: VenueApiData["type"]; eventsHostedKnown: boolean };
 type Status = "ALL" | "VERIFIED" | "UNVERIFIED";
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 function mapVenue(v: VenueApiData): AdminVenue {
   return { id: String(v.id), name: v.name, address: v.address ?? "", city: v.city ?? "",

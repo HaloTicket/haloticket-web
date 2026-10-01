@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 
@@ -13,10 +13,8 @@ export interface AdminPaginationProps {
   size?: number;
   loading?: boolean;
   itemLabel?: string;
-  pageSizeOptions?: number[];
   onPageChange: (page: number) => void;
-  onPageSizeChange?: (size: number) => void;
-  onSizeChange?: (size: number) => void;
+  onPageSizeChange: (size: number) => void;
 }
 
 function getPaginationItems(current: number, total: number): (number | string)[] {
@@ -43,15 +41,11 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
   size: sizeProp,
   loading = false,
   itemLabel,
-  pageSizeOptions,
   onPageChange,
   onPageSizeChange,
-  onSizeChange,
 }) => {
   const { t } = useTranslation();
-  const [internalSize, setInternalSize] = useState<number | null>(null);
-
-  const currentSize = Math.max(1, internalSize ?? pageSize ?? sizeProp ?? 10);
+  const currentSize = Math.max(1, pageSize ?? sizeProp ?? 10);
   const itemCount = Math.max(0, totalItems ?? total ?? totalElements ?? 0);
   const pageCount = Math.max(1, totalPages ?? Math.ceil(itemCount / currentSize));
   const activePage = Math.min(Math.max(1, currentPage ?? page ?? 1), pageCount);
@@ -67,14 +61,10 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
   const endItem = Math.min(activePage * currentSize, itemCount);
 
   const handleSizeChange = (newSize: number) => {
-    setInternalSize(newSize);
-    if (onPageSizeChange) onPageSizeChange(newSize);
-    if (onSizeChange) onSizeChange(newSize);
-    onPageChange(1);
+    onPageSizeChange(newSize);
   };
 
-  const defaultOptions = Array.from(new Set([currentSize, 10, 20, 50])).sort((a, b) => a - b);
-  const options = pageSizeOptions ?? defaultOptions;
+  const options = [10, 20, 50];
 
   return (
     <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs select-none bg-card">
@@ -95,7 +85,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             value={currentSize}
             onChange={(e) => handleSizeChange(Number(e.target.value))}
             aria-label={t("Số dòng trên trang")}
-            className="h-8 px-2.5 rounded-lg border border-border bg-muted/40 font-semibold text-foreground outline-none cursor-pointer focus:ring-2 focus:ring-blue-600/20"
+            className="min-h-11 px-2.5 rounded-lg border border-border bg-muted/40 font-semibold text-foreground outline-none cursor-pointer focus:ring-2 focus:ring-blue-600/20"
           >
             {options.map((opt) => (
               <option key={opt} value={opt}>
@@ -117,7 +107,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             onClick={() => onPageChange(Math.max(activePage - 1, 1))}
             aria-label={t("Trang trước")}
             title={t("Trang trước")}
-            className="h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <FiChevronLeft className="w-4 h-4 stroke-[2.5]" />
           </button>
@@ -128,7 +118,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
               return (
                 <span
                   key={`ellipsis-${idx}`}
-                  className="h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center text-slate-400 font-semibold select-none"
+                  className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center text-slate-400 font-semibold select-none"
                 >
                   …
                 </span>
@@ -144,7 +134,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
                 aria-label={t("Trang {{page}}", { page: pageNum })}
                 disabled={loading}
                 onClick={() => onPageChange(pageNum)}
-                className={`h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                className={`h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl text-xs font-semibold cursor-pointer transition-all ${
                   isActive
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -162,7 +152,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             onClick={() => onPageChange(Math.min(activePage + 1, pageCount))}
             aria-label={t("Trang tiếp")}
             title={t("Trang tiếp")}
-            className="h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <FiChevronRight className="w-4 h-4 stroke-[2.5]" />
           </button>

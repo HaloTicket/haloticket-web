@@ -13,7 +13,7 @@ export const EventCheckin: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(10);
 
   const [checkins, setCheckins] = useState<any[]>([]);
   const [totalSold, setTotalSold] = useState(0);
@@ -157,6 +157,7 @@ export const EventCheckin: React.FC = () => {
           totalItems={filteredCheckins.length}
           pageSize={pageSize}
           onPageChange={(page) => setCurrentPage(page)}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
         />
       </div>
     </div>

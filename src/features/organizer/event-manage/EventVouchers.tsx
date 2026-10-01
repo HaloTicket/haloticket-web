@@ -54,7 +54,7 @@ export const EventVouchers: React.FC = () => {
   const [showtimeOptions, setShowtimeOptions] = useState<Array<{ id: string; label: string }>>([]);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 8;
+  const [pageSize, setPageSize] = useState(10);
 
   const showToast = (text: string, type: "success" | "info" | "error" = "success") => {
     setToastMsg({ text, type });
@@ -413,6 +413,7 @@ export const EventVouchers: React.FC = () => {
             totalItems={filteredVouchers.length}
             pageSize={pageSize}
             onPageChange={(page) => setCurrentPage(page)}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           />
         )}
       </div>

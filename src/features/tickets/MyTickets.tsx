@@ -745,7 +745,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
   }, [allOrders, activeTab, searchQuery]);
 
   // client-side pagination
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(10);
   const currentTotalElements = filteredOrders.length;
   const currentTotalPages = Math.ceil(currentTotalElements / pageSize) || 1;
   const paginatedOrders = useMemo(() => {
@@ -864,7 +864,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       </div>
 
       {/* Pagination */}
-      {!loading && !loadError && currentTotalPages > 1 && (
+      {!loading && !loadError && currentTotalElements > 0 && (
         <div className="mt-8 pt-6 border-t app-border flex justify-center">
           <TablePagination
             currentPage={currentPage}
@@ -872,6 +872,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
             totalItems={currentTotalElements}
             pageSize={pageSize}
             onPageChange={(page) => setCurrentPage(page)}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           />
         </div>
       )}

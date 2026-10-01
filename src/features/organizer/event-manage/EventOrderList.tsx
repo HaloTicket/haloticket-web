@@ -29,8 +29,9 @@ export const EventOrderList: React.FC = () => {
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -47,6 +48,7 @@ export const EventOrderList: React.FC = () => {
         if (isMounted && res.content) {
           setOrders(res.content);
           setTotalPages(res.totalPages || 1);
+          setTotalItems(typeof res.totalElements === "number" ? res.totalElements : res.content.length);
         }
       })
       .catch((err) => {
@@ -300,9 +302,10 @@ export const EventOrderList: React.FC = () => {
           <TablePagination
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={1}
-            pageSize={10}
+            totalItems={totalItems}
+            pageSize={pageSize}
             onPageChange={(page) => setCurrentPage(page)}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           />
         </div>
       </div>
