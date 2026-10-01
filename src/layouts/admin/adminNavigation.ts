@@ -12,7 +12,7 @@ export const adminNavGroups: AdminNavGroup[] = [
   { id: "events", path: PATHS.ADMIN_EVENT_MANAGEMENT, label: "Quản lý sự kiện", english: "Event management", icon: FiCalendar, description: "Kiểm duyệt, địa điểm và kết quả tổ chức sự kiện.", items: [
     { path: PATHS.ADMIN_EVENTS_APPROVAL, label: "Kiểm duyệt sự kiện", english: "Event moderation", icon: FiCheckSquare, description: "Xem hồ sơ, duyệt hoặc yêu cầu sửa sự kiện." },
     { path: PATHS.ADMIN_VENUES_MANAGEMENT, label: "Quản lý địa điểm", english: "Venue management", icon: FiMapPin, description: "Quản lý thông tin, sức chứa và xác minh địa điểm." },
-    { path: PATHS.ADMIN_EVENT_REPORTS, label: "Báo cáo & thống kê", english: "Reports & statistics", icon: FiBarChart2, description: "So sánh doanh thu, vé bán và tỷ lệ check-in theo sự kiện." },
+    { path: PATHS.ADMIN_EVENT_REPORTS, label: "Báo cáo & thống kê", english: "Reports & statistics", icon: FiBarChart2, description: "So sánh doanh thu, đơn thanh toán và vé bán theo sự kiện." },
   ] },
   { id: "users", path: PATHS.ADMIN_USER_MANAGEMENT, label: "Quản lý người dùng", english: "User management", icon: FiUsers, description: "Tra cứu tài khoản theo vai trò và trạng thái.", items: [
     { path: PATHS.ADMIN_CUSTOMERS, label: "Khách hàng", english: "Customers", icon: FiUser, description: "Hồ sơ khách hàng, lịch sử đơn hàng và hỗ trợ." },
@@ -47,9 +47,9 @@ export const adminNavGroups: AdminNavGroup[] = [
 export function resolveAdminNavigation(pathname: string) {
   for (const group of adminNavGroups) {
     if (group.items.length > 1 && pathname === group.path) return { group, item: { path: group.path, label: group.label, english: group.english, icon: group.icon, description: group.description }, eventId: undefined, isGroup: true };
-    const item = group.items.find(({ path }) => pathname === path || (path === PATHS.ADMIN_EVENTS_APPROVAL && pathname.startsWith(`${path}/`)));
+    const item = group.items.find(({ path }) => pathname === path || ([PATHS.ADMIN_EVENTS_APPROVAL, PATHS.ADMIN_EVENT_REPORTS].includes(path) && pathname.startsWith(`${path}/`)));
     if (!item) continue;
-    const rawId = item.path === PATHS.ADMIN_EVENTS_APPROVAL && pathname.startsWith(`${item.path}/`) ? pathname.slice(item.path.length + 1).split("/")[0] : undefined;
+    const rawId = [PATHS.ADMIN_EVENTS_APPROVAL, PATHS.ADMIN_EVENT_REPORTS].includes(item.path) && pathname.startsWith(`${item.path}/`) ? pathname.slice(item.path.length + 1).split("/")[0] : undefined;
     let eventId = rawId;
     if (rawId) { try { eventId = decodeURIComponent(rawId); } catch { /* Preserve malformed URL text. */ } }
     return { group, item, eventId, isGroup: false };

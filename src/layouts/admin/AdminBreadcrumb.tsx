@@ -15,7 +15,7 @@ const SETTING_SECTION_LABELS: Record<string, { vi: string; en: string }> = {
 };
 
 export function AdminBreadcrumb() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { t, i18n } = useTranslation();
   const route = resolveAdminNavigation(pathname);
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
@@ -72,10 +72,10 @@ export function AdminBreadcrumb() {
           )}
           {route.eventId ? (
             <>
-              <Link to={route.item.path}>{label(route.item.label, route.item.english)}</Link>
+              <Link to={route.item.path === PATHS.ADMIN_EVENT_REPORTS ? `${route.item.path}${search}` : route.item.path}>{label(route.item.label, route.item.english)}</Link>
               <span aria-hidden="true">/</span>
               <span aria-current="page" title={route.eventId}>
-                {label("Chi tiết sự kiện", "Event detail")} · {route.eventId}
+                {route.item.path === PATHS.ADMIN_EVENT_REPORTS ? label("Báo cáo sự kiện", "Event report") : label("Chi tiết sự kiện", "Event detail")} · {route.eventId}
               </span>
             </>
           ) : (

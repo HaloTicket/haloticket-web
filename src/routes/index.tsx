@@ -77,7 +77,9 @@ import EkycApproval from "@/features/admin/EkycApproval";
 import SystemHealth from "@/features/admin/SystemHealth";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
 import AdminSectionHub from "@/features/admin/AdminSectionHub";
-import { CustomerUsersPreview, OrganizerUsersPreview, AdministratorUsersPreview, EventReportsPreview } from "@/features/admin/wireframes/UsersEventWireframes";
+import { CustomerUsersPreview, OrganizerUsersPreview, AdministratorUsersPreview } from "@/features/admin/wireframes/UsersEventWireframes";
+import AdminEventReports from "@/features/admin/reports/AdminEventReports";
+import AdminEventReportDetail from "@/features/admin/reports/AdminEventReportDetail";
 import { PaymentTransactionsPreview, RefundsPreview, OrganizerSettlementsPreview, ResaleTicketsPreview, PricePolicyPreview, TransactionDisputesPreview } from "@/features/admin/wireframes/FinanceMarketWireframes";
 import { HomepageContentPreview, EventCategoriesPreview, AdvertisingBannersPreview, AiAssistantPreview, AiAnomaliesPreview, AiAnalyticsPreview, SystemSettingsPreview } from "@/features/admin/wireframes/ContentAiSystemWireframes";
 
@@ -447,7 +449,8 @@ export const router = createBrowserRouter([
         element: <AdminDashboard />,
       },
       ...[PATHS.ADMIN_EVENT_MANAGEMENT, PATHS.ADMIN_USER_MANAGEMENT, PATHS.ADMIN_FINANCE, PATHS.ADMIN_TICKET_MARKET, PATHS.ADMIN_CONTENT, PATHS.ADMIN_AI].map((path) => ({ path, element: <AdminSectionHub /> })),
-      { path: PATHS.ADMIN_EVENT_REPORTS, element: <EventReportsPreview /> },
+      { path: PATHS.ADMIN_EVENT_REPORTS, element: <AdminEventReports /> },
+      { path: `${PATHS.ADMIN_EVENT_REPORTS}/:eventId`, element: <AdminEventReportDetail /> },
       { path: PATHS.ADMIN_CUSTOMERS, element: <CustomerUsersPreview /> },
       { path: PATHS.ADMIN_NOTIFICATIONS, element: <AdminNotifications /> },
       { path: PATHS.ADMIN_ORGANIZERS, element: <OrganizerUsersPreview /> },

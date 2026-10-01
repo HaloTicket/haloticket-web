@@ -41,6 +41,7 @@ export const PATHS = {
   ADMIN_DASHBOARD: "/admin/dashboard",
   ADMIN_EVENT_MANAGEMENT: "/admin/events",
   ADMIN_EVENT_REPORTS: "/admin/events/reports",
+  ADMIN_EVENT_REPORT_DETAIL: (id: string) => `/admin/events/reports/${encodeURIComponent(id)}`,
   ADMIN_USER_MANAGEMENT: "/admin/users",
   ADMIN_CUSTOMERS: "/admin/users/customers",
   ADMIN_ORGANIZERS: "/admin/users/organizers",
