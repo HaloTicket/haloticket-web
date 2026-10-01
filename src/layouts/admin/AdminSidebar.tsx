@@ -94,7 +94,17 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
         })}
       </nav>
       <div className="admin-sidebar-footer">
-        <Link to={PATHS.ADMIN_SYSTEM_SETTINGS} onClick={onMobileClose} className={`admin-return-link ${pathname === PATHS.ADMIN_SYSTEM_SETTINGS ? "is-active" : ""}`} aria-current={pathname === PATHS.ADMIN_SYSTEM_SETTINGS ? "page" : undefined} title={label("Cài đặt hệ thống", "System settings")} aria-label={label("Cài đặt hệ thống", "System settings")}><FiSettings aria-hidden="true" />{showLabels && <span>{label("Cài đặt hệ thống", "System settings")}</span>}</Link>
+        <Link
+          to={PATHS.ADMIN_SETTINGS_SECTION("profile")}
+          onClick={onMobileClose}
+          className={`admin-return-link ${pathname === PATHS.ADMIN_SETTINGS || pathname.startsWith(`${PATHS.ADMIN_SETTINGS}/`) ? "is-active" : ""}`}
+          aria-current={pathname === PATHS.ADMIN_SETTINGS || pathname.startsWith(`${PATHS.ADMIN_SETTINGS}/`) ? "page" : undefined}
+          title={label("Cài đặt", "Settings")}
+          aria-label={label("Cài đặt", "Settings")}
+        >
+          <FiSettings aria-hidden="true" />
+          {showLabels && <span>{label("Cài đặt", "Settings")}</span>}
+        </Link>
         <Link to={PATHS.HOME} onClick={onMobileClose} className="admin-return-link" title={label("Về HaloTicket Client", "Back to HaloTicket")}><FiHome aria-hidden="true" />{showLabels && <span>{label("Về HaloTicket Client", "Back to HaloTicket")}</span>}</Link>
         <button type="button" className="admin-collapse-button" onClick={onToggleCollapse} aria-label={collapsed ? label("Mở rộng Sidebar", "Expand sidebar") : label("Thu gọn Sidebar", "Collapse sidebar")}>{collapsed ? <FiChevronRight /> : <FiChevronLeft />}{showLabels && <span>{label("Thu gọn Sidebar", "Collapse sidebar")}</span>}</button>
       </div>

@@ -43,7 +43,7 @@ describe("AdminSidebar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Quản lý thị trường vé" }));
     await userEvent.click(screen.getByRole("link", { name: "Quản lý địa điểm" }));
     expect(screen.getByRole("button", { name: "Quản lý thị trường vé" }).getAttribute("aria-expanded")).toBe("true");
-    await userEvent.click(screen.getByRole("link", { name: "Cài đặt hệ thống" }));
+    await userEvent.click(screen.getByRole("link", { name: "Cài đặt" }));
     expect(screen.getByRole("button", { name: "Quản lý thị trường vé" }).getAttribute("aria-expanded")).toBe("true");
   });
 
@@ -52,7 +52,7 @@ describe("AdminSidebar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Quản lý người dùng" }));
     expect(screen.getByRole("link", { name: "Khách hàng" }).getAttribute("href")).toBe("/admin/users/customers");
     expect(screen.queryByText("Chưa tích hợp")).toBeNull();
-    expect(screen.getByRole("link", { name: "Cài đặt hệ thống" }).getAttribute("href")).toBe("/admin/system-settings");
+    expect(screen.getByRole("link", { name: "Cài đặt" }).getAttribute("href")).toBe("/admin/settings/profile");
   });
 
   it("closes the mobile drawer after navigation", async () => {

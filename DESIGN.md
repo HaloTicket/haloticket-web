@@ -125,6 +125,8 @@ Badges are pill-shaped. Use red for hot/resale emphasis, success for paid/active
 
 Admin tables use compact `14px` body text, sticky headers where useful, row hover states, status chips, tokenized borders, and short row actions. Tables may horizontally scroll on mobile.
 
+Paginated tables default to 10 rows, with 10/20/50 choices. Render only actual records when a page has fewer rows; do not pad the table or add the current record count as a page-size choice. Changing page size returns to page one, and controlled pagination follows the latest page-size prop. Compact rows use 8px vertical cell padding where content permits, while mobile actions retain 44px touch targets.
+
 ## 5. Layout Principles
 
 Spacing scale:
