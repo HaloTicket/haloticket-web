@@ -242,7 +242,7 @@ export default function AccountSecuritySettingsSection() {
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              className="admin-password-submit inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
+              className="admin-password-submit inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
             >
               <LuCheck className="w-4 h-4" />
               <span>{copy("Cập nhật mật khẩu", "Update password")}</span>
