@@ -79,7 +79,7 @@
 .admin-icon-button svg { width: 18px; height: 18px; }
 .admin-sidebar-toggle { flex: 0 0 40px; border: 0; border-radius: 12px; color: var(--text-muted); }
 .admin-sidebar-toggle:hover { color: var(--text-main); }
-.admin-notifications > div > button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 999px; color: var(--text-muted); }
+.admin-notifications > div > button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 999px; color: var(--text-muted); }
 .admin-notifications > div > button svg { color: currentColor; }
 .admin-notifications > div > div { max-width: calc(100vw - 32px); }
 .admin-profile { position: relative; }
@@ -144,7 +144,7 @@
   .admin-profile-chevron { display: none; }
   .admin-icon-button, .admin-profile-trigger, .admin-nav-group-button, .admin-nav-link, .admin-return-link { min-width: 44px; min-height: 44px; }
   .admin-notifications > div > button { width: 44px; height: 44px; }
-  .admin-notifications > div > div { right: -49px; width: min(320px, calc(100vw - 32px)); }
+  .admin-notifications > div > div { right: 16px; left: 16px; width: auto; }
   .admin-main { padding: 16px; }
   .admin-main > .admin-breadcrumb { margin-bottom: 20px; }
 }

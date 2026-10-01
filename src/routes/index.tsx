@@ -69,6 +69,7 @@ import ResaleTransactionResult from "@/features/resale/ResaleTransactionResult";
 
 // Admin Feature
 import AdminDashboard from "@/features/admin/AdminDashboard";
+import AdminNotifications from "@/features/admin/AdminNotifications";
 import AdminSettings from "@/features/admin/settings/AdminSettings";
 import EventApproval from "@/features/admin/EventApproval";
 import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
@@ -448,6 +449,7 @@ export const router = createBrowserRouter([
       ...[PATHS.ADMIN_EVENT_MANAGEMENT, PATHS.ADMIN_USER_MANAGEMENT, PATHS.ADMIN_FINANCE, PATHS.ADMIN_TICKET_MARKET, PATHS.ADMIN_CONTENT, PATHS.ADMIN_AI].map((path) => ({ path, element: <AdminSectionHub /> })),
       { path: PATHS.ADMIN_EVENT_REPORTS, element: <EventReportsPreview /> },
       { path: PATHS.ADMIN_CUSTOMERS, element: <CustomerUsersPreview /> },
+      { path: PATHS.ADMIN_NOTIFICATIONS, element: <AdminNotifications /> },
       { path: PATHS.ADMIN_ORGANIZERS, element: <OrganizerUsersPreview /> },
       { path: PATHS.ADMIN_ADMINISTRATORS, element: <AdministratorUsersPreview /> },
       { path: PATHS.ADMIN_PAYMENT_TRANSACTIONS, element: <PaymentTransactionsPreview /> },

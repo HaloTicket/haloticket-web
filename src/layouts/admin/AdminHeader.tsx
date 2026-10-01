@@ -31,6 +31,9 @@ interface AdminHeaderProps {
   userProfile: UserProfile | null;
   notifications: NotificationItem[];
   unreadCount: number;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   showProfileMenu: boolean;
   onToggleProfileMenu: () => void;
   onCloseProfileMenu: () => void;
@@ -41,7 +44,7 @@ interface AdminHeaderProps {
   onLogout: () => void;
 }
 
-export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, userProfile, notifications, unreadCount, showProfileMenu, onToggleProfileMenu, onCloseProfileMenu, onMobileOpen, mobileMenuButtonRef, onMarkAllAsRead, onNotificationClick, onLogout }: AdminHeaderProps) {
+export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, userProfile, notifications, unreadCount, loading, error, onRetry, showProfileMenu, onToggleProfileMenu, onCloseProfileMenu, onMobileOpen, mobileMenuButtonRef, onMarkAllAsRead, onNotificationClick, onLogout }: AdminHeaderProps) {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
@@ -83,7 +86,7 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
     <div className="admin-header-actions">
       <LanguageSwitcher />
       <button type="button" className="admin-icon-button" onClick={toggleTheme} aria-label={isDark ? label("Chuyển sang Chế độ Sáng", "Switch to light mode") : label("Chuyển sang Chế độ Tối", "Switch to dark mode")} title={isDark ? label("Chuyển sang Chế độ Sáng", "Switch to light mode") : label("Chuyển sang Chế độ Tối", "Switch to dark mode")}>{isDark ? <FiSun /> : <FiMoon />}</button>
-      <div className="admin-notifications"><NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={onNotificationClick} viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL} viewAllText={label("Xem trang Kiểm duyệt Sự kiện →", "View event moderation →")} titleText={label("Thông báo hệ thống", "System notifications")} /></div>
+      <div className="admin-notifications"><NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={onNotificationClick} loading={loading} error={error} onRetry={onRetry} viewAllLink={PATHS.ADMIN_NOTIFICATIONS} viewAllText={label("Xem tất cả thông báo", "View all notifications")} titleText={label("Thông báo hệ thống", "System notifications")} /></div>
       <div className="admin-profile" ref={profileRef}>
         <button
           type="button"

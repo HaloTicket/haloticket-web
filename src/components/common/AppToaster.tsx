@@ -29,10 +29,16 @@ export function AppToaster() {
     richColors
     closeButton
     visibleToasts={3}
-    duration={4000}
-    offset={32}
+    duration={5000}
+    offset={24}
     mobileOffset={16}
-    toastOptions={{ closeButtonAriaLabel: t("Đóng thông báo") }}
+    toastOptions={{
+      closeButtonAriaLabel: t("Đóng thông báo"),
+      actionButtonStyle: {
+        backgroundColor: "#2563eb",
+        color: "#ffffff",
+      },
+    }}
     containerAriaLabel={t("Thông báo")}
   />;
 }

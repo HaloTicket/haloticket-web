@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FiBell, FiCheckSquare } from "react-icons/fi";
-import type { NotificationItem } from "@/types";
+import { useEffect, useId, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { FiBell, FiX } from 'react-icons/fi';
+import type { NotificationItem } from '@/types';
+import { NotificationInbox } from './NotificationInbox';
 
 export interface NotificationDropdownProps {
   notifications: NotificationItem[];
@@ -11,122 +12,36 @@ export interface NotificationDropdownProps {
   viewAllLink: string;
   viewAllText?: string;
   titleText?: string;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
-
-export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
-  notifications,
-  unreadCount,
-  onMarkAllAsRead,
-  onNotificationClick,
-  viewAllLink,
-  viewAllText = "Xem chi tiết →",
-  titleText = "Thông báo hệ thống",
-}) => {
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
-
+export function NotificationDropdown({ notifications, unreadCount, onMarkAllAsRead, onNotificationClick, viewAllLink, viewAllText = 'Xem tất cả thông báo', titleText = 'Thông báo', loading, error, onRetry }: NotificationDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const id = useId();
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setShowNotifications(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleItemClick = (n: NotificationItem) => {
-    setShowNotifications(false);
-    onNotificationClick(n);
-  };
-
-  return (
-    <div className="relative" ref={notifRef}>
-      <button
-        type="button"
-        onClick={() => setShowNotifications(!showNotifications)}
-        className="relative p-2 rounded-xl app-bg-card app-text-main border app-border hover:opacity-80 transition-all cursor-pointer"
-        title={titleText}
-      >
-        <FiBell className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">
-            {unreadCount}
-          </span>
-        )}
-      </button>
-
-      {/* Notification Popover Box */}
-      {showNotifications && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-90 app-bg-card border app-border rounded-2xl shadow-xl p-3.5 space-y-3 z-50 animate-in zoom-in-95">
-          <div className="flex items-center justify-between border-b app-border pb-2">
-            <h4 className="text-xs font-bold app-text-main flex items-center gap-1.5">
-              <FiBell className="w-3.5 h-3.5 text-blue-600" />
-              <span>
-                {titleText} ({unreadCount} mới)
-              </span>
-            </h4>
-            <button
-              type="button"
-              onClick={onMarkAllAsRead}
-              className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-            >
-              Đánh dấu đã đọc
-            </button>
-          </div>
-
-          <div className="space-y-2 max-h-72 overflow-y-auto no-scrollbar">
-            {notifications.length === 0 ? (
-              <p className="text-xs text-center py-6 text-slate-400 font-medium">
-                Không có thông báo mới.
-              </p>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => handleItemClick(n)}
-                  className={`p-2.5 rounded-xl border transition-colors space-y-1 cursor-pointer text-xs ${n.readStatus
-                      ? "app-bg-subnav border-slate-200 dark:border-slate-800 opacity-70"
-                      : "bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60 font-semibold"
-                    }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold app-text-main flex items-center gap-1.5">
-                      <FiCheckSquare className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                      <span>{n.title}</span>
-                    </span>
-                    <span className="text-[10px] app-text-muted">
-                      {n.createdAt
-                        ? new Date(n.createdAt).toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                        : "Vừa xong"}
-                    </span>
-                  </div>
-                  <p className="text-[11px] app-text-muted leading-snug">
-                    {n.message}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-
-          {viewAllLink && (
-            <div className="pt-2 border-t app-border text-center">
-              <Link
-                to={viewAllLink}
-                onClick={() => setShowNotifications(false)}
-                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                {viewAllText}
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
+    if (!open) return;
+    panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); } };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
+  }, [open]);
+  return <div className="relative" ref={root}>
+    <button ref={trigger} type="button" className="relative min-h-11 min-w-11 grid place-items-center rounded-xl app-bg-card app-text-main border app-border" aria-label={`${titleText}${unreadCount ? `, ${unreadCount} chưa đọc` : ''}`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
+      <FiBell className="w-5 h-5" />
+      {unreadCount > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold grid place-items-center">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+    </button>
+    {open && <div ref={panel} id={id} role="region" aria-label={titleText} className="notification-popover">
+      <header className="flex items-center justify-between px-3 py-2 border-b app-border"><div><h2 className="font-bold text-base app-text-main">{titleText}</h2><p className="text-xs app-text-muted mt-1">{unreadCount} thông báo chưa đọc</p></div><button type="button" className="min-w-11 min-h-11 grid place-items-center rounded-lg" aria-label="Đóng thông báo" onClick={() => { setOpen(false); trigger.current?.focus(); }}><FiX /></button></header>
+      <NotificationInbox compact notifications={notifications} loading={loading} error={error} onRetry={onRetry} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={item => { setOpen(false); onNotificationClick(item); }} />
+      {viewAllLink && <Link to={viewAllLink} className="block text-center px-3 py-3 border-t app-border font-semibold text-sm text-blue-600 dark:text-blue-400" onClick={() => setOpen(false)}>{viewAllText}</Link>}
+    </div>}
+  </div>;
+}
 export default NotificationDropdown;
+

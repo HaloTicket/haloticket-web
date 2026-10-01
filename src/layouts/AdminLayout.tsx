@@ -22,7 +22,7 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [pathname]);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket("ADMIN");
+  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast, loading, error, reload } = useNotificationSocket("ADMIN");
   const [pendingEventsCount, setPendingEventsCount] = useState<number | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -86,10 +86,7 @@ export function AdminLayout() {
   const handleNotificationClick = async (notification: NotificationItem) => {
     await markAsRead(notification.id);
     clearToast();
-    let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;
-    const eventId = notification.message?.match(/EV_[a-zA-Z0-9_-]+/)?.[0];
-    if (eventId) targetPath = `${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${encodeURIComponent(eventId)}`;
-    navigate(targetPath);
+    navigate(`${PATHS.ADMIN_NOTIFICATIONS}?notificationId=${encodeURIComponent(notification.id)}`);
   };
 
   const handleLogout = async () => {
@@ -103,10 +100,10 @@ export function AdminLayout() {
   return <div className={`admin-shell ${isCollapsed ? "is-collapsed" : ""}`}>
     <AdminSidebar collapsed={isCollapsed} mobileOpen={isMobileOpen} pendingEventsCount={pendingEventsCount} onMobileClose={closeMobile} onExpand={() => setIsCollapsed(false)} onToggleCollapse={() => setIsCollapsed((value) => !value)} />
     <div className="admin-workspace" inert={isMobileOpen}>
-      <AdminHeader collapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed((value) => !value)} isDark={isDark} toggleTheme={toggleTheme} userProfile={userProfile} notifications={notifications} unreadCount={unreadCount} showProfileMenu={showProfileMenu} onToggleProfileMenu={() => setShowProfileMenu((value) => !value)} onCloseProfileMenu={() => setShowProfileMenu(false)} onMobileOpen={() => setIsMobileOpen(true)} mobileMenuButtonRef={mobileMenuButtonRef} onMarkAllAsRead={markAllAsRead} onNotificationClick={handleNotificationClick} onLogout={handleLogout} />
-      <main className="admin-main"><AdminBreadcrumb /><Outlet /></main>
+      <AdminHeader collapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed((value) => !value)} isDark={isDark} toggleTheme={toggleTheme} userProfile={userProfile} notifications={notifications} unreadCount={unreadCount} loading={loading} error={error} onRetry={() => void reload()} showProfileMenu={showProfileMenu} onToggleProfileMenu={() => setShowProfileMenu((value) => !value)} onCloseProfileMenu={() => setShowProfileMenu(false)} onMobileOpen={() => setIsMobileOpen(true)} mobileMenuButtonRef={mobileMenuButtonRef} onMarkAllAsRead={markAllAsRead} onNotificationClick={handleNotificationClick} onLogout={handleLogout} />
+      <main className="admin-main"><AdminBreadcrumb /><Outlet context={{ notifications, loading, error, reload, markAsRead, markAllAsRead }} /></main>
     </div>
-    <NotificationToast toast={latestToast} onToastClick={handleNotificationClick} onClose={clearToast} actionText={label("Nhấn để kiểm duyệt ngay →", "Review now →")} accentColor="blue" enabled={preferences.instantNotifications} />
+    <NotificationToast toast={latestToast} onToastClick={handleNotificationClick} onClose={clearToast} actionText={label("Xem chi tiết", "View details")} accentColor="blue" enabled={preferences.instantNotifications} />
   </div>;
 }
 

@@ -34,6 +34,7 @@ export const PATHS = {
   EVENT_MANAGE_EDIT: (id: string | number) => `/organizer/events/${id}/manage/edit`,
   EVENT_MANAGE_TRANSFERS: (id: string | number) => `/organizer/events/${id}/manage/transfers`,
   ADMIN: "/admin",
+  ADMIN_NOTIFICATIONS: "/admin/notifications",
   ADMIN_SETTINGS: "/admin/settings",
   ADMIN_IDENTITY_VERIFICATION: "/admin/identity-verification",
   ADMIN_SETTINGS_SECTION: (section: string) => `/admin/settings/${section}`,

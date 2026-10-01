@@ -62,7 +62,7 @@ export function AdminBreadcrumb() {
     <nav className="admin-breadcrumb" aria-label={label("Đường dẫn điều hướng", "Breadcrumb")}>
       <Link to={PATHS.ADMIN_DASHBOARD}>{label("Quản trị", "Admin")}</Link>
       <span aria-hidden="true">/</span>
-      {route ? (
+      {pathname === PATHS.ADMIN_NOTIFICATIONS ? <span aria-current="page">{label("Thông báo", "Notifications")}</span> : route ? (
         <>
           {route.group.items.length > 1 && !route.isGroup && (
             <>
