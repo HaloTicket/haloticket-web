@@ -4,6 +4,7 @@ import { store } from "@/store";
 import { router } from "@/routes";
 import { ThemeProvider } from "@/context/ThemeContext";
 import SessionExpiredModalHost from "@/features/auth/components/SessionExpiredModalHost";
+import AIChatWidget from "@/components/common/AIChatWidget/AIChatWidget";
 import { PATHS } from "@/routes/paths";
 import { getKeycloakSession } from "@/services/keycloakSession";
 
@@ -24,6 +25,7 @@ function App() {
       <ThemeProvider>
         <RouterProvider router={router} />
         <SessionExpiredModalHost onLoginAgain={handleLoginAgain} />
+        <AIChatWidget />
       </ThemeProvider>
     </Provider>
   );

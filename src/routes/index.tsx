@@ -72,6 +72,7 @@ import AdminDashboard from "@/features/admin/AdminDashboard";
 import EventApproval from "@/features/admin/EventApproval";
 import EkycApproval from "@/features/admin/EkycApproval";
 import ResaleManagement from "@/features/admin/ResaleManagement";
+import AdminAiAnalytics from "@/features/admin/AdminAiAnalytics";
 import UserManagement from "@/features/admin/UserManagement";
 import CategoryConfig from "@/features/admin/CategoryConfig";
 import PaymentMonitoring from "@/features/admin/PaymentMonitoring";
@@ -455,6 +456,10 @@ export const router = createBrowserRouter([
       {
         path: PATHS.ADMIN_RESALE_PRICE_CAP,
         element: <ResaleManagement />,
+      },
+      {
+        path: PATHS.ADMIN_AI_ANALYTICS,
+        element: <AdminAiAnalytics />,
       },
       {
         path: PATHS.ADMIN_USERS_PERMISSIONS,

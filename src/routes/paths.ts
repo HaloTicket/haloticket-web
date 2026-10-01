@@ -38,6 +38,7 @@ export const PATHS = {
   ADMIN_EVENTS_APPROVAL: "/admin/events-approval",
   ADMIN_EKYC_APPROVAL: "/admin/ekyc-approval",
   ADMIN_RESALE_PRICE_CAP: "/admin/resale-price-cap",
+  ADMIN_AI_ANALYTICS: "/admin/ai-analytics",
   ADMIN_USERS_PERMISSIONS: "/admin/users-permissions",
   ADMIN_CATEGORIES_CONFIG: "/admin/categories-config",
   ADMIN_PAYMENTS_MONITORING: "/admin/payments-monitoring",

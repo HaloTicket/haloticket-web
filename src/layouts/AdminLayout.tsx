@@ -33,7 +33,8 @@ import {
   FiSettings,
   FiUserCheck,
   FiLayout,
-  FiMapPin
+  FiMapPin,
+  FiTerminal
 } from "react-icons/fi";
 
 interface NavItem {
@@ -188,6 +189,11 @@ export const AdminLayout: React.FC = () => {
           label: translate("Bảng điều khiển"),
           path: PATHS.ADMIN_DASHBOARD,
           icon: <FiGrid className="w-4 h-4 shrink-0" />
+        },
+        {
+          label: translate("AI Phân tích dữ liệu"),
+          path: PATHS.ADMIN_AI_ANALYTICS,
+          icon: <FiTerminal className="w-4 h-4 shrink-0" />
         }
       ]
     },
