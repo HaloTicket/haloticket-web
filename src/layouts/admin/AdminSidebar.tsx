@@ -106,7 +106,17 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
           {showLabels && <span>{label("Cài đặt", "Settings")}</span>}
         </Link>
         <Link to={PATHS.HOME} onClick={onMobileClose} className="admin-return-link" title={label("Về HaloTicket Client", "Back to HaloTicket")}><FiHome aria-hidden="true" />{showLabels && <span>{label("Về HaloTicket Client", "Back to HaloTicket")}</span>}</Link>
-        <button type="button" className="admin-collapse-button" onClick={onToggleCollapse} aria-label={collapsed ? label("Mở rộng Sidebar", "Expand sidebar") : label("Thu gọn Sidebar", "Collapse sidebar")}>{collapsed ? <FiChevronRight /> : <FiChevronLeft />}{showLabels && <span>{label("Thu gọn Sidebar", "Collapse sidebar")}</span>}</button>
+        <div className="admin-sidebar-footer-divider" />
+        <button
+          type="button"
+          className="admin-collapse-button"
+          onClick={onToggleCollapse}
+          title={collapsed ? label("Mở rộng thanh bên", "Expand sidebar") : label("Thu gọn thanh bên", "Collapse sidebar")}
+          aria-label={collapsed ? label("Mở rộng thanh bên", "Expand sidebar") : label("Thu gọn thanh bên", "Collapse sidebar")}
+        >
+          {collapsed ? <FiChevronRight /> : <FiChevronLeft />}
+          {showLabels && <span>{label("Thu gọn thanh bên", "Collapse sidebar")}</span>}
+        </button>
       </div>
     </aside>
     {mobileOpen && <button type="button" className="admin-sidebar-backdrop" aria-label={label("Đóng menu", "Close menu")} onClick={onMobileClose} />}
