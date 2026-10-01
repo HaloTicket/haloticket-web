@@ -35,6 +35,7 @@ export function AdminVenuesManagement() {
   const [status, setStatus] = useState<Status>("ALL");
   const [city, setCity] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AdminVenue | null>(null);
   const [deleting, setDeleting] = useState<AdminVenue | null>(null);
@@ -126,9 +127,9 @@ export function AdminVenuesManagement() {
   const filtered = venues.filter(v => (!query || [v.name, v.address, v.city].some(x => x.toLocaleLowerCase("vi-VN").includes(query)))
     && (status === "ALL" || (status === "VERIFIED" ? v.verified : !v.verified))
     && (city === "ALL" || v.city === city));
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const visible = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
   const cities = [...new Set(venues.map(v => v.city).filter(Boolean))].sort();
 
   return <div className="space-y-6">
@@ -164,7 +165,18 @@ export function AdminVenuesManagement() {
             {venues.length === 0 ? <AdminDataState state="empty" message={t("Chưa có địa điểm nào.")} />
               : filtered.length === 0 ? <AdminDataState state="no-results" message={t("Không tìm thấy địa điểm nào phù hợp.")} onReset={() => { setSearch(""); setCity("ALL"); setStatus("ALL"); setPage(1); }} />
                 : <VenueTable venues={visible} busyId={busyId} onToggleVerification={venue => void toggle(venue as AdminVenue)} onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }} onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }} />}
-            <AdminPagination currentPage={safePage} totalPages={totalPages} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+            <AdminPagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              itemLabel={t("địa điểm")}
+            />
           </>}
     </section>
     <VenueModal isOpen={open} editingVenue={editing} onClose={() => { setOpen(false); setEditing(null); }} onSubmit={save} />

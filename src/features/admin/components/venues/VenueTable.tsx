@@ -31,15 +31,15 @@ export const VenueTable: React.FC<VenueTableProps> = ({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1050px] table-fixed text-left text-sm">
+      <table className="w-full min-w-[950px] table-fixed text-left text-sm">
         <thead className="app-bg-subnav border-b app-border text-xs font-semibold app-text-muted">
           <tr>
-            <th className="w-[210px] px-4 py-3">{translate("Tên địa điểm")}</th>
-            <th className="w-[190px] px-4 py-3">{translate("Địa chỉ chi tiết")}</th>
+            <th className="w-[220px] px-4 py-3">{translate("Tên địa điểm")}</th>
+            <th className="w-[210px] px-4 py-3">{translate("Địa chỉ chi tiết")}</th>
             <th className="w-[110px] whitespace-nowrap px-4 py-3">{translate("Sức chứa")}</th>
-            <th className="w-[145px] whitespace-nowrap px-4 py-3">{translate("Số sự kiện")}</th>
+            <th className="w-[130px] whitespace-nowrap px-4 py-3">{translate("Số sự kiện")}</th>
             <th className="w-[145px] whitespace-nowrap px-4 py-3">{translate("Trạng thái xác minh")}</th>
-            <th className="w-[240px] whitespace-nowrap px-4 py-3 text-right">{translate("Thao tác Admin")}</th>
+            <th className="w-[145px] whitespace-nowrap px-4 py-3 text-right">{translate("Thao tác Admin")}</th>
           </tr>
         </thead>
 
@@ -56,14 +56,9 @@ export const VenueTable: React.FC<VenueTableProps> = ({
               <tr key={v.id} className="hover:bg-slate-500/5 transition-colors">
                 {/* Name */}
                 <td className="py-3 px-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg app-bg-subnav app-text-brand flex items-center justify-center shrink-0">
-                      <FiMapPin className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold app-text-main" title={v.name}>{v.name}</p>
-                      <p className="text-xs app-text-muted">ID: {v.id}</p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold app-text-main" title={v.name}>{v.name}</p>
+                    <p className="text-xs app-text-muted">ID: {v.id}</p>
                   </div>
                 </td>
 
@@ -108,20 +103,18 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                 {/* Actions */}
                 <td className="whitespace-nowrap py-3 px-4 text-right">
                   <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => onToggleVerification(v)}
-                      disabled={busyId !== null}
-                      className={`min-h-11 px-2.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50 ${
-                        v.verified
-                          ? "app-bg-subnav app-text-main app-border hover:border-amber-500 hover:text-amber-600"
-                          : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
-                      }`}
-                      title={v.verified ? translate("Hủy xác minh địa điểm này") : translate("Bấm để xác minh địa điểm này")}
-                    >
-                      <FiShield className="w-3 h-3 shrink-0" />
-                      <span>{v.verified ? translate("Bỏ xác minh") : translate("Xác minh")}</span>
-                    </button>
+                    {!v.verified && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleVerification(v)}
+                        disabled={busyId !== null}
+                        className="min-h-11 px-2.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                        title={translate("Bấm để xác minh địa điểm này")}
+                      >
+                        <FiShield className="w-3 h-3 shrink-0" />
+                        <span>{translate("Xác minh")}</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"

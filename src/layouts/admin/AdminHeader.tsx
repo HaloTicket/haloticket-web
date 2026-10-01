@@ -1,6 +1,20 @@
 import { useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FiChevronDown, FiChevronUp, FiChevronsLeft, FiChevronsRight, FiLogOut, FiMenu, FiMoon, FiSearch, FiSettings, FiSun } from "react-icons/fi";
+import { FiChevronsLeft, FiChevronsRight, FiMenu, FiMoon, FiSearch, FiSun } from "react-icons/fi";
+import {
+  LuArrowRight,
+  LuChevronDown,
+  LuChevronRight,
+  LuChevronUp,
+  LuLayoutGrid,
+  LuLogOut,
+  LuSettings,
+  LuShieldCheck,
+  LuTag,
+  LuTicket,
+  LuUserCheck,
+  LuUsers,
+} from "react-icons/lu";
 import { useTranslation } from "react-i18next";
 
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
@@ -71,14 +85,143 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
       <button type="button" className="admin-icon-button" onClick={toggleTheme} aria-label={isDark ? label("Chuyển sang Chế độ Sáng", "Switch to light mode") : label("Chuyển sang Chế độ Tối", "Switch to dark mode")} title={isDark ? label("Chuyển sang Chế độ Sáng", "Switch to light mode") : label("Chuyển sang Chế độ Tối", "Switch to dark mode")}>{isDark ? <FiSun /> : <FiMoon />}</button>
       <div className="admin-notifications"><NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={onNotificationClick} viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL} viewAllText={label("Xem trang Kiểm duyệt Sự kiện →", "View event moderation →")} titleText={label("Thông báo hệ thống", "System notifications")} /></div>
       <div className="admin-profile" ref={profileRef}>
-        <button type="button" className="admin-profile-trigger" onClick={onToggleProfileMenu} aria-expanded={showProfileMenu} aria-haspopup="menu" aria-label={label("Tài khoản quản trị", "Admin account")}>
-          <span className="admin-profile-avatar">{userInitial}</span><span className="admin-profile-name">{safeName}</span>{showProfileMenu ? <FiChevronUp className="admin-profile-chevron" aria-hidden="true" /> : <FiChevronDown className="admin-profile-chevron" aria-hidden="true" />}
+        <button
+          type="button"
+          className="admin-profile-trigger"
+          onClick={onToggleProfileMenu}
+          aria-expanded={showProfileMenu}
+          aria-haspopup="menu"
+          aria-label={label("Tài khoản quản trị", "Admin account")}
+        >
+          <div className="admin-profile-avatar-wrap">
+            <span className="admin-profile-avatar">{userInitial}</span>
+            <span className="admin-profile-status-dot" aria-hidden="true" />
+          </div>
+          <span className="admin-profile-name">{safeName}</span>
+          {showProfileMenu ? (
+            <LuChevronUp className="admin-profile-chevron" aria-hidden="true" />
+          ) : (
+            <LuChevronDown className="admin-profile-chevron" aria-hidden="true" />
+          )}
         </button>
-        {showProfileMenu && <div className="admin-profile-menu" role="menu">
-          <div className="admin-profile-summary"><strong>{safeName}</strong><small>{preferences.hideEmail ? "••••••" : userProfile?.email || ""}</small></div>
-          <Link role="menuitem" to={PATHS.ADMIN_SETTINGS} onClick={onCloseProfileMenu}><FiSettings />{label("Cài đặt tài khoản", "Account settings")}</Link>
-          <button role="menuitem" type="button" onClick={onLogout}><FiLogOut />{label("Đăng xuất Quản trị", "Sign out")}</button>
-        </div>}
+
+        {showProfileMenu && (
+          <div className="admin-profile-menu" role="menu">
+            {/* Top Admin Info Card */}
+            <div className="admin-profile-badge-card">
+              <div className="admin-profile-badge-left">
+                <LuShieldCheck className="admin-profile-badge-icon" />
+                <span className="admin-profile-badge-text">
+                  {label("QUẢN TRỊ VIÊN", "ADMINISTRATOR")}
+                </span>
+              </div>
+              <Link
+                to={PATHS.ADMIN_SETTINGS_SECTION("profile")}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-badge-link"
+              >
+                <span>{label("Hồ sơ", "Profile")}</span>
+                <LuArrowRight className="admin-profile-badge-arrow" />
+              </Link>
+            </div>
+
+            {/* Menu Navigation Links */}
+            <nav className="admin-profile-nav">
+              <Link
+                to={PATHS.ADMIN_DASHBOARD}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-nav-item"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuLayoutGrid className="admin-profile-nav-icon" />
+                  <span>{label("Bảng điều khiển", "Dashboard")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </Link>
+
+              <div className="admin-profile-section-title">
+                {label("TIỆN ÍCH QUẢN TRỊ", "ADMIN UTILITIES")}
+              </div>
+
+              <Link
+                to={PATHS.ADMIN_EVENTS_APPROVAL}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-nav-item"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuTicket className="admin-profile-nav-icon" />
+                  <span>{label("Kiểm duyệt sự kiện", "Events approval")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </Link>
+
+              <Link
+                to={PATHS.ADMIN_EKYC_APPROVAL}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-nav-item"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuUserCheck className="admin-profile-nav-icon" />
+                  <span>{label("Duyệt hồ sơ eKYC", "eKYC approval")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </Link>
+
+              <Link
+                to={PATHS.ADMIN_RESALE_PRICE_CAP}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-nav-item"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuTag className="admin-profile-nav-icon" />
+                  <span>{label("Quản lý vé bán lại", "Resale price cap")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </Link>
+
+              <Link
+                to={PATHS.ADMIN_USERS_PERMISSIONS}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-nav-item"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuUsers className="admin-profile-nav-icon" />
+                  <span>{label("Người dùng & phân quyền", "Users & permissions")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </Link>
+
+              <div className="admin-profile-divider" />
+
+              <Link
+                to={PATHS.ADMIN_SETTINGS_SECTION("profile")}
+                onClick={onCloseProfileMenu}
+                className="admin-profile-nav-item"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuSettings className="admin-profile-nav-icon" />
+                  <span>{label("Cài đặt", "Settings")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onCloseProfileMenu();
+                  onLogout();
+                }}
+                className="admin-profile-nav-item admin-profile-nav-logout"
+              >
+                <div className="admin-profile-nav-item-left">
+                  <LuLogOut className="admin-profile-nav-icon text-rose-500" />
+                  <span>{label("Đăng xuất", "Log out")}</span>
+                </div>
+                <LuChevronRight className="admin-profile-item-arrow" />
+              </button>
+            </nav>
+          </div>
+        )}
       </div>
     </div>
   </header>;

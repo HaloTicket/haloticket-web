@@ -11,8 +11,6 @@ import { eventApi } from "@/services/eventApi";
 import type { ApprovalEventItem } from "@/types";
 import { approvalDetailUrl, displayApprovalStatus, normalizeApprovalEvents, readApprovalStatus } from "./events/approvalModel";
 
-const PAGE_SIZE = 4;
-
 export function EventApproval() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -21,6 +19,7 @@ export function EventApproval() {
   const query = params.get("q") ?? "";
   const pageValue = Number(params.get("page"));
   const page = Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1;
+  const [pageSize, setPageSize] = useState(10);
   const legacyEventId = params.get("eventId");
   const [events, setEvents] = useState<ApprovalEventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,8 +59,8 @@ export function EventApproval() {
     const phrase = query.trim().toLocaleLowerCase();
     return matchesStatus && (!phrase || `${event.title} ${event.organizerName || ""}`.toLocaleLowerCase().includes(phrase));
   }), [events, query, status]);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     if (!loading && !error && loadedStatus === status && page > totalPages) {
@@ -128,7 +127,18 @@ export function EventApproval() {
                 </tr>)}</tbody>
               </table>
             </div>
-            <AdminPagination currentPage={page} totalPages={totalPages} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={(next) => changeQuery("page", next === 1 ? "" : String(next))} />
+            <AdminPagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              onPageChange={(next) => changeQuery("page", next === 1 ? "" : String(next))}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                changeQuery("page", "");
+              }}
+              itemLabel={t("sự kiện")}
+            />
           </>
         )}
       </section>

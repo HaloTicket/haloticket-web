@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { FiCamera, FiCheckCircle, FiInfo, FiUser } from "react-icons/fi";
+import { LuCamera, LuCheck, LuInfo, LuShieldCheck, LuUser } from "react-icons/lu";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -14,7 +14,7 @@ interface ProfileSettingsSectionProps {
   hideEmail: boolean;
 }
 
-const fieldClass = "min-h-11 w-full rounded-xl border app-border app-bg-card px-3 text-sm app-text-main outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-primary)]";
+const fieldClass = "w-full h-10 px-3.5 bg-muted/40 focus:bg-card rounded-xl border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all admin-form-input";
 const splitName = (value: string) => {
   const parts = value.trim().split(/\s+/).filter(Boolean);
   return { familyName: parts.slice(0, -1).join(" "), givenName: parts.at(-1) || "" };
@@ -107,38 +107,219 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
 
   const name = current?.fullName || copy("Tài khoản quản trị", "Admin account");
   const email = hideEmail ? "••••••" : current?.email || "—";
-  return <div className="space-y-6 text-sm">
-    <div className="flex flex-wrap items-center gap-4 rounded-2xl border app-border app-bg-card p-4 sm:p-5">
-      <div className="relative grid h-[72px] w-[72px] shrink-0 place-items-center overflow-hidden rounded-full border app-border app-bg-page text-2xl font-bold app-text-brand">
-        {form.avatarUrl ? <img src={form.avatarUrl} alt="" className="h-full w-full object-cover" /> : name[0]?.toUpperCase() || <FiUser />}
-        <button type="button" onClick={() => avatarInput.current?.click()} disabled={!verified || uploading || saving} aria-label={copy("Thay ảnh đại diện", "Change avatar")} className="absolute bottom-0 right-0 grid h-11 w-11 place-items-center rounded-full border app-border app-bg-card text-base app-text-brand disabled:opacity-50"><FiCamera /></button>
+  const isVerified = identity?.status === "APPROVED";
+  const labelAdmin = copy("QUẢN TRỊ VIÊN", "ADMINISTRATOR");
+
+  return (
+    <div className="space-y-6 text-sm max-w-2xl">
+      {/* 1. Profile Header Card */}
+      <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 shadow-2xs">
+        <div className="relative group">
+          <input
+            ref={avatarInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => void uploadAvatar(event)}
+            className="sr-only"
+            aria-label={copy("Chọn ảnh đại diện", "Choose avatar image")}
+          />
+          <div className="relative h-18 w-18 sm:h-20 sm:w-20 rounded-full border border-border bg-[color-mix(in_srgb,var(--color-brand-primary)_12%,var(--bg-card))] flex items-center justify-center overflow-hidden text-2xl font-bold text-[var(--color-brand-primary)]">
+            {form.avatarUrl ? (
+              <img src={form.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              name[0]?.toUpperCase() || <LuUser />
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => avatarInput.current?.click()}
+            disabled={!verified || uploading || saving}
+            aria-label={copy("Thay ảnh đại diện", "Change avatar")}
+            className="absolute bottom-0 right-0 p-1.5 rounded-full bg-card border border-border text-foreground hover:text-[var(--color-brand-primary)] shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <LuCamera className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex-1 text-center sm:text-left space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+            <h3 className="font-bold text-base text-foreground">{name}</h3>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-brand-primary)_25%,transparent)] px-2 py-0.5 rounded-full">
+              {labelAdmin}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">{email}</p>
+          {uploading && (
+            <p role="status" className="text-xs text-muted-foreground">
+              {copy("Đang tải ảnh…", "Uploading…")}
+            </p>
+          )}
+          {isVerified && (
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
+              <LuShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{copy("Tài khoản này đã xác minh danh tính", "This account is identity verified")}</span>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="min-w-0 flex-1"><strong className="block break-words text-base app-text-main">{name}</strong><span className="block break-all app-text-muted">{email}</span><span className="mt-1 inline-flex rounded-full border app-border px-2 py-0.5 text-xs app-text-muted">{current?.roles?.[0] || copy("Tài khoản", "Account")}</span></div>
-      <input ref={avatarInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void uploadAvatar(event)} className="sr-only" aria-label={copy("Chọn ảnh đại diện", "Choose avatar image")} />
-      {uploading && <span role="status" className="text-xs app-text-muted">{copy("Đang tải ảnh…", "Uploading…")}</span>}
-      {verified && <span className="inline-flex items-center gap-1 rounded-full border app-border px-3 py-1 text-xs app-text-muted"><FiCheckCircle />{copy("Hồ sơ đã đồng bộ", "Profile synced")}</span>}
+
+      {/* 2. Form Card */}
+      <form onSubmit={save} className="bg-card rounded-2xl border border-border p-4 sm:p-5 space-y-4 shadow-2xs">
+        <div>
+          <h3 className="font-bold text-foreground">{copy("Thông tin cá nhân", "Personal information")}</h3>
+          <p className="text-xs text-muted-foreground">
+            {copy(
+              "Các trường có thể chỉnh sửa được lưu vào tài khoản HaloTicket.",
+              "Editable fields are saved to your HaloTicket account."
+            )}
+          </p>
+        </div>
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Tên", "Given name")}
+            <input
+              className={fieldClass}
+              value={nameParts.givenName}
+              onChange={(e) => setNameParts({ ...nameParts, givenName: e.target.value })}
+              maxLength={120}
+              disabled={!verified || saving}
+              required
+            />
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Họ và tên đệm", "Family and middle name")}
+            <input
+              className={fieldClass}
+              value={nameParts.familyName}
+              onChange={(e) => setNameParts({ ...nameParts, familyName: e.target.value })}
+              maxLength={120}
+              disabled={!verified || saving}
+            />
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Tên đăng nhập", "Username")}
+            <input
+              className={fieldClass}
+              value=""
+              placeholder={copy("Không được API cung cấp", "Not provided by API")}
+              readOnly
+            />
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Số điện thoại", "Phone number")}
+            <input
+              className={fieldClass}
+              type="tel"
+              value={form.phoneNumber || ""}
+              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+              maxLength={30}
+              disabled={!verified || saving}
+            />
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            Email
+            <input className={fieldClass} value={email} readOnly />
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Ngày sinh", "Birth date")}
+            <input
+              className={fieldClass}
+              value={identity?.birthDate || ""}
+              placeholder={copy("Chưa xác minh", "Not verified")}
+              readOnly
+            />
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Giới tính", "Gender")}
+            <select
+              className={fieldClass}
+              value={form.gender || "OTHER"}
+              onChange={(e) =>
+                setForm({ ...form, gender: e.target.value as UserProfileUpdateRequest["gender"] })
+              }
+              disabled={!verified || saving}
+            >
+              <option value="OTHER">{copy("Khác / chưa chọn", "Other / unspecified")}</option>
+              <option value="MALE">{copy("Nam", "Male")}</option>
+              <option value="FEMALE">{copy("Nữ", "Female")}</option>
+            </select>
+          </label>
+          <label className="grid gap-1.5 font-medium text-foreground text-xs sm:text-sm">
+            {copy("Số CCCD", "Identity document number")}
+            <input
+              className={fieldClass}
+              value={identity?.documentNumber || ""}
+              placeholder={copy("Chưa xác minh", "Not verified")}
+              readOnly
+            />
+          </label>
+        </div>
+
+        {error && <p role="alert" className="admin-settings-error">{error}</p>}
+        {message && (
+          <p role="status" className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+            <LuCheck className="w-4 h-4" />
+            {message}
+          </p>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={!verified || saving || loading || uploading}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
+          >
+            <LuCheck className="w-4 h-4" />
+            <span>{saving ? copy("Đang lưu…", "Saving…") : copy("Cập nhật thông tin", "Update information")}</span>
+          </button>
+        </div>
+      </form>
+
+      {/* 3. System Info Card */}
+      <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 shadow-2xs">
+        <h3 className="font-bold text-foreground">{copy("Thông tin hệ thống", "System information")}</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          {copy("Những thông tin này do hệ thống danh tính quản lý.", "These details are managed by the identity system.")}
+        </p>
+        <dl className="grid gap-3 sm:grid-cols-2">
+          {[
+            [copy("Tên đăng nhập", "Username"), "—"],
+            ["Email", email],
+            [copy("Mã tài khoản", "Account ID"), current?.id || "—"],
+            [copy("Trạng thái", "Status"), current?.status || "—"],
+            [copy("Vai trò", "Roles"), current?.roles?.join(", ") || "—"],
+            [
+              copy("Ngày tạo", "Created"),
+              current?.createdAt
+                ? new Date(current.createdAt).toLocaleDateString(en ? "en-US" : "vi-VN")
+                : "—",
+            ],
+          ].map(([fieldLabel, value]) => (
+            <div key={fieldLabel} className="min-w-0 rounded-xl border border-border/60 bg-muted/20 p-3">
+              <dt className="text-xs text-muted-foreground">{fieldLabel}</dt>
+              <dd className="mt-1 break-all font-semibold text-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {/* 4. Address Card */}
+      <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 shadow-2xs">
+        <h3 className="font-bold text-foreground">{copy("Địa chỉ", "Address")}</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          {copy("Địa chỉ được trích xuất từ giấy tờ eKYC đã xác minh.", "Address is extracted from your verified eKYC document.")}
+        </p>
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-3 font-medium text-foreground text-xs sm:text-sm">
+          {identity?.address || copy("Chưa có địa chỉ xác minh", "No verified address available")}
+        </div>
+        <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
+          <LuInfo className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+          {copy(
+            "HaloTicket chưa hỗ trợ chỉnh sửa địa chỉ trong hồ sơ.",
+            "HaloTicket does not yet support editing profile addresses."
+          )}
+        </p>
+      </div>
     </div>
-
-    <form onSubmit={save} className="space-y-4 rounded-2xl border app-border app-bg-card p-4 sm:p-5">
-      <div><h3 className="font-bold app-text-main">{copy("Thông tin cá nhân", "Personal information")}</h3><p className="app-text-muted">{copy("Các trường có thể chỉnh sửa được lưu vào tài khoản HaloTicket.", "Editable fields are saved to your HaloTicket account.")}</p></div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Tên", "Given name")}<input className={fieldClass} value={nameParts.givenName} onChange={(e) => setNameParts({ ...nameParts, givenName: e.target.value })} maxLength={120} disabled={!verified || saving} required /></label>
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Họ và tên đệm", "Family and middle name")}<input className={fieldClass} value={nameParts.familyName} onChange={(e) => setNameParts({ ...nameParts, familyName: e.target.value })} maxLength={120} disabled={!verified || saving} /></label>
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Tên đăng nhập", "Username")}<input className={fieldClass} value="" placeholder={copy("Không được API cung cấp", "Not provided by API")} readOnly /></label>
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Số điện thoại", "Phone number")}<input className={fieldClass} type="tel" value={form.phoneNumber || ""} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} maxLength={30} disabled={!verified || saving} /></label>
-        <label className="grid gap-1.5 font-medium app-text-main">Email<input className={fieldClass} value={email} readOnly /></label>
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Ngày sinh", "Birth date")}<input className={fieldClass} value={identity?.birthDate || ""} placeholder={copy("Chưa xác minh", "Not verified")} readOnly /></label>
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Giới tính", "Gender")}<select className={fieldClass} value={form.gender || "OTHER"} onChange={(e) => setForm({ ...form, gender: e.target.value as UserProfileUpdateRequest["gender"] })} disabled={!verified || saving}><option value="OTHER">{copy("Khác / chưa chọn", "Other / unspecified")}</option><option value="MALE">{copy("Nam", "Male")}</option><option value="FEMALE">{copy("Nữ", "Female")}</option></select></label>
-        <label className="grid gap-1.5 font-medium app-text-main">{copy("Số CCCD", "Identity document number")}<input className={fieldClass} value={identity?.documentNumber || ""} placeholder={copy("Chưa xác minh", "Not verified")} readOnly /></label>
-      </div>
-      {error && <p role="alert" className="admin-settings-error">{error}</p>}
-      {message && <p role="status" className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400"><FiCheckCircle />{message}</p>}
-      <div className="flex justify-end"><button type="submit" disabled={!verified || saving || loading || uploading} className="min-h-11 rounded-xl bg-[var(--color-brand-primary)] px-5 font-semibold text-white disabled:opacity-50">{saving ? copy("Đang lưu…", "Saving…") : copy("Cập nhật thông tin", "Update information")}</button></div>
-    </form>
-
-    <div className="rounded-2xl border app-border app-bg-card p-4 sm:p-5"><h3 className="font-bold app-text-main">{copy("Thông tin hệ thống", "System information")}</h3><p className="mb-3 app-text-muted">{copy("Những thông tin này do hệ thống danh tính quản lý.", "These details are managed by the identity system.")}</p><dl className="grid gap-3 sm:grid-cols-2">
-      {[[copy("Tên đăng nhập", "Username"), "—"], ["Email", email], [copy("Mã tài khoản", "Account ID"), current?.id || "—"], [copy("Trạng thái", "Status"), current?.status || "—"], [copy("Vai trò", "Roles"), current?.roles?.join(", ") || "—"], [copy("Ngày tạo", "Created"), current?.createdAt ? new Date(current.createdAt).toLocaleDateString(en ? "en-US" : "vi-VN") : "—"]].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl border app-border app-bg-page p-3"><dt className="text-xs app-text-muted">{label}</dt><dd className="mt-1 break-all font-semibold app-text-main">{value}</dd></div>)}
-    </dl></div>
-    <div className="rounded-2xl border app-border app-bg-card p-4 sm:p-5"><h3 className="font-bold app-text-main">{copy("Địa chỉ", "Address")}</h3><p className="mb-3 app-text-muted">{copy("Địa chỉ được trích xuất từ giấy tờ eKYC đã xác minh.", "Address is extracted from your verified eKYC document.")}</p><div className="rounded-xl border app-border app-bg-page p-3 font-medium app-text-main">{identity?.address || copy("Chưa có địa chỉ xác minh", "No verified address available")}</div><p className="mt-3 flex items-start gap-2 text-xs app-text-muted"><FiInfo className="mt-0.5 shrink-0" />{copy("HaloTicket chưa hỗ trợ chỉnh sửa địa chỉ trong hồ sơ.", "HaloTicket does not yet support editing profile addresses.")}</p></div>
-  </div>;
+  );
 }

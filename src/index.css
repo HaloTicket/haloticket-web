@@ -5,21 +5,37 @@
 @layer base {
   :root {
     /* LIGHT MODE THEME VARIABLES (Soft non-glare slate off-white)   */
-    --bg-page: #f0f2f5;
+    --bg-page: #f8fafc;
     /* Soothing soft light gray page background */
-    --bg-header: rgba(240, 242, 245, 0.92);
-    --bg-subnav: #e2e8f0;
+    --bg-header: rgba(248, 250, 252, 0.92);
+    --bg-subnav: #f1f5f9;
     --bg-card: #ffffff;
     /* Clean white card for subtle contrast */
     --bg-card-hover: #f8fafc;
-    --bg-footer: #e2e8f0;
+    --bg-footer: #f1f5f9;
 
-    --text-main: #1e293b;
+    --text-main: #0f172a;
     /* Rich slate black (softer than harsh black) */
     --text-muted: #64748b;
     /* Softer muted text */
-    --border-color: #cbd5e1;
+    --border-color: #e2e8f0;
     /* Soft defined border */
+
+    /* Tailwind v4 design tokens matching HomeSpace */
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --border: #e2e8f0;
+    --input: #cbd5e1;
+    --verified: #22c55e;
+    --destructive: #ef4444;
 
     /* Brand Accent Colors (Royal Blue) */
     --color-brand-primary: #2563EB;
@@ -32,22 +48,33 @@
   }
 
   .dark {
-    /* DARK MODE THEME VARIABLES (#27272a standard dark background)   */
-    --bg-page: #27272a;
-    /* Standard dark background #27272a */
-    --bg-header: rgba(39, 39, 42, 0.95);
-    --bg-subnav: #18181b;
-    --bg-card: #18181b;
-    /* Slightly darker card background */
-    --bg-card-hover: #27272a;
-    --bg-footer: #18181b;
+    /* DARK MODE THEME VARIABLES (#0b1120 / standard dark background)   */
+    --bg-page: #0b1120;
+    --bg-header: rgba(11, 17, 32, 0.95);
+    --bg-subnav: #162032;
+    --bg-card: #162032;
+    --bg-card-hover: #1e293b;
+    --bg-footer: #162032;
 
-    --text-main: #f4f4f5;
-    /* Primary dark text */
-    --text-muted: #a1a1aa;
-    /* Muted dark text */
-    --border-color: #3f3f46;
-    /* Dark border */
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+
+    /* Tailwind v4 dark design tokens */
+    --background: #0b1120;
+    --foreground: #f8fafc;
+    --card: #162032;
+    --card-foreground: #f8fafc;
+    --popover: #162032;
+    --popover-foreground: #f8fafc;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --border: #334155;
+    --input: #334155;
+    --verified: #22c55e;
+    --destructive: #dc2626;
 
     /* Brand Accent Colors (Dark Mode Royal Blue) */
     --color-brand-primary: #3B82F6;
@@ -61,6 +88,20 @@
 }
 
 @theme {
+  --color-border: var(--border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-verified: var(--verified);
+
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
   /* Brand Colors registered in Tailwind */
