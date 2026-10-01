@@ -13,6 +13,20 @@ export type ApprovalEventRecord = ApprovalEventItem & { showtimes?: ApprovalShow
 
 export const APPROVAL_STATUSES = ["PENDING", "UPDATE_PENDING", "APPROVED", "REJECTED", "ALL"] as const;
 export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+export type ApprovalSort = "newest" | "oldest" | "title";
+
+export interface ApprovalFilters {
+  status: ApprovalStatus;
+  query: string;
+  category: string;
+  sort: ApprovalSort;
+  from: string;
+  to: string;
+}
+
+export function readApprovalSort(value: string | null): ApprovalSort {
+  return value === "oldest" || value === "title" ? value : "newest";
+}
 
 export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
   PENDING: "Chờ duyệt mới",
@@ -49,6 +63,48 @@ function timestamp(value?: string): number {
   if (!value) return 0;
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function validDatePart(value?: string): string | undefined {
+  if (!value) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(value);
+  if (!match || !Number.isFinite(Date.parse(value))) return undefined;
+  const [, year, month, day] = match;
+  const calendarDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (calendarDate.toISOString().slice(0, 10) !== `${year}-${month}-${day}`) return undefined;
+  return `${year}-${month}-${day}`;
+}
+
+function submittedDate(event: ApprovalEventItem): string | undefined {
+  return validDatePart(event.submittedAt) ?? validDatePart(event.createdAt);
+}
+
+function submittedTimestamp(event: ApprovalEventItem): number | undefined {
+  const value = validDatePart(event.submittedAt) ? event.submittedAt : event.createdAt;
+  if (!validDatePart(value)) return undefined;
+  return Date.parse(value!);
+}
+
+export function filterApprovalEvents<T extends ApprovalEventItem>(events: T[], filters: ApprovalFilters): T[] {
+  const phrase = filters.query.trim().toLocaleLowerCase();
+  const matching = events.filter((event) => {
+    if (filters.status !== "ALL" && event.eventApprovalStatus !== filters.status) return false;
+    if (filters.category && event.categoryName !== filters.category) return false;
+    if (phrase && !`${event.title} ${event.id} ${event.organizerName ?? ""}`.toLocaleLowerCase().includes(phrase)) return false;
+    if (filters.from || filters.to) {
+      const date = submittedDate(event);
+      if (!date || (filters.from && date < filters.from) || (filters.to && date > filters.to)) return false;
+    }
+    return true;
+  });
+  return matching.sort((a, b) => {
+    if (filters.sort === "title") return a.title.localeCompare(b.title, "vi") || a.id.localeCompare(b.id);
+    const first = submittedTimestamp(a);
+    const second = submittedTimestamp(b);
+    if (first === undefined) return second === undefined ? 0 : 1;
+    if (second === undefined) return -1;
+    return filters.sort === "oldest" ? first - second : second - first;
+  });
 }
 
 export function normalizeApprovalEvents(raw: Record<string, unknown>[]): ApprovalEventRecord[] {

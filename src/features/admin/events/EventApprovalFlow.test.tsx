@@ -52,6 +52,41 @@ afterEach(() => {
 });
 
 describe("event approval flow", () => {
+  it("resets pagination when filters change and retains them through detail and Back", async () => {
+    vi.mocked(eventApi.getApprovalEvents).mockResolvedValue([
+      ...Array.from({ length: 10 }, (_, index) => ({ id: `EV-${index}`, title: `Older event ${index}`, eventApprovalStatus: "PENDING", submittedAt: "2026-09-21T12:00:00Z" })),
+      { id: "EV-22", title: "Jazz night", eventApprovalStatus: "PENDING", categoryName: "Âm nhạc", submittedAt: "2026-09-20T12:00:00Z" },
+    ]);
+    renderFlow("/admin/events-approval?status=PENDING&page=2&source=alert");
+
+    await screen.findByText("Jazz night");
+    fireEvent.change(screen.getByRole("searchbox", { name: /Tìm sự kiện/ }), { target: { value: "EV-22" } });
+    expect(screen.getByTestId("location").textContent).toBe("/admin/events-approval?status=PENDING&source=alert&q=EV-22");
+    fireEvent.change(screen.getByRole("combobox", { name: "Thể loại" }), { target: { value: "Âm nhạc" } });
+    fireEvent.change(screen.getByLabelText("Từ ngày"), { target: { value: "2026-09-20" } });
+    fireEvent.click(screen.getByRole("link", { name: "Xem hồ sơ" }));
+    expect(screen.getByTestId("location").textContent).toContain("category=%C3%82m+nh%E1%BA%A1c");
+    expect(screen.getByTestId("location").textContent).toContain("from=2026-09-20");
+    await screen.findByRole("heading", { name: "Jazz night" });
+    fireEvent.click(await screen.findByRole("link", { name: /Quay lại/ }));
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toContain("/admin/events-approval?status=PENDING"));
+    expect(screen.getByRole("searchbox", { name: /Tìm sự kiện/ })).toHaveProperty("value", "EV-22");
+    fireEvent.click(screen.getByRole("button", { name: "Xóa tất cả bộ lọc" }));
+    expect(screen.getByTestId("location").textContent).toBe("/admin/events-approval?source=alert");
+  });
+
+  it.each([
+    ["from=2026-09-30&to=2026-09-01", "Ngày bắt đầu không được sau ngày kết thúc."],
+    ["from=2026-02-30", "Ngày trong bộ lọc không hợp lệ."],
+  ])("shows invalid date filters instead of unfiltered rows: %s", async (query, message) => {
+    renderFlow(`/admin/events-approval?${query}`);
+    expect(screen.getByRole("alert").textContent).toBe(message);
+    await screen.findByText("Hãy chọn khoảng ngày hợp lệ.");
+    expect(screen.queryByText("Sự kiện một")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Xóa tất cả bộ lọc" }));
+    await screen.findByText("Sự kiện một");
+  });
+
   it("opens a legacy notification deep link on the detail route and keeps its filters for Back", async () => {
     renderFlow("/admin/events-approval?status=UPDATE_PENDING&q=Hai&page=2&eventId=event-2");
 

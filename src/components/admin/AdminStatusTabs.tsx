@@ -1,7 +1,10 @@
+import type { ReactNode } from "react";
+
 export interface AdminStatusTabOption {
   value: string;
   label: string;
   count?: number;
+  icon?: ReactNode;
 }
 
 export interface AdminStatusTabsProps {
@@ -13,7 +16,7 @@ export interface AdminStatusTabsProps {
 export function AdminStatusTabs({ value, options, onChange }: AdminStatusTabsProps) {
   const { t } = useTranslation();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  return <div role="tablist" className="flex max-w-full gap-1 overflow-x-auto border-b app-border" aria-label={t("Trạng thái")}>
+  return <div role="tablist" className="flex max-w-full gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b app-border" aria-label={t("Trạng thái")}>
     {options.map((option, index) => <button key={option.value} ref={(node) => { tabRefs.current[index] = node; }} type="button" role="tab" tabIndex={value === option.value ? 0 : -1} aria-selected={value === option.value} onClick={() => onChange(option.value)} onKeyDown={(event) => {
       if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") return;
       event.preventDefault();
@@ -21,7 +24,7 @@ export function AdminStatusTabs({ value, options, onChange }: AdminStatusTabsPro
       onChange(options[next].value);
       tabRefs.current[next]?.focus();
     }} className={`min-h-11 shrink-0 border-b-2 px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${value === option.value ? "border-blue-600 app-text-brand" : "border-transparent app-text-muted hover:app-text-main"}`}>
-      {option.label}{option.count !== undefined && <span className="ml-1.5 rounded-full app-bg-subnav px-1.5 py-0.5 text-xs app-text-main">{option.count}</span>}
+      {option.icon && <span className="mr-2 inline-flex" aria-hidden="true">{option.icon}</span>}{option.label}{option.count !== undefined && <span className="ml-1.5 rounded-full app-bg-subnav px-1.5 py-0.5 text-xs app-text-main">{option.count}</span>}
     </button>)}
   </div>;
 }
