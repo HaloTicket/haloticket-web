@@ -1,58 +1,25 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
-import { FiMapPin, FiCheckCircle, FiAlertCircle, FiCalendar } from "react-icons/fi";
-import { AdminStatCard } from "@/components/admin/AdminStatCard";
-import type { SystemVenue } from "@/types"
+import type { SystemVenue } from "@/types";
 
 interface VenueStatCardsProps {
   venues: SystemVenue[];
 }
 
-export const VenueStatCards: React.FC<VenueStatCardsProps> = ({ venues }) => {
-  const { t: translate } = useTranslation();
-  const totalVenuesCount = venues.length;
-  const verifiedCount = venues.filter((v) => v.verified).length;
-  const unverifiedCount = venues.filter((v) => !v.verified).length;
-  const totalEventsHostedCount = venues.reduce((acc, v) => acc + (v.eventsHosted || 0), 0);
+export function VenueStatCards({ venues }: VenueStatCardsProps) {
+  const { t } = useTranslation();
+  const hostedKnown = venues.every((venue) => !("eventsHostedKnown" in venue && venue.eventsHostedKnown === false));
+  const counts = [
+    { label: t("Địa điểm"), value: venues.length, description: t("Tổng địa điểm") },
+    { label: t("Đã xác minh"), value: venues.filter((venue) => venue.verified).length, description: t("Đã xác minh") },
+    { label: t("Chưa xác minh"), value: venues.filter((venue) => !venue.verified).length, description: t("Chưa xác minh") },
+    { label: t("Sự kiện"), value: hostedKnown ? venues.reduce((total, venue) => total + venue.eventsHosted, 0) : "—", description: t("Tổng sự kiện đã tổ chức") },
+  ];
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <AdminStatCard
-        title={translate("Tổng địa điểm")}
-        value={totalVenuesCount}
-        subtext={translate("Hệ thống đang ghi nhận")}
-        icon={<FiMapPin className="w-5 h-5" />}
-        iconBgColor="bg-blue-600/10 text-blue-600 dark:text-blue-400"
-      />
-
-      <AdminStatCard
-        title={translate("Đã xác minh")}
-        value={verifiedCount}
-        subtext={translate("Được phép đưa vào tạo sự kiện")}
-        icon={<FiCheckCircle className="w-5 h-5" />}
-        iconBgColor="bg-emerald-600/10 text-emerald-600 dark:text-emerald-400"
-        valueColor="text-emerald-600 dark:text-emerald-400"
-      />
-
-      <AdminStatCard
-        title={translate("Chưa xác minh")}
-        value={unverifiedCount}
-        subtext={translate("Do người dùng tự khai báo")}
-        icon={<FiAlertCircle className="w-5 h-5" />}
-        iconBgColor="bg-amber-600/10 text-amber-600 dark:text-amber-400"
-        valueColor="text-amber-600 dark:text-amber-400"
-      />
-
-      <AdminStatCard
-        title={translate("Tổng sự kiện đã tổ chức")}
-        value={totalEventsHostedCount}
-        subtext={translate("Tổng lịch đặt chỗ sự kiện")}
-        icon={<FiCalendar className="w-5 h-5" />}
-        iconBgColor="bg-purple-600/10 text-purple-600 dark:text-purple-400"
-        valueColor="text-purple-600 dark:text-purple-400"
-      />
-    </div>
-  );
-};
+  return <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+    {counts.map(({ label, value, description }) => <span key={label} title={description} aria-label={`${description}: ${value}`} className="inline-flex min-h-9 items-baseline gap-2 whitespace-nowrap rounded-xl border app-border app-bg-card px-3 py-1.5 text-xs app-text-muted">
+      <span>{label}:</span> <strong className="text-sm font-bold app-text-main">{value}</strong>
+    </span>)}
+  </div>;
+}
 
 export default VenueStatCards;

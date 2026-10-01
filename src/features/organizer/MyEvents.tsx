@@ -88,7 +88,7 @@ export const MyEvents: React.FC = () => {
     }
   };
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -436,6 +436,7 @@ export const MyEvents: React.FC = () => {
               totalItems={filteredEvents.length}
               pageSize={pageSize}
               onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
             />
           </div>
         )}

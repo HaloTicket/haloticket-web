@@ -18,6 +18,11 @@ const file = () => new File(["image"], "id.jpg", { type: "image/jpeg" });
 const session = (id: string) => ({ sessionId: id, status: "CREATED", expiresAt: new Date(Date.now() + 60000).toISOString() });
 
 describe("real eKYC API", () => {
+  it("returns an admin verification session to account security settings", async () => {
+    get.mockResolvedValue({ status: "NOT_STARTED" });
+    render(<MemoryRouter initialEntries={["/admin/identity-verification?returnUrl=%2Fadmin%2Fsettings%2Faccount-security"]}><EkycVerification /></MemoryRouter>);
+    expect(await screen.findByRole("link", { name: "Quay lại Tài khoản" })).toHaveAttribute("href", "/admin/settings/account-security");
+  });
   it("uses the configured API base once and accepts legacy empty status", async () => {
     get.mockResolvedValue({ status: null });
     expect(await ekycApi.getStatus()).toEqual({ status: "NOT_STARTED" });

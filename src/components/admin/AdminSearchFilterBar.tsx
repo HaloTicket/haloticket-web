@@ -1,5 +1,6 @@
 import React from "react";
 import { FiSearch, FiX } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 interface AdminSearchFilterBarProps {
   searchQuery: string;
@@ -14,23 +15,26 @@ export const AdminSearchFilterBar: React.FC<AdminSearchFilterBarProps> = ({
   searchPlaceholder = "Tìm kiếm...",
   children
 }) => {
+  const { t } = useTranslation();
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Search Input */}
-      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 flex-1 sm:max-w-md">
-        <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
+      <div className="flex h-10 flex-1 items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 sm:max-w-md focus-within:ring-2 focus-within:ring-blue-600/20 focus-within:border-blue-600 transition-all">
+        <FiSearch className="w-4 h-4 text-muted-foreground shrink-0" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
-          className="w-full bg-transparent text-xs app-text-main placeholder-slate-400 focus:outline-none font-medium"
+          placeholder={t(searchPlaceholder)}
+          aria-label={t(searchPlaceholder)}
+          className="min-w-0 w-full bg-transparent text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => onSearchChange("")}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            aria-label={t("Xóa tìm kiếm")}
+            className="text-muted-foreground hover:text-foreground cursor-pointer text-xs"
           >
             <FiX className="w-3.5 h-3.5" />
           </button>

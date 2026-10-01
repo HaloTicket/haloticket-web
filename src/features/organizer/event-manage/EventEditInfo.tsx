@@ -12,7 +12,6 @@ import { eventApi } from "@/services/eventApi";
 import { mediaApi } from "@/services/mediaApi";
 import { organizerApi } from "@/services/organizerApi";
 import { getCachedUserProfile } from "@/services/userApi";
-import { notificationApi } from "@/services/notificationApi";
 import { useParams } from "react-router-dom";
 import { formatDatetimeLocal } from "@/utils/formatters";
 import { FiRefreshCw, FiCheckCircle, FiInfo, FiAlertCircle } from "react-icons/fi";
@@ -683,18 +682,10 @@ export const EventEditInfo: React.FC = () => {
         });
       }
 
-      // 3. publish real-time notification to Admin
-      await notificationApi.publishNotification({
-        userId: "ADMIN",
-        type: "EVENT_UPDATED",
-        title: "Sự kiện cập nhật thông tin",
-        message: `Sự kiện "${title}" đã được Ban tổ chức cập nhật thông tin.`,
-      });
-
-      // 4. update initial snapshot to match current state
+      // 3. update initial snapshot to match current state
       setInitialSnapshot(currentSnap);
 
-      // 5. show success toast for organizer
+      // 4. show success toast for organizer
       showToast("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin.", "success");
     } catch (err) {
       console.error("Failed to update event details:", err);

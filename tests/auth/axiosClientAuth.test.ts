@@ -3,15 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getAccessToken = vi.fn();
 const isAuthenticated = vi.fn();
+const forceRefreshAccessToken = vi.fn();
 
 vi.mock("@/services/keycloakSession", () => ({
-  getKeycloakSession: () => ({ getAccessToken, isAuthenticated }),
+  getKeycloakSession: () => ({ getAccessToken, isAuthenticated, forceRefreshAccessToken }),
 }));
 
 describe("axiosClient authentication", () => {
   beforeEach(() => {
     getAccessToken.mockReset();
     isAuthenticated.mockReset();
+    forceRefreshAccessToken.mockReset();
+    forceRefreshAccessToken.mockResolvedValue(null);
     isAuthenticated.mockReturnValue(false);
     window.localStorage.clear();
   });
@@ -43,6 +46,7 @@ describe("axiosClient authentication", () => {
     await expect(axiosClient.get("/users/me")).rejects.toBeDefined();
 
     expect(onSessionExpired).toHaveBeenCalledOnce();
+    expect(forceRefreshAccessToken).toHaveBeenCalledOnce();
     window.removeEventListener("session-expired", onSessionExpired);
   });
 

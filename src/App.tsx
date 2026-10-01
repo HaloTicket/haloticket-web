@@ -4,6 +4,7 @@ import { store } from "@/store";
 import { router } from "@/routes";
 import { ThemeProvider } from "@/context/ThemeContext";
 import SessionExpiredModalHost from "@/features/auth/components/SessionExpiredModalHost";
+import { AppToaster } from "@/components/common/AppToaster";
 import { PATHS } from "@/routes/paths";
 import { getKeycloakSession } from "@/services/keycloakSession";
 
@@ -23,6 +24,7 @@ function App() {
     <Provider store={store}>
       <ThemeProvider>
         <RouterProvider router={router} />
+        <AppToaster />
         <SessionExpiredModalHost onLoginAgain={handleLoginAgain} />
       </ThemeProvider>
     </Provider>

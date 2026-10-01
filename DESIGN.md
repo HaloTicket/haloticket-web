@@ -107,6 +107,16 @@ Inputs use `40px` desktop height and `44px` mobile height, `12px` radius, strong
 
 The public header is sticky, translucent, and token-backed with `14px` blur. Future admin navigation must live in the same Vite app, under `src/features/admin/*` and `src/layouts/AdminLayout.tsx`.
 
+The admin shell follows the Homespace layout: a 256px sidebar (80px collapsed) and a solid 80px topbar. The topbar contains the sidebar toggle and pill search on the left, with language, theme, notification and a bordered account pill on the right. Breadcrumbs belong in the content above the single page heading, not in the topbar. Below 1024px the sidebar becomes a 256px overlay drawer with a backdrop, focus containment, Escape dismissal, and 44px mobile targets. Single-item navigation groups navigate directly. Multi-item groups expand independently; opening or navigating through one must preserve other expanded groups. The navigation region scrolls without a visible scrollbar; Settings stays in the sidebar footer. Event moderation and venue management belong under Event Management; automatic eKYC has no manual moderation menu. All sidebar destinations remain clickable for viewing their screens, without availability badges. Missing server actions must not report success. Route metadata drives selected navigation and breadcrumbs, including event detail IDs. Do not display health or review counts unless they come from a successful data source.
+
+Account settings uses section navigation beside a settings panel, stacking on mobile. Privacy and notification preferences use accessible toggle switches, never checkboxes. Browser-only preferences must state their scope and affect actual UI behavior; they must not claim to change server privacy, audit logging, permissions or security. Disabling background notification toasts must preserve notification history and all transactional feedback and critical dialogs.
+
+Admin navigation has eight groups: system overview, events, users, finance, ticket marketplace, content, AI support, and system settings. System settings stays in the sidebar footer; personal account settings opens from the account menu. Use sentence case for group labels and breadcrumbs. Each multi-item group has a landing page with links and short descriptions of its child functions; the group breadcrumb links to that page.
+
+Unfinished destinations show purpose-specific interactive wireframes, never disabled navigation or availability badges. Wireframe pages use the existing surfaces, tables, filters and accessible dialogs. Label illustrative data and local preview changes clearly. Preview interactions do not call APIs, grant permissions, publish content or move money. Existing moderation and venue routes retain their live API behavior. AI wireframes identify demonstration answers and the absence of connected sources; they do not imply a running model.
+
+Admin-specific runtime rules live in `src/layouts/admin/admin.css` under `.admin-shell`. Page headings use 25px, body and forms 14–15px, and metadata 13px. Content fills the workspace with 24px gutters, increasing to 32px on desktop. List headings pair with compact statistics; search, filters and actions share a toolbar panel. Table and pagination share one 16px-radius surface. Dialogs use a centered 24px-radius panel, 24px padding, an icon tile and separated header, with a dark blurred overlay. Keep Radix focus handling and pending guards. Its motion tokens are fast 150ms, normal 190ms, and layout 280ms. Reduced-motion preference covers dialog portals too. Ordinary feedback uses the same stock Sonner rich-color, close-button presentation as Homespace: 356px width, 8px radius, 32px top/right desktop offsets and 16px mobile offsets. Critical action errors stay in dialogs; dangerous actions retain AlertDialog confirmation.
+
 ### Badges & Status Chips
 
 Badges are pill-shaped. Use red for hot/resale emphasis, success for paid/active/published/completed, amber for pending/low stock/review needed, red for failed/cancelled/expired, and blue for draft/processing/system notes.
@@ -114,6 +124,8 @@ Badges are pill-shaped. Use red for hot/resale emphasis, success for paid/active
 ### Tables
 
 Admin tables use compact `14px` body text, sticky headers where useful, row hover states, status chips, tokenized borders, and short row actions. Tables may horizontally scroll on mobile.
+
+Paginated tables default to 10 rows, with 10/20/50 choices. Render only actual records when a page has fewer rows; do not pad the table or add the current record count as a page-size choice. Changing page size returns to page one, and controlled pagination follows the latest page-size prop. Compact rows use 8px vertical cell padding where content permits, while mobile actions retain 44px touch targets.
 
 ## 5. Layout Principles
 
@@ -133,9 +145,9 @@ Spacing scale:
 Layout rules:
 
 - Public container max width is `1200px`.
-- Admin shell max reference is `1440px`.
+- Admin content fills its workspace; `1440px` is a verification viewport, not a content width cap.
 - Mobile gutter is `16px`.
-- Header height is `72px`.
+- Public header height is `72px`; admin topbar height is `80px`.
 - Event grids collapse by reducing columns, not by shrinking text below token scale.
 - Checkout is one column on mobile and content + summary on desktop.
 - Admin is sidebar/topbar/content; keep filters and tables aligned.
@@ -204,7 +216,7 @@ Quick reference:
 - Surface: `#ffffff` on `#ffffff` light, `#0f172a` on `#020817` dark.
 - Font: `Plus Jakarta Sans`.
 - Public radius: `16px` cards, pill badges.
-- Admin radius: `8px` to `12px`, border-first surfaces.
+- Admin radius: `12px` controls, `16px` panels, `24px` dialogs/account popovers, bordered account pill.
 - Folder rule: use the existing `src` structure; do not split apps.
 
 Sample prompts:

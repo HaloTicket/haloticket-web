@@ -120,37 +120,18 @@ export const eventApi = {
 
   // get list approval events
   getApprovalEvents: async (status: string = "ALL"): Promise<Record<string, unknown>[]> => {
-    try {
-      const url = status && status !== "ALL" ? `/events/approvals?status=${encodeURIComponent(status)}` : "/events/approvals";
-      const response: unknown = await axiosClient.get(url);
-      if (Array.isArray(response)) {
-        return response as Record<string, unknown>[];
-      }
-      return [];
-    } catch (err) {
-      console.warn("Failed to fetch approval events from DB API:", err);
-      return [];
-    }
+    const url = status && status !== "ALL" ? `/events/approvals?status=${encodeURIComponent(status)}` : "/events/approvals";
+    const response: unknown = await axiosClient.get(url);
+    if (!Array.isArray(response)) throw new Error("Invalid approval events response");
+    return response as Record<string, unknown>[];
   },
 
   approveEvent: async (id: string): Promise<unknown> => {
-    try {
-      const response: unknown = await axiosClient.patch(`/events/${id}/approve`);
-      return response;
-    } catch (err) {
-      console.error("Failed to approve event in DB:", err);
-      return null;
-    }
+    return axiosClient.patch(`/events/${id}/approve`);
   },
 
   rejectEvent: async (id: string, reason: string, notes?: string): Promise<unknown> => {
-    try {
-      const response: unknown = await axiosClient.patch(`/events/${id}/reject`, { reason, notes });
-      return response;
-    } catch (err) {
-      console.error("Failed to reject event in DB:", err);
-      return null;
-    }
+    return axiosClient.patch(`/events/${id}/reject`, { reason, notes });
   },
 
   // voucher management

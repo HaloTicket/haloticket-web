@@ -1,390 +1,188 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiMapPin, FiPlus, FiRefreshCw, FiAlertCircle, FiCheckCircle, FiFilter } from "react-icons/fi";
-import { venueApi } from "@/services/venueApi";
-import type { VenueApiData } from "@/types";
-import { PRESET_VENUES } from "@/utils/venueUtils";
-import type { SystemVenue } from "@/types";
-
-import { AdminSearchFilterBar } from "@/components/admin/AdminSearchFilterBar";
+import { FiPlus, FiRefreshCw } from "react-icons/fi";
+import { toast } from "sonner";
 import { AdminPagination } from "@/components/admin/AdminPagination";
-import { AdminSelect } from "@/components/admin/AdminSelect";
+import { AdminDataState } from "@/components/admin/AdminDataState";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminSearchFilterBar } from "@/components/admin/AdminSearchFilterBar";
+import { AdminStatusTabs } from "@/components/admin/AdminStatusTabs";
+import { venueApi } from "@/services/venueApi";
+import type { SystemVenue, VenueApiData } from "@/types";
+import { VenueDeleteModal } from "./components/venues/VenueDeleteModal";
+import { VenueModal, type VenueFormData } from "./components/venues/VenueModal";
 import { VenueStatCards } from "./components/venues/VenueStatCards";
 import { VenueTable } from "./components/venues/VenueTable";
-import { VenueModal, type VenueFormData } from "./components/venues/VenueModal";
-import { VenueDeleteModal } from "./components/venues/VenueDeleteModal";
 
-export const AdminVenuesManagement: React.FC = () => {
-  const { t: translate } = useTranslation();
-  const [venues, setVenues] = useState<SystemVenue[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+type AdminVenue = SystemVenue & { type?: VenueApiData["type"]; eventsHostedKnown: boolean };
+type Status = "ALL" | "VERIFIED" | "UNVERIFIED";
+const PAGE_SIZE = 10;
 
-  // filter & search state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "VERIFIED" | "UNVERIFIED">("ALL");
-  const [cityFilter, setCityFilter] = useState("ALL");
+function mapVenue(v: VenueApiData): AdminVenue {
+  return { id: String(v.id), name: v.name, address: v.address ?? "", city: v.city ?? "",
+    ward: v.ward ?? "", capacity: v.capacity ?? 0, type: v.type, verified: v.verified === true,
+    eventsHosted: v.eventsHosted ?? 0, eventsHostedKnown: v.eventsHosted != null, bookings: [] };
+}
 
-  // pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 8;
+export function AdminVenuesManagement() {
+  const { t } = useTranslation();
+  const translateRef = useRef(t);
+  const [venues, setVenues] = useState<AdminVenue[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [refreshError, setRefreshError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<Status>("ALL");
+  const [city, setCity] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<AdminVenue | null>(null);
+  const [deleting, setDeleting] = useState<AdminVenue | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const deleteLock = useRef(false);
+  // ponytail: Verify one venue at a time; use per-row locks if concurrent verification is needed.
+  const anyVerifyLock = useRef(false);
+  const mounted = useRef(true);
+  const loadedOnce = useRef(false);
+  const requestVersion = useRef(0);
+  useEffect(() => { translateRef.current = t; }, [t]);
 
-  // modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingVenue, setEditingVenue] = useState<VenueFormData | null>(null);
-  const [deletingVenue, setDeletingVenue] = useState<SystemVenue | null>(null);
-
-  // toast state
-  const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
-  };
-
-  // load venue data directly from MySQL DB via event-service API
-  const loadVenuesData = async () => {
-    setIsLoading(true);
-    try {
-      const dbVenues: VenueApiData[] = await venueApi.getVenues();
-
-      if (Array.isArray(dbVenues) && dbVenues.length > 0) {
-        const mappedVenues: SystemVenue[] = dbVenues.map((v) => ({
-          id: String(v.id),
-          name: v.name,
-          city: v.city || "TP. Hồ Chí Minh",
-          ward: v.ward || "",
-          address: v.address || v.name,
-          capacity: v.capacity || 1000,
-          verified: v.verified,
-          eventsHosted: v.eventsHosted || 0,
-          bookings: [],
-        }));
-        setVenues(mappedVenues);
-      } else {
-        // baseline fallback if backend initializing
-        const fallbackVenues: SystemVenue[] = PRESET_VENUES.map((pv) => ({ ...pv }));
-        setVenues(fallbackVenues);
-      }
-    } catch (err) {
-      console.error("Failed to load venues from DB", err);
-      showToast("Không thể tải dữ liệu địa điểm từ CSDL backend", "error");
-    } finally {
-      setIsLoading(false);
+  const load = useCallback(async (afterMutation = false) => {
+    const version = ++requestVersion.current;
+    if (!afterMutation) {
+      if (loadedOnce.current) setRefreshing(true);
+      else setLoadState("loading");
     }
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-    venueApi.getVenues().then((dbVenues) => {
-      if (!isMounted) return;
-      if (Array.isArray(dbVenues) && dbVenues.length > 0) {
-        const mappedVenues: SystemVenue[] = dbVenues.map((v) => ({
-          id: String(v.id),
-          name: v.name,
-          city: v.city || "TP. Hồ Chí Minh",
-          ward: v.ward || "",
-          address: v.address || v.name,
-          capacity: v.capacity || 1000,
-          verified: v.verified,
-          eventsHosted: v.eventsHosted || 0,
-          bookings: [],
-        }));
-        setVenues(mappedVenues);
-      } else {
-        setVenues(PRESET_VENUES.map((pv) => ({ ...pv })));
-      }
-      setIsLoading(false);
-    }).catch((err) => {
-      if (!isMounted) return;
-      console.error("Failed to load venues from DB", err);
-      showToast("Không thể tải dữ liệu địa điểm từ CSDL backend", "error");
-      setIsLoading(false);
-    });
-    return () => {
-      isMounted = false;
-    };
+    try {
+      const data = await venueApi.getAdminVenues();
+      if (!mounted.current || version !== requestVersion.current) return;
+      setVenues(data.map(mapVenue));
+      loadedOnce.current = true;
+      setLoadState("ready");
+      setRefreshError(false);
+    } catch {
+      if (!mounted.current || version !== requestVersion.current) return;
+      if (afterMutation) {
+        setRefreshError(true);
+        toast.warning(translateRef.current("Thao tác đã được máy chủ chấp nhận, nhưng không thể tải lại danh sách. Hãy thử tải lại để xác nhận."), { duration: 6000 });
+      } else if (loadedOnce.current) setRefreshError(true);
+      else setLoadState("error");
+    } finally {
+      if (mounted.current && version === requestVersion.current) setRefreshing(false);
+    }
   }, []);
 
-  // toggle verification status in DB
-  const handleToggleVerification = async (venue: SystemVenue) => {
-    const numericId = Number(venue.id.replace(/\D/g, ""));
-    const newStatus = !venue.verified;
+  useEffect(() => {
+    mounted.current = true;
+    queueMicrotask(() => void load());
+    return () => { mounted.current = false; };
+  }, [load]);
 
-    // optimistic UI update
-    setVenues((prev) =>
-      prev.map((v) => (v.id === venue.id ? { ...v, verified: newStatus } : v))
-    );
-
-    if (!isNaN(numericId) && numericId > 0) {
-      const updated = await venueApi.toggleVerifyVenue(numericId);
-      if (updated) {
-        showToast(
-          updated.verified
-            ? `Đã XÁC MINH địa điểm "${venue.name}" thành công vào CSDL!`
-            : `Đã hủy xác minh địa điểm "${venue.name}" trong CSDL.`,
-          updated.verified ? "success" : "info"
-        );
-        loadVenuesData();
-        return;
-      }
-    }
-
-    showToast(
-      newStatus ? `Đã XÁC MINH địa điểm "${venue.name}" thành công!` : `Đã hủy xác minh địa điểm "${venue.name}".`,
-      newStatus ? "success" : "info"
-    );
+  const toggle = async (venue: AdminVenue) => {
+    if (anyVerifyLock.current) return;
+    anyVerifyLock.current = true;
+    setBusyId(venue.id);
+    try {
+      const updated = await venueApi.toggleVerifyVenue(venue.id);
+      if (!updated) throw new Error("Verify failed");
+      setVenues(current => current.map(item => item.id === venue.id ? mapVenue(updated) : item));
+      toast.success(updated.verified ? t("Đã xác minh địa điểm") : t("Đã bỏ xác minh địa điểm"));
+      await load(true);
+    } catch { toast.error(t("Không thể thay đổi trạng thái xác minh."), { duration: 6000 }); }
+    finally { anyVerifyLock.current = false; setBusyId(null); }
   };
 
-  // handle create / edit submission directly in DB
-  const handleModalSubmit = async (formData: VenueFormData) => {
-    if (editingVenue && editingVenue.id) {
-      const numericId = Number(editingVenue.id.replace(/\D/g, ""));
-      const payload = {
-        name: formData.name.trim(),
-        address: formData.address.trim(),
-        city: formData.city,
-        ward: formData.ward || "",
-        capacity: formData.capacity,
-        type: formData.type || "indoor",
-        verified: formData.verified,
-      };
-
-      if (!isNaN(numericId) && numericId > 0) {
-        const res = await venueApi.updateVenue(numericId, payload);
-        if (res) {
-          showToast(`Đã cập nhật thông tin địa điểm "${formData.name}" trong CSDL!`);
-          setEditingVenue(null);
-          loadVenuesData();
-          return;
-        }
-      }
-
-      setVenues((prev) =>
-        prev.map((v) =>
-          v.id === editingVenue.id ? { ...v, ...payload } : v
-        )
-      );
-      showToast(`Đã cập nhật thông tin địa điểm "${formData.name}"!`);
-    } else {
-      const payload = {
-        name: formData.name.trim(),
-        address: formData.address.trim(),
-        city: formData.city,
-        ward: formData.ward || "",
-        capacity: formData.capacity,
-        type: formData.type || "indoor",
-        verified: formData.verified,
-      };
-
-      const res = await venueApi.createVenue(payload);
-      if (res) {
-        showToast(`Đã lưu địa điểm mới "${res.name}" vào CSDL thành công!`);
-        loadVenuesData();
-        return;
-      }
-
-      const created: SystemVenue = {
-        id: `v-admin-${Date.now()}`,
-        ...payload,
-        eventsHosted: 0,
-        bookings: [],
-      };
-      setVenues((prev) => [created, ...prev]);
-      showToast(`Đã thêm địa điểm mới "${created.name}"!`);
-    }
-    setEditingVenue(null);
+  const save = async (form: VenueFormData): Promise<boolean> => {
+    const payload = { name: form.name.trim(), address: form.address.trim(), city: form.city.trim(),
+      ward: form.ward?.trim() ?? "", capacity: form.capacity, type: form.type ?? "indoor", verified: form.verified };
+    const saved = editing ? await venueApi.updateVenue(editing.id, payload) : await venueApi.createVenue(payload);
+    if (!saved) return false;
+    setVenues(current => editing
+      ? current.map(item => item.id === editing.id ? mapVenue(saved) : item)
+      : [mapVenue(saved), ...current]);
+    await load(true);
+    toast.success(editing ? t("Đã cập nhật địa điểm") : t("Đã thêm địa điểm"));
+    return true;
   };
 
-  // handle delete confirmation in DB
-  const handleConfirmDelete = async () => {
-    if (!deletingVenue) return;
-    const numericId = Number(deletingVenue.id.replace(/\D/g, ""));
-
-    if (!isNaN(numericId) && numericId > 0) {
-      const success = await venueApi.deleteVenue(numericId);
-      if (success) {
-        showToast(`Đã xóa địa điểm "${deletingVenue.name}" khỏi CSDL thành công!`, "info");
-        setDeletingVenue(null);
-        loadVenuesData();
-        return;
-      }
-    }
-
-    setVenues((prev) => prev.filter((v) => v.id !== deletingVenue.id));
-    showToast(`Đã xóa địa điểm "${deletingVenue.name}" khỏi danh sách!`, "info");
-    setDeletingVenue(null);
+  const confirmDelete = async () => {
+    if (!deleting || deleteLock.current) return;
+    deleteLock.current = true;
+    setDeletePending(true);
+    setDeleteError("");
+    try {
+      if (!await venueApi.deleteVenue(deleting.id)) throw new Error("Delete failed");
+      setVenues(current => current.filter(item => item.id !== deleting.id));
+      setDeleting(null);
+      await load(true);
+      toast.success(t("Đã xóa địa điểm"));
+    } catch { setDeleteError(t("Không thể xóa địa điểm. Vui lòng thử lại.")); }
+    finally { deleteLock.current = false; setDeletePending(false); }
   };
 
-  // filtering
-  const filteredVenues = venues.filter((v) => {
-    const matchesSearch =
-      v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.city.toLowerCase().includes(searchQuery.toLowerCase());
+  const query = search.trim().toLocaleLowerCase("vi-VN");
+  const filtered = venues.filter(v => (!query || [v.name, v.address, v.city].some(x => x.toLocaleLowerCase("vi-VN").includes(query)))
+    && (status === "ALL" || (status === "VERIFIED" ? v.verified : !v.verified))
+    && (city === "ALL" || v.city === city));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const visible = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const cities = [...new Set(venues.map(v => v.city).filter(Boolean))].sort();
 
-    const matchesStatus =
-      statusFilter === "ALL" ? true : statusFilter === "VERIFIED" ? v.verified : !v.verified;
-
-    const matchesCity = cityFilter === "ALL" ? true : v.city === cityFilter;
-
-    return matchesSearch && matchesStatus && matchesCity;
-  });
-
-  // pagination calculations
-  const totalPages = Math.ceil(filteredVenues.length / pageSize) || 1;
-  const paginatedVenues = filteredVenues.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // available unique cities for dropdown filter
-  const uniqueCities = Array.from(new Set(venues.map((v) => v.city))).filter(Boolean);
-
-  return (
-    <div className="space-y-5 animate-in fade-in duration-200">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-xl shadow-xl border text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-200 ${toast.type === "success"
-            ? "bg-emerald-600 text-white border-emerald-500"
-            : toast.type === "error"
-              ? "bg-rose-600 text-white border-rose-500"
-              : "bg-blue-600 text-white border-blue-500"
-            }`}
-        >
-          {toast.type === "success" ? (
-            <FiCheckCircle className="w-4 h-4 shrink-0" />
-          ) : (
-            <FiAlertCircle className="w-4 h-4 shrink-0" />
-          )}
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {/* Metric Statistics Cards */}
-      <VenueStatCards venues={venues} />
-
-      {/* Main Filter & Data Table Card */}
-      <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-4">
-        {/* Header Title & Actions */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <div>
-            <h2 className="text-base font-bold app-text-main flex items-center gap-2">
-              <FiMapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>{translate("Quản Lý Địa Điểm Tổ Chức Sự Kiện (CSDL)")}</span>
-            </h2>
-            <p className="text-xs app-text-muted mt-0.5">
-              {translate("Xác minh địa điểm chính thức, duyệt thông tin và lưu trực tiếp vào cơ sở dữ liệu hệ thống.")}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={loadVenuesData}
-              className="p-2 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95"
-              title={translate("Tải lại dữ liệu từ CSDL")}
-            >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingVenue(null);
-                setIsModalOpen(true);
-              }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-md shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shrink-0"
-            >
-              <FiPlus className="w-3.5 h-3.5" />
-              <span>{translate("Thêm địa điểm mới")}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Search & Filter Bar Component using Custom AdminSelect */}
-        <AdminSearchFilterBar
-          searchQuery={searchQuery}
-          onSearchChange={(val) => {
-            setSearchQuery(val);
-            setCurrentPage(1);
-          }}
-          searchPlaceholder={translate("Tìm theo tên địa điểm, địa chỉ, thành phố...")}
-        >
-          {/* Status Filter */}
-          <AdminSelect
-            value={statusFilter}
-            onChange={(val) => {
-              setStatusFilter(val as "ALL" | "VERIFIED" | "UNVERIFIED");
-              setCurrentPage(1);
-            }}
-            icon={<FiFilter className="w-3.5 h-3.5" />}
-            options={[
-              { label: translate("Tất cả trạng thái"), value: "ALL" },
-              { label: translate("Đã xác minh"), value: "VERIFIED" },
-              { label: translate("Chưa xác minh"), value: "UNVERIFIED" },
-            ]}
-          />
-
-          {/* City Filter */}
-          <AdminSelect
-            value={cityFilter}
-            onChange={(val) => {
-              setCityFilter(val);
-              setCurrentPage(1);
-            }}
-            options={[
-              { label: translate("Tất cả thành phố"), value: "ALL" },
-              ...uniqueCities.map((city) => ({ label: city, value: city })),
-            ]}
-          />
+  return <div className="space-y-6">
+    <AdminPageHeader title={t("Quản lý địa điểm")} description={t("Địa điểm được lưu trên hệ thống")} actions={loadState === "ready" && <VenueStatCards venues={venues} />} />
+    <section className="overflow-hidden rounded-2xl border app-border app-bg-card">
+      {loadState === "ready" && <div className="px-4 sm:px-5">
+        <AdminStatusTabs value={status} onChange={value => { setStatus(value as Status); setPage(1); }} options={[
+          { value: "ALL", label: t("Tất cả trạng thái"), count: venues.length },
+          { value: "VERIFIED", label: t("Đã xác minh"), count: venues.filter(v => v.verified).length },
+          { value: "UNVERIFIED", label: t("Chưa xác minh"), count: venues.filter(v => !v.verified).length },
+        ]} />
+      </div>}
+      <div className="p-4 sm:p-5">
+        <AdminSearchFilterBar searchQuery={search} onSearchChange={value => { setSearch(value); setPage(1); }} searchPlaceholder={t("Tìm theo tên, địa chỉ, thành phố...")}>
+          <label className="flex items-center gap-2 text-xs font-semibold app-text-main">
+            <span className="text-muted-foreground">{t("Thành phố:")}</span>
+            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="h-10 rounded-xl border border-border bg-muted/40 px-3 text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600/20">
+              <option value="ALL">{t("Tất cả thành phố")}</option>
+              {cities.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-2xs hover:bg-muted/50 transition-colors disabled:opacity-50"><FiRefreshCw className={refreshing ? "animate-spin" : ""} /></button>
+          <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition-colors"><FiPlus className="h-4 w-4" />{t("Thêm địa điểm mới")}</button>
         </AdminSearchFilterBar>
-
-        {/* Venues Table Component */}
-        <VenueTable
-          venues={paginatedVenues}
-          onToggleVerification={handleToggleVerification}
-          onEdit={(venue) => {
-            setEditingVenue({
-              id: venue.id,
-              name: venue.name,
-              address: venue.address,
-              city: venue.city,
-              ward: venue.ward,
-              capacity: venue.capacity,
-              verified: venue.verified,
-            });
-            setIsModalOpen(true);
-          }}
-          onDelete={(venue) => setDeletingVenue(venue)}
-        />
-
-        {/* Pagination Component */}
-        <AdminPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredVenues.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-        />
       </div>
-
-      {/* Add / Edit Modal */}
-      <VenueModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingVenue(null);
-        }}
-        onSubmit={handleModalSubmit}
-        editingVenue={editingVenue}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <VenueDeleteModal
-        isOpen={!!deletingVenue}
-        onClose={() => setDeletingVenue(null)}
-        onConfirm={handleConfirmDelete}
-        venue={deletingVenue}
-      />
-    </div>
-  );
-};
+    </section>
+    <section className="overflow-hidden rounded-2xl border app-border app-bg-card">
+      {refreshing && <AdminDataState state="refreshing" />}
+      {refreshError && <div role="alert" className="border-b border-amber-500/40 p-4 text-sm app-text-main">{t("Không thể tải lại danh sách sau thao tác. Dữ liệu hiển thị có thể chưa cập nhật.")} <button type="button" onClick={() => void load()} className="font-bold underline">{t("Thử lại")}</button></div>}
+      {loadState === "error"
+        ? <AdminDataState state="error" message={t("Không thể tải địa điểm.")} onRetry={() => void load()} />
+        : loadState === "loading" ? <AdminDataState state="loading" />
+          : <>
+            {venues.length === 0 ? <AdminDataState state="empty" message={t("Chưa có địa điểm nào.")} />
+              : filtered.length === 0 ? <AdminDataState state="no-results" message={t("Không tìm thấy địa điểm nào phù hợp.")} onReset={() => { setSearch(""); setCity("ALL"); setStatus("ALL"); setPage(1); }} />
+                : <VenueTable venues={visible} page={safePage} pageSize={pageSize} busyId={busyId} onToggleVerification={venue => void toggle(venue as AdminVenue)} onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }} onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }} />}
+            <AdminPagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              itemLabel={t("địa điểm")}
+            />
+          </>}
+    </section>
+    <VenueModal isOpen={open} editingVenue={editing} onClose={() => { setOpen(false); setEditing(null); }} onSubmit={save} />
+    <VenueDeleteModal isOpen={!!deleting} venue={deleting} pending={deletePending} error={deleteError} onClose={() => { if (!deletePending) setDeleting(null); }} onConfirm={() => void confirmDelete()} />
+  </div>;
+}
 
 export default AdminVenuesManagement;

@@ -18,7 +18,7 @@ export const AdminStatCard: React.FC<AdminStatCardProps> = ({
   valueColor = "app-text-main"
 }) => {
   return (
-    <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs space-y-2 hover:border-blue-500/30 transition-all">
+    <div className="app-bg-card border app-border rounded-xl p-4 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium app-text-muted">{title}</span>
         {icon && (
@@ -27,7 +27,7 @@ export const AdminStatCard: React.FC<AdminStatCardProps> = ({
           </div>
         )}
       </div>
-      <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
+      <p className={`break-words text-xl font-bold tabular-nums ${valueColor}`}>{value}</p>
       {subtext && <p className="text-[11px] app-text-muted font-medium">{subtext}</p>}
     </div>
   );

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificationApi } from "@/services/notificationApi";
 import type { NotificationItem } from "@/types";
+import { toast } from "sonner";
 
 interface RawNotification {
   id?: string;
@@ -42,8 +43,15 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", unlockAudio, { once: true });
 }
 
+let lastChimeTime = 0;
+
 // synthesize a pleasant bell chime using Web Audio API
 export async function playNotificationChime() {
+  const now = Date.now();
+  if (now - lastChimeTime < 1500) {
+    return;
+  }
+  lastChimeTime = now;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -79,24 +87,65 @@ export async function playNotificationChime() {
   }
 }
 
+const recentNotificationKeys = new Map<string, number>();
+
+function extractNotificationKey(notif: { userId?: string; type?: string; title?: string; message?: string }): string {
+  const quoted = notif.message?.match(/"([^"]+)"/)?.[1] || "";
+  const normalizedTitle = (notif.title || "").trim();
+  const normalizedMsg = (quoted || notif.message || "").trim();
+  return `${notif.userId || ""}:${notif.type || ""}:${normalizedTitle}:${normalizedMsg}`;
+}
+
+function shouldProcessIncomingNotification(notif: NotificationItem): boolean {
+  const now = Date.now();
+  for (const [key, timestamp] of recentNotificationKeys.entries()) {
+    if (now - timestamp > 6000) {
+      recentNotificationKeys.delete(key);
+    }
+  }
+
+  if (notif.id && !notif.id.startsWith("notif-")) {
+    const idKey = `id:${notif.id}`;
+    if (recentNotificationKeys.has(idKey)) return false;
+    recentNotificationKeys.set(idKey, now);
+    return true;
+  }
+
+  const contentKey = `content:${extractNotificationKey(notif)}`;
+  if (recentNotificationKeys.has(contentKey)) {
+    return false;
+  }
+  recentNotificationKeys.set(contentKey, now);
+  return true;
+}
+
+function deduplicateNotificationList(items: NotificationItem[]): NotificationItem[] {
+  const result: NotificationItem[] = [];
+  const seenIds = new Set<string>();
+
+  for (const item of items) {
+    if (seenIds.has(item.id)) continue;
+    seenIds.add(item.id);
+    result.push(item);
+  }
+  return result;
+}
+
 export function useNotificationSocket(userId: string = "ADMIN") {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
   const [latestToast, setLatestToast] = useState<NotificationItem | null>(null);
-
-  // auto-dismiss toast banner after 5 seconds
-  useEffect(() => {
-    if (latestToast) {
-      const timer = setTimeout(() => {
-        setLatestToast(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [latestToast]);
+  const hasLoadedNotifications = useRef(false);
+  const readRevision = useRef(0);
+  const unreadCount = notifications.filter((notification) => !notification.readStatus).length;
 
   // load initial notifications from DB
 
   const loadNotifications = useCallback(async () => {
+    if (!hasLoadedNotifications.current) setLoading(true);
+    const requestReadRevision = readRevision.current;
     try {
       const data = await notificationApi.getUserNotifications(userId);
       if (Array.isArray(data)) {
@@ -107,13 +156,18 @@ export function useNotificationSocket(userId: string = "ADMIN") {
           title: item.title || item.subjectTemplate || "Thông báo mới",
           message: item.message || item.bodyTemplate || "Có cập nhật mới từ hệ thống.",
           readStatus: Boolean(item.readStatus),
-          createdAt: item.createdAt || new Date().toISOString(),
+          createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
         }));
-        setNotifications(formatted);
-        setUnreadCount(formatted.filter((n) => !n.readStatus).length);
+        const deduped = deduplicateNotificationList(formatted);
+        if (requestReadRevision === readRevision.current) setNotifications(deduped);
+        setError(null);
+        hasLoadedNotifications.current = true;
       }
     } catch (err) {
-      console.warn("Error fetching initial notifications", err);
+      setError(err instanceof Error ? err.message : "Failed to load notifications");
+    } finally {
+      hasLoadedNotifications.current = true;
+      setLoading(false);
     }
   }, [userId]);
 
@@ -152,14 +206,18 @@ export function useNotificationSocket(userId: string = "ADMIN") {
                 title: parsed.title || "Thông báo mới",
                 message: parsed.message || "Có thông báo mới",
                 readStatus: false,
-                createdAt: parsed.createdAt || new Date().toISOString(),
+                createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : undefined,
               };
 
+              // Ignore spam / duplicate notifications arriving within window
+              if (!shouldProcessIncomingNotification(newNotif)) {
+                return;
+              }
+
               setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
-              setUnreadCount((prev) => prev + 1);
               setLatestToast(newNotif);
 
-              // play realtime chime sound effect
+              // play realtime chime sound effect (throttled)
               playNotificationChime();
 
               // broadcast global event so UI components auto-refresh
@@ -181,8 +239,12 @@ export function useNotificationSocket(userId: string = "ADMIN") {
         socket.onopen = null;
         socket.onmessage = null;
         socket.onerror = null;
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.close();
+        try {
+          if (socket.readyState !== WebSocket.CLOSED) {
+            socket.close();
+          }
+        } catch {
+          // ignore
         }
       }
       clearInterval(pollInterval);
@@ -190,19 +252,33 @@ export function useNotificationSocket(userId: string = "ADMIN") {
   }, [userId, loadNotifications]);
 
   const markAsRead = async (id: string) => {
-    // optimistic UI update
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, readStatus: true } : n))
-    );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-    await notificationApi.markNotificationAsRead(id);
+    const notification = notifications.find((item) => item.id === id);
+    if (!notification || notification.readStatus) return;
+    setReadError(null);
+    try {
+      await notificationApi.markNotificationAsRead(id);
+      readRevision.current += 1;
+      setNotifications((prev) => prev.map((item) => item.id === id ? { ...item, readStatus: true } : item));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to mark notification as read";
+      setReadError(message);
+      toast.error("Không thể đánh dấu thông báo đã đọc. Vui lòng thử lại.");
+    }
   };
 
   const markAllAsRead = async () => {
-    // optimistic UI update
-    setNotifications((prev) => prev.map((n) => ({ ...n, readStatus: true })));
-    setUnreadCount(0);
-    await notificationApi.markAllNotificationsAsRead(userId);
+    const unreadIds = new Set(notifications.filter((item) => !item.readStatus).map((item) => item.id));
+    if (!unreadIds.size) return;
+    setReadError(null);
+    try {
+      await notificationApi.markAllNotificationsAsRead(userId);
+      readRevision.current += 1;
+      setNotifications((prev) => prev.map((item) => unreadIds.has(item.id) ? { ...item, readStatus: true } : item));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to mark notifications as read";
+      setReadError(message);
+      toast.error("Không thể đánh dấu tất cả thông báo đã đọc. Vui lòng thử lại.");
+    }
   };
 
   const clearToast = () => setLatestToast(null);
@@ -210,6 +286,9 @@ export function useNotificationSocket(userId: string = "ADMIN") {
   return {
     notifications,
     unreadCount,
+    loading,
+    error,
+    readError,
     latestToast,
     markAsRead,
     markAllAsRead,
