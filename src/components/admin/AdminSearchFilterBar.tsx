@@ -19,22 +19,22 @@ export const AdminSearchFilterBar: React.FC<AdminSearchFilterBarProps> = ({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Search Input */}
-      <div className="flex min-h-11 flex-1 items-center gap-2 rounded-xl border app-border app-bg-subnav px-3 sm:max-w-md">
-        <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
+      <div className="flex h-10 flex-1 items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 sm:max-w-md focus-within:ring-2 focus-within:ring-blue-600/20 focus-within:border-blue-600 transition-all">
+        <FiSearch className="w-4 h-4 text-muted-foreground shrink-0" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={t(searchPlaceholder)}
           aria-label={t(searchPlaceholder)}
-          className="min-w-0 w-full bg-transparent text-sm app-text-main placeholder-slate-400 focus:outline-none"
+          className="min-w-0 w-full bg-transparent text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => onSearchChange("")}
             aria-label={t("Xóa tìm kiếm")}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            className="text-muted-foreground hover:text-foreground cursor-pointer text-xs"
           >
             <FiX className="w-3.5 h-3.5" />
           </button>

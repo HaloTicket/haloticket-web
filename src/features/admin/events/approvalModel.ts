@@ -11,7 +11,7 @@ export interface ApprovalShowtime {
 
 export type ApprovalEventRecord = ApprovalEventItem & { showtimes?: ApprovalShowtime[] };
 
-export const APPROVAL_STATUSES = ["PENDING", "UPDATE_PENDING", "APPROVED", "REJECTED", "ALL"] as const;
+export const APPROVAL_STATUSES = ["ALL", "PENDING", "UPDATE_PENDING", "APPROVED", "REJECTED"] as const;
 export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
 export type ApprovalSort = "newest" | "oldest" | "title";
 
@@ -29,23 +29,23 @@ export function readApprovalSort(value: string | null): ApprovalSort {
 }
 
 export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
-  PENDING: "Chờ duyệt mới",
-  UPDATE_PENDING: "Cần xem xét cập nhật",
+  ALL: "Tất cả",
+  PENDING: "Chờ duyệt",
+  UPDATE_PENDING: "Cập nhật",
   APPROVED: "Đã duyệt",
   REJECTED: "Bị từ chối",
-  ALL: "Tất cả",
 };
 
 export const APPROVAL_STATUS_CLASSES: Record<ApprovalStatus, string> = {
+  ALL: "app-border app-text-main",
   PENDING: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   UPDATE_PENDING: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
   APPROVED: "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
   REJECTED: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
-  ALL: "app-border app-text-main",
 };
 
 export function readApprovalStatus(value: string | null): ApprovalStatus {
-  return APPROVAL_STATUSES.find((status) => status === value) ?? "PENDING";
+  return APPROVAL_STATUSES.find((status) => status === value) ?? "ALL";
 }
 
 export function displayApprovalStatus(value?: string) {
