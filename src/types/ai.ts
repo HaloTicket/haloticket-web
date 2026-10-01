@@ -13,6 +13,7 @@ export interface AiChatMessage {
   id: string;
   sender: 'user' | 'ai';
   text: string;
+  hiddenContext?: string;
   actions?: AiSystemAction[];
   timestamp: Date;
 }

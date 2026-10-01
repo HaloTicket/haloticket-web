@@ -10,13 +10,6 @@ import { CategorySection } from "./components/CategorySection";
 import { PromoBanner } from "./components/PromoBanner";
 import { DestinationsSection } from "./components/DestinationsSection";
 import { eventApi, type EventApiData } from "@/services/eventApi";
-import {
-  MUSIC_EVENTS,
-  STAGE_EVENTS,
-  WORKSHOP_EVENTS,
-  EXPERIENCE_EVENTS,
-  SPORTS_EVENTS
-} from "@/mock/eventData";
 import { FiMusic, FiTv, FiBookOpen, FiCompass, FiActivity } from "react-icons/fi";
 
 export const Home: React.FC = () => {
@@ -31,25 +24,11 @@ export const Home: React.FC = () => {
     });
   }, []);
 
-  const musicEvents = allEvents.length > 0
-    ? allEvents.filter((e) => e.categoryName === "Nhạc sống" || e.categoryId === "cat-001")
-    : MUSIC_EVENTS;
-
-  const stageEvents = allEvents.length > 0
-    ? allEvents.filter((e) => e.categoryName === "Sân khấu & Nghệ thuật" || e.categoryId === "cat-003")
-    : STAGE_EVENTS;
-
-  const workshopEvents = allEvents.length > 0
-    ? allEvents.filter((e) => e.categoryName === "Hội thảo & Workshop" || e.categoryId === "cat-004")
-    : WORKSHOP_EVENTS;
-
-  const experienceEvents = allEvents.length > 0
-    ? allEvents.filter((e) => e.categoryName === "Tham quan & Trải nghiệm" || e.categoryId === "cat-005")
-    : EXPERIENCE_EVENTS;
-
-  const sportsEvents = allEvents.length > 0
-    ? allEvents.filter((e) => e.categoryName === "Thể Thao" || e.categoryId === "cat-002")
-    : SPORTS_EVENTS;
+  const musicEvents = allEvents.filter((e) => e.categoryName === "Nhạc sống" || e.categoryId === "cat-001");
+  const stageEvents = allEvents.filter((e) => e.categoryName === "Sân khấu & Nghệ thuật" || e.categoryId === "cat-003");
+  const workshopEvents = allEvents.filter((e) => e.categoryName === "Hội thảo & Workshop" || e.categoryId === "cat-004");
+  const experienceEvents = allEvents.filter((e) => e.categoryName === "Tham quan & Trải nghiệm" || e.categoryId === "cat-005");
+  const sportsEvents = allEvents.filter((e) => e.categoryName === "Thể Thao" || e.categoryId === "cat-002");
 
   return (
     <div className="app-bg-page min-h-screen pb-16 transition-colors duration-300">
@@ -74,50 +53,60 @@ export const Home: React.FC = () => {
         <PromoBanner type="greensm" />
 
         {/* Category: Nhạc sống */}
-        <CategorySection
-          title={translate("Nhạc sống")}
-          icon={<FiMusic className="w-5 h-5" />}
-          seeMoreLink="/category/music"
-          events={musicEvents.length > 0 ? musicEvents : MUSIC_EVENTS}
-        />
+        {musicEvents.length > 0 && (
+          <CategorySection
+            title={translate("Nhạc sống")}
+            icon={<FiMusic className="w-5 h-5" />}
+            seeMoreLink="/category/music"
+            events={musicEvents}
+          />
+        )}
 
         {/* Category: Sân khấu & Nghệ thuật */}
-        <CategorySection
-          title={translate("Sân khấu & Nghệ thuật")}
-          icon={<FiTv className="w-5 h-5" />}
-          seeMoreLink="/category/stage"
-          events={stageEvents.length > 0 ? stageEvents : STAGE_EVENTS}
-        />
+        {stageEvents.length > 0 && (
+          <CategorySection
+            title={translate("Sân khấu & Nghệ thuật")}
+            icon={<FiTv className="w-5 h-5" />}
+            seeMoreLink="/category/stage"
+            events={stageEvents}
+          />
+        )}
 
         {/* Sponsored Promo Banner 2 */}
         <PromoBanner type="vib" />
 
         {/* Category: Hội thảo & Workshop */}
-        <CategorySection
-          title={translate("Hội thảo & Workshop")}
-          icon={<FiBookOpen className="w-5 h-5" />}
-          seeMoreLink="/category/workshop"
-          events={workshopEvents.length > 0 ? workshopEvents : WORKSHOP_EVENTS}
-        />
+        {workshopEvents.length > 0 && (
+          <CategorySection
+            title={translate("Hội thảo & Workshop")}
+            icon={<FiBookOpen className="w-5 h-5" />}
+            seeMoreLink="/category/workshop"
+            events={workshopEvents}
+          />
+        )}
 
         {/* Category: Tham quan & Trải nghiệm */}
-        <CategorySection
-          title={translate("Tham quan & Trải nghiệm")}
-          icon={<FiCompass className="w-5 h-5" />}
-          seeMoreLink="/category/experience"
-          events={experienceEvents.length > 0 ? experienceEvents : EXPERIENCE_EVENTS}
-        />
+        {experienceEvents.length > 0 && (
+          <CategorySection
+            title={translate("Tham quan & Trải nghiệm")}
+            icon={<FiCompass className="w-5 h-5" />}
+            seeMoreLink="/category/experience"
+            events={experienceEvents}
+          />
+        )}
 
         {/* Sponsored Promo Banner 3 */}
         <PromoBanner type="shopee" />
 
         {/* Category: Thể thao & Thể loại khác */}
-        <CategorySection
-          title={translate("Thể thao & Thể loại khác")}
-          icon={<FiActivity className="w-5 h-5" />}
-          seeMoreLink="/category/sports"
-          events={sportsEvents.length > 0 ? sportsEvents : SPORTS_EVENTS}
-        />
+        {sportsEvents.length > 0 && (
+          <CategorySection
+            title={translate("Thể thao & Thể loại khác")}
+            icon={<FiActivity className="w-5 h-5" />}
+            seeMoreLink="/category/sports"
+            events={sportsEvents}
+          />
+        )}
 
         {/* Destinations Highlight Section */}
         <DestinationsSection />

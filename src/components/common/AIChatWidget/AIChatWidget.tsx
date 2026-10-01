@@ -7,14 +7,25 @@ import AIChatMessage from './AIChatMessage';
 const AIChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [messages, setMessages] = useState<AiChatMessage[]>([
-    {
-      id: '1',
-      sender: 'ai',
-      text: 'Xin chào! Mình là trợ lý AI thông minh của HaloTicket. Mình có thể giúp bạn tìm ghế VIP hoặc giải đáp bất kỳ thắc mắc nào!',
-      timestamp: new Date()
+  const [messages, setMessages] = useState<AiChatMessage[]>(() => {
+    const saved = localStorage.getItem('ai_chat_history');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
+      } catch (e) {
+        // ignore
+      }
     }
-  ]);
+    return [
+      {
+        id: '1',
+        sender: 'ai',
+        text: 'Xin chào! Mình là trợ lý AI thông minh của HaloTicket. Mình có thể giúp bạn tìm ghế VIP hoặc giải đáp bất kỳ thắc mắc nào!',
+        timestamp: new Date()
+      }
+    ];
+  });
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -25,24 +36,32 @@ const AIChatWidget: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
+    localStorage.setItem('ai_chat_history', JSON.stringify(messages));
   }, [messages, isOpen]);
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+  const sendMessage = async (text: string, hiddenContext?: string) => {
+    if (!text.trim()) return;
 
     const userMessage: AiChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: inputText.trim(),
+      text: text.trim(),
+      hiddenContext: hiddenContext,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInputText('');
     setIsLoading(true);
 
     try {
-      const response = await aiApi.chatWithSmartBooking(userMessage.text);
+      // exclude the first generic greeting message
+      const history = messages.slice(1).map(m => ({ 
+        role: m.sender === 'user' ? 'user' : 'assistant', 
+        content: m.hiddenContext ? `${m.text} ${m.hiddenContext}` : m.text 
+      }));
+      
+      const finalContent = hiddenContext ? `${userMessage.text} ${hiddenContext}` : userMessage.text;
+      const response = await aiApi.chatWithSmartBooking(finalContent, history);
 
       const aiMessage: AiChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -53,16 +72,6 @@ const AIChatWidget: React.FC = () => {
       };
 
       setMessages(prev => [...prev, aiMessage]);
-
-      // if a "Highlight Seat" command is issued, we can fire a CustomEvent for the SeatMap component to listen for.
-      if (response.system_actions && response.system_actions.length > 0) {
-        const highlightAction = response.system_actions.find(a => a.action === 'HIGHLIGHT_SEATS');
-        if (highlightAction) {
-          console.log("AI Requested to highlight seats:", highlightAction.database_data);
-          // document.dispatchEvent(new CustomEvent('aiHighlightSeats', { detail: highlightAction.database_data }));
-        }
-      }
-
     } catch (error) {
       console.error("AI Chat error:", error);
       const errorMessage: AiChatMessage = {
@@ -75,6 +84,11 @@ const AIChatWidget: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSendMessage = () => {
+    sendMessage(inputText);
+    setInputText('');
   };
 
   return (
@@ -112,7 +126,7 @@ const AIChatWidget: React.FC = () => {
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto bg-gray-50/50 dark:bg-[#18181b]">
             {messages.map((msg) => (
-              <AIChatMessage key={msg.id} message={msg} />
+              <AIChatMessage key={msg.id} message={msg} onSendMessage={sendMessage} />
             ))}
             {isLoading && (
               <div className="flex items-center text-text-muted gap-2 ml-2 mb-4">

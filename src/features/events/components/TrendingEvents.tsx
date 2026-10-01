@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaFire } from "react-icons/fa";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { TRENDING_EVENTS, WEEKEND_EVENTS, type EventItem } from "@/mock/eventData";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { eventApi, type EventApiData } from "@/services/eventApi";
@@ -29,8 +28,8 @@ export const TrendingEvents: React.FC = () => {
   const [showEventsLeft, setShowEventsLeft] = useState(false);
   const [showEventsRight, setShowEventsRight] = useState(true);
 
-  const [trendingList, setTrendingList] = useState<TrendingRankItem[]>(TRENDING_EVENTS as unknown as TrendingRankItem[]);
-  const [tabEvents, setTabEvents] = useState<Array<EventItem | EventApiData>>(WEEKEND_EVENTS);
+  const [trendingList, setTrendingList] = useState<TrendingRankItem[]>([]);
+  const [tabEvents, setTabEvents] = useState<Array<EventApiData>>([]);
 
   // fetch trending events
   useEffect(() => {
@@ -98,6 +97,8 @@ export const TrendingEvents: React.FC = () => {
       eventsScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
     }
   };
+
+  if (trendingList.length === 0) return null;
 
   return (
     <div className="mb-12">

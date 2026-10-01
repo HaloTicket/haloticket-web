@@ -1,12 +1,46 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiMapPin } from "react-icons/fi";
-import { DESTINATIONS } from "@/mock/eventData";
+import { eventApi } from "@/services/eventApi";
 
 export const DestinationsSection: React.FC = () => {
   useTranslation();
+  const [destinations, setDestinations] = useState<{name: string, count: number, image: string}[]>([]);
+
+  useEffect(() => {
+    eventApi.getAllEvents().then(data => {
+      if (!data || data.length === 0) return;
+      const cityMap: Record<string, number> = {};
+      data.forEach(e => {
+        if (e.city) {
+          cityMap[e.city] = (cityMap[e.city] || 0) + 1;
+        }
+      });
+      
+      const cityImages: Record<string, string> = {
+        "Hà Nội": "https://images.unsplash.com/photo-1599708153386-62bf3f034eb8?w=800&q=80",
+        "TP. Hồ Chí Minh": "https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=800&q=80",
+        "Đà Nẵng": "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800&q=80",
+        "Hưng Yên": "https://images.unsplash.com/photo-1625621437142-650058b88ce8?w=800&q=80"
+      };
+
+      const computedDestinations = Object.entries(cityMap)
+        .sort((a, b) => b[1] - a[1]) // sort by count
+        .slice(0, 4) // take top 4
+        .map(([name, count]) => ({
+          name,
+          count,
+          image: cityImages[name] || "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80"
+        }));
+        
+      setDestinations(computedDestinations);
+    });
+  }, []);
+
+  if (destinations.length === 0) return null;
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-6">
@@ -15,9 +49,9 @@ export const DestinationsSection: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {DESTINATIONS.map((dest) => (
+        {destinations.map((dest, i) => (
           <Link
-            key={dest.id}
+            key={i}
             to={`/events?location=${encodeURIComponent(dest.name)}`}
             className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg card-hover-zoom cursor-pointer"
           >

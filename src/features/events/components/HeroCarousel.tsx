@@ -3,7 +3,6 @@ import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight, FiPlay } from "react-icons/fi";
-import { HERO_BANNERS } from "@/mock/eventData";
 import { eventApi } from "@/services/eventApi";
 
 interface HeroBannerItem {
@@ -18,7 +17,7 @@ interface HeroBannerItem {
 export const HeroCarousel: React.FC = () => {
   useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [banners, setBanners] = useState<HeroBannerItem[]>(HERO_BANNERS);
+  const [banners, setBanners] = useState<HeroBannerItem[]>([]);
 
   // fetch live event data
   useEffect(() => {

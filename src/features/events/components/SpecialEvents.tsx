@@ -3,10 +3,8 @@ import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { SPECIAL_EVENTS } from "@/mock/eventData";
 import { eventApi } from "@/services/eventApi";
 
-import type { EventItem } from "@/mock/eventData";
 import type { EventApiData } from "@/services/eventApi";
 
 export const SpecialEvents: React.FC = () => {
@@ -14,7 +12,7 @@ export const SpecialEvents: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
-  const [events, setEvents] = useState<Array<EventItem | EventApiData>>(SPECIAL_EVENTS);
+  const [events, setEvents] = useState<Array<EventApiData>>([]);
 
   // fetch event data
   useEffect(() => {
@@ -48,6 +46,8 @@ export const SpecialEvents: React.FC = () => {
       scrollContainerRef.current.scrollBy({ left: 350, behavior: "smooth" });
     }
   };
+
+  if (events.length === 0) return null;
 
   return (
     <div className="mb-12">

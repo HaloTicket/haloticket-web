@@ -16,6 +16,8 @@ export interface EventApiData {
   price?: string;
   image?: string;
   date?: string;
+  city?: string;
+  saleEndTime?: string;
   [key: string]: unknown;
 }
 

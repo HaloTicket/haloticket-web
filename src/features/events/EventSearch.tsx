@@ -196,36 +196,6 @@ export default function EventSearch() {
               )}
             </div>
 
-            <hr className="border-slate-200/60 dark:border-slate-800/60" />
-
-            {/* Past Events*/}
-            <div>
-              <div className="flex items-center gap-3 mb-6">
-                <span className="flex items-center gap-1.5 font-extrabold text-lg md:text-xl app-text-main">
-                  <FiClock className="w-5 h-5 text-amber-500" />
-                  {translate("Đã diễn ra")}</span>
-                <span className="px-3 py-1 rounded-md text-xs font-black bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                  {pastEvents.length} {translate("đã kết thúc")}</span>
-              </div>
-
-              {pastEvents.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {pastEvents.map((event) => (
-                    <div key={event.id} className="relative group">
-                      <EventCard event={event} />
-                      {/* Orange Ended Badge Overlay */}
-                      <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md text-[10px] font-black bg-amber-500 text-slate-950 shadow-md">
-                        {translate("Đã diễn ra")}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="app-bg-card p-8 rounded-2xl border app-border text-center">
-                  <p className="font-extrabold text-sm app-text-muted">
-                    {translate("Không có sự kiện đã diễn ra phù hợp.")}</p>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>

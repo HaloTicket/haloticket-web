@@ -8,12 +8,30 @@ export const eventApi = {
     try {
       const response: unknown = await axiosClient.get("/events");
       if (Array.isArray(response)) {
+        const now = new Date();
+        const parseDate = (val: any) => {
+          if (!val) return null;
+          if (Array.isArray(val)) {
+            return new Date(val[0], val[1] - 1, val[2], val[3] || 0, val[4] || 0);
+          }
+          return new Date(val);
+        };
+        
         return (response as Record<string, unknown>[])
           .filter((item) => item != null && typeof item === "object")
           .map((item) => ({
             ...item,
             image: (item.bannerUrl || item.thumbnailUrl || item.posterImage || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80") as string,
-          } as EventApiData));
+          } as EventApiData))
+          .filter(item => {
+            const saleEnd = parseDate(item.saleEndTime);
+            if (saleEnd) return saleEnd > now;
+            
+            const end = parseDate(item.endTime);
+            if (end) return end > now;
+            
+            return true;
+          });
       }
       return [];
     } catch (err) {

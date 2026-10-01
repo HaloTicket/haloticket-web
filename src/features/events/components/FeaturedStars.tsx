@@ -3,13 +3,47 @@ import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiStar, FiCheck, FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { FEATURED_STARS } from "@/mock/eventData";
+import { eventApi } from "@/services/eventApi";
 
 export const FeaturedStars: React.FC = () => {
   useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
+  const [stars, setStars] = useState<{id: string, name: string, avatar: string, verified: boolean}[]>([]);
+
+  useEffect(() => {
+    eventApi.getAllEvents().then(data => {
+      if (!data) return;
+      const names = new Set<string>();
+      const computedStars: any[] = [];
+      data.forEach(e => {
+        const persons = [];
+        if (e.author) persons.push(e.author);
+        if (e.director) persons.push(e.director);
+        if (Array.isArray(e.cast)) persons.push(...e.cast);
+        
+        persons.forEach(p => {
+          if (p && !names.has(p)) {
+            names.add(p);
+            computedStars.push({
+              id: p.toLowerCase().replace(/\s+/g, '-'),
+              name: p,
+              avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80",
+              verified: true
+            });
+          }
+        });
+      });
+      // fallback if no artists found
+      if (computedStars.length === 0) {
+         computedStars.push({
+           id: "hoang-dung", name: "Hoàng Dũng", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80", verified: true
+         });
+      }
+      setStars(computedStars.slice(0, 10));
+    });
+  }, []);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
@@ -146,7 +180,7 @@ export const FeaturedStars: React.FC = () => {
           onScroll={checkScroll}
           className="flex items-center gap-3.5 md:gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth"
         >
-          {FEATURED_STARS.map((star) => (
+          {stars.map((star) => (
             <Link
               key={star.id}
               to={`/artists/${star.id}`}
