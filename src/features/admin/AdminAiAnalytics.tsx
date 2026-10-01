@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { FiSearch, FiCode, FiDatabase, FiLoader, FiAlertCircle } from 'react-icons/fi';
 import { aiApi } from '@/services/aiApi';
 
 export const AdminAiAnalytics: React.FC = () => {
-  const { t: translate } = useTranslation();
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);

@@ -87,7 +87,6 @@ export default function EventSearch() {
 
   // split into upcoming vs past events
   const upcomingEvents = filteredEvents.filter((ev: EventApiData & { isEnded?: boolean }) => !ev.isEnded);
-  const pastEvents = filteredEvents.filter((ev: EventApiData & { isEnded?: boolean }) => ev.isEnded);
 
   return (
     <div className="min-h-screen bg-[#f4f4f5] dark:bg-[#27272a] text-zinc-900 dark:text-zinc-100 pb-16 transition-colors duration-300">
