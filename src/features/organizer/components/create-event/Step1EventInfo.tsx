@@ -145,13 +145,24 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
   const [showNewVenueModal, setShowNewVenueModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [newVenueForm, setNewVenueForm] = useState({
+  const [showAIGenerateModal, setShowAIGenerateModal] = useState(false);
+  const [aiBulletPoints, setAiBulletPoints] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const newVenueFormTemplate = {
     name: "",
     city: "TP. Hồ Chí Minh",
     ward: "",
     address: "",
     capacity: 1000
-  });
+  };
+  const [newVenueForm, setNewVenueForm] = useState(newVenueFormTemplate);
 
   // load real db events and extract real venues & booking collisions dynamically
   useEffect(() => {
@@ -296,7 +307,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     e.target.value = "";
   };
 
-  // Handlers for Insert/Edit Image Modal
+  // handlers for Insert/Edit Image Modal
   const handleImageWidthChange = (val: string) => {
     setImageWidth(val);
     if (imageLockRatio && imageRatio && val && !isNaN(Number(val))) {
@@ -434,8 +445,50 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     setDescription(updated);
   };
 
+  const handleGenerateDescription = async () => {
+    if (!title) {
+      showToast("Vui lòng nhập tên sự kiện trước khi sử dụng tính năng sinh nội dung AI.", "error");
+      return;
+    }
+    if (!aiBulletPoints.trim()) {
+      showToast("Vui lòng nhập một số ý chính (bullet points) về sự kiện.", "error");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { aiApi } = await import("@/services/aiApi");
+      const res = await aiApi.generateEventContent(title, aiBulletPoints);
+      if (res && res.description) {
+        let fullDesc = res.description;
+        if (res.terms_and_conditions) {
+          fullDesc += "\n\n### Điều khoản & Quy định\n" + res.terms_and_conditions;
+        }
+        // remove markdown bold tags per user request
+        fullDesc = fullDesc.replace(/\*\*/g, '');
+        setDescription(fullDesc);
+        setShowAIGenerateModal(false);
+        setAiBulletPoints("");
+        showToast("Tạo nội dung tự động thành công!", "success");
+      }
+    } catch (err) {
+      console.error("Lỗi khi sinh nội dung:", err);
+      showToast("Có lỗi xảy ra khi sinh nội dung. Vui lòng thử lại.", "error");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300 relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-full shadow-lg text-sm font-bold animate-in fade-in slide-in-from-top-4 flex items-center gap-2 ${toast.type === "error" ? "bg-red-600 text-white" : "bg-emerald-600 text-white"}`}>
+          {toast.type === "error" ? <FiAlertCircle className="w-5 h-5" /> : <FiCheckCircle className="w-5 h-5" />}
+          {toast.message}
+        </div>
+      )}
+
       {/* Upload Images Section */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b app-border pb-4">
@@ -1030,14 +1083,23 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           <h3 className="text-lg font-extrabold app-text-main">
             <span className="text-rose-500 font-bold">*</span> Mô tả chi tiết nội dung sự kiện
           </h3>
-          <button
-            type="button"
-            onClick={() => setDescription(DEFAULT_DESCRIPTION_TEMPLATE)}
-            className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
-          >
-            <FiBookmark className="w-3.5 h-3.5" />
-            <span>Tải văn bản mẫu</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowAIGenerateModal(true)}
+              className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <span>Trợ lý AI Soạn thảo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDescription(DEFAULT_DESCRIPTION_TEMPLATE)}
+              className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <FiBookmark className="w-3.5 h-3.5" />
+              <span>Tải văn bản mẫu</span>
+            </button>
+          </div>
         </div>
 
         {/* Rich Text Formatting Toolbar */}
@@ -1860,6 +1922,71 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 className="px-5 py-2 bg-[#0070f3] hover:bg-[#0060d8] text-white font-medium text-xs rounded-lg shadow-md cursor-pointer transition-all active:scale-95"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Generative Modal */}
+      {showAIGenerateModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
+            <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <h3 className="text-lg font-black text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                Trợ lý AI Sinh Nội dung
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAIGenerateModal(false)}
+                className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 cursor-pointer transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800/50">
+                <p className="text-xs text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
+                  Trợ lý AI sẽ tự động phân tích <strong className="font-bold">Tên Sự Kiện</strong> và các <strong className="font-bold">Ý chính</strong> để tạo ra <strong className="font-bold">Mô tả sự kiện chuẩn SEO</strong> chuyên nghiệp.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">
+                  Nhập các ý chính (Bullet points):
+                </label>
+                <textarea
+                  value={aiBulletPoints}
+                  onChange={(e) => setAiBulletPoints(e.target.value)}
+                  placeholder="Ví dụ:&#10;- Sự kiện âm nhạc nhẹ nhàng&#10;- Dành cho sinh viên&#10;- Cấm mang đồ ăn bên ngoài&#10;- Quà tặng kèm áo thun"
+                  className="w-full h-32 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-800 dark:text-zinc-200 text-sm rounded-xl px-4 py-3 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium resize-none"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAIGenerateModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerateDescription}
+                disabled={isGenerating}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-70 flex items-center gap-2 cursor-pointer"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    <span>Đang sinh...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiCheckCircle className="w-4 h-4" />
+                    <span>Bắt đầu Sinh Nội dung</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

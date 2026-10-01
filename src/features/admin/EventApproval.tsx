@@ -21,6 +21,7 @@ import {
   FiShield
 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
 import type { ApprovalEventItem } from "@/types";
 
 interface ApprovalTicket {
@@ -82,6 +83,36 @@ export const EventApproval: React.FC = () => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
   };
+
+  // AI Risk Score State
+  const [riskScore, setRiskScore] = useState<{ risk_score: number, risk_level: string, reasons: string[] } | null>(null);
+  const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
+
+  useEffect(() => {
+    if (selectedEvent) {
+      const fetchRisk = async () => {
+        setIsAnalyzingRisk(true);
+        try {
+          const res = await aiApi.analyzeRiskScore(
+            selectedEvent.id, 
+            selectedEvent.title, 
+            selectedEvent.descriptionText || selectedEvent.description || "", 
+            selectedEvent.organizerName || ""
+          );
+          setRiskScore(res);
+        } catch (err) {
+          console.error("Failed to analyze risk score:", err);
+          // Only show error internally, fallback gracefully
+          setRiskScore({ risk_score: 0, risk_level: "UNKNOWN", reasons: ["Không thể kết nối với dịch vụ đánh giá rủi ro AI."] });
+        } finally {
+          setIsAnalyzingRisk(false);
+        }
+      };
+      fetchRisk();
+    } else {
+      setRiskScore(null);
+    }
+  }, [selectedEvent]);
 
   // load real event approval records from backend CSDL
   const loadApprovalEvents = useCallback(async () => {
@@ -510,6 +541,58 @@ export const EventApproval: React.FC = () => {
                     <p className="text-[11px] opacity-90">{selectedEvent.datesSummary}</p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* AI Risk Scoring Banner */}
+            <div className={`p-4 rounded-xl border flex flex-col sm:flex-row gap-4 items-start ${
+              isAnalyzingRisk ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" :
+              riskScore?.risk_level === "HIGH" ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50" :
+              riskScore?.risk_level === "MEDIUM" ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50" :
+              "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50"
+            }`}>
+              <div className="flex items-center justify-center w-14 h-14 rounded-full shrink-0 shadow-inner bg-white dark:bg-zinc-800 border border-slate-100 dark:border-slate-700">
+                {isAnalyzingRisk ? (
+                  <FiRefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                ) : (
+                  <span className={`text-xl font-black ${
+                    riskScore?.risk_level === "HIGH" ? "text-rose-600" :
+                    riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
+                    "text-emerald-600"
+                  }`}>
+                    {riskScore?.risk_score || 0}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <h4 className="text-sm font-bold flex items-center gap-2">
+                  <FiShield className={`w-4 h-4 ${
+                    isAnalyzingRisk ? "text-blue-500" :
+                    riskScore?.risk_level === "HIGH" ? "text-rose-600" :
+                    riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
+                    "text-emerald-600"
+                  }`} />
+                  <span className="app-text-main">AI Phân Tích Rủi Ro (Risk Scoring)</span>
+                  {!isAnalyzingRisk && riskScore && (
+                    <span className={`px-2 py-0.5 text-[10px] uppercase font-black rounded ${
+                      riskScore.risk_level === "HIGH" ? "bg-rose-600 text-white" :
+                      riskScore.risk_level === "MEDIUM" ? "bg-amber-500 text-white" :
+                      riskScore.risk_level === "UNKNOWN" ? "bg-slate-500 text-white" :
+                      "bg-emerald-500 text-white"
+                    }`}>
+                      {riskScore.risk_level}
+                    </span>
+                  )}
+                </h4>
+                {isAnalyzingRisk ? (
+                  <p className="text-xs app-text-muted">Đang phân tích thông tin sự kiện và lịch sử BTC...</p>
+                ) : (
+                  <ul className="text-xs app-text-muted list-disc list-inside space-y-0.5 pl-1">
+                    {riskScore?.reasons.map((reason, idx) => (
+                      <li key={idx} className="leading-tight">{reason}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 

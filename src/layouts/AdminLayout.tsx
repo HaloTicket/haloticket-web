@@ -7,6 +7,7 @@ import { getCachedUserProfile, userApi } from "@/services/userApi";
 import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { eventApi } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
@@ -59,6 +60,16 @@ export const AdminLayout: React.FC = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket("ADMIN");
 
   const [pendingEventsCount, setPendingEventsCount] = useState<number>(0);
+  const [systemUptime, setSystemUptime] = useState("99.9%");
+
+  useEffect(() => {
+    aiApi.getSystemHealth().then(res => {
+      if (res && res.length > 0) {
+        const upCount = res.filter((s: any) => s.status === 'UP').length;
+        setSystemUptime(`${((upCount / res.length) * 100).toFixed(1)}%`);
+      }
+    }).catch(() => {});
+  }, []);
 
   const fetchPendingCount = useCallback(async () => {
     try {
@@ -263,7 +274,7 @@ export const AdminLayout: React.FC = () => {
           label: translate("Trạng thái Hệ thống"),
           path: PATHS.ADMIN_SYSTEM_HEALTH,
           icon: <FiActivity className="w-4 h-4 shrink-0" />,
-          badge: "99.9%",
+          badge: systemUptime,
           badgeColor: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 font-bold border border-emerald-300/80 dark:border-emerald-800"
         }
       ]

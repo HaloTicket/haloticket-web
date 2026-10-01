@@ -4,7 +4,6 @@ import { store } from "@/store";
 import { router } from "@/routes";
 import { ThemeProvider } from "@/context/ThemeContext";
 import SessionExpiredModalHost from "@/features/auth/components/SessionExpiredModalHost";
-import AIChatWidget from "@/components/common/AIChatWidget/AIChatWidget";
 import { PATHS } from "@/routes/paths";
 import { getKeycloakSession } from "@/services/keycloakSession";
 
@@ -13,7 +12,7 @@ async function handleLoginAgain() {
   try {
     await getKeycloakSession().logout(loginUrl);
   } catch {
-    // Local routing remains available if Keycloak cannot end its remote session.
+    // local routing remains available if Keycloak cannot end its remote session.
   } finally {
     await router.navigate(PATHS.LOGIN, { replace: true });
   }
@@ -25,7 +24,6 @@ function App() {
       <ThemeProvider>
         <RouterProvider router={router} />
         <SessionExpiredModalHost onLoginAgain={handleLoginAgain} />
-        <AIChatWidget />
       </ThemeProvider>
     </Provider>
   );

@@ -1,6 +1,7 @@
 import { getLocale } from "@/i18n";
 import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
+import { toast } from "react-hot-toast";
 import {
   FiTrendingUp,
   FiSliders,
@@ -8,8 +9,11 @@ import {
   FiSearch,
   FiTag,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiCpu,
+  FiRefreshCw
 } from "react-icons/fi";
+import { aiApi } from "@/services/aiApi";
 
 interface ResaleTicketItem {
   id: string;
@@ -28,6 +32,25 @@ export const ResaleManagement: React.FC = () => {
   const [priceCapPercent, setPriceCapPercent] = useState<number>(20); // max +20% (120% of face value)
   const [allowResaleSystem, setAllowResaleSystem] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // AI price ceiling state
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ suggested_cap_percent: number, reason: string } | null>(null);
+
+  const handleAiAutoCap = async () => {
+    setIsAiAnalyzing(true);
+    try {
+      // hardcoded "HIGH" demand for demo. In reality, this would be computed from ticket velocity.
+      const res = await aiApi.getDynamicPriceCeiling("ALL_EVENTS", "HIGH");
+      setAiSuggestion(res);
+      setPriceCapPercent(res.suggested_cap_percent);
+    } catch (err) {
+      console.error(err);
+      toast.error(translate("Lỗi khi kết nối với AI."));
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
 
   // pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,7 +104,7 @@ export const ResaleManagement: React.FC = () => {
   ]);
 
   const handleUpdatePriceCap = () => {
-    alert(translate("Đã cập nhật giá trần bán vé lại thành Max +{{value1}}% (Tối đa {{value2}}% giá gốc).", { value1: priceCapPercent, value2: 100 + priceCapPercent }));
+    toast.success(translate("Đã cập nhật giá trần bán vé lại thành Max +{{value1}}% (Tối đa {{value2}}% giá gốc).", { value1: priceCapPercent, value2: 100 + priceCapPercent }));
   };
 
   const handleToggleLockListing = (id: string) => {
@@ -157,6 +180,39 @@ export const ResaleManagement: React.FC = () => {
               <span>{translate("0% (Hòa vốn)")}</span>
               <span>{translate("+20% (Khuyên dùng)")}</span>
               <span>{translate("+50% (Tối đa)")}</span>
+            </div>
+
+            {/* AI Auto-Adjust Banner */}
+            <div className="mt-4 p-3.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <FiCpu className="w-4 h-4" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <div>
+                  <h4 className="text-xs font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                    AI Dynamic Price Ceiling
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Hệ thống AI tự động phân tích nhu cầu và đề xuất mức giá trần phù hợp nhất để ngăn chặn đầu cơ.
+                  </p>
+                </div>
+                {aiSuggestion && (
+                  <div className="text-[11px] font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                    <strong>Đề xuất:</strong> {aiSuggestion.reason}
+                  </div>
+                )}
+                <div className="flex pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAiAutoCap}
+                    disabled={isAiAnalyzing}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isAiAnalyzing ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiCpu className="w-3.5 h-3.5" />}
+                    <span>{isAiAnalyzing ? "Đang phân tích dữ liệu thị trường..." : "Tự động thiết lập bằng AI"}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

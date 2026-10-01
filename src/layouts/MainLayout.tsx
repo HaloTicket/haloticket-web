@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/common/ScrollToTop";
+import AIChatWidget from "@/components/common/AIChatWidget/AIChatWidget";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function MainLayout() {
@@ -21,6 +22,9 @@ export default function MainLayout() {
 
         {/* Floating Scroll To Top Button */}
         <ScrollToTop />
+        
+        {/* Customer AI Chatbot */}
+        {!isEkyc && <AIChatWidget />}
       </div>
     </ThemeProvider>
   );

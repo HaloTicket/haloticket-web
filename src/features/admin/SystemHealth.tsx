@@ -10,7 +10,9 @@ import {
   FiRadio,
   FiChevronLeft,
   FiChevronRight,
+  FiShield
 } from "react-icons/fi";
+import { aiApi } from "@/services/aiApi";
 
 interface MicroserviceStatus {
   name: string;
@@ -37,147 +39,43 @@ export const SystemHealth: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 4;
 
-  const [services, setServices] = useState<MicroserviceStatus[]>([
-    {
-      name: "discovery-server",
-      port: 8761,
-      type: "Eureka Naming Registry",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 12,
-      memoryUsage: "215 MB / 512 MB",
-      cpuLoad: "1.2%"
-    },
-    {
-      name: "api-gateway",
-      port: 8888,
-      type: "Spring Cloud Gateway",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 22,
-      memoryUsage: "310 MB / 1 GB",
-      cpuLoad: "3.5%"
-    },
-    {
-      name: "user-service",
-      port: 8081,
-      type: "Identity & Keycloak Auth",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 35,
-      memoryUsage: "420 MB / 1 GB",
-      cpuLoad: "2.1%"
-    },
-    {
-      name: "event-service",
-      port: 8082,
-      type: "Event Domain & Elastic Search",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 40,
-      memoryUsage: "480 MB / 1 GB",
-      cpuLoad: "4.8%"
-    },
-    {
-      name: "ticket-service",
-      port: 8083,
-      type: "Ticket Engine & Resale Cap",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 28,
-      memoryUsage: "390 MB / 1 GB",
-      cpuLoad: "2.9%"
-    },
-    {
-      name: "booking-service",
-      port: 8084,
-      type: "Seat Lock & Hold Engine",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 18,
-      memoryUsage: "340 MB / 1 GB",
-      cpuLoad: "1.9%"
-    },
-    {
-      name: "payment-service",
-      port: 8085,
-      type: "PayOS Escrow & Payout",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 52,
-      memoryUsage: "410 MB / 1 GB",
-      cpuLoad: "3.1%"
-    },
-    {
-      name: "media-service",
-      port: 8086,
-      type: "AWS S3 Media Storage Service",
-      status: "UP",
-      uptime: "3h 12m",
-      latencyMs: 58,
-      memoryUsage: "280 MB / 512 MB",
-      cpuLoad: "2.0%"
-    }
-  ]);
+  const [anomalyStatus, setAnomalyStatus] = useState<{ has_anomaly: boolean, description: string, action_taken: string } | null>(null);
+  const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
 
-  const [logs] = useState<AuditLog[]>([
-    {
-      id: "LOG-901",
-      time: "21:48:10",
-      service: "api-gateway",
-      event: "Kiểm tra route dynamic rate-limiting thành công (200 OK)",
-      status: "HEALTHY"
-    },
-    {
-      id: "LOG-902",
-      time: "21:45:00",
-      service: "payment-service",
-      event: "Webhook PayOS callback phản hồi trong 85ms",
-      status: "HEALTHY"
-    },
-    {
-      id: "LOG-903",
-      time: "21:40:12",
-      service: "media-service",
-      event: "Xác thực S3 Bucket Access Key - 0 thất bại",
-      status: "INFO"
-    },
-    {
-      id: "LOG-904",
-      time: "21:35:45",
-      service: "ticket-service",
-      event: "Đã giải phóng 14 vé giữ quá hạn 10 phút tự động",
-      status: "INFO"
-    },
-    {
-      id: "LOG-905",
-      time: "21:30:00",
-      service: "discovery-server",
-      event: "Đồng bộ heartbeats từ 8 microservices registered",
-      status: "HEALTHY"
-    },
-    {
-      id: "LOG-906",
-      time: "21:20:15",
-      service: "event-service",
-      event: "Re-index dữ liệu tìm kiếm Elasticsearch hoàn tất",
-      status: "HEALTHY"
+  const handleCheckAnomaly = async () => {
+    setIsCheckingAnomaly(true);
+    try {
+      const res = await aiApi.getAnomalyDetection();
+      setAnomalyStatus(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCheckingAnomaly(false);
     }
-  ]);
-
-  const handleRefreshHealth = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setServices((prev) =>
-        prev.map((s) => ({
-          ...s,
-          latencyMs: Math.floor(Math.random() * 25) + 15,
-          cpuLoad: `${(Math.random() * 3 + 1).toFixed(1)}%`
-        }))
-      );
-      setIsRefreshing(false);
-    }, 500);
   };
+
+  const [services, setServices] = useState<MicroserviceStatus[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+
+  const fetchSystemData = async () => {
+    setIsRefreshing(true);
+    try {
+      const [healthData, logsData] = await Promise.all([
+        aiApi.getSystemHealth(),
+        aiApi.getSystemLogs()
+      ]);
+      setServices(healthData);
+      setLogs(logsData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchSystemData();
+  }, []);
 
   const totalPages = Math.ceil(logs.length / pageSize) || 1;
   const paginatedLogs = logs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -200,7 +98,7 @@ export const SystemHealth: React.FC = () => {
 
           <button
             type="button"
-            onClick={handleRefreshHealth}
+            onClick={fetchSystemData}
             disabled={isRefreshing}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer flex items-center gap-2 shrink-0"
           >
@@ -284,6 +182,47 @@ export const SystemHealth: React.FC = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* AI Anomaly Detection Monitor */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-black dark:to-zinc-900 border border-slate-700 dark:border-zinc-800 rounded-2xl p-5 shadow-lg">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-600 shrink-0">
+              <FiShield className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <span>Trợ lý AI Giám sát Bất thường (Anomaly Detection)</span>
+              </h3>
+              <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                Hệ thống AI tự động phân tích logs từ API Gateway và Kafka để phát hiện các mẫu hành vi đặt vé bất thường (botnet, ddos, spam).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCheckAnomaly}
+            disabled={isCheckingAnomaly}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 shrink-0 border border-blue-500"
+          >
+            {isCheckingAnomaly ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCpu className="w-4 h-4" />}
+            <span>Quét Logs bằng AI</span>
+          </button>
+        </div>
+        {anomalyStatus && (
+          <div className={`mt-4 p-4 rounded-xl border flex flex-col gap-2 ${anomalyStatus.has_anomaly ? "bg-rose-500/10 border-rose-500/50" : "bg-emerald-500/10 border-emerald-500/50"}`}>
+            <h4 className={`text-xs font-bold ${anomalyStatus.has_anomaly ? "text-rose-400" : "text-emerald-400"}`}>
+              {anomalyStatus.has_anomaly ? "PHÁT HIỆN BẤT THƯỜNG!" : "HỆ THỐNG AN TOÀN"}
+            </h4>
+            <p className="text-sm text-white font-medium">{anomalyStatus.description}</p>
+            {anomalyStatus.has_anomaly && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-rose-300 bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/30">
+                <strong>Hành động đã xử lý:</strong> {anomalyStatus.action_taken}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Health Audit Logs Table */}

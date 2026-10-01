@@ -11,14 +11,17 @@ import {
   FiTag,
   FiCheckCircle,
   FiAlertCircle,
-  FiRefreshCw
+  FiRefreshCw,
+  FiActivity
 } from "react-icons/fi";
 import { CreateVoucherModal } from "./components/CreateVoucherModal";
 import { TablePagination } from "@/components/common/TablePagination";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { voucherApi } from "@/services/voucherApi";
 import { eventApi } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
 import type { VoucherItem, VoucherCreateData } from "@/types";
+import ReactMarkdown from 'react-markdown';
 
 export const EventVouchers: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -55,6 +58,25 @@ export const EventVouchers: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 8;
+
+  // AI strategy state
+  const [strategyMessage, setStrategyMessage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleAnalyzeStrategy = async () => {
+    if (!eventId) return;
+    setIsAnalyzing(true);
+    setStrategyMessage(null);
+    try {
+      const res = await aiApi.getVoucherStrategy(eventId);
+      setStrategyMessage(res.strategy || "Hệ thống chưa đủ dữ liệu để phân tích.");
+    } catch (err) {
+      console.error(err);
+      showToast("Có lỗi khi phân tích chiến lược", "error");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const showToast = (text: string, type: "success" | "info" | "error" = "success") => {
     setToastMsg({ text, type });
@@ -221,6 +243,59 @@ export const EventVouchers: React.FC = () => {
           <span>{toastMsg.text}</span>
         </div>
       )}
+
+      {/* AI Strategy Assistant Box */}
+      <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="space-y-2">
+            <h3 className="text-sm font-black text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              Trợ lý AI Phân tích Chiến lược Voucher
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
+              Dựa vào tốc độ bán vé (sale velocity) và hành vi người dùng trong 7 ngày qua, AI sẽ đề xuất chiến lược phát hành voucher (tên, mã, % giảm giá, số lượng) để kích cầu, tối đa hóa doanh thu.
+            </p>
+            {strategyMessage && (
+              <div className="mt-3 p-4 bg-white dark:bg-zinc-900 border border-blue-100 dark:border-blue-800/50 rounded-xl">
+                <div className="text-xs text-zinc-800 dark:text-zinc-200 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
+                  <ReactMarkdown>{strategyMessage.replace(/\*\*/g, '')}</ReactMarkdown>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Pre-fill the create modal based on suggestion if needed
+                      // For now, just open the modal
+                      setEditingVoucher(null);
+                      setIsCreateModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+                  >
+                    Tạo Voucher ngay
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleAnalyzeStrategy}
+            disabled={isAnalyzing}
+            className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-all flex items-center gap-2 shrink-0 disabled:opacity-50"
+          >
+            {isAnalyzing ? (
+              <>
+                <FiRefreshCw className="w-4 h-4 animate-spin" />
+                <span>Đang phân tích dữ liệu...</span>
+              </>
+            ) : (
+              <>
+                <FiActivity className="w-4 h-4" />
+                <span>Phân tích Tốc độ bán vé</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Top Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
