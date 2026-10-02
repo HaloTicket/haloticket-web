@@ -180,7 +180,8 @@ export function useNotificationSocket(userId: string = "ADMIN") {
     const pollInterval = setInterval(loadNotifications, 3000);
 
     // webSocket STOMP Realtime sync
-    const wsUrl = `ws://${window.location.hostname}:8086/ws-notifications`;
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${protocol}://${window.location.hostname}:8086/ws-notifications`;
     let socket: WebSocket | null = null;
 
     try {
