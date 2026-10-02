@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { notificationApi } from "@/services/notificationApi";
 import type { NotificationItem } from "@/types";
 import { toast } from "sonner";
+import { CONFIG } from "@/config";
 
 interface RawNotification {
   id?: string;
@@ -180,8 +181,9 @@ export function useNotificationSocket(userId: string = "ADMIN") {
     const pollInterval = setInterval(loadNotifications, 3000);
 
     // webSocket STOMP Realtime sync
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${protocol}://${window.location.hostname}:8086/ws-notifications`;
+    const url = new URL(CONFIG.API_BASE_URL);
+    const protocol = url.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${protocol}://${url.hostname}:8086/ws-notifications`;
     let socket: WebSocket | null = null;
 
     try {
