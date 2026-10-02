@@ -182,8 +182,8 @@ export function useNotificationSocket(userId: string = "ADMIN") {
 
     // webSocket STOMP Realtime sync
     const url = new URL(CONFIG.API_BASE_URL);
-    const protocol = url.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${protocol}://${url.hostname}:8086/ws-notifications`;
+    const protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${url.host}/ws-notifications`;
     let socket: WebSocket | null = null;
 
     try {
