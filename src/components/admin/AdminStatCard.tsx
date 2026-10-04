@@ -18,7 +18,7 @@ export const AdminStatCard: React.FC<AdminStatCardProps> = ({
   valueColor = "app-text-main"
 }) => {
   return (
-    <div className="app-bg-card border app-border rounded-xl p-4 space-y-2">
+    <div className="app-bg-card border app-border rounded-lg p-5 space-y-2 shadow-xs">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium app-text-muted">{title}</span>
         {icon && (

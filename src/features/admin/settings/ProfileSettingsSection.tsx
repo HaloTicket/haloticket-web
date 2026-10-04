@@ -14,7 +14,7 @@ interface ProfileSettingsSectionProps {
   hideEmail: boolean;
 }
 
-const fieldClass = "w-full h-10 px-3.5 bg-muted/40 focus:bg-card rounded-xl border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all admin-form-input";
+const fieldClass = "w-full min-h-9 px-3.5 bg-muted/40 focus:bg-card rounded-md border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all admin-form-input";
 const splitName = (value: string) => {
   const parts = value.trim().split(/\s+/).filter(Boolean);
   return { familyName: parts.slice(0, -1).join(" "), givenName: parts.at(-1) || "" };
@@ -113,7 +113,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
   return (
     <div className="space-y-6 text-sm max-w-2xl">
       {/* 1. Profile Header Card */}
-      <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 shadow-2xs">
+      <div className="bg-card rounded-lg border border-border p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 shadow-xs">
         <div className="relative group">
           <input
             ref={avatarInput}
@@ -155,7 +155,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
             </p>
           )}
           {isVerified && (
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
+            <div className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
               <LuShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>{copy("Tài khoản này đã xác minh danh tính", "This account is identity verified")}</span>
             </div>
@@ -164,7 +164,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
       </div>
 
       {/* 2. Form Card */}
-      <form onSubmit={save} className="bg-card rounded-2xl border border-border p-4 sm:p-5 space-y-4 shadow-2xs">
+      <form onSubmit={save} className="bg-card rounded-lg border border-border p-4 sm:p-5 space-y-4 shadow-xs">
         <div>
           <h3 className="font-bold text-foreground">{copy("Thông tin cá nhân", "Personal information")}</h3>
           <p className="text-xs text-muted-foreground">
@@ -267,7 +267,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
           <button
             type="submit"
             disabled={!verified || saving || loading || uploading}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-6 py-2 min-h-9 rounded-md bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
           >
             <LuCheck className="w-4 h-4" />
             <span>{saving ? copy("Đang lưu…", "Saving…") : copy("Cập nhật thông tin", "Update information")}</span>
@@ -276,7 +276,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
       </form>
 
       {/* 3. System Info Card */}
-      <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 shadow-2xs">
+      <div className="bg-card rounded-lg border border-border p-4 sm:p-5 shadow-xs">
         <h3 className="font-bold text-foreground">{copy("Thông tin hệ thống", "System information")}</h3>
         <p className="mb-3 text-xs text-muted-foreground">
           {copy("Những thông tin này do hệ thống danh tính quản lý.", "These details are managed by the identity system.")}
@@ -295,7 +295,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
                 : "—",
             ],
           ].map(([fieldLabel, value]) => (
-            <div key={fieldLabel} className="min-w-0 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div key={fieldLabel} className="min-w-0 rounded-lg border border-border/60 bg-muted/20 p-3">
               <dt className="text-xs text-muted-foreground">{fieldLabel}</dt>
               <dd className="mt-1 break-all font-semibold text-foreground">{value}</dd>
             </div>
@@ -304,12 +304,12 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
       </div>
 
       {/* 4. Address Card */}
-      <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 shadow-2xs">
+      <div className="bg-card rounded-lg border border-border p-4 sm:p-5 shadow-xs">
         <h3 className="font-bold text-foreground">{copy("Địa chỉ", "Address")}</h3>
         <p className="mb-3 text-xs text-muted-foreground">
           {copy("Địa chỉ được trích xuất từ giấy tờ eKYC đã xác minh.", "Address is extracted from your verified eKYC document.")}
         </p>
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-3 font-medium text-foreground text-xs sm:text-sm">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-3 font-medium text-foreground text-xs sm:text-sm">
           {identity?.address || copy("Chưa có địa chỉ xác minh", "No verified address available")}
         </div>
         <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">

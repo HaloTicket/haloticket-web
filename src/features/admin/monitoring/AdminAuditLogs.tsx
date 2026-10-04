@@ -280,72 +280,35 @@ export function AdminAuditLogs() {
   };
 
   return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title={label("Nhật ký kiểm toán hệ thống (Audit Logs)", "System Audit Logs")}
-        description={label(
-          "Theo dõi toàn diện lịch sử thao tác vận hành, sự kiện kiểm toán bảo mật và tương tác microservices.",
-          "Comprehensive tracking of operation history, security audit events, and microservice interactions."
-        )}
-        actions={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border app-border app-bg-card hover:bg-[var(--bg-card-hover)] app-text-main transition-colors"
-            >
-              <FiDownload className="w-3.5 h-3.5" />
-              <span>{label("Xuất file CSV", "Export CSV")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={fetchLogs}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
-            >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              <span>{label("Làm mới", "Refresh")}</span>
-            </button>
-          </div>
-        }
-      />
-
-      {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <AdminStatCard
-          title={label("Tổng số bản ghi", "Total Records")}
-          value={totalCount}
-          subtext={label("Toàn bộ nhật ký hệ thống", "All system logs")}
-          icon={<FiFileText className="w-4 h-4 text-blue-500" />}
-          iconBgColor="bg-blue-500/10"
-        />
-        <AdminStatCard
-          title={label("Hoạt động bình thường", "Healthy Operations")}
-          value={healthyCount}
-          subtext={label("Không phát hiện lỗi", "No errors detected")}
-          icon={<FiCheckCircle className="w-4 h-4 text-emerald-500" />}
-          iconBgColor="bg-emerald-500/10"
-          valueColor="text-emerald-600 dark:text-emerald-400"
-        />
-        <AdminStatCard
-          title={label("Cảnh báo & Rủi ro", "Warnings & Risks")}
-          value={warnCount}
-          subtext={label("Cần theo dõi hoặc xử lý", "Requires monitoring or attention")}
-          icon={<FiAlertTriangle className="w-4 h-4 text-amber-500" />}
-          iconBgColor="bg-amber-500/10"
-          valueColor={warnCount > 0 ? "text-amber-600 dark:text-amber-400" : "app-text-main"}
-        />
-        <AdminStatCard
-          title={label("Dịch vụ ghi nhận", "Reporting Services")}
-          value={serviceCount}
-          subtext={label("Microservices đang gửi logs", "Microservices sending logs")}
-          icon={<FiServer className="w-4 h-4 text-purple-500" />}
-          iconBgColor="bg-purple-500/10"
-        />
+    <div className="space-y-6 mt-8 pt-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold app-text-main">{label("Nhật ký kiểm toán hệ thống (Audit Logs)", "System Audit Logs")}</h2>
+          <p className="text-sm app-text-muted mt-1">{label("Theo dõi toàn diện lịch sử thao tác vận hành, sự kiện kiểm toán bảo mật và tương tác microservices.", "Comprehensive tracking of operation history, security audit events, and microservice interactions.")}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 app-text-main transition-colors"
+          >
+            <FiDownload className="w-3.5 h-3.5" />
+            <span>{label("Xuất CSV", "Export CSV")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={fetchLogs}
+            disabled={isLoading}
+            className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+          >
+            <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <span>{label("Làm mới", "Refresh")}</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="app-bg-card border app-border rounded-xl p-4 space-y-3">
+      <div className="app-bg-card border app-border rounded-lg p-5 space-y-3 shadow-xs">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Search box */}
           <div className="relative flex-1">
@@ -357,8 +320,8 @@ export function AdminAuditLogs() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder={label("Tìm kiếm theo mã log, nội dung sự kiện, dịch vụ, người thực hiện...", "Search by log ID, event content, service, operator...")}
-              className="w-full pl-10 pr-4 py-2 text-xs rounded-lg border app-border bg-transparent app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              placeholder={label("Tìm kiếm theo mã log, nội dung, dịch vụ...", "Search by log ID, content, service...")}
+              className="w-full min-h-9 pl-9 pr-4 text-xs rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-slate-400"
             />
           </div>
 
@@ -376,7 +339,7 @@ export function AdminAuditLogs() {
                 setSelectedService(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 text-xs rounded-lg border app-border bg-transparent app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="px-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
             >
               {serviceOptions.map((opt) => (
                 <option key={opt} value={opt} className="app-bg-card app-text-main">
@@ -392,7 +355,7 @@ export function AdminAuditLogs() {
                 setSelectedStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 text-xs rounded-lg border app-border bg-transparent app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="px-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
             >
               <option value="ALL" className="app-bg-card app-text-main">
                 {label("Tất cả trạng thái", "All statuses")}
@@ -430,7 +393,7 @@ export function AdminAuditLogs() {
       </div>
 
       {/* Audit Logs Table */}
-      <div className="app-bg-card border app-border rounded-xl shadow-xs overflow-hidden">
+      <div className="app-bg-card border app-border rounded-lg shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

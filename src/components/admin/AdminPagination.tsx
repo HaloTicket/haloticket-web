@@ -67,25 +67,25 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
   const options = [10, 20, 50];
 
   return (
-    <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs select-none bg-card">
+    <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs select-none app-bg-card">
       {/* Page Info */}
-      <div className="text-muted-foreground font-medium">
+      <div className="app-text-muted font-medium">
         {t("Hiển thị")}{" "}
-        <span className="font-bold text-foreground">{startItem}-{endItem}</span>
+        <span className="font-bold app-text-main">{startItem}-{endItem}</span>
         {" "}{t("trên tổng số")}{" "}
-        <span className="font-bold text-foreground">{itemCount}</span> {itemLabel || t("mục")}
+        <span className="font-bold app-text-main">{itemCount}</span> {itemLabel || t("mục")}
       </div>
 
       {/* Page Switcher */}
       <div className="flex flex-wrap items-center gap-4">
         {/* Page Size Selector */}
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">{t("Số dòng:")}</span>
+          <span className="app-text-muted">{t("Số dòng:")}</span>
           <select
             value={currentSize}
             onChange={(e) => handleSizeChange(Number(e.target.value))}
             aria-label={t("Số dòng trên trang")}
-            className="min-h-11 px-2.5 rounded-lg border border-border bg-muted/40 font-semibold text-foreground outline-none cursor-pointer focus:ring-2 focus:ring-blue-600/20"
+            className="min-h-9 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-semibold app-text-main outline-none cursor-pointer focus:ring-2 focus:ring-blue-600/20"
           >
             {options.map((opt) => (
               <option key={opt} value={opt}>
@@ -107,7 +107,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             onClick={() => onPageChange(Math.max(activePage - 1, 1))}
             aria-label={t("Trang trước")}
             title={t("Trang trước")}
-            className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="h-9 w-9 sm:h-8 sm:w-8 inline-flex items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <FiChevronLeft className="w-4 h-4 stroke-[2.5]" />
           </button>
@@ -118,7 +118,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
               return (
                 <span
                   key={`ellipsis-${idx}`}
-                  className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center text-slate-400 font-semibold select-none"
+                  className="h-9 w-9 sm:h-8 sm:w-8 inline-flex items-center justify-center text-slate-400 font-semibold select-none"
                 >
                   …
                 </span>
@@ -134,10 +134,10 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
                 aria-label={t("Trang {{page}}", { page: pageNum })}
                 disabled={loading}
                 onClick={() => onPageChange(pageNum)}
-                className={`h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                className={`h-9 w-9 sm:h-8 sm:w-8 inline-flex items-center justify-center rounded-md text-xs font-semibold cursor-pointer transition-all ${
                   isActive
                     ? "bg-blue-600 text-white shadow-xs"
-                    : "text-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
+                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 {pageNum}
@@ -152,7 +152,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             onClick={() => onPageChange(Math.min(activePage + 1, pageCount))}
             aria-label={t("Trang tiếp")}
             title={t("Trang tiếp")}
-            className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="h-9 w-9 sm:h-8 sm:w-8 inline-flex items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <FiChevronRight className="w-4 h-4 stroke-[2.5]" />
           </button>

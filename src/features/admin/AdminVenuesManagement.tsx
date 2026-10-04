@@ -134,29 +134,29 @@ export function AdminVenuesManagement() {
 
   return <div className="space-y-6">
     <AdminPageHeader title={t("Quản lý địa điểm")} description={t("Địa điểm được lưu trên hệ thống")} actions={loadState === "ready" && <VenueStatCards venues={venues} />} />
-    <section className="overflow-hidden rounded-2xl border app-border app-bg-card">
-      {loadState === "ready" && <div className="px-4 sm:px-5">
+    <section className="overflow-hidden rounded-lg border app-border app-bg-card shadow-xs">
+      {loadState === "ready" && <div className="px-5 pt-3">
         <AdminStatusTabs value={status} onChange={value => { setStatus(value as Status); setPage(1); }} options={[
           { value: "ALL", label: t("Tất cả trạng thái"), count: venues.length },
           { value: "VERIFIED", label: t("Đã xác minh"), count: venues.filter(v => v.verified).length },
           { value: "UNVERIFIED", label: t("Chưa xác minh"), count: venues.filter(v => !v.verified).length },
         ]} />
       </div>}
-      <div className="p-4 sm:p-5">
+      <div className="p-5">
         <AdminSearchFilterBar searchQuery={search} onSearchChange={value => { setSearch(value); setPage(1); }} searchPlaceholder={t("Tìm theo tên, địa chỉ, thành phố...")}>
           <label className="flex items-center gap-2 text-xs font-semibold app-text-main">
             <span className="text-muted-foreground">{t("Thành phố:")}</span>
-            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="h-10 rounded-xl border border-border bg-muted/40 px-3 text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600/20">
+            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="min-h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-3 text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600/20">
               <option value="ALL">{t("Tất cả thành phố")}</option>
               {cities.map(value => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-2xs hover:bg-muted/50 transition-colors disabled:opacity-50"><FiRefreshCw className={refreshing ? "animate-spin" : ""} /></button>
-          <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition-colors"><FiPlus className="h-4 w-4" />{t("Thêm địa điểm mới")}</button>
+          <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="inline-flex min-h-9 w-9 items-center justify-center rounded-md border app-border app-bg-card text-foreground shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"><FiRefreshCw className={refreshing ? "animate-spin" : ""} /></button>
+          <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition-colors"><FiPlus className="h-4 w-4" />{t("Thêm địa điểm mới")}</button>
         </AdminSearchFilterBar>
       </div>
     </section>
-    <section className="overflow-hidden rounded-2xl border app-border app-bg-card">
+    <section className="overflow-hidden rounded-lg border app-border app-bg-card shadow-xs">
       {refreshing && <AdminDataState state="refreshing" />}
       {refreshError && <div role="alert" className="border-b border-amber-500/40 p-4 text-sm app-text-main">{t("Không thể tải lại danh sách sau thao tác. Dữ liệu hiển thị có thể chưa cập nhật.")} <button type="button" onClick={() => void load()} className="font-bold underline">{t("Thử lại")}</button></div>}
       {loadState === "error"

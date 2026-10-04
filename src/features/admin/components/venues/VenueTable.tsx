@@ -117,7 +117,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                         type="button"
                         onClick={() => onToggleVerification(v)}
                         disabled={busyId !== null}
-                        className="min-h-11 sm:min-h-8 px-2.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                        className="min-h-9 px-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
                         title={translate("Bấm để xác minh địa điểm này")}
                       >
                         <FiShield className="w-3 h-3 shrink-0" />
@@ -128,7 +128,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     <button
                       type="button"
                       onClick={() => onEdit(v)}
-                      className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 rounded-lg app-text-brand hover:bg-slate-500/5 transition-colors cursor-pointer"
+                      className="h-9 w-9 sm:h-8 sm:w-8 inline-flex items-center justify-center rounded-md app-text-brand hover:bg-slate-500/5 transition-colors cursor-pointer"
                       aria-label={translate("Chỉnh sửa địa điểm")}
                       title={translate("Chỉnh sửa địa điểm")}
                     >
@@ -138,7 +138,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     <button
                       type="button"
                       onClick={() => onDelete(v)}
-                      className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 rounded-lg text-rose-500 hover:bg-slate-500/5 transition-colors cursor-pointer"
+                      className="h-9 w-9 sm:h-8 sm:w-8 inline-flex items-center justify-center rounded-md text-rose-500 hover:bg-slate-500/5 transition-colors cursor-pointer"
                       aria-label={translate("Xóa địa điểm khỏi hệ thống")}
                       title={translate("Xóa địa điểm khỏi hệ thống")}
                     >

@@ -24,21 +24,21 @@ export function AdminUnavailableScreen({ title, description, reason, action, tab
   const { t } = useTranslation();
 
   return <div className="space-y-6">
-    <AdminPageHeader title={t(title)} description={t(description)} actions={action && <button type="button" disabled title={reason} className="min-h-11 rounded-lg border app-border app-bg-card px-4 text-sm font-semibold app-text-muted opacity-70 cursor-not-allowed">{t(action)}</button>} />
-    <div role="status" className="rounded-2xl border app-border app-bg-subnav px-4 py-4 text-sm app-text-main sm:px-5">
+    <AdminPageHeader title={t(title)} description={t(description)} actions={action && <button type="button" disabled title={reason} className="px-4 py-2 min-h-9 rounded-md border app-border app-bg-card text-xs font-bold app-text-muted opacity-70 cursor-not-allowed">{t(action)}</button>} />
+    <div role="status" className="rounded-lg border app-border app-bg-subnav p-5 text-sm app-text-main shadow-xs">
       <span className="app-text-muted">{t(reason)}</span>
     </div>
-    {tableTitle && columns && <section aria-label={t(tableTitle)} className="overflow-hidden rounded-2xl border app-border app-bg-card">
-      <div className="border-b app-border px-4 py-4 sm:px-5"><h2 className="text-sm font-semibold app-text-main">{t(tableTitle)}</h2></div>
+    {tableTitle && columns && <section aria-label={t(tableTitle)} className="overflow-hidden rounded-lg border app-border app-bg-card shadow-xs">
+      <div className="border-b app-border p-5"><h2 className="text-sm font-bold app-text-main">{t(tableTitle)}</h2></div>
       <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="app-bg-subnav app-text-muted"><tr>{columns.map((column) => <th key={column} scope="col" className="whitespace-nowrap border-b app-border px-4 py-3 text-xs font-semibold">{t(column)}</th>)}</tr></thead>
-        <tbody><tr><td colSpan={columns.length} className="p-4"><AdminDataState state="empty" message={t("Chưa có dữ liệu", { defaultValue: "No data available" })} /></td></tr></tbody>
+        <thead className="bg-slate-50/50 dark:bg-slate-800/30 app-text-muted"><tr>{columns.map((column) => <th key={column} scope="col" className="whitespace-nowrap border-b app-border px-4 py-3 text-[11px] font-bold uppercase tracking-wider">{t(column)}</th>)}</tr></thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60"><tr><td colSpan={columns.length} className="p-5"><AdminDataState state="empty" message={t("Chưa có dữ liệu", { defaultValue: "No data available" })} /></td></tr></tbody>
       </table></div>
     </section>}
-    {sections.map((section) => <section key={section.title} className="rounded-2xl border app-border app-bg-card px-4 py-4 sm:px-5">
+    {sections.map((section) => <section key={section.title} className="rounded-lg border app-border app-bg-card p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0"><h2 className="text-sm font-semibold app-text-main">{t(section.title)}</h2><p className="mt-1 text-sm app-text-muted">{t(section.detail)}</p></div>
-        {section.action && <button type="button" disabled title={reason} className="min-h-11 rounded-lg border app-border px-4 text-sm font-semibold app-text-muted opacity-70 cursor-not-allowed">{t(section.action)}</button>}
+        <div className="min-w-0"><h2 className="text-sm font-bold app-text-main">{t(section.title)}</h2><p className="mt-1 text-xs app-text-muted">{t(section.detail)}</p></div>
+        {section.action && <button type="button" disabled title={reason} className="px-4 py-2 min-h-9 rounded-md border app-border text-xs font-bold app-text-muted opacity-70 cursor-not-allowed">{t(section.action)}</button>}
       </div>
     </section>)}
   </div>;

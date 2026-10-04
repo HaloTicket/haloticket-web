@@ -2,7 +2,7 @@ import { AdminUnavailableScreen } from "./components/AdminUnavailableScreen";
 
 export function UserManagement() {
   return <AdminUnavailableScreen
-    title="Người dùng và phân quyền"
+    title="Quản lý người dùng"
     description="Tra cứu tài khoản, trạng thái và vai trò quản trị."
     reason="Chưa có API quản trị để liệt kê người dùng, đổi vai trò hoặc khóa tài khoản."
     action="Thêm người dùng"

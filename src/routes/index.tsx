@@ -75,15 +75,17 @@ import EventApproval from "@/features/admin/EventApproval";
 import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import EkycApproval from "@/features/admin/EkycApproval";
 import AdminAiAnalytics from "@/features/admin/AdminAiAnalytics";
+import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
 import SystemHealth from "@/features/admin/SystemHealth";
-import AdminAuditLogs from "@/features/admin/AuditLogs";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
 import AdminSectionHub from "@/features/admin/AdminSectionHub";
-import { CustomerUsersPreview, OrganizerUsersPreview, AdministratorUsersPreview } from "@/features/admin/wireframes/UsersEventWireframes";
+import AdminUserManagement from "@/features/admin/UserManagement";
 import AdminEventReports from "@/features/admin/reports/AdminEventReports";
 import AdminEventReportDetail from "@/features/admin/reports/AdminEventReportDetail";
-import { PaymentTransactionsPreview, RefundsPreview, OrganizerSettlementsPreview, ResaleTicketsPreview, PricePolicyPreview, TransactionDisputesPreview } from "@/features/admin/wireframes/FinanceMarketWireframes";
-import { HomepageContentPreview, EventCategoriesPreview, AdvertisingBannersPreview, AiAssistantPreview, AiAnomaliesPreview, SystemSettingsPreview } from "@/features/admin/wireframes/ContentAiSystemWireframes";
+import AdminPaymentMonitoring from "@/features/admin/PaymentMonitoring";
+import AdminResaleManagement from "@/features/admin/ResaleManagement";
+import AdminHomepageConfig from "@/features/admin/HomepageConfig";
+import AdminCategoryConfig from "@/features/admin/CategoryConfig";
 
 // Common / Error
 import NotFound from "@/features/common/NotFound";
@@ -450,25 +452,19 @@ export const router = createBrowserRouter([
         path: PATHS.ADMIN_DASHBOARD,
         element: <AdminDashboard />,
       },
-      ...[PATHS.ADMIN_EVENT_MANAGEMENT, PATHS.ADMIN_USER_MANAGEMENT, PATHS.ADMIN_FINANCE, PATHS.ADMIN_TICKET_MARKET, PATHS.ADMIN_CONTENT, PATHS.ADMIN_AI].map((path) => ({ path, element: <AdminSectionHub /> })),
+      ...[PATHS.ADMIN_EVENT_MANAGEMENT, PATHS.ADMIN_CONTENT, PATHS.ADMIN_AI].map((path) => ({ path, element: <AdminSectionHub /> })),
       { path: PATHS.ADMIN_EVENT_REPORTS, element: <AdminEventReports /> },
       { path: `${PATHS.ADMIN_EVENT_REPORTS}/:eventId`, element: <AdminEventReportDetail /> },
-      { path: PATHS.ADMIN_CUSTOMERS, element: <CustomerUsersPreview /> },
       { path: PATHS.ADMIN_NOTIFICATIONS, element: <AdminNotifications /> },
-      { path: PATHS.ADMIN_ORGANIZERS, element: <OrganizerUsersPreview /> },
-      { path: PATHS.ADMIN_ADMINISTRATORS, element: <AdministratorUsersPreview /> },
-      { path: PATHS.ADMIN_PAYMENT_TRANSACTIONS, element: <PaymentTransactionsPreview /> },
-      { path: PATHS.ADMIN_REFUNDS, element: <RefundsPreview /> },
-      { path: PATHS.ADMIN_ORGANIZER_SETTLEMENTS, element: <OrganizerSettlementsPreview /> },
-      { path: PATHS.ADMIN_RESALE_TICKETS, element: <ResaleTicketsPreview /> },
-      { path: PATHS.ADMIN_PRICE_POLICY, element: <PricePolicyPreview /> },
-      { path: PATHS.ADMIN_TRANSACTION_DISPUTES, element: <TransactionDisputesPreview /> },
-      { path: PATHS.ADMIN_HOMEPAGE_CONTENT, element: <HomepageContentPreview /> },
-      { path: PATHS.ADMIN_EVENT_CATEGORIES, element: <EventCategoriesPreview /> },
-      { path: PATHS.ADMIN_ADVERTISING_BANNERS, element: <AdvertisingBannersPreview /> },
-      { path: PATHS.ADMIN_AI_ASSISTANT, element: <AiAssistantPreview /> },
-      { path: PATHS.ADMIN_AI_ANOMALIES, element: <AiAnomaliesPreview /> },
-      { path: PATHS.ADMIN_SYSTEM_SETTINGS, element: <SystemSettingsPreview /> },
+      { path: PATHS.ADMIN_USER_MANAGEMENT, element: <AdminUserManagement /> },
+      { path: PATHS.ADMIN_FINANCE, element: <AdminPaymentMonitoring /> },
+      { path: PATHS.ADMIN_TICKET_MARKET, element: <AdminResaleManagement /> },
+      { path: PATHS.ADMIN_HOMEPAGE_CONTENT, element: <AdminHomepageConfig /> },
+      { path: PATHS.ADMIN_EVENT_CATEGORIES, element: <AdminCategoryConfig /> },
+      { path: PATHS.ADMIN_AI_ASSISTANT, element: <AdminAiAssistant /> },
+      { path: PATHS.ADMIN_AI_ANALYTICS, element: <AdminAiAnalytics /> },
+      { path: PATHS.ADMIN_SYSTEM_MONITORING, element: <SystemHealth /> },
+      { path: PATHS.ADMIN_SYSTEM_SETTINGS, element: <AdminSettings /> },
       {
         path: PATHS.ADMIN_SETTINGS,
         element: <Navigate to={PATHS.ADMIN_SETTINGS_SECTION("profile")} replace />,
@@ -514,12 +510,8 @@ export const router = createBrowserRouter([
         element: <Navigate to={PATHS.ADMIN_PAYMENT_TRANSACTIONS} replace />,
       },
       {
-        path: PATHS.ADMIN_SYSTEM_MONITORING,
-        element: <AdminSectionHub />,
-      },
-      {
         path: PATHS.ADMIN_SYSTEM_HEALTH,
-        element: <SystemHealth />,
+        element: <Navigate to={PATHS.ADMIN_SYSTEM_MONITORING} replace />,
       },
       {
         path: "/admin/monitoring/services",
@@ -527,7 +519,7 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.ADMIN_AUDIT_LOGS,
-        element: <AdminAuditLogs />,
+        element: <Navigate to={PATHS.ADMIN_SYSTEM_MONITORING} replace />,
       },
       {
         path: "/admin/monitoring/audit-logs",

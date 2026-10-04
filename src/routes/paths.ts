@@ -62,6 +62,8 @@ export const PATHS = {
   ADMIN_AI_ASSISTANT: "/admin/ai/assistant",
   ADMIN_AI_ANOMALIES: "/admin/ai/anomalies",
   ADMIN_AI_ANALYTICS: "/admin/ai/analytics",
+  ADMIN_AI_SUMMARY: "/admin/ai/summary",
+  ADMIN_AI_RISK: "/admin/ai/risk-assessment",
   ADMIN_SYSTEM_SETTINGS: "/admin/system-settings",
   ADMIN_EVENTS_APPROVAL: "/admin/events-approval",
   ADMIN_EVENT_APPROVAL_DETAIL: (id: string | number) => `/admin/events-approval/${encodeURIComponent(String(id))}`,

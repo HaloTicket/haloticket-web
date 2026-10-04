@@ -2,7 +2,7 @@ import { AdminUnavailableScreen } from "./components/AdminUnavailableScreen";
 
 export function HomepageConfig() {
   return <AdminUnavailableScreen
-    title="Cấu hình trang chủ"
+    title="Nội dung & Quảng cáo"
     description="Quản lý nội dung quảng bá và vị trí hiển thị trên trang chủ."
     reason="Chưa có nơi lưu cấu hình, tải ảnh và API xuất bản dành cho quản trị viên."
     action="Xuất bản thay đổi"

@@ -2,7 +2,7 @@ import { AdminUnavailableScreen } from "./components/AdminUnavailableScreen";
 
 export function PaymentMonitoring() {
   return <AdminUnavailableScreen
-    title="Giám sát thanh toán"
+    title="Quản lý tài chính"
     description="Theo dõi giao dịch thanh toán và đối soát."
     reason="Chưa có API quản trị để tìm giao dịch hoặc thử lại thanh toán với quy tắc an toàn chống xử lý trùng."
     action="Làm mới giao dịch"

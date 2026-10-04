@@ -32,9 +32,9 @@ export function NotificationDropdown({ notifications, unreadCount, onMarkAllAsRe
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
   }, [open]);
   return <div className="relative" ref={root}>
-    <button ref={trigger} type="button" className="relative min-h-11 min-w-11 grid place-items-center rounded-xl app-bg-card app-text-main border app-border" aria-label={`${titleText}${unreadCount ? `, ${unreadCount} chưa đọc` : ''}`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
+    <button ref={trigger} type="button" className="relative flex items-center justify-center w-10 h-10 rounded-full app-text-muted hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer" aria-label={`${titleText}${unreadCount ? `, ${unreadCount} chưa đọc` : ''}`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
       <FiBell className="w-5 h-5" />
-      {unreadCount > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold grid place-items-center">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+      {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center leading-none border-2 border-white dark:border-[#27272a]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
     </button>
     {open && <div ref={panel} id={id} role="region" aria-label={titleText} className="notification-popover">
       <header className="flex items-center justify-between px-3 py-2 border-b app-border"><div><h2 className="font-bold text-base app-text-main">{titleText}</h2><p className="text-xs app-text-muted mt-1">{unreadCount} thông báo chưa đọc</p></div><button type="button" className="min-w-11 min-h-11 grid place-items-center rounded-lg" aria-label="Đóng thông báo" onClick={() => { setOpen(false); trigger.current?.focus(); }}><FiX /></button></header>

@@ -240,10 +240,10 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
 
       {/* ── MAIN HERO SECTION ── */}
       <div className="relative w-full mb-8">
-        {/* DESKTOP LAYOUT: 2-column side by side */}
-        <div className="hidden lg:grid lg:grid-cols-12 gap-8 items-start">
-          {/* Left: Banner Image */}
-          <div className="lg:col-span-7 xl:col-span-8 relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 aspect-[16/10] border app-border group">
+        {/* DESKTOP LAYOUT: Ticket Style */}
+        <div className="hidden lg:flex w-full relative rounded-3xl overflow-hidden shadow-2xl border app-border app-bg-card">
+          {/* Left: Banner Image (Ticket Left Side) */}
+          <div className="w-[65%] relative bg-slate-950 aspect-[16/10] group shrink-0">
             <img
               src={posterImage}
               alt={event.title}
@@ -274,29 +274,31 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             </button>
           </div>
 
-          {/* Right: Event Info Card - Desktop */}
-          <div className="lg:col-span-5 xl:col-span-4 sticky top-24">
-          <div className="rounded-3xl overflow-hidden shadow-xl border app-border app-bg-card">
-              {/* Event Title */}
-              <div className="p-6 pb-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`px-3 py-0.5 rounded-full text-xs font-bold text-white ${salesStatus.statusColor}`}>
-                    {salesStatus.statusLabel}
-                  </span>
-                  {isResaleTag && (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white">
-                      {translate("Bán lại vé")}
-                    </span>
-                  )}
-                </div>
-                <h1 className="text-xl xl:text-2xl font-black app-text-main leading-snug tracking-tight">
-                  {event.title}
-                </h1>
-              </div>
+          {/* Ticket Perforation (Vertical) */}
+          <div className="relative flex flex-col items-center justify-between w-6 h-auto bg-transparent z-20 pointer-events-none -ml-3 -mr-3 self-stretch">
+             <div className="w-6 h-6 -mt-3 rounded-full bg-[var(--bg-page)] border-b app-border" />
+             <div className="h-full border-l-2 border-dashed border-slate-300 dark:border-slate-700 my-2" />
+             <div className="w-6 h-6 -mb-3 rounded-full bg-[var(--bg-page)] border-t app-border" />
+          </div>
 
-              {/* Info rows */}
-              <div className="px-6 space-y-4 pb-5">
-                {/* Date & Time */}
+          {/* Right: Event Info Card (Ticket Right Side) */}
+          <div className="flex-1 flex flex-col z-10 pl-4 bg-[var(--bg-card)]">
+            <div className="flex-1 p-6 pb-4 flex flex-col">
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`px-3 py-0.5 rounded-full text-xs font-bold text-white ${salesStatus.statusColor}`}>
+                  {salesStatus.statusLabel}
+                </span>
+                {isResaleTag && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white">
+                    {translate("Bán lại vé")}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-xl xl:text-2xl font-black app-text-main leading-snug tracking-tight mb-6">
+                {event.title}
+              </h1>
+              
+              <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 w-9 h-9 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0 border app-border">
                     <FiCalendar className="w-4 h-4 app-text-brand" />
@@ -308,7 +310,6 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
                   </div>
                 </div>
 
-                {/* Location */}
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 w-9 h-9 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0 border app-border">
                     <FiMapPin className="w-4 h-4 app-text-brand" />
@@ -325,14 +326,13 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Price & CTA */}
-              <div className="border-t app-border p-6 space-y-4 app-bg-subnav">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs app-text-muted font-medium">{translate("Giá từ")}</p>
-                    <p className="text-2xl font-black app-text-main font-mono">{displayPrice}</p>
-                  </div>
+            <div className="border-t border-dashed app-border p-6 mt-auto">
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="text-xs app-text-muted font-medium mb-1">{translate("Giá từ")}</p>
+                  <p className="text-3xl font-black app-text-main font-mono">{displayPrice}</p>
                 </div>
                 <button
                   type="button"

@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiCalendar, FiMapPin, FiRefreshCw } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiMapPin, FiRefreshCw, FiShield } from "react-icons/fi";
 
 import { AdminDataState } from "@/components/admin/AdminDataState";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { eventApi } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
 import { EventApprovalActions } from "./EventApprovalActions";
-import { approvalListUrl, displayApprovalStatus, normalizeApprovalEvents } from "./approvalModel";
-import type { ApprovalEventRecord } from "./approvalModel";
+import { approvalListUrl, displayApprovalStatus, normalizeApprovalEvents } from "@/utils/approvalModel";
+import type { ApprovalEventRecord } from "@/utils/approvalModel";
 
 function displayDate(value?: string): string | undefined {
   if (!value) return undefined;
@@ -25,6 +26,8 @@ export function EventApprovalDetail() {
   const [event, setEvent] = useState<ApprovalEventRecord | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "missing">("loading");
   const [resolvedId, setResolvedId] = useState<string | undefined>();
+  const [riskScore, setRiskScore] = useState<{ risk_level: string, risk_score: number, reasons: string[] } | null>(null);
+  const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
   const requestVersion = useRef(0);
 
   const loadEvent = useCallback(async () => {
@@ -52,7 +55,25 @@ export function EventApprovalDetail() {
     return () => { cancelled = true; requestVersion.current += 1; };
   }, [loadEvent]);
 
-  const back = <Link to={listUrl} className="inline-flex min-h-11 items-center gap-2 rounded-lg border app-border app-bg-card px-4 text-sm font-semibold app-text-main"><FiArrowLeft aria-hidden="true" />{t("Quay lại danh sách")}</Link>;
+  useEffect(() => {
+    if (event && event.id) {
+      const checkRisk = async () => {
+        setIsAnalyzingRisk(true);
+        try {
+          const score = await aiApi.assessEventRisk(event.id);
+          setRiskScore(score);
+        } catch (error) {
+          console.error("Risk assessment failed:", error);
+          setRiskScore(null);
+        } finally {
+          setIsAnalyzingRisk(false);
+        }
+      };
+      checkRisk();
+    }
+  }, [event?.id]);
+
+  const back = <Link to={listUrl} className="inline-flex min-h-9 items-center gap-2 rounded-md border app-border app-bg-card px-4 text-sm font-semibold app-text-main transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"><FiArrowLeft aria-hidden="true" />{t("Quay lại danh sách")}</Link>;
 
   if (state === "loading" || resolvedId !== eventId) return <div className="space-y-5"><AdminPageHeader title={t("Hồ sơ duyệt sự kiện")} actions={back} /><AdminDataState state="loading" /></div>;
   if (state === "error") return <div className="space-y-5"><AdminPageHeader title={t("Hồ sơ duyệt sự kiện")} actions={back} /><AdminDataState state="error" onRetry={() => { setState("loading"); void loadEvent(); }} message={t("Không thể tải hồ sơ duyệt sự kiện. Vui lòng thử lại.")} /></div>;
@@ -60,12 +81,65 @@ export function EventApprovalDetail() {
 
   return (
     <div className="space-y-5">
-      <AdminPageHeader title={event.title} description={`${t("Mã hồ sơ")}: ${event.id}`} actions={<div className="flex flex-wrap gap-2">{back}<button type="button" onClick={() => { setState("loading"); void loadEvent(); }} className="inline-flex min-h-11 items-center gap-2 rounded-lg border app-border app-bg-card px-4 text-sm font-semibold app-text-main"><FiRefreshCw aria-hidden="true" />{t("Làm mới")}</button></div>} />
+      <AdminPageHeader title={event.title} description={`${t("Mã hồ sơ")}: ${event.id}`} actions={<div className="flex flex-wrap gap-2">{back}<button type="button" onClick={() => { setState("loading"); void loadEvent(); }} className="inline-flex min-h-9 items-center gap-2 rounded-md border app-border app-bg-card px-4 text-sm font-semibold app-text-main transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"><FiRefreshCw aria-hidden="true" />{t("Làm mới")}</button></div>} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <main className="space-y-5 min-w-0">
-          {(event.bannerUrl || event.posterImage) && <div className="overflow-hidden rounded-xl border app-border app-bg-card"><img src={event.bannerUrl || event.posterImage} alt="" className="h-52 w-full object-cover sm:h-64" /></div>}
-          <section className="rounded-xl border app-border app-bg-card p-5 space-y-4">
+          {(event.bannerUrl || event.posterImage) && <div className="overflow-hidden rounded-lg shadow-xs border app-border app-bg-card"><img src={event.bannerUrl || event.posterImage} alt="" className="h-52 w-full object-cover sm:h-64" /></div>}
+          
+          {/* AI Risk Scoring Banner */}
+          <div className={`p-4 rounded-lg shadow-xs border flex flex-col sm:flex-row gap-4 items-start ${
+            isAnalyzingRisk ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" :
+            riskScore?.risk_level === "HIGH" ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50" :
+            riskScore?.risk_level === "MEDIUM" ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50" :
+            "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50"
+          }`}>
+            <div className="flex items-center justify-center w-14 h-14 rounded-full shrink-0 shadow-inner bg-white dark:bg-zinc-800 border border-slate-100 dark:border-slate-700">
+              {isAnalyzingRisk ? (
+                <FiRefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+              ) : (
+                <span className={`text-xl font-black ${
+                  riskScore?.risk_level === "HIGH" ? "text-rose-600" :
+                  riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
+                  "text-emerald-600"
+                }`}>
+                  {riskScore?.risk_score || 0}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <FiShield className={`w-4 h-4 ${
+                  isAnalyzingRisk ? "text-blue-500" :
+                  riskScore?.risk_level === "HIGH" ? "text-rose-600" :
+                  riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
+                  "text-emerald-600"
+                }`} />
+                <span className="app-text-main">{t("AI Phân Tích Rủi Ro (Risk Scoring)")}</span>
+                {!isAnalyzingRisk && riskScore && (
+                  <span className={`px-2 py-0.5 text-[10px] uppercase font-black rounded ${
+                    riskScore.risk_level === "HIGH" ? "bg-rose-600 text-white" :
+                    riskScore.risk_level === "MEDIUM" ? "bg-amber-500 text-white" :
+                    riskScore.risk_level === "UNKNOWN" ? "bg-slate-500 text-white" :
+                    "bg-emerald-500 text-white"
+                  }`}>
+                    {riskScore.risk_level}
+                  </span>
+                )}
+              </h4>
+              {isAnalyzingRisk ? (
+                <p className="text-xs app-text-muted">{t("Đang phân tích thông tin sự kiện và lịch sử BTC...")}</p>
+              ) : (
+                <ul className="text-xs app-text-muted list-disc list-inside space-y-0.5 pl-1">
+                  {riskScore?.reasons.map((reason, idx) => (
+                    <li key={idx} className="leading-tight">{reason}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
             <h2 className="text-lg font-bold app-text-main">{t("Thông tin sự kiện")}</h2>
             <dl className="grid gap-4 text-sm sm:grid-cols-2">
               <div><dt className="app-text-muted">{t("Ban Tổ Chức")}</dt><dd className="font-semibold app-text-main">{event.organizerName || t("Chưa cập nhật")}</dd></div>
@@ -77,27 +151,27 @@ export function EventApprovalDetail() {
             </dl>
           </section>
 
-          {Boolean(event.showtimes?.length) && <section className="rounded-xl border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Suất diễn")}</h2><div className="divide-y app-border">{event.showtimes?.map((showtime, index) => <div key={showtime.id || index} className="py-3 text-sm"><p className="font-semibold app-text-main">{showtime.name || `${t("Suất diễn")} ${index + 1}`}</p><p className="app-text-muted">{[displayDate(showtime.startTime), displayDate(showtime.endTime)].filter(Boolean).join(" – ")}</p>{(showtime.saleStartTime || showtime.saleEndTime) && <p className="app-text-muted">{t("Thời gian mở bán")}: {[displayDate(showtime.saleStartTime), displayDate(showtime.saleEndTime)].filter(Boolean).join(" – ")}</p>}</div>)}</div></section>}
+          {Boolean(event.showtimes?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Suất diễn")}</h2><div className="divide-y app-border">{event.showtimes?.map((showtime, index) => <div key={showtime.id || index} className="py-3 text-sm"><p className="font-semibold app-text-main">{showtime.name || `${t("Suất diễn")} ${index + 1}`}</p><p className="app-text-muted">{[displayDate(showtime.startTime), displayDate(showtime.endTime)].filter(Boolean).join(" – ")}</p>{(showtime.saleStartTime || showtime.saleEndTime) && <p className="app-text-muted">{t("Thời gian mở bán")}: {[displayDate(showtime.saleStartTime), displayDate(showtime.saleEndTime)].filter(Boolean).join(" – ")}</p>}</div>)}</div></section>}
 
-          <section className="rounded-xl border app-border app-bg-card p-5 space-y-3">
+          <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3">
             <h2 className="text-lg font-bold app-text-main">{t("Nội dung mô tả chi tiết sự kiện")}</h2>
             <p className="whitespace-pre-wrap break-words text-sm leading-6 app-text-main">{event.descriptionText || event.description || t("Chưa cập nhật")}</p>
           </section>
 
-          {Boolean(event.tickets?.length) && <section className="rounded-xl border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Cấu hình các loại vé đăng ký")}</h2><div className="divide-y app-border">{event.tickets?.map((ticket, index) => <div key={index} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span className="font-semibold app-text-main">{String(ticket.name || t("Hạng vé"))}</span><span className="app-text-muted">{typeof ticket.price === "number" ? `${ticket.price.toLocaleString("vi-VN")} đ` : t("Chưa cập nhật")}{typeof ticket.totalQuantity === "number" ? ` · ${ticket.totalQuantity} ${t("vé")}` : ""}</span></div>)}</div></section>}
+          {Boolean(event.tickets?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Cấu hình các loại vé đăng ký")}</h2><div className="divide-y app-border">{event.tickets?.map((ticket, index) => <div key={index} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span className="font-semibold app-text-main">{String(ticket.name || t("Hạng vé"))}</span><span className="app-text-muted">{typeof ticket.price === "number" ? `${ticket.price.toLocaleString("vi-VN")} đ` : t("Chưa cập nhật")}{typeof ticket.totalQuantity === "number" ? ` · ${ticket.totalQuantity} ${t("vé")}` : ""}</span></div>)}</div></section>}
 
-          {Boolean(event.customQuestions?.length) && <section className="rounded-xl border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Câu hỏi đăng ký")}</h2><div className="divide-y app-border">{event.customQuestions?.map((question, index) => <div key={typeof question.id === "string" ? question.id : index} className="py-3 text-sm"><p className="font-semibold app-text-main">{typeof question.title === "string" && question.title.trim() ? question.title : `${t("Câu hỏi")} ${index + 1}`}{question.isRequired === true ? ` · ${t("Bắt buộc")}` : ""}</p>{typeof question.description === "string" && question.description.trim() && <p className="app-text-muted">{question.description}</p>}</div>)}</div></section>}
+          {Boolean(event.customQuestions?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Câu hỏi đăng ký")}</h2><div className="divide-y app-border">{event.customQuestions?.map((question, index) => <div key={typeof question.id === "string" ? question.id : index} className="py-3 text-sm"><p className="font-semibold app-text-main">{typeof question.title === "string" && question.title.trim() ? question.title : `${t("Câu hỏi")} ${index + 1}`}{question.isRequired === true ? ` · ${t("Bắt buộc")}` : ""}</p>{typeof question.description === "string" && question.description.trim() && <p className="app-text-muted">{question.description}</p>}</div>)}</div></section>}
 
-          {Boolean(event.galleryImages?.length) && <section className="rounded-xl border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Bộ sưu tập hình ảnh sự kiện")}</h2><div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{event.galleryImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt="" className="aspect-square w-full rounded-lg object-cover" />)}</div></section>}
+          {Boolean(event.galleryImages?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Bộ sưu tập hình ảnh sự kiện")}</h2><div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{event.galleryImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt="" className="aspect-square w-full rounded-lg object-cover" />)}</div></section>}
         </main>
 
         <aside className="min-w-0 space-y-5">
-          <section className="rounded-xl border app-border app-bg-card p-5 space-y-4">
+          <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
             <div><h2 className="text-base font-bold app-text-main">{t("Trạng thái duyệt")}</h2><p className={`mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${displayApprovalStatus(event.eventApprovalStatus).className}`}>{t(displayApprovalStatus(event.eventApprovalStatus).label)}</p></div>
             <EventApprovalActions key={event.id} event={event} onSuccess={() => navigate(listUrl)} />
           </section>
-          {(event.taxName || event.taxCode || event.taxAddress || event.businessType || event.accountHolder || event.accountNumber || event.bankName || event.bankBranch) && <section className="rounded-xl border app-border app-bg-card p-5 space-y-3"><h2 className="text-base font-bold app-text-main">{t("Hồ Sơ Pháp Lý & Thanh Toán Ban Tổ Chức")}</h2><dl className="space-y-2 text-sm">{[[t("Đơn vị đăng ký (Tax Name)"), event.taxName], [t("Mã số thuế (Tax Code)"), event.taxCode], [t("Địa chỉ đăng ký"), event.taxAddress], [t("Loại hình kinh doanh"), event.businessType], [t("Chủ tài khoản nhận tiền"), event.accountHolder], [t("Số tài khoản ngân hàng"), event.accountNumber], [t("Ngân hàng & Chi nhánh"), [event.bankName, event.bankBranch].filter(Boolean).join(" · ")]].filter((entry) => entry[1]).map(([label, value]) => <div key={label}><dt className="app-text-muted">{label}</dt><dd className="break-words font-semibold app-text-main">{value}</dd></div>)}</dl></section>}
-          {event.eventApprovalStatus === "REJECTED" && (event.rejectionReason || event.rejectionNotes) && <section className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-700 dark:text-rose-300"><h2 className="font-bold">{t("Sự kiện này đã bị từ chối phê duyệt")}</h2>{event.rejectionReason && <p className="mt-2">{t("Lý do")}: {event.rejectionReason}</p>}{event.rejectionNotes && <p className="mt-2 whitespace-pre-wrap">{t("Ghi chú")}: {event.rejectionNotes}</p>}</section>}
+          {(event.taxName || event.taxCode || event.taxAddress || event.businessType || event.accountHolder || event.accountNumber || event.bankName || event.bankBranch) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-base font-bold app-text-main">{t("Hồ Sơ Pháp Lý & Thanh Toán Ban Tổ Chức")}</h2><dl className="space-y-2 text-sm">{[[t("Đơn vị đăng ký (Tax Name)"), event.taxName], [t("Mã số thuế (Tax Code)"), event.taxCode], [t("Địa chỉ đăng ký"), event.taxAddress], [t("Loại hình kinh doanh"), event.businessType], [t("Chủ tài khoản nhận tiền"), event.accountHolder], [t("Số tài khoản ngân hàng"), event.accountNumber], [t("Ngân hàng & Chi nhánh"), [event.bankName, event.bankBranch].filter(Boolean).join(" · ")]].filter((entry) => entry[1]).map(([label, value]) => <div key={label}><dt className="app-text-muted">{label}</dt><dd className="break-words font-semibold app-text-main">{value}</dd></div>)}</dl></section>}
+          {event.eventApprovalStatus === "REJECTED" && (event.rejectionReason || event.rejectionNotes) && <section className="rounded-lg shadow-xs border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-700 dark:text-rose-300"><h2 className="font-bold">{t("Sự kiện này đã bị từ chối phê duyệt")}</h2>{event.rejectionReason && <p className="mt-2">{t("Lý do")}: {event.rejectionReason}</p>}{event.rejectionNotes && <p className="mt-2 whitespace-pre-wrap">{t("Ghi chú")}: {event.rejectionNotes}</p>}</section>}
         </aside>
       </div>
     </div>

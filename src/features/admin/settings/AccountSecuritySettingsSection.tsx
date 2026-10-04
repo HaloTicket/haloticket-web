@@ -72,7 +72,7 @@ export default function AccountSecuritySettingsSection() {
 
   const verified = status?.status === "APPROVED";
   const detail = (label: string, value?: string | null) => (
-    <div className="min-w-0 rounded-xl border border-border/60 bg-card p-3">
+    <div className="min-w-0 rounded-lg border border-border/60 bg-card p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 break-words font-semibold text-foreground">{value || "—"}</dd>
     </div>
@@ -97,14 +97,14 @@ export default function AccountSecuritySettingsSection() {
         </p>
 
         <div
-          className={`rounded-2xl border p-4 sm:p-5 space-y-3 shadow-2xs admin-kyc-card ${
+          className={`rounded-lg border p-4 sm:p-5 space-y-3 shadow-xs admin-kyc-card ${
             verified
               ? "text-emerald-600 bg-emerald-500/10 border-emerald-500/20 is-verified"
               : "text-primary bg-primary/10 border-primary/20"
           }`}
         >
           <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-card/80 border border-border/60 shrink-0">
+            <div className="p-2 rounded-md bg-card/80 border border-border/60 shrink-0">
               <LuBadgeCheck
                 className={`w-5 h-5 ${
                   verified ? "text-emerald-600 dark:text-emerald-400" : "text-primary"
@@ -155,7 +155,7 @@ export default function AccountSecuritySettingsSection() {
                 to={`${PATHS.ADMIN_IDENTITY_VERIFICATION}?returnUrl=${encodeURIComponent(
                   PATHS.ADMIN_SETTINGS_SECTION("account-security")
                 )}`}
-                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 cursor-pointer inline-flex items-center gap-1.5 transition-all"
+                className="min-h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 cursor-pointer inline-flex items-center gap-1.5 transition-all"
               >
                 <LuShieldCheck className="w-3.5 h-3.5" />
                 <span>{copy("Xác minh ngay", "Verify now")}</span>
@@ -165,7 +165,7 @@ export default function AccountSecuritySettingsSection() {
               type="button"
               onClick={() => void refresh()}
               disabled={loading}
-              className="h-9 px-3 rounded-xl border border-border bg-card text-xs font-semibold hover:bg-muted cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60 transition-colors"
+              className="min-h-9 px-3 rounded-md border border-border bg-card text-xs font-semibold hover:bg-muted cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60 transition-colors"
             >
               <LuRefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>{copy("Làm mới", "Refresh")}</span>
@@ -189,7 +189,7 @@ export default function AccountSecuritySettingsSection() {
 
         <form
           onSubmit={submitPassword}
-          className="bg-card rounded-3xl border border-border p-5 sm:p-6 space-y-4 shadow-2xs admin-password-card"
+          className="bg-card rounded-lg border border-border p-5 sm:p-6 space-y-4 shadow-xs admin-password-card"
         >
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-foreground">
@@ -201,7 +201,7 @@ export default function AccountSecuritySettingsSection() {
               value={passwords.current}
               onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
               placeholder={copy("Nhập mật khẩu hiện tại", "Enter current password")}
-              className="w-full h-10 px-3.5 bg-muted/40 focus:bg-card rounded-xl border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all"
+              className="w-full min-h-9 px-3.5 bg-muted/40 focus:bg-card rounded-md border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all"
             />
           </div>
 
@@ -215,7 +215,7 @@ export default function AccountSecuritySettingsSection() {
               value={passwords.next}
               onChange={(e) => setPasswords({ ...passwords, next: e.target.value })}
               placeholder={copy("Tối thiểu 8 ký tự", "Minimum 8 characters")}
-              className="w-full h-10 px-3.5 bg-muted/40 focus:bg-card rounded-xl border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all"
+              className="w-full min-h-9 px-3.5 bg-muted/40 focus:bg-card rounded-md border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all"
             />
           </div>
 
@@ -229,12 +229,12 @@ export default function AccountSecuritySettingsSection() {
               value={passwords.confirm}
               onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
               placeholder={copy("Nhập lại mật khẩu mới", "Re-enter new password")}
-              className="w-full h-10 px-3.5 bg-muted/40 focus:bg-card rounded-xl border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all"
+              className="w-full min-h-9 px-3.5 bg-muted/40 focus:bg-card rounded-md border border-border focus:border-primary text-xs sm:text-sm text-foreground outline-none transition-all"
             />
           </div>
 
           {passwordNote && (
-            <p role="status" className="rounded-xl border border-border/80 bg-muted/20 p-3 text-xs text-foreground">
+            <p role="status" className="rounded-lg border border-border/80 bg-muted/20 p-3 text-xs text-foreground">
               {passwordNote}
             </p>
           )}
@@ -242,7 +242,7 @@ export default function AccountSecuritySettingsSection() {
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              className="admin-password-submit inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
+              className="admin-password-submit inline-flex items-center gap-2 px-6 py-2 min-h-9 rounded-md bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50"
             >
               <LuCheck className="w-4 h-4" />
               <span>{copy("Cập nhật mật khẩu", "Update password")}</span>
@@ -252,7 +252,7 @@ export default function AccountSecuritySettingsSection() {
       </div>
 
       {/* 3. SSO Security Box */}
-      <div className="bg-card rounded-3xl border border-border p-6 space-y-3 shadow-2xs">
+      <div className="bg-card rounded-lg border border-border p-6 space-y-3 shadow-xs">
         <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
           <LuShield className="w-4 h-4 text-primary" />
           <span>{copy("Bảo mật đăng nhập SSO", "SSO sign-in security")}</span>

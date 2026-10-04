@@ -100,7 +100,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               placeholder={translate("VD: Trung Tâm Hội Nghị Gem Center")}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
+              className="w-full pl-10 pr-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
         </div>
@@ -119,7 +119,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               placeholder={translate("VD: 8 Nguyễn Bỉnh Khiêm, Đa Kao, Quận 1")}
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
+              className="w-full pl-10 pr-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
         </div>
@@ -137,7 +137,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               placeholder={translate("VD: TP. Hồ Chí Minh, Hà Nội")}
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
+              className="w-full px-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
 
@@ -155,7 +155,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
                 required
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               />
             </div>
           </div>
@@ -171,7 +171,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               id="venue-type"
               value={formData.type || 'indoor'}
               onChange={(e) => setFormData({ ...formData, type: e.target.value as 'indoor' | 'outdoor' | 'hybrid' })}
-              className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors cursor-pointer"
+              className="w-full px-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer"
             >
               <option value="indoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Trong nhà (Indoor)")}</option>
               <option value="outdoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Ngoài trời (Outdoor)")}</option>
@@ -187,7 +187,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
               id="venue-verified"
               value={formData.verified ? 'true' : 'false'}
               onChange={(e) => setFormData({ ...formData, verified: e.target.value === 'true' })}
-              className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-sm focus:outline-none focus:!border-blue-500 transition-colors cursor-pointer"
+              className="w-full px-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer"
             >
               <option value="true" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Đã xác minh (Official)")}</option>
               <option value="false" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Chờ xác minh (Unverified)")}</option>

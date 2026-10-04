@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { AdminAuditLogs } from "./monitoring/AdminAuditLogs";
 import { PATHS } from "@/routes/paths";
 import { aiApi } from "@/services/aiApi";
 
@@ -107,18 +108,11 @@ export function SystemHealth() {
         )}
         actions={
           <div className="flex items-center gap-2">
-            <Link
-              to={PATHS.ADMIN_AUDIT_LOGS}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border app-border app-bg-card hover:bg-[var(--bg-card-hover)] app-text-main transition-colors"
-            >
-              <span>{label("Xem Audit Logs", "View Audit Logs")}</span>
-              <FiArrowRight className="w-3.5 h-3.5" />
-            </Link>
             <button
               type="button"
               onClick={fetchSystemData}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+              className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
               <span>{label("Kiểm tra ngay", "Check Now")}</span>
@@ -161,66 +155,7 @@ export function SystemHealth() {
         />
       </div>
 
-      {/* AI Anomaly Detection Banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-black dark:to-zinc-900 border border-slate-700 dark:border-zinc-800 rounded-2xl p-5 shadow-lg text-white">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-600 shrink-0">
-              <FiShield className="w-6 h-6 text-blue-400" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>{label("Trợ lý AI Giám sát Bất thường (Anomaly Detection)", "AI Anomaly Detection Assistant")}</span>
-              </h3>
-              <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-                {label(
-                  "Hệ thống AI tự động đối soát logs từ API Gateway và Kafka để phát hiện các mẫu hành vi đặt vé bất thường, ddos hoặc spam token.",
-                  "AI system automatically audits logs from API Gateway and Kafka to identify abnormal booking patterns, DDoS attempts, or token spam."
-                )}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleCheckAnomaly}
-            disabled={isCheckingAnomaly}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 shrink-0 border border-blue-500"
-          >
-            {isCheckingAnomaly ? (
-              <FiRefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <FiCpu className="w-3.5 h-3.5" />
-            )}
-            <span>{label("Quét Logs bằng AI", "Scan Logs with AI")}</span>
-          </button>
-        </div>
 
-        {anomalyStatus && (
-          <div
-            className={`mt-4 p-4 rounded-xl border flex flex-col gap-2 ${
-              anomalyStatus.has_anomaly
-                ? "bg-rose-500/10 border-rose-500/50"
-                : "bg-emerald-500/10 border-emerald-500/50"
-            }`}
-          >
-            <h4
-              className={`text-xs font-bold ${
-                anomalyStatus.has_anomaly ? "text-rose-400" : "text-emerald-400"
-              }`}
-            >
-              {anomalyStatus.has_anomaly
-                ? label("PHÁT HIỆN BẤT THƯỜNG!", "ANOMALY DETECTED!")
-                : label("HỆ THỐNG AN TOÀN", "SYSTEM SECURE")}
-            </h4>
-            <p className="text-sm font-medium">{anomalyStatus.description}</p>
-            {anomalyStatus.has_anomaly && (
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-rose-300 bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/30">
-                <strong>{label("Hành động đã xử lý:", "Action taken:")}</strong> {anomalyStatus.action_taken}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Microservices Grid */}
       <div className="space-y-3">
@@ -238,7 +173,7 @@ export function SystemHealth() {
           {services.map((svc) => (
             <div
               key={svc.name}
-              className="app-bg-card border app-border rounded-xl p-4 shadow-xs hover:border-blue-500/40 transition-all flex flex-col justify-between space-y-3"
+              className="app-bg-card border app-border rounded-lg p-5 shadow-xs hover:border-blue-500/40 transition-all flex flex-col justify-between space-y-3"
             >
               <div className="space-y-1">
                 <div className="flex items-start justify-between gap-2">
@@ -283,6 +218,69 @@ export function SystemHealth() {
           ))}
         </div>
       </div>
+
+      {/* AI Anomaly Detection Banner */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-black dark:to-zinc-900 border border-slate-700 dark:border-zinc-800 rounded-lg p-5 shadow-sm text-white">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-600 shrink-0 shadow-xs">
+              <FiShield className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>{label("Trợ lý AI Giám sát Bất thường (Anomaly Detection)", "AI Anomaly Detection Assistant")}</span>
+              </h3>
+              <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                {label(
+                  "Hệ thống AI tự động đối soát logs từ API Gateway và Kafka để phát hiện các mẫu hành vi đặt vé bất thường, ddos hoặc spam token.",
+                  "AI system automatically audits logs from API Gateway and Kafka to identify abnormal booking patterns, DDoS attempts, or token spam."
+                )}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCheckAnomaly}
+            disabled={isCheckingAnomaly}
+            className="px-4 min-h-9 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-md transition-all flex items-center gap-2 disabled:opacity-50 shrink-0 border border-blue-500"
+          >
+            {isCheckingAnomaly ? (
+              <FiRefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FiCpu className="w-3.5 h-3.5" />
+            )}
+            <span>{label("Quét Logs bằng AI", "Scan Logs with AI")}</span>
+          </button>
+        </div>
+
+        {anomalyStatus && (
+          <div
+            className={`mt-4 p-4 rounded-xl border flex flex-col gap-2 ${
+              anomalyStatus.has_anomaly
+                ? "bg-rose-500/10 border-rose-500/50"
+                : "bg-emerald-500/10 border-emerald-500/50"
+            }`}
+          >
+            <h4
+              className={`text-xs font-bold ${
+                anomalyStatus.has_anomaly ? "text-rose-400" : "text-emerald-400"
+              }`}
+            >
+              {anomalyStatus.has_anomaly
+                ? label("PHÁT HIỆN BẤT THƯỜNG!", "ANOMALY DETECTED!")
+                : label("HỆ THỐNG AN TOÀN", "SYSTEM SECURE")}
+            </h4>
+            <p className="text-sm font-medium">{anomalyStatus.description}</p>
+            {anomalyStatus.has_anomaly && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-rose-300 bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/30">
+                <strong>{label("Hành động đã xử lý:", "Action taken:")}</strong> {anomalyStatus.action_taken}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <AdminAuditLogs />
     </div>
   );
 }

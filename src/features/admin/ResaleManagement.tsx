@@ -2,7 +2,7 @@ import { AdminUnavailableScreen } from "./components/AdminUnavailableScreen";
 
 export function ResaleManagement() {
   return <AdminUnavailableScreen
-    title="Quản lý vé bán lại"
+    title="Vé bán lại và giá trần"
     description="Theo dõi niêm yết và chính sách giá bán lại."
     reason="Máy chủ chỉ có chính sách bán lại theo từng sự kiện; chưa có giá trần toàn hệ thống hoặc API khóa niêm yết cho quản trị viên."
     action="Làm mới niêm yết"

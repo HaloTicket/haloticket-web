@@ -34,24 +34,24 @@ export const AdminAiAnalytics: React.FC = () => {
     const columns = Object.keys(data[0]);
 
     return (
-      <div className="w-full bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm mt-4">
+      <div className="w-full app-bg-card border app-border rounded-lg overflow-hidden shadow-xs mt-4">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
-              <tr className="bg-gray-50 dark:bg-[#27272a] border-b border-gray-200 dark:border-gray-800 text-[11px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <tr className="bg-slate-50/50 dark:bg-slate-800/30 border-b app-border text-[11px] font-bold app-text-muted uppercase tracking-wider">
                 {columns.map((col) => (
-                  <th key={col} className="p-4 whitespace-nowrap">{col}</th>
+                  <th key={col} className="px-4 py-3 whitespace-nowrap">{col}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-sm font-medium text-gray-800 dark:text-gray-200">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-medium app-text-main">
               {data.map((row, idx) => (
-                <tr key={idx} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
+                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   {columns.map((col) => {
                     const val = row[col];
                     // Render null safely, format numbers maybe?
                     const displayVal = val === null || val === undefined ? '-' : String(val);
-                    return <td key={col} className="p-4 whitespace-nowrap">{displayVal}</td>;
+                    return <td key={col} className="px-4 py-3 whitespace-nowrap">{displayVal}</td>;
                   })}
                 </tr>
               ))}
@@ -80,23 +80,23 @@ export const AdminAiAnalytics: React.FC = () => {
 
       {/* Search Box */}
       <div className="max-w-3xl mx-auto relative z-10">
-        <form onSubmit={handleSearch} className="relative group shadow-2xl shadow-blue-900/5 rounded-2xl">
-          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-            <FiSearch className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+        <form onSubmit={handleSearch} className="relative group shadow-xs rounded-lg">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <FiSearch className="h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
           </div>
           <input
             type="text"
-            className="block w-full pl-14 pr-[140px] py-4.5 bg-white dark:bg-[#18181b] border-2 border-gray-100 dark:border-gray-800 rounded-2xl text-[15px] text-gray-800 dark:text-gray-100 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 shadow-sm transition-all outline-none"
+            className="block w-full pl-11 pr-[140px] min-h-9 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md text-xs app-text-main focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none"
             placeholder="Ví dụ: Lấy cho tôi tổng doanh thu của tất cả sự kiện..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             disabled={isLoading}
           />
-          <div className="absolute inset-y-0 right-2 flex items-center">
+          <div className="absolute inset-y-0 right-1.5 flex items-center">
             <button
               type="submit"
               disabled={isLoading || !question.trim()}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:grayscale text-white text-sm font-extrabold rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2"
+              className="px-4 py-1.5 min-h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white text-xs font-bold rounded-md transition-all active:scale-95 flex items-center gap-1.5"
             >
               {isLoading ? (
                 <><FiLoader className="w-4 h-4 animate-spin" /> Đang phân tích</>
@@ -117,7 +117,7 @@ export const AdminAiAnalytics: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="max-w-3xl mx-auto mt-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-3 animate-in fade-in zoom-in-95">
+        <div className="max-w-3xl mx-auto mt-6 p-4 rounded-lg shadow-xs bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-3 animate-in fade-in zoom-in-95">
           <FiAlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
           <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
         </div>
@@ -129,7 +129,7 @@ export const AdminAiAnalytics: React.FC = () => {
           
           {/* AI Response Text */}
           {result.reply && (
-            <div className="p-5 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 relative overflow-hidden">
+            <div className="p-5 rounded-lg shadow-xs bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
               <p className="text-[15px] font-medium text-blue-900 dark:text-blue-100 whitespace-pre-wrap leading-relaxed">
                 {result.reply}
@@ -140,12 +140,12 @@ export const AdminAiAnalytics: React.FC = () => {
           <div className="grid grid-cols-1 gap-6">
             {/* Generated SQL (For transparency) */}
             {result.generated_sql && (
-              <div className="p-5 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="p-5 rounded-lg shadow-xs bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 mb-3 text-[11px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   <FiCode className="w-4 h-4 text-indigo-500" /> 
                   <span>Truy vấn SQL (Tạo bởi AI)</span>
                 </div>
-                <pre className="p-4 bg-gray-50 dark:bg-[#09090b] rounded-xl text-[13px] font-mono text-indigo-700 dark:text-indigo-400 overflow-x-auto border border-gray-100 dark:border-gray-800">
+                <pre className="p-4 bg-gray-50 dark:bg-[#09090b] rounded-lg text-[13px] font-mono text-indigo-700 dark:text-indigo-400 overflow-x-auto border border-gray-100 dark:border-gray-800">
                   {result.generated_sql}
                 </pre>
               </div>

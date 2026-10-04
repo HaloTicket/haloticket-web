@@ -227,7 +227,7 @@ export const Header: React.FC = () => {
             />
             <button
               type="submit"
-              className="absolute right-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+              className="absolute right-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <FiSearch className="w-3.5 h-3.5" />
               <span>{translate("Tìm kiếm")}</span>
@@ -259,9 +259,9 @@ export const Header: React.FC = () => {
                 navigate(PATHS.LOGIN);
               }
             }}
-            className="group hidden lg:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
+            className="group hidden lg:inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold shadow-md transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
           >
-            <FiPlusCircle className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
+            <FiPlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
             <span>{translate("Tạo sự kiện")}</span>
           </Link>
 
@@ -497,11 +497,15 @@ export const Header: React.FC = () => {
               <Link
                 key={cat.label}
                 to={cat.path}
-                className={`relative cursor-pointer py-0.5 transition-colors ${isActive
-                    ? "font-bold text-blue-600 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:bg-blue-600 dark:text-blue-400 dark:after:bg-blue-400"
-                    : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
-                  }`}
+                className={`relative cursor-pointer py-0.5 transition-colors flex items-center gap-1.5 ${
+                  cat.isResale 
+                    ? "text-rose-600 font-extrabold px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-900/60 uppercase" 
+                    : isActive
+                      ? "font-bold text-blue-600 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:bg-blue-600 dark:text-blue-400 dark:after:bg-blue-400"
+                      : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
+                }`}
               >
+                {cat.isResale && <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                 {translate(cat.label)}
               </Link>
             );
