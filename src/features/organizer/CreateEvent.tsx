@@ -364,6 +364,24 @@ export const CreateEvent: React.FC = () => {
           const end = draftEventData.endTime || draftEventData.endDate;
           if (end) setEndDate(formatDatetimeLocal(end as string));
 
+          if (draftEventData.showtimes) {
+            let parsedShowtimes = draftEventData.showtimes;
+            if (typeof parsedShowtimes === "string") {
+              try { parsedShowtimes = JSON.parse(parsedShowtimes); } catch {}
+            }
+            if (Array.isArray(parsedShowtimes) && parsedShowtimes.length > 0) {
+              const mappedShowtimes = parsedShowtimes.map((st: any) => ({
+                id: st.id || String(Date.now() + Math.random()),
+                name: st.name || "",
+                startTime: formatDatetimeLocal(st.startTime) || "",
+                endTime: formatDatetimeLocal(st.endTime) || "",
+                saleStartTime: st.saleStartTime ? formatDatetimeLocal(st.saleStartTime) : "",
+                saleEndTime: st.saleEndTime ? formatDatetimeLocal(st.saleEndTime) : ""
+              }));
+              setShowtimes(mappedShowtimes);
+            }
+          }
+
           if (draftEventData.tickets) {
             let parsedTickets = draftEventData.tickets;
             if (typeof parsedTickets === "string") {
@@ -425,14 +443,33 @@ export const CreateEvent: React.FC = () => {
           const orgLogo = draftEventData.organizerLogo || draftEventData.organizer?.avatar;
           if (orgLogo) setOrganizerLogo(orgLogo);
 
-          if (draftEventData.accountHolder) setAccountHolder(draftEventData.accountHolder);
-          if (draftEventData.accountNumber) setAccountNumber(draftEventData.accountNumber);
-          if (draftEventData.bankName) setBankName(draftEventData.bankName);
-          if (draftEventData.bankBranch) setBankBranch(draftEventData.bankBranch);
-          if (draftEventData.businessType) setBusinessType(draftEventData.businessType);
-          if (draftEventData.taxName) setTaxName(draftEventData.taxName);
-          if (draftEventData.taxAddress) setTaxAddress(draftEventData.taxAddress);
-          if (draftEventData.taxCode) setTaxCode(draftEventData.taxCode);
+          if (currentUserId) {
+            try {
+              const payoutInfo = await organizerApi.getPayoutAccount(currentUserId);
+              if (payoutInfo) {
+                const info = payoutInfo as Record<string, any>;
+                if (info.accountHolder) setAccountHolder(info.accountHolder);
+                if (info.accountNumber) setAccountNumber(info.accountNumber);
+                if (info.bankName) setBankName(info.bankName);
+                if (info.bankBranch) setBankBranch(info.bankBranch);
+                if (info.businessType) setBusinessType(info.businessType);
+                if (info.taxName) setTaxName(info.taxName);
+                if (info.taxAddress) setTaxAddress(info.taxAddress);
+                if (info.taxCode) setTaxCode(info.taxCode);
+              }
+            } catch (err) {
+              console.error("Failed to load payout account info for step 5", err);
+            }
+          } else {
+            if (draftEventData.accountHolder) setAccountHolder(draftEventData.accountHolder);
+            if (draftEventData.accountNumber) setAccountNumber(draftEventData.accountNumber);
+            if (draftEventData.bankName) setBankName(draftEventData.bankName);
+            if (draftEventData.bankBranch) setBankBranch(draftEventData.bankBranch);
+            if (draftEventData.businessType) setBusinessType(draftEventData.businessType);
+            if (draftEventData.taxName) setTaxName(draftEventData.taxName);
+            if (draftEventData.taxAddress) setTaxAddress(draftEventData.taxAddress);
+            if (draftEventData.taxCode) setTaxCode(draftEventData.taxCode);
+          }
 
           setAutoSaveStatus("saved");
           setLastSavedAt(

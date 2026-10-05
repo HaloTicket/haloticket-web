@@ -16,6 +16,7 @@ export interface AdminPaginationProps {
   itemLabel?: string;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
+  pageSizeOptions?: number[];
 }
 
 function getPaginationItems(current: number, total: number): (number | string)[] {
@@ -44,6 +45,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
   itemLabel,
   onPageChange,
   onPageSizeChange,
+  pageSizeOptions = [10, 20, 50, 100],
 }) => {
   const { t } = useTranslation();
   const currentSize = Math.max(1, pageSize ?? sizeProp ?? 10);
@@ -65,8 +67,6 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
     onPageSizeChange(newSize);
   };
 
-  const options = [10, 20, 50];
-
   return (
     <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs select-none app-bg-card">
       {/* Page Info */}
@@ -86,7 +86,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             <CustomSelect
               value={String(currentSize)}
               onChange={(val) => handleSizeChange(Number(val))}
-              options={options.map(opt => ({ value: String(opt), label: String(opt) }))}
+              options={pageSizeOptions.map(opt => ({ value: String(opt), label: String(opt) }))}
             />
           </div>
         </div>

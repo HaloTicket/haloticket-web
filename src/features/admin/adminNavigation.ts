@@ -1,4 +1,4 @@
-import { FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiLayout, FiMapPin, FiMessageSquare, FiSettings, FiShield, FiSliders, FiTag, FiUsers, FiZap } from "react-icons/fi";
+import { FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiLayout, FiMapPin, FiMessageSquare, FiSettings, FiSliders, FiTag, FiUsers, FiZap } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { PATHS } from "@/routes/paths";
 

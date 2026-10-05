@@ -1,7 +1,7 @@
 import { useOutletContext } from 'react-router-dom';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
-import { adminNotificationTarget } from '@/components/notifications/adminNotificationTarget';
+import { adminNotificationTarget } from '@/utils/adminNotificationTarget';
 import type { NotificationItem } from '@/types';
 export interface AdminNotificationContext {
   notifications: NotificationItem[];

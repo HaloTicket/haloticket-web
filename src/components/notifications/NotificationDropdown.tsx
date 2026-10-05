@@ -36,10 +36,12 @@ export function NotificationDropdown({ notifications, unreadCount, onMarkAllAsRe
       <FiBell className="w-5 h-5" />
       {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center leading-none border-2 border-white dark:border-[#27272a]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
     </button>
-    {open && <div ref={panel} id={id} role="region" aria-label={titleText} className="notification-popover">
-      <header className="flex items-center justify-between px-3 py-2 border-b app-border"><div><h2 className="font-bold text-base app-text-main">{titleText}</h2><p className="text-xs app-text-muted mt-1">{unreadCount} thông báo chưa đọc</p></div><button type="button" className="min-w-11 min-h-11 grid place-items-center rounded-lg" aria-label="Đóng thông báo" onClick={() => { setOpen(false); trigger.current?.focus(); }}><FiX /></button></header>
-      <NotificationInbox compact notifications={notifications} loading={loading} error={error} onRetry={onRetry} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={item => { setOpen(false); onNotificationClick(item); }} />
-      {viewAllLink && <Link to={viewAllLink} className="block text-center px-3 py-3 border-t app-border font-semibold text-sm text-blue-600 dark:text-blue-400" onClick={() => setOpen(false)}>{viewAllText}</Link>}
+    {open && <div ref={panel} id={id} role="region" aria-label={titleText} className="absolute top-full right-0 sm:right-0 mt-2 w-[320px] sm:w-[360px] app-bg-card rounded-lg shadow-xl border app-border z-[9999] overflow-hidden flex flex-col max-h-[60vh] sm:max-h-[500px]">
+      <header className="flex items-center justify-between px-3 py-2 border-b app-border bg-slate-50 dark:bg-slate-800/50"><div><h2 className="font-bold text-[13px] app-text-main">{titleText}</h2><p className="text-[11px] app-text-muted mt-0.5">{unreadCount} thông báo chưa đọc</p></div><button type="button" className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors app-text-muted" aria-label="Đóng thông báo" onClick={() => { setOpen(false); trigger.current?.focus(); }}><FiX className="w-4 h-4" /></button></header>
+      <div className="flex-1 overflow-hidden flex flex-col">
+          <NotificationInbox compact notifications={notifications} loading={loading} error={error} onRetry={onRetry} onMarkAllAsRead={onMarkAllAsRead} onNotificationClick={item => { setOpen(false); onNotificationClick(item); }} />
+      </div>
+      {viewAllLink && <Link to={viewAllLink} className="block text-center px-3 py-2 border-t app-border font-medium text-[12px] text-blue-600 dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors" onClick={() => setOpen(false)}>{viewAllText}</Link>}
     </div>}
   </div>;
 }

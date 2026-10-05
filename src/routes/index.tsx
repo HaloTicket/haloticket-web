@@ -80,6 +80,7 @@ import SystemHealth from "@/features/admin/SystemHealth";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
 import AdminSectionHub from "@/features/admin/AdminSectionHub";
 import AdminUserManagement from "@/features/admin/UserManagement";
+import AdminUserDetail from "@/features/admin/UserDetail";
 import AdminEventReports from "@/features/admin/reports/AdminEventReports";
 import AdminEventReportDetail from "@/features/admin/reports/AdminEventReportDetail";
 import AdminPaymentMonitoring from "@/features/admin/PaymentMonitoring";
@@ -457,6 +458,7 @@ export const router = createBrowserRouter([
       { path: `${PATHS.ADMIN_EVENT_REPORTS}/:eventId`, element: <AdminEventReportDetail /> },
       { path: PATHS.ADMIN_NOTIFICATIONS, element: <AdminNotifications /> },
       { path: PATHS.ADMIN_USER_MANAGEMENT, element: <AdminUserManagement /> },
+      { path: `${PATHS.ADMIN_USER_MANAGEMENT}/:userId`, element: <AdminUserDetail /> },
       { path: PATHS.ADMIN_FINANCE, element: <AdminPaymentMonitoring /> },
       { path: PATHS.ADMIN_TICKET_MARKET, element: <AdminResaleManagement /> },
       { path: PATHS.ADMIN_HOMEPAGE_CONTENT, element: <AdminHomepageConfig /> },

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { toast as sonnerToast } from "sonner";
 import type { NotificationItem } from "@/types";
-import { claimNotificationToast } from "./notificationToastSession";
+import { claimNotificationToast } from "@/utils/notificationToastSession";
 
 export interface NotificationToastProps {
   toast: NotificationItem | null;
@@ -46,22 +46,29 @@ export function NotificationToast({
     const id = claimNotificationToast(toast.userId, toast.id, contentKey);
     if (!id) return;
     const closeCurrent = () => { if (currentToastId.current === id) handlers.current.onClose(); };
-    const buttonBg = accentColor === "emerald" ? "#059669" : "#2563eb";
-    sonnerToast.info(toast.title, {
+    sonnerToast.custom((toastId) => (
+      <div className="app-bg-card border app-border shadow-lg rounded-xl p-4 w-full sm:w-[356px] flex flex-col pointer-events-auto">
+        <h3 className="font-semibold text-sm app-text-main">{toast.title}</h3>
+        {compactMessage(toast.message) && (
+          <p className="text-xs app-text-muted mt-1.5">{compactMessage(toast.message)}</p>
+        )}
+        <button
+          onClick={() => {
+            handlers.current.onToastClick(toast);
+            sonnerToast.dismiss(toastId);
+          }}
+          className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors border ${
+            accentColor === "emerald"
+              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500/30 dark:border-emerald-800/50"
+              : "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:hover:bg-blue-500/30 dark:border-blue-800/50"
+          }`}
+        >
+          {actionText}
+        </button>
+      </div>
+    ), {
       id,
-      description: compactMessage(toast.message),
-      duration: 4000,
-      action: {
-        label: actionText,
-        onClick: () => {
-          handlers.current.onToastClick(toast);
-          closeCurrent();
-        },
-      },
-      actionButtonStyle: {
-        backgroundColor: buttonBg,
-        color: "#ffffff",
-      },
+      duration: 5000,
       onDismiss: closeCurrent,
       onAutoClose: closeCurrent,
     });

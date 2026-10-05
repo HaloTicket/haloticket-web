@@ -28,3 +28,50 @@ export interface JwtPayload {
   };
   resource_access?: Record<string, { roles?: string[] }>;
 }
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  avatarUrl: string;
+  gender: string;
+  status: string;
+  roles: string[];
+  createdAt: string;
+  ekycStatus: string;
+}
+
+export interface AdminUserDetailResponse {
+  id: string;
+  keycloakId: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  avatarUrl: string;
+  gender: string;
+  status: string;
+  roles: string[];
+  createdAt: string;
+  lastLoginAt: string;
+  
+  // Ekyc info
+  ekycStatus: string;
+  ekycDocumentType: string;
+  ekycDocumentNumber: string;
+  ekycLegalName: string;
+  ekycBirthDate: string;
+  ekycAddress: string;
+  ekycFrontImageUrl: string;
+  ekycBackImageUrl: string;
+  ekycFaceVideoUrl: string;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankBranch: string;
+  businessType: string;
+  taxName: string;
+  taxCode: string;
+  taxAddress: string;
+  ekycApprovedAt: string;
+}

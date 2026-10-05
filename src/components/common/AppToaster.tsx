@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Toaster, toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme";
-import { resetNotificationToastSession } from "@/components/notifications/notificationToastSession";
+import { resetNotificationToastSession } from "@/utils/notificationToastSession";
 import { getCachedUserProfile } from "@/services/userApi";
 
 export function AppToaster() {
