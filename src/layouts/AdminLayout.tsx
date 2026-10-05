@@ -194,7 +194,7 @@ export const AdminLayout: React.FC = () => {
       let badgeColor = "bg-rose-500 text-white font-bold";
 
       if (item.path === PATHS.ADMIN_EVENTS_APPROVAL && (pendingEventsCount > 0 || pendingUpdatesCount > 0)) {
-        badge = `${pendingEventsCount > 0 ? pendingEventsCount + ' duyệt' : ''}${pendingEventsCount > 0 && pendingUpdatesCount > 0 ? ' - ' : ''}${pendingUpdatesCount > 0 ? pendingUpdatesCount + ' sửa' : ''}`;
+        badge = pendingEventsCount + pendingUpdatesCount;
         collapsedBadge = pendingEventsCount + pendingUpdatesCount;
         badgeColor = "bg-rose-500 text-white font-bold";
       } else if (item.path === PATHS.ADMIN_SYSTEM_MONITORING) {

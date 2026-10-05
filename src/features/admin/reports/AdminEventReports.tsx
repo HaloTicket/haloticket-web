@@ -8,6 +8,7 @@ import { AdminDataState } from "@/components/admin/AdminDataState";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { CustomSelect } from "@/components/common/CustomSelect";
 import { getAdminEventReports, getAllAdminEventReportRows, type AdminEventReport, type EventReportFilters, type ReportSort } from "@/services/adminReportsApi";
 import { buildExportMetadata, filtersFromSearch, formatHcmInstant, isValidReportPeriod, percentageChange, reportRequestError, REPORT_COLUMNS, reportQuery, reportScopeKey, safeCsvCell, shiftDate, summarizeTimeline, hcmToday } from "@/utils/reportUtils";
 import { reportStatusText, reportText } from "@/utils/reportTranslations";
@@ -110,12 +111,12 @@ export default function AdminEventReports() {
 
   return <div className="space-y-5 min-w-0">
     <AdminPageHeader title={t("Báo cáo & thống kê sự kiện")} description={t("Kỳ thanh toán · Múi giờ Asia/Ho_Chi_Minh")}
-      actions={<><span className="text-xs app-text-muted">{refreshing ? t("Đang cập nhật dữ liệu…") : visibleReport ? `${t("Cập nhật")}: ${formatHcmInstant(visibleReport.generatedAt, locale)}` : ""}</span>
+      actions={<div className="flex items-center gap-3"><span className="text-xs app-text-muted hidden sm:inline-block">{refreshing ? t("Đang cập nhật dữ liệu…") : visibleReport ? `${t("Cập nhật")}: ${formatHcmInstant(visibleReport.generatedAt, locale)}` : ""}</span>
         <button type="button" onClick={() => setRefreshKey(value => value + 1)} className="inline-flex min-h-9 items-center gap-2 rounded-md border app-border px-3 text-xs font-bold app-text-main transition-colors duration-150 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-800 motion-reduce:transition-none shadow-xs"><FiRefreshCw />{t("Làm mới")}</button>
-        <div className="relative group flex flex-col items-end"><button type="button" disabled={exporting} className="inline-flex min-h-9 items-center gap-2 rounded-md bg-blue-600 px-4 text-xs font-bold text-white transition-colors duration-150 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-60 motion-reduce:transition-none shadow-xs"><FiDownload />{exporting ? t("Đang xuất…") : t("Xuất báo cáo")}</button>
-          <span className="text-[10px] app-text-muted mt-1">{t("Tối đa 10.000 sự kiện")}</span>
+        <div className="relative group"><button type="button" disabled={exporting} className="inline-flex min-h-9 items-center gap-2 rounded-md bg-blue-600 px-4 text-xs font-bold text-white transition-colors duration-150 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-60 motion-reduce:transition-none shadow-xs"><FiDownload />{exporting ? t("Đang xuất…") : t("Xuất báo cáo")}</button>
+          <span className="text-[10px] app-text-muted mt-1 absolute -bottom-5 right-1 w-max">{t("Tối đa 10.000 sự kiện")}</span>
           <div className="absolute top-10 right-0 z-20 hidden min-w-36 rounded-md border app-border app-bg-card p-1 shadow-lg group-focus-within:block group-hover:block"><button onClick={() => void exportReport("csv")} className="block min-h-9 w-full rounded-md px-3 text-left text-xs font-medium transition-colors duration-150 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-800 motion-reduce:transition-none">CSV</button><button onClick={() => void exportReport("xlsx")} className="block min-h-9 w-full rounded-md px-3 text-left text-xs font-medium transition-colors duration-150 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-800 motion-reduce:transition-none">Excel (.xlsx)</button></div>
-        </div></>} />
+        </div></div>} />
 
     <section className="rounded-lg border app-border app-bg-card p-5 shadow-xs" aria-label={t("Bộ lọc báo cáo")}>
       <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center">
@@ -131,9 +132,27 @@ export default function AdminEventReports() {
       </div>
       {(periodError || !validPeriod) && <p role="alert" className="mt-2 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{t("Chọn khoảng ngày hợp lệ trong tối đa 366 ngày và không sau hôm nay.")}</p>}
       {showFilters && visibleReport && <div className="mt-4 grid gap-3 border-t app-border pt-4 sm:grid-cols-3">
-        <label className="grid gap-1.5 text-xs font-semibold app-text-muted">{t("Thể loại")}<select value={filters.categoryId ?? ""} onChange={event => update({ categoryId: event.target.value || undefined, page: 1 })} className="min-h-9 rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"><option value="">{t("Tất cả thể loại")}</option>{visibleReport.options.categories.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>
-        <label className="grid gap-1.5 text-xs font-semibold app-text-muted">{t("Nhà tổ chức")}<select value={filters.organizerId ?? ""} onChange={event => update({ organizerId: event.target.value || undefined, page: 1 })} className="min-h-9 rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"><option value="">{t("Tất cả nhà tổ chức")}</option>{visibleReport.options.organizers.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>
-        <label className="grid gap-1.5 text-xs font-semibold app-text-muted">{t("Trạng thái sự kiện")}<select value={filters.status ?? ""} onChange={event => update({ status: event.target.value || undefined, page: 1 })} className="min-h-9 rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"><option value="">{t("Tất cả trạng thái")}</option>{visibleReport.options.statuses.map(status => <option key={status} value={status}>{reportStatusText(status, locale === "en-US" ? "en" : "vi")}</option>)}</select></label>
+        <label className="grid gap-1.5 text-xs font-semibold app-text-muted">{t("Thể loại")}
+          <CustomSelect
+            value={filters.categoryId ?? ""}
+            onChange={val => update({ categoryId: val || undefined, page: 1 })}
+            options={[{ value: "", label: t("Tất cả thể loại") }, ...visibleReport.options.categories.map(c => ({ value: c.id, label: c.name }))]}
+          />
+        </label>
+        <label className="grid gap-1.5 text-xs font-semibold app-text-muted">{t("Nhà tổ chức")}
+          <CustomSelect
+            value={filters.organizerId ?? ""}
+            onChange={val => update({ organizerId: val || undefined, page: 1 })}
+            options={[{ value: "", label: t("Tất cả nhà tổ chức") }, ...visibleReport.options.organizers.map(o => ({ value: o.id, label: o.name }))]}
+          />
+        </label>
+        <label className="grid gap-1.5 text-xs font-semibold app-text-muted">{t("Trạng thái sự kiện")}
+          <CustomSelect
+            value={filters.status ?? ""}
+            onChange={val => update({ status: val || undefined, page: 1 })}
+            options={[{ value: "", label: t("Tất cả trạng thái") }, ...visibleReport.options.statuses.map(s => ({ value: s, label: reportStatusText(s, locale === "en-US" ? "en" : "vi") }))]}
+          />
+        </label>
       </div>}
     </section>
 
@@ -151,12 +170,34 @@ export default function AdminEventReports() {
       <p className="-mt-3 text-[11px] font-semibold app-text-muted">{t("Doanh thu tính từ thanh toán vé gốc thành công trước hoàn tiền, không gồm phí nền tảng hoặc giao dịch bán lại.")}</p>
       <section className="rounded-lg border app-border app-bg-card p-5 shadow-xs">
         <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h2 className="text-sm font-bold app-text-main">{t("Xu hướng theo kỳ thanh toán")}</h2><p className="text-[11px] font-semibold app-text-muted">{filters.from} — {filters.to}</p></div>
-          <div className="flex flex-wrap gap-2">{metrics.map(item => { const selectedStyle = { revenue: "border-blue-600 bg-blue-600/10 text-blue-700 dark:text-blue-300", orders: "border-green-600 bg-green-600/10 text-green-700 dark:text-green-300", tickets: "border-amber-600 bg-amber-600/10 text-amber-700 dark:text-amber-300" }[item]; return <button key={item} type="button" aria-pressed={metric === item} onClick={() => setMetric(item)} className={`min-h-9 rounded-md border px-3 text-xs font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none ${metric === item ? selectedStyle : "app-border app-text-main hover:bg-slate-50 dark:hover:bg-slate-800"}`}>{t(labels[item])}</button>; })}<select aria-label={t("Gom theo")} value={grouping} onChange={event => setGrouping(event.target.value as "day" | "week")} className="min-h-9 rounded-md border app-border app-bg-card px-3 text-xs font-bold app-text-main transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500/50 motion-reduce:transition-none"><option value="day">{t("Ngày")}</option><option value="week">{t("Tuần")}</option></select></div>
+          <div className="flex flex-wrap gap-2 items-center">{metrics.map(item => { const selectedStyle = { revenue: "border-blue-600 bg-blue-600/10 text-blue-700 dark:text-blue-300", orders: "border-green-600 bg-green-600/10 text-green-700 dark:text-green-300", tickets: "border-amber-600 bg-amber-600/10 text-amber-700 dark:text-amber-300" }[item]; return <button key={item} type="button" aria-pressed={metric === item} onClick={() => setMetric(item)} className={`min-h-9 rounded-md border px-3 text-xs font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none ${metric === item ? selectedStyle : "app-border app-text-main hover:bg-slate-50 dark:hover:bg-slate-800"}`}>{t(labels[item])}</button>; })}
+          <div className="w-28">
+            <CustomSelect
+              value={grouping}
+              onChange={val => setGrouping(val as "day" | "week")}
+              options={[{ value: "day", label: t("Ngày") }, { value: "week", label: t("Tuần") }]}
+            />
+          </div>
+          </div>
         </div>
         {chartData.length ? <div className="h-64 w-full"><ResponsiveContainer><LineChart data={chartData} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" /><XAxis dataKey="date" tickFormatter={value => dateLabel(value, locale)} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)", fontWeight: 600 }} /><YAxis width={68} tickFormatter={value => number(value, locale)} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)", fontWeight: 600 }} /><Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", color: "var(--color-foreground)", borderRadius: "8px", fontSize: "12px", fontWeight: 600 }} labelFormatter={value => dateLabel(String(value), locale)} formatter={value => [metric === "revenue" ? money(Number(value), locale) : number(Number(value), locale), t(labels[metric])]} /><Line type="monotone" dataKey="value" isAnimationActive={false} stroke={metric === "revenue" ? "var(--color-primary)" : metric === "orders" ? "var(--color-green-600)" : "var(--color-amber-600)"} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} /></LineChart></ResponsiveContainer></div> : <AdminDataState state="empty" message={t("Chưa có dữ liệu xu hướng trong kỳ này.")} />}
       </section>
       <section className="overflow-hidden rounded-lg border app-border app-bg-card shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b app-border p-5"><div><h2 className="text-sm font-bold app-text-main">{t("So sánh sự kiện")}</h2><p className="mt-0.5 text-xs font-semibold app-text-muted">{t("{{count}} sự kiện", { count: number(visibleReport.totalElements, locale) })}</p></div><label className="flex items-center gap-2 text-xs font-semibold app-text-muted">{t("Sắp xếp")}<select aria-label={t("Sắp xếp")} value={filters.sort} onChange={event => update({ sort: event.target.value as ReportSort, page: 1 })} className="min-h-9 rounded-md border app-border app-bg-card px-2 text-xs font-bold app-text-main focus:outline-none focus:ring-2 focus:border-blue-500/50"><option value="revenue">{t("Doanh thu")}</option><option value="orders">{t("Đơn hàng")}</option><option value="tickets">{t("Vé đã bán")}</option><option value="title">{t("Tên sự kiện")}</option></select></label></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b app-border p-5"><div><h2 className="text-sm font-bold app-text-main">{t("So sánh sự kiện")}</h2><p className="mt-0.5 text-xs font-semibold app-text-muted">{t("{{count}} sự kiện", { count: number(visibleReport.totalElements, locale) })}</p></div>
+        <label className="flex items-center gap-2 text-xs font-semibold app-text-muted">{t("Sắp xếp")}
+          <div className="w-36">
+            <CustomSelect
+              value={filters.sort}
+              onChange={val => update({ sort: val as ReportSort, page: 1 })}
+              options={[
+                { value: "revenue", label: t("Doanh thu") },
+                { value: "orders", label: t("Đơn hàng") },
+                { value: "tickets", label: t("Vé đã bán") },
+                { value: "title", label: t("Tên sự kiện") }
+              ]}
+            />
+          </div>
+        </label></div>
         {visibleReport.rows.length === 0 ? <div className="p-5"><AdminDataState state={filters.q || filters.categoryId || filters.organizerId || filters.status ? "no-results" : "empty"} onReset={reset} /></div> : <><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead className="bg-slate-50/50 dark:bg-slate-800/30 text-[11px] uppercase tracking-wider app-text-muted"><tr>{["Sự kiện", "Nhà tổ chức", "Trạng thái", "Đơn đã thanh toán", "Vé đã bán", "Doanh thu vé"].map(label => <th key={label} className="px-4 py-3 font-bold border-b app-border">{t(label)}</th>)}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">{visibleReport.rows.map(row => <tr key={row.eventId} className="group transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800/50 motion-reduce:transition-none"><td className="max-w-[330px] px-4 py-3"><Link to={`/admin/events/reports/${encodeURIComponent(row.eventId)}?${reportQuery(filters)}`} title={row.title} className="block truncate rounded font-bold app-text-main transition-colors group-hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:group-hover:text-blue-300 motion-reduce:transition-none">{row.title || t("Sự kiện không có tên")}</Link><span className="mt-1 block truncate text-[11px] leading-4 app-text-muted font-bold">{row.category}</span></td><td className="max-w-[190px] px-4 py-3 app-text-main font-semibold">{row.organizer}</td><td className="px-4 py-3"><span className={`rounded px-2 py-0.5 text-[10px] font-bold border ${row.status === "LIVE" ? "border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400" : row.status === "APPROVED" ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400" : row.status === "COMPLETED" ? "border-indigo-200 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400" : row.status === "CANCELLED" || row.status === "REJECTED" ? "border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400" : "border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"}`}>{reportStatusText(row.status, locale === "en-US" ? "en" : "vi")}</span></td><td className="px-4 py-3 tabular-nums app-text-main font-bold">{number(row.orders, locale)}</td><td className="px-4 py-3 tabular-nums app-text-main font-bold">{number(row.tickets, locale)}</td><td className="px-4 py-3 font-bold tabular-nums text-blue-600 dark:text-blue-400">{money(row.revenue, locale)}</td></tr>)}</tbody></table></div><AdminPagination page={visibleReport.page} totalPages={visibleReport.totalPages} totalElements={visibleReport.totalElements} size={visibleReport.size} loading={refreshing} itemLabel={t("sự kiện")} onPageChange={page => update({ page })} onPageSizeChange={size => update({ size, page: 1 })} /></>}
       </section>
     </>}

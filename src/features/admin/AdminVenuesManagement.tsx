@@ -11,8 +11,8 @@ import { venueApi } from "@/services/venueApi";
 import type { SystemVenue, VenueApiData } from "@/types";
 import { VenueDeleteModal } from "./components/venues/VenueDeleteModal";
 import { VenueModal, type VenueFormData } from "./components/venues/VenueModal";
-import { VenueStatCards } from "./components/venues/VenueStatCards";
 import { VenueTable } from "./components/venues/VenueTable";
+import { CustomSelect } from "@/components/common/CustomSelect";
 
 type AdminVenue = SystemVenue & { type?: VenueApiData["type"]; eventsHostedKnown: boolean };
 type Status = "ALL" | "VERIFIED" | "UNVERIFIED";
@@ -133,7 +133,7 @@ export function AdminVenuesManagement() {
   const cities = [...new Set(venues.map(v => v.city).filter(Boolean))].sort();
 
   return <div className="space-y-6">
-    <AdminPageHeader title={t("Quản lý địa điểm")} description={t("Địa điểm được lưu trên hệ thống")} actions={loadState === "ready" && <VenueStatCards venues={venues} />} />
+    <AdminPageHeader title={t("Quản lý địa điểm")} description={t("Địa điểm được lưu trên hệ thống")} />
     <section className="overflow-hidden rounded-lg border app-border app-bg-card shadow-xs">
       {loadState === "ready" && <div className="px-5 pt-3">
         <AdminStatusTabs value={status} onChange={value => { setStatus(value as Status); setPage(1); }} options={[
@@ -146,10 +146,13 @@ export function AdminVenuesManagement() {
         <AdminSearchFilterBar searchQuery={search} onSearchChange={value => { setSearch(value); setPage(1); }} searchPlaceholder={t("Tìm theo tên, địa chỉ, thành phố...")}>
           <label className="flex items-center gap-2 text-xs font-semibold app-text-main">
             <span className="text-muted-foreground">{t("Thành phố:")}</span>
-            <select value={city} onChange={event => { setCity(event.target.value); setPage(1); }} className="min-h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-3 text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600/20">
-              <option value="ALL">{t("Tất cả thành phố")}</option>
-              {cities.map(value => <option key={value} value={value}>{value}</option>)}
-            </select>
+            <div className="w-40">
+              <CustomSelect
+                value={city}
+                onChange={val => { setCity(val); setPage(1); }}
+                options={[{ value: "ALL", label: t("Tất cả thành phố") }, ...cities.map(c => ({ value: c, label: c }))]}
+              />
+            </div>
           </label>
           <button type="button" onClick={() => void load()} disabled={loadState === "loading" || refreshing} aria-label={t("Tải lại địa điểm")} className="inline-flex min-h-9 w-9 items-center justify-center rounded-md border app-border app-bg-card text-foreground shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"><FiRefreshCw className={refreshing ? "animate-spin" : ""} /></button>
           <button type="button" onClick={() => { setEditing(null); setOpen(true); }} className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition-colors"><FiPlus className="h-4 w-4" />{t("Thêm địa điểm mới")}</button>

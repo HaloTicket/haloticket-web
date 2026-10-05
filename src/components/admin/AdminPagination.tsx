@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
+import { CustomSelect } from "@/components/common/CustomSelect";
 
 export interface AdminPaginationProps {
   currentPage?: number;
@@ -81,18 +82,13 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
         {/* Page Size Selector */}
         <div className="flex items-center gap-2">
           <span className="app-text-muted">{t("Số dòng:")}</span>
-          <select
-            value={currentSize}
-            onChange={(e) => handleSizeChange(Number(e.target.value))}
-            aria-label={t("Số dòng trên trang")}
-            className="min-h-9 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-semibold app-text-main outline-none cursor-pointer focus:ring-2 focus:ring-blue-600/20"
-          >
-            {options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+          <div className="w-16">
+            <CustomSelect
+              value={String(currentSize)}
+              onChange={(val) => handleSizeChange(Number(val))}
+              options={options.map(opt => ({ value: String(opt), label: String(opt) }))}
+            />
+          </div>
         </div>
 
         {/* Numbered Page Navigation */}

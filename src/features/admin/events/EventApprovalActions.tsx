@@ -4,20 +4,14 @@ import { toast } from "sonner";
 
 import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
 import { eventApi } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
+import { FiZap, FiRefreshCw } from "react-icons/fi";
 import type { ApprovalEventItem } from "@/types";
 
 interface EventApprovalActionsProps {
   event: ApprovalEventItem;
   onSuccess: () => void;
 }
-
-const REJECTION_REASONS = [
-  "Hình ảnh poster/banner không đạt tiêu chuẩn bản quyền",
-  "Thiếu giấy phép tổ chức biểu diễn nghệ thuật/thể thao",
-  "Nội dung mô tả chưa rõ ràng hoặc vi phạm thuần phong mỹ tục",
-  "Giá vé hoặc thông tin địa điểm chưa chính xác",
-  "Khác",
-] as const;
 
 const FLAG_FIELDS = [
   { id: "posterImage", label: "Poster & Banner" },
@@ -31,11 +25,12 @@ const FLAG_FIELDS = [
 export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsProps) {
   const { t } = useTranslation();
   const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
-  const [reason, setReason] = useState<string>(REJECTION_REASONS[0]);
+  const [reason, setReason] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [flaggedFields, setFlaggedFields] = useState<string[]>(["posterImage"]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const pendingRef = useRef(false);
   const actionable = event.eventApprovalStatus === "PENDING" || event.eventApprovalStatus === "UPDATE_PENDING";
 
@@ -86,7 +81,7 @@ export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsP
           title={dialog === "approve" ? t("Xác nhận phê duyệt sự kiện") : t("Từ chối duyệt sự kiện")}
           subtitle={event.title}
           confirmText={dialog === "approve" ? t("Xác nhận phê duyệt") : t("Xác nhận từ chối")}
-          isDanger={dialog === "reject"}
+          isDanger={false}
           pending={pending}
           dismissible={!pending}
           onClose={close}
@@ -94,11 +89,29 @@ export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsP
         >
           {dialog === "reject" && (
             <div className="space-y-4">
-              <label className="block space-y-1 text-sm font-medium app-text-main">
-                <span>{t("Lý do chính từ chối")}</span>
-                <select value={reason} onChange={(event) => setReason(event.target.value)} disabled={pending} className="min-h-11 w-full rounded-lg border app-border app-bg-card px-3 text-sm">
-                  {REJECTION_REASONS.map((option) => <option key={option} value={option}>{t(option)}</option>)}
-                </select>
+              <label className="block space-y-2 text-sm font-medium app-text-main">
+                <div className="flex items-center justify-between">
+                  <span>{t("Lý do chính từ chối")} <span className="text-rose-500">*</span></span>
+                  <button type="button" onClick={async () => {
+                    setIsGeneratingAI(true);
+                    try {
+                      const score = await aiApi.analyzeRiskScore(event.id, event.title || "", event.description || "", event.organizerName || "");
+                      if (score.reasons && score.reasons.length > 0) {
+                        setReason(score.reasons.join("\\n"));
+                      } else {
+                        setReason(t("Sự kiện có một số thông tin chưa đạt chuẩn theo quy định hệ thống. Vui lòng kiểm tra lại."));
+                      }
+                    } catch {
+                      toast.error(t("Không thể tạo lý do bằng AI"));
+                    } finally {
+                      setIsGeneratingAI(false);
+                    }
+                  }} disabled={pending || isGeneratingAI} className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                    {isGeneratingAI ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiZap className="w-3.5 h-3.5" />}
+                    {t("Để AI tự động viết")}
+                  </button>
+                </div>
+                <textarea required value={reason} onChange={(event) => setReason(event.target.value)} disabled={pending || isGeneratingAI} rows={3} placeholder={t("Nhập lý do từ chối (bắt buộc)...")} className="min-h-11 w-full rounded-lg border app-border app-bg-card p-3 text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500" />
               </label>
               <fieldset disabled={pending} className="space-y-2">
                 <legend className="text-sm font-medium app-text-main">{t("Đánh dấu các mục không chấp nhận")}</legend>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { CustomSelect } from "@/components/common/CustomSelect";
 import {
   FiCheckSquare,
   FiSearch,
@@ -72,7 +73,11 @@ export const EventApproval: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 4;
 
-  const [eventsList, setEventsList] = useState<ApprovalEventItem[]>([]);
+  const [allEventsList, setAllEventsList] = useState<ApprovalEventItem[]>([]);
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "this_week" | "this_month">("all");
+  const [counts, setCounts] = useState({
+    PENDING: 0, UPDATE_PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: 0
+  });
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -84,7 +89,7 @@ export const EventApproval: React.FC = () => {
   const loadApprovalEvents = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await eventApi.getApprovalEvents(activeTab);
+      const data = await eventApi.getApprovalEvents("ALL");
       if (Array.isArray(data)) {
         const formatTimestamp = (rawDate?: string) => {
           if (!rawDate) return translate("Vừa gửi");
@@ -151,17 +156,26 @@ export const EventApproval: React.FC = () => {
           galleryImages: Array.isArray(item.galleryImages) ? item.galleryImages : []
         }));
 
-        // sort events list newest first
+        // sort events by start time (newest first)
         formattedList.sort((a, b) => {
-          const timeA = new Date(a.createdAt || a.submittedAt || 0).getTime();
-          const timeB = new Date(b.createdAt || b.submittedAt || 0).getTime();
+          const timeA = new Date(a.startTime || a.createdAt || a.submittedAt || 0).getTime();
+          const timeB = new Date(b.startTime || b.createdAt || b.submittedAt || 0).getTime();
           if (!isNaN(timeA) && !isNaN(timeB) && timeA > 0 && timeB > 0) {
             return timeB - timeA;
           }
           return String(b.id).localeCompare(String(a.id));
         });
 
-        setEventsList(formattedList);
+        // Compute counts
+        const newCounts = { PENDING: 0, UPDATE_PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: formattedList.length };
+        formattedList.forEach(item => {
+          if (item.eventApprovalStatus === "PENDING") newCounts.PENDING++;
+          if (item.eventApprovalStatus === "UPDATE_PENDING") newCounts.UPDATE_PENDING++;
+          if (item.eventApprovalStatus === "APPROVED") newCounts.APPROVED++;
+          if (item.eventApprovalStatus === "REJECTED") newCounts.REJECTED++;
+        });
+        setCounts(newCounts);
+        setAllEventsList(formattedList);
       }
     } catch (err) {
       console.error("Failed to load approval events", err);
@@ -182,13 +196,30 @@ export const EventApproval: React.FC = () => {
     };
   }, [loadApprovalEvents]);
 
-  const filteredEvents = eventsList.filter((item) => {
+  const filteredEvents = allEventsList.filter((item) => {
     const status = item.eventApprovalStatus || "PENDING";
     const matchesTab = activeTab === "ALL" ? true : status === activeTab;
     const matchesQuery =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.organizerName && item.organizerName.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesTab && matchesQuery;
+      
+    // Date filter
+    let matchesDate = true;
+    if (dateFilter !== "all" && item.startTime) {
+      const eventDate = new Date(item.startTime);
+      const today = new Date();
+      if (dateFilter === "today") {
+        matchesDate = eventDate.toDateString() === today.toDateString();
+      } else if (dateFilter === "this_week") {
+        const first = today.getDate() - today.getDay() + 1;
+        const firstDayOfWeek = new Date(today.setDate(first));
+        const lastDayOfWeek = new Date(today.setDate(first + 6));
+        matchesDate = eventDate >= firstDayOfWeek && eventDate <= lastDayOfWeek;
+      } else if (dateFilter === "this_month") {
+        matchesDate = eventDate.getMonth() === today.getMonth() && eventDate.getFullYear() === today.getFullYear();
+      }
+    }
+    return matchesTab && matchesQuery && matchesDate;
   });
 
   const totalPages = Math.ceil(filteredEvents.length / pageSize) || 1;
@@ -251,7 +282,7 @@ export const EventApproval: React.FC = () => {
                   : "app-text-muted hover:app-text-main"
                   }`}
               >
-                <span>
+                <span className="flex items-center gap-1.5">
                   {tab === "PENDING"
                     ? translate("Chờ duyệt mới")
                     : tab === "UPDATE_PENDING"
@@ -261,15 +292,18 @@ export const EventApproval: React.FC = () => {
                         : tab === "REJECTED"
                           ? translate("Bị từ chối")
                           : translate("Tất cả")}
+                  <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-black ${tab === "PENDING" || tab === "UPDATE_PENDING" ? (activeTab === tab ? "bg-white text-rose-600" : "bg-rose-500 text-white") : (activeTab === tab ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300")}`}>
+                    {counts[tab]}
+                  </span>
                 </span>
               </button>
             ))}
           </div>
 
-          {/* Search input */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-1.5 w-full sm:w-64">
-            <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
+          {/* Search & Select */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <input
+              aria-label={translate("Tìm sự kiện")}
               type="text"
               value={searchQuery}
               onChange={(e) => {
@@ -277,8 +311,24 @@ export const EventApproval: React.FC = () => {
                 setCurrentPage(1);
               }}
               placeholder={translate("Tìm tên sự kiện, BTC...")}
-              className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-slate-400 font-medium"
+              className="min-h-9 min-w-[220px] flex-[1_1_220px] rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main placeholder:app-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
             />
+            
+            <div className="w-32">
+              <CustomSelect
+                value={dateFilter}
+                onChange={(val) => {
+                  setDateFilter(val as any);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: "all", label: translate("Mọi lúc") },
+                  { value: "today", label: translate("Hôm nay") },
+                  { value: "this_week", label: translate("Tuần này") },
+                  { value: "this_month", label: translate("Tháng này") }
+                ]}
+              />
+            </div>
           </div>
         </div>
       </div>

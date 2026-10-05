@@ -76,10 +76,10 @@ export function AdminStatusTabs({ value, options, onChange }: AdminStatusTabsPro
             <span>{option.label}</span>
             {option.count !== undefined && (
               <span
-                className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold transition-colors ${
+                className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold transition-colors ${
                   isActive
-                    ? "bg-blue-600/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 font-bold"
-                    : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
+                    ? "bg-rose-500 text-white"
+                    : "bg-rose-500/90 text-white group-hover:bg-rose-500"
                 }`}
               >
                 {option.count}

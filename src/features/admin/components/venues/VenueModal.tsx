@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminModal } from '../../../../components/admin/AdminModal';
 import { FiMapPin, FiUsers, FiHome } from 'react-icons/fi';
+import { CustomSelect } from '@/components/common/CustomSelect';
 
 export interface VenueFormData {
   id?: string;
@@ -167,31 +168,31 @@ export const VenueModal: React.FC<VenueModalProps> = ({
             <label htmlFor="venue-type" className="block text-sm font-semibold app-text-main mb-1.5">
               {translate("Loại hình địa điểm")}
             </label>
-            <select
-              id="venue-type"
+            <CustomSelect
               value={formData.type || 'indoor'}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'indoor' | 'outdoor' | 'hybrid' })}
-              className="w-full px-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer"
-            >
-              <option value="indoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Trong nhà (Indoor)")}</option>
-              <option value="outdoor" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Ngoài trời (Outdoor)")}</option>
-              <option value="hybrid" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Phức hợp (Hybrid)")}</option>
-            </select>
+              onChange={(val) => setFormData({ ...formData, type: val as 'indoor' | 'outdoor' | 'hybrid' })}
+              options={[
+                { value: "indoor", label: translate("Trong nhà (Indoor)") },
+                { value: "outdoor", label: translate("Ngoài trời (Outdoor)") },
+                { value: "hybrid", label: translate("Phức hợp (Hybrid)") }
+              ]}
+              className="w-full"
+            />
           </div>
 
           <div>
             <label htmlFor="venue-verified" className="block text-sm font-semibold app-text-main mb-1.5">
               {translate("Trạng thái Xác minh")}
             </label>
-            <select
-              id="venue-verified"
+            <CustomSelect
               value={formData.verified ? 'true' : 'false'}
-              onChange={(e) => setFormData({ ...formData, verified: e.target.value === 'true' })}
-              className="w-full px-4 py-2 min-h-9 rounded-md app-bg-card border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer"
-            >
-              <option value="true" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Đã xác minh (Official)")}</option>
-              <option value="false" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1.5">{translate("Chờ xác minh (Unverified)")}</option>
-            </select>
+              onChange={(val) => setFormData({ ...formData, verified: val === 'true' })}
+              options={[
+                { value: "true", label: translate("Đã xác minh (Official)") },
+                { value: "false", label: translate("Chờ xác minh (Unverified)") }
+              ]}
+              className="w-full"
+            />
           </div>
         </div>
 
@@ -203,14 +204,14 @@ export const VenueModal: React.FC<VenueModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="px-5 py-2.5 text-sm font-bold rounded-xl border app-border app-text-muted hover:bg-[var(--bg-subnav)] transition-colors cursor-pointer"
+            className="px-5 py-2.5 text-sm font-bold rounded-lg border app-border app-text-muted hover:bg-[var(--bg-subnav)] transition-colors cursor-pointer"
           >
             {translate("Hủy bỏ")}
           </button>
           <button
             type="submit"
             disabled={pending}
-            className="px-5 py-2.5 text-sm font-extrabold rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 cursor-pointer"
+            className="px-5 py-2.5 text-sm font-extrabold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 cursor-pointer"
           >
             {pending ? translate("Đang lưu...") : editingVenue ? translate('Cập Nhật') : translate('Lưu Địa Điểm')}
           </button>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiCalendar, FiMapPin, FiRefreshCw, FiShield } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiMapPin, FiRefreshCw, FiShield, FiBriefcase, FiTag } from "react-icons/fi";
 
 import { AdminDataState } from "@/components/admin/AdminDataState";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -33,7 +33,7 @@ export function EventApprovalDetail() {
   const loadEvent = useCallback(async () => {
     const version = ++requestVersion.current;
     try {
-      // The approval list is the only confirmed admin source. It includes records outside the active list filter.
+      // the approval list is the only confirmed admin source
       const data = await eventApi.getApprovalEvents("ALL");
       const found = normalizeApprovalEvents(data).find((item) => item.id === eventId) ?? null;
       if (version === requestVersion.current) {
@@ -60,7 +60,7 @@ export function EventApprovalDetail() {
       const checkRisk = async () => {
         setIsAnalyzingRisk(true);
         try {
-          const score = await aiApi.assessEventRisk(event.id);
+          const score = await aiApi.analyzeRiskScore(event.id, event.title || "", event.description || "", event.organizerName || "");
           setRiskScore(score);
         } catch (error) {
           console.error("Risk assessment failed:", error);
@@ -151,27 +151,156 @@ export function EventApprovalDetail() {
             </dl>
           </section>
 
-          {Boolean(event.showtimes?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Suất diễn")}</h2><div className="divide-y app-border">{event.showtimes?.map((showtime, index) => <div key={showtime.id || index} className="py-3 text-sm"><p className="font-semibold app-text-main">{showtime.name || `${t("Suất diễn")} ${index + 1}`}</p><p className="app-text-muted">{[displayDate(showtime.startTime), displayDate(showtime.endTime)].filter(Boolean).join(" – ")}</p>{(showtime.saleStartTime || showtime.saleEndTime) && <p className="app-text-muted">{t("Thời gian mở bán")}: {[displayDate(showtime.saleStartTime), displayDate(showtime.saleEndTime)].filter(Boolean).join(" – ")}</p>}</div>)}</div></section>}
+          {Boolean(event.showtimes?.length) && (
+            <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
+              <h2 className="text-lg font-bold app-text-main">{t("Thông tin Suất diễn & Hạng vé")}</h2>
+              <div className="space-y-6">
+                {event.showtimes?.map((showtime, index) => {
+                  const stTickets = event.tickets?.filter(t => t.showtimeId === showtime.id) || [];
+                  const displayTickets = stTickets.length > 0 ? stTickets : (event.showtimes?.length === 1 ? event.tickets || [] : []);
+
+                  const now = new Date();
+                  const saleStart = showtime.saleStartTime ? new Date(showtime.saleStartTime) : null;
+                  const saleEnd = showtime.saleEndTime ? new Date(showtime.saleEndTime) : null;
+
+                  let hasAvailableTickets = false;
+                  if (displayTickets.length > 0) {
+                      displayTickets.forEach(t => {
+                        const total = typeof t.totalQuantity === "number" ? t.totalQuantity : (typeof t.quantity === "number" ? t.quantity : Infinity);
+                        const sold = typeof t.soldQuantity === "number" ? t.soldQuantity : 0;
+                        if (total - sold > 0) hasAvailableTickets = true;
+                      });
+                  } else {
+                      hasAvailableTickets = true;
+                  }
+
+                  let statusLabel = "";
+                  let statusClass = "";
+                  if (!hasAvailableTickets && displayTickets.length > 0) {
+                      statusLabel = t("Hết vé");
+                      statusClass = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700";
+                  } else if (saleEnd && now > saleEnd) {
+                      statusLabel = t("Ngừng bán online");
+                      statusClass = "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/50";
+                  } else if (saleStart && now < saleStart) {
+                      statusLabel = t("Sắp mở bán");
+                      statusClass = "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50";
+                  } else {
+                      statusLabel = t("Đang bán vé");
+                      statusClass = "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50";
+                  }
+
+                  return (
+                    <div key={showtime.id || index} className="space-y-4 rounded-lg border app-border p-4 app-bg-subnav shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b app-border pb-4">
+                        <div>
+                          <p className="font-bold text-base app-text-main flex flex-wrap items-center gap-2">
+                            {showtime.name || `${t("Suất diễn")} ${index + 1}`}
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${statusClass}`}>{statusLabel}</span>
+                          </p>
+                          <div className="mt-2 space-y-1 text-sm app-text-muted">
+                            <p className="flex items-center gap-1.5"><FiCalendar className="w-4 h-4 opacity-70" /> <span className="font-medium text-slate-700 dark:text-slate-300">{t("Lịch diễn:")}</span> {[displayDate(showtime.startTime), displayDate(showtime.endTime)].filter(Boolean).join(" – ")}</p>
+                            {(showtime.saleStartTime || showtime.saleEndTime) && (
+                              <p className="flex items-center gap-1.5"><FiTag className="w-4 h-4 opacity-70" /> <span className="font-medium text-slate-700 dark:text-slate-300">{t("Mở bán:")}</span> {[displayDate(showtime.saleStartTime), displayDate(showtime.saleEndTime)].filter(Boolean).join(" – ")}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {displayTickets.length > 0 ? (
+                        <div className="space-y-3 pt-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("Các hạng vé thuộc suất diễn")}</h4>
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            {displayTickets.map((ticket, tIdx) => (
+                              <div key={tIdx} className="relative rounded-md border app-border app-bg-card p-4 shadow-sm flex flex-col gap-1.5 transition-all hover:border-blue-300 dark:hover:border-blue-700">
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className="font-bold text-sm app-text-main line-clamp-2 leading-tight">{String(ticket.name || t("Hạng vé"))}</span>
+                                  {(ticket.status || ticket.statusText) && (
+                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm app-bg-subnav text-slate-600 dark:text-slate-300 shrink-0">
+                                      {String(ticket.statusText || ticket.status)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-base font-black text-blue-600 dark:text-blue-400 mt-1">
+                                  {typeof ticket.price === "number" ? `${ticket.price.toLocaleString("vi-VN")} đ` : (ticket.price === 0 ? "Miễn phí" : t("Chưa cập nhật"))}
+                                </div>
+                                <div className="text-xs app-text-muted mt-2 pt-2 border-t app-border flex justify-between items-center">
+                                  <span>{t("Số lượng")}</span>
+                                  <span className="font-bold text-slate-700 dark:text-slate-200 app-bg-subnav px-2 py-0.5 rounded-full">
+                                    {typeof ticket.totalQuantity === "number" ? ticket.totalQuantity : typeof ticket.quantity === "number" ? ticket.quantity : "∞"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm italic app-text-muted">{t("Chưa có thông tin hạng vé cho suất diễn này.")}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3">
             <h2 className="text-lg font-bold app-text-main">{t("Nội dung mô tả chi tiết sự kiện")}</h2>
             <p className="whitespace-pre-wrap break-words text-sm leading-6 app-text-main">{event.descriptionText || event.description || t("Chưa cập nhật")}</p>
           </section>
 
-          {Boolean(event.tickets?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Cấu hình các loại vé đăng ký")}</h2><div className="divide-y app-border">{event.tickets?.map((ticket, index) => <div key={index} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span className="font-semibold app-text-main">{String(ticket.name || t("Hạng vé"))}</span><span className="app-text-muted">{typeof ticket.price === "number" ? `${ticket.price.toLocaleString("vi-VN")} đ` : t("Chưa cập nhật")}{typeof ticket.totalQuantity === "number" ? ` · ${ticket.totalQuantity} ${t("vé")}` : ""}</span></div>)}</div></section>}
-
-          {Boolean(event.customQuestions?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Câu hỏi đăng ký")}</h2><div className="divide-y app-border">{event.customQuestions?.map((question, index) => <div key={typeof question.id === "string" ? question.id : index} className="py-3 text-sm"><p className="font-semibold app-text-main">{typeof question.title === "string" && question.title.trim() ? question.title : `${t("Câu hỏi")} ${index + 1}`}{question.isRequired === true ? ` · ${t("Bắt buộc")}` : ""}</p>{typeof question.description === "string" && question.description.trim() && <p className="app-text-muted">{question.description}</p>}</div>)}</div></section>}
+          {Boolean(event.customQuestions?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Câu hỏi đăng ký")}</h2><div className="divide-y divide-slate-100 dark:divide-slate-800/50">{event.customQuestions?.map((question, index) => <div key={typeof question.id === "string" ? question.id : index} className="py-3 text-sm"><p className="font-semibold app-text-main">{typeof question.title === "string" && question.title.trim() ? question.title : `${t("Câu hỏi")} ${index + 1}`}{question.isRequired === true ? ` · ${t("Bắt buộc")}` : ""}</p>{typeof question.description === "string" && question.description.trim() && <p className="app-text-muted">{question.description}</p>}</div>)}</div></section>}
 
           {Boolean(event.galleryImages?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Bộ sưu tập hình ảnh sự kiện")}</h2><div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{event.galleryImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt="" className="aspect-square w-full rounded-lg object-cover" />)}</div></section>}
         </main>
 
         <aside className="min-w-0 space-y-5">
-          <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
-            <div><h2 className="text-base font-bold app-text-main">{t("Trạng thái duyệt")}</h2><p className={`mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${displayApprovalStatus(event.eventApprovalStatus).className}`}>{t(displayApprovalStatus(event.eventApprovalStatus).label)}</p></div>
-            <EventApprovalActions key={event.id} event={event} onSuccess={() => navigate(listUrl)} />
+          <section className="rounded-lg shadow-xs border app-border app-bg-card overflow-hidden">
+            <div className="app-bg-subnav border-b app-border p-4 flex items-center justify-between">
+              <h2 className="text-base font-bold app-text-main">{t("Quyết định phê duyệt")}</h2>
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${displayApprovalStatus(event.eventApprovalStatus).className}`}>
+                {t(displayApprovalStatus(event.eventApprovalStatus).label)}
+              </span>
+            </div>
+            <div className="p-5">
+              <EventApprovalActions key={event.id} event={event} onSuccess={() => navigate(listUrl)} />
+            </div>
           </section>
-          {(event.taxName || event.taxCode || event.taxAddress || event.businessType || event.accountHolder || event.accountNumber || event.bankName || event.bankBranch) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-base font-bold app-text-main">{t("Hồ Sơ Pháp Lý & Thanh Toán Ban Tổ Chức")}</h2><dl className="space-y-2 text-sm">{[[t("Đơn vị đăng ký (Tax Name)"), event.taxName], [t("Mã số thuế (Tax Code)"), event.taxCode], [t("Địa chỉ đăng ký"), event.taxAddress], [t("Loại hình kinh doanh"), event.businessType], [t("Chủ tài khoản nhận tiền"), event.accountHolder], [t("Số tài khoản ngân hàng"), event.accountNumber], [t("Ngân hàng & Chi nhánh"), [event.bankName, event.bankBranch].filter(Boolean).join(" · ")]].filter((entry) => entry[1]).map(([label, value]) => <div key={label}><dt className="app-text-muted">{label}</dt><dd className="break-words font-semibold app-text-main">{value}</dd></div>)}</dl></section>}
-          {event.eventApprovalStatus === "REJECTED" && (event.rejectionReason || event.rejectionNotes) && <section className="rounded-lg shadow-xs border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-700 dark:text-rose-300"><h2 className="font-bold">{t("Sự kiện này đã bị từ chối phê duyệt")}</h2>{event.rejectionReason && <p className="mt-2">{t("Lý do")}: {event.rejectionReason}</p>}{event.rejectionNotes && <p className="mt-2 whitespace-pre-wrap">{t("Ghi chú")}: {event.rejectionNotes}</p>}</section>}
+
+          {event.eventApprovalStatus === "REJECTED" && (event.rejectionReason || event.rejectionNotes) && (
+            <section className="rounded-lg shadow-xs border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 p-5 text-sm text-rose-800 dark:text-rose-300">
+              <h2 className="font-bold flex items-center gap-2 mb-3"><FiShield className="w-4 h-4" />{t("Lý do từ chối phê duyệt")}</h2>
+              <div className="space-y-3 bg-white/60 dark:bg-black/20 p-4 rounded-md border border-rose-100 dark:border-rose-900/30">
+                {event.rejectionReason && <div><span className="font-semibold block text-[11px] uppercase tracking-wider opacity-70 mb-1">{t("Lý do chính")}</span><p className="font-medium">{event.rejectionReason}</p></div>}
+                {event.rejectionNotes && <div><span className="font-semibold block text-[11px] uppercase tracking-wider opacity-70 mb-1">{t("Chi tiết bổ sung")}</span><p className="whitespace-pre-wrap">{event.rejectionNotes}</p></div>}
+              </div>
+            </section>
+          )}
+
+          {(event.taxName || event.taxCode || event.taxAddress || event.businessType || event.accountHolder || event.accountNumber || event.bankName || event.bankBranch) && (
+            <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
+              <h2 className="text-base font-bold app-text-main flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full app-bg-subnav flex items-center justify-center app-text-main"><FiBriefcase className="w-4 h-4" /></div>
+                {t("Hồ Sơ Tổ Chức")}
+              </h2>
+              <div className="rounded-lg border app-border app-bg-subnav divide-y divide-slate-100 dark:divide-slate-800/50 text-sm">
+                {[
+                  [t("Đơn vị / Cá nhân"), event.taxName], 
+                  [t("Mã số thuế"), event.taxCode], 
+                  [t("Địa chỉ"), event.taxAddress], 
+                  [t("Loại hình"), event.businessType], 
+                  [t("Chủ tài khoản"), event.accountHolder], 
+                  [t("Số tài khoản"), event.accountNumber], 
+                  [t("Ngân hàng"), [event.bankName, event.bankBranch].filter(Boolean).join(" · ")]
+                ].filter((entry) => entry[1]).map(([label, value]) => (
+                  <div key={label} className="p-3 flex flex-col gap-1 transition-colors">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+                    <span className="font-medium app-text-main break-words">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </aside>
       </div>
     </div>
