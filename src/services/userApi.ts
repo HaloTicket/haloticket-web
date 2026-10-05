@@ -120,4 +120,8 @@ export const userApi = {
     }
     throw new Error("Không thể cập nhật thông tin. Vui lòng thử lại.");
   },
+
+  changePassword: async (payload: any): Promise<void> => {
+    return axiosClient.put<unknown, void>("/users/me/password", payload);
+  },
 };

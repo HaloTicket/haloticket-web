@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/hooks/useTheme";
@@ -12,23 +12,15 @@ import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
 import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/adminNavigation";
+import { aiApi } from "@/services/aiApi";
 
 import {
-  FiGrid,
-  FiCheckSquare,
-  FiShield,
-  FiTrendingUp,
-  FiUsers,
-  FiSliders,
-  FiDollarSign,
-  FiActivity,
   FiSun,
   FiMoon,
   FiMenu,
   FiX,
   FiChevronLeft,
   FiChevronRight,
-  FiHome,
   FiClock,
   FiLogOut,
   FiSettings,
@@ -89,6 +81,7 @@ export const AdminLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [systemUptime, setSystemUptime] = useState<string | null>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
     getCachedUserProfile()
@@ -129,6 +122,30 @@ export const AdminLayout: React.FC = () => {
       window.removeEventListener("user-updated", handleProfileUpdate);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const fetchHealth = async () => {
+      try {
+        const data = await aiApi.getSystemHealth();
+        if (Array.isArray(data) && data.length > 0) {
+          const upCount = data.filter((s: any) => s.status === "UP").length;
+          setSystemUptime(((upCount / data.length) * 100).toFixed(1) + "%");
+        }
+      } catch (e) {
+        // fail silently
+      }
+    };
+    
+    if (userProfile?.roles?.includes("ADMIN")) {
+      fetchHealth();
+      interval = setInterval(fetchHealth, 60000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [userProfile?.roles]);
 
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
@@ -197,9 +214,9 @@ export const AdminLayout: React.FC = () => {
         badge = pendingEventsCount + pendingUpdatesCount;
         collapsedBadge = pendingEventsCount + pendingUpdatesCount;
         badgeColor = "bg-rose-500 text-white font-bold";
-      } else if (item.path === PATHS.ADMIN_SYSTEM_MONITORING) {
-        badge = "99.9%";
-        collapsedBadge = "99";
+      } else if (item.path === PATHS.ADMIN_SYSTEM_MONITORING && systemUptime) {
+        badge = systemUptime;
+        collapsedBadge = systemUptime.replace("%", "");
         badgeColor = "bg-emerald-500 text-white font-bold";
       }
 

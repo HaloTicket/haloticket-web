@@ -13,7 +13,7 @@ import {
 } from "react-icons/lu";
 import { Navigate, NavLink, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-
+import { CustomSelect } from "@/components/common/CustomSelect";
 import { useTheme } from "@/hooks/useTheme";
 import { setLanguage } from "@/i18n";
 import { PATHS } from "@/routes/paths";
@@ -61,8 +61,8 @@ function AppearanceSection({ copy }: { copy: Copy }) {
   const { i18n } = useTranslation();
   return <div className="space-y-6">
     <div className="mb-4">
-      <h3 className="text-sm font-bold app-text-main">{copy("Chủ đề giao diện", "Theme")}</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400">{copy("Chọn giao diện hiển thị phù hợp với môi trường làm việc của bạn.", "Choose the appearance that suits your workspace.")}</p>
+      <h3 className="text-[13px] font-bold app-text-main">{copy("Chủ đề giao diện", "Theme")}</h3>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">{copy("Chọn giao diện hiển thị phù hợp với môi trường làm việc của bạn.", "Choose the appearance that suits your workspace.")}</p>
     </div>
     <div className="grid grid-cols-3 gap-4" role="group" aria-label={copy("Chủ đề giao diện", "Theme")}>
       {(["light", "dark", "system"] as const).map((value) => {
@@ -71,22 +71,28 @@ function AppearanceSection({ copy }: { copy: Copy }) {
         const isSelected = theme === value;
         return <button key={value} type="button" className={`flex flex-col items-center justify-center p-5 rounded-lg shadow-xs border transition-all min-h-9 ${isSelected ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-600/20" : "border-slate-200 dark:border-slate-800 app-text-main hover:border-blue-400 dark:hover:border-blue-500"}`} aria-pressed={isSelected} onClick={() => setTheme(value)}>
           <Icon className="w-7 h-7 mb-3" aria-hidden="true" />
-          <span className="text-sm font-bold flex items-center gap-1.5">{label} {isSelected && <LuCheck className="w-4 h-4" aria-hidden="true" />}</span>
+          <span className="text-[13px] font-bold flex items-center gap-1.5">{label} {isSelected && <LuCheck className="w-4 h-4" aria-hidden="true" />}</span>
         </button>;
       })}
     </div>
     <div className="mb-4 mt-8">
-      <h3 className="text-sm font-bold app-text-main">{copy("Ngôn ngữ hiển thị", "Display language")}</h3>
+      <h3 className="text-[13px] font-bold app-text-main">{copy("Ngôn ngữ hiển thị", "Display language")}</h3>
     </div>
     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
       <div>
-        <h4 className="text-sm font-bold app-text-main">{copy("Ngôn ngữ giao diện", "Interface language")}</h4>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{copy("Chọn ngôn ngữ sử dụng trên bảng quản trị.", "Choose the language for the admin portal.")}</p>
+        <h4 className="text-[13px] font-bold app-text-main">{copy("Ngôn ngữ giao diện", "Interface language")}</h4>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">{copy("Chọn ngôn ngữ sử dụng trên bảng quản trị.", "Choose the language for the admin portal.")}</p>
       </div>
-      <select aria-label={copy("Ngôn ngữ hiển thị", "Display language")} value={i18n.resolvedLanguage === "en" ? "en" : "vi"} onChange={(event) => void setLanguage(event.target.value === "en" ? "en" : "vi")} className="px-4 min-h-9 rounded-md border app-border bg-slate-100 dark:bg-slate-900 app-text-main text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer">
-        <option value="vi">Tiếng Việt</option>
-        <option value="en">English</option>
-      </select>
+      <div className="w-40">
+        <CustomSelect 
+          value={i18n.resolvedLanguage === "en" ? "en" : "vi"} 
+          onChange={(value) => void setLanguage(value === "en" ? "en" : "vi")}
+          options={[
+            { value: "vi", label: "Tiếng Việt" },
+            { value: "en", label: "English" }
+          ]}
+        />
+      </div>
     </div>
   </div>;
 }
@@ -94,8 +100,8 @@ function AppearanceSection({ copy }: { copy: Copy }) {
 function PrivacySection({ copy, preferences, update, disabled }: PreferenceProps) {
   return <div className="space-y-6">
     <div className="mb-4">
-      <h3 className="text-sm font-bold app-text-main flex items-center gap-2"><LuLock className="w-4 h-4" aria-hidden="true" />{copy("Quyền riêng tư & Nhật ký hệ thống", "Privacy and system logs")}</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400">{copy("Quản lý cách hiển thị thông tin trong khu vực quản trị.", "Control how information appears in the admin portal.")}</p>
+      <h3 className="text-[13px] font-bold app-text-main flex items-center gap-2"><LuLock className="w-4 h-4" aria-hidden="true" />{copy("Quyền riêng tư & Nhật ký hệ thống", "Privacy and system logs")}</h3>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">{copy("Quản lý cách hiển thị thông tin trong khu vực quản trị.", "Control how information appears in the admin portal.")}</p>
     </div>
     <BrowserScope copy={copy} future />
     <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg shadow-xs px-5 border app-border">
@@ -108,8 +114,8 @@ function PrivacySection({ copy, preferences, update, disabled }: PreferenceProps
 function NotificationsSection({ copy, preferences, update, disabled }: PreferenceProps) {
   return <div className="space-y-6">
     <div className="mb-4">
-      <h3 className="text-sm font-bold app-text-main flex items-center gap-2"><LuBell className="w-4 h-4" aria-hidden="true" />{copy("Cài đặt thông báo quản trị", "Admin notifications")}</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400">{copy("Chọn các sự kiện bạn muốn nhận thông báo tức thời.", "Choose the events for instant notifications.")}</p>
+      <h3 className="text-[13px] font-bold app-text-main flex items-center gap-2"><LuBell className="w-4 h-4" aria-hidden="true" />{copy("Cài đặt thông báo quản trị", "Admin notifications")}</h3>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">{copy("Chọn các sự kiện bạn muốn nhận thông báo tức thời.", "Choose the events for instant notifications.")}</p>
     </div>
     <BrowserScope copy={copy} future />
     <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg shadow-xs px-5 border app-border mb-6">
@@ -126,7 +132,7 @@ function NotificationsSection({ copy, preferences, update, disabled }: Preferenc
 function MessagesSection({ copy, preferences, update, disabled }: PreferenceProps) {
   return <div className="space-y-6">
     <div className="mb-4">
-      <h3 className="text-sm font-bold app-text-main flex items-center gap-2"><LuMessageSquare className="w-4 h-4" aria-hidden="true" />{copy("Tin nhắn & Soạn thảo", "Messages and composing")}</h3>
+      <h3 className="text-[13px] font-bold app-text-main flex items-center gap-2"><LuMessageSquare className="w-4 h-4" aria-hidden="true" />{copy("Tin nhắn & Soạn thảo", "Messages and composing")}</h3>
     </div>
     <BrowserScope copy={copy} future />
     <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg shadow-xs px-5 border app-border">
@@ -166,14 +172,14 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-8">
-        <aside className="w-full md:w-64 lg:w-72 shrink-0 space-y-4">
-          <h2 className="text-lg font-bold app-text-main px-1">{copy("Cài đặt hệ thống", "System Settings")}</h2>
+        <aside className="w-full md:w-64 lg:w-72 shrink-0 space-y-4 app-bg-card border app-border rounded-lg p-4 shadow-xs">
+          <h2 className="text-base font-bold app-text-main px-1">{copy("Cài đặt hệ thống", "System Settings")}</h2>
           <nav className="space-y-1" aria-label={copy("Mục cài đặt", "Settings sections")}>
             {sections.map((item) => (
               <NavLink
                 key={item.id}
                 to={PATHS.ADMIN_SETTINGS_SECTION(item.id)}
-                className={({ isActive }) => `flex items-center gap-3 min-h-9 px-3 py-2 rounded-md text-sm font-medium transition-all ${isActive ? 'bg-blue-600 text-white shadow-xs font-bold' : 'app-text-muted hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:app-text-main'}`}
+                className={({ isActive }) => `flex items-center gap-3 min-h-9 px-3 py-2 rounded-md text-[13px] font-medium transition-all ${isActive ? 'bg-slate-100 text-blue-600 shadow-xs font-bold dark:bg-[#1E1E20] dark:text-blue-400' : 'app-text-muted hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:app-text-main'}`}
                 aria-current={active === item.id ? "page" : undefined}
               >
                 <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -183,8 +189,8 @@ export default function AdminSettings() {
           </nav>
         </aside>
         
-        <main className="flex-1 min-w-0 border app-border rounded-lg shadow-xs app-bg-card p-6">
-          <h1 className="text-xl font-extrabold app-text-main border-b border-slate-200 dark:border-slate-800 pb-4 mb-6">{copy(heading.vi, heading.en)}</h1>
+        <main className="flex-1 min-w-0 app-bg-card border app-border rounded-lg shadow-xs p-6">
+          <h1 className="text-lg font-extrabold app-text-main pb-4 mb-4">{copy(heading.vi, heading.en)}</h1>
           {error && (
             <p role="alert" className="mb-6 p-3 rounded-md bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-sm font-medium border border-rose-200 dark:border-rose-800">
               {en

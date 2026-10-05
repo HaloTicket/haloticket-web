@@ -16,6 +16,7 @@ export interface CustomSelectProps {
   placeholder?: string;
   className?: string;
   icon?: ReactNode;
+  disabled?: boolean;
 }
 
 export function CustomSelect({
@@ -24,7 +25,8 @@ export function CustomSelect({
   options,
   placeholder = "Chọn...",
   className = "",
-  icon
+  icon,
+  disabled = false
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,8 +68,9 @@ export function CustomSelect({
       <button
         ref={refs.setReference}
         type="button"
-        onClick={() => setOpen(!open)}
-        className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main shadow-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(!open)}
+        className={`flex min-h-9 w-full items-center justify-between gap-2 rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
       >
         <span className="flex items-center gap-2 truncate">
           {icon}

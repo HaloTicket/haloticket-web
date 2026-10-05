@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  FiArrowRight,
   FiCheckCircle,
   FiCpu,
   FiRadio,
@@ -11,10 +9,11 @@ import {
   FiShield,
   FiZap,
 } from "react-icons/fi";
+import { LuSearch } from "react-icons/lu";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { CustomSelect } from "@/components/common/CustomSelect";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminAuditLogs } from "./monitoring/AdminAuditLogs";
-import { PATHS } from "@/routes/paths";
 import { aiApi } from "@/services/aiApi";
 
 export interface MicroserviceStatus {
@@ -56,6 +55,9 @@ export function SystemHealth() {
   const [services, setServices] = useState<MicroserviceStatus[]>(DEFAULT_MICROSERVICES);
   const [anomalyStatus, setAnomalyStatus] = useState<AnomalyDetectionResult | null>(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
   const fetchSystemData = async () => {
     setIsRefreshing(true);
@@ -66,8 +68,10 @@ export function SystemHealth() {
       } else {
         setServices(DEFAULT_MICROSERVICES);
       }
+      setLastUpdated(new Date().toLocaleTimeString(i18n.language === 'vi' ? 'vi-VN' : 'en-US'));
     } catch {
       setServices(DEFAULT_MICROSERVICES);
+      setLastUpdated(new Date().toLocaleTimeString(i18n.language === 'vi' ? 'vi-VN' : 'en-US'));
     } finally {
       setIsRefreshing(false);
     }
@@ -97,6 +101,21 @@ export function SystemHealth() {
   const avgLatency = Math.round(
     services.reduce((acc, s) => acc + (s.latencyMs || 0), 0) / (services.length || 1)
   );
+  
+  const avgCpu = (
+    services.reduce((acc, s) => acc + parseFloat(s.cpuLoad?.replace('%', '') || '0'), 0) / (services.length || 1)
+  ).toFixed(1);
+
+  const avgUptime = services.length > 0 
+    ? ((upCount / services.length) * 100).toFixed(2) + "%" 
+    : "0.00%";
+
+  const filteredServices = services.filter((s) => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          s.type.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -107,7 +126,12 @@ export function SystemHealth() {
           "Real-time monitoring of service status, CPU usage, RAM memory, and response latency across 12 microservices."
         )}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-xs text-slate-500 font-medium">
+                {label("Cập nhật: ", "Updated: ")} {lastUpdated}
+              </span>
+            )}
             <button
               type="button"
               onClick={fetchSystemData}
@@ -141,14 +165,14 @@ export function SystemHealth() {
         />
         <AdminStatCard
           title={label("Tải CPU trung bình", "Average CPU Load")}
-          value="2.8%"
+          value={`${avgCpu}%`}
           subtext={label("Mức tiêu thụ hạ tầng", "Infrastructure consumption")}
           icon={<FiCpu className="w-4 h-4 text-purple-500" />}
           iconBgColor="bg-purple-500/10"
         />
         <AdminStatCard
           title={label("Tỷ lệ Uptime", "Uptime Rate")}
-          value="99.95%"
+          value={avgUptime}
           subtext={label("Cam kết SLA nền tảng", "Platform SLA commitment")}
           icon={<FiRadio className="w-4 h-4 text-indigo-500" />}
           iconBgColor="bg-indigo-500/10"
@@ -158,19 +182,46 @@ export function SystemHealth() {
 
 
       {/* Microservices Grid */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
-            <FiServer className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>{label("Danh sách Microservices HaloTicket", "HaloTicket Microservices List")}</span>
-          </h3>
-          <span className="text-xs app-text-muted">
-            {label("Đồng bộ định kỳ thời gian thực", "Synchronized in real-time")}
-          </span>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
+              <FiServer className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>{label("Danh sách Microservices HaloTicket", "HaloTicket Microservices List")}</span>
+            </h3>
+            <span className="text-xs app-text-muted mt-1 inline-block">
+              {label("Đồng bộ định kỳ thời gian thực", "Synchronized in real-time")}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder={label("Tìm service...", "Search service...")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-[#1E1E20] focus:bg-white dark:focus:bg-[#171719] outline-none focus:border-blue-500 transition-colors app-text-main"
+              />
+            </div>
+            <div className="w-32 shrink-0">
+              <CustomSelect
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: "ALL", label: label("Tất cả", "All") },
+                  { value: "UP", label: "UP" },
+                  { value: "DOWN", label: "DOWN" },
+                  { value: "WARN", label: "WARN" },
+                ]}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {services.map((svc) => (
+          {filteredServices.map((svc) => (
             <div
               key={svc.name}
               className="app-bg-card border app-border rounded-lg p-5 shadow-xs hover:border-blue-500/40 transition-all flex flex-col justify-between space-y-3"

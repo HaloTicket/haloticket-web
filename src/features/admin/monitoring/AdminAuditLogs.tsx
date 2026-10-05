@@ -14,9 +14,8 @@ import {
   FiShield,
   FiX,
 } from "react-icons/fi";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { CustomSelect } from "@/components/common/CustomSelect";
 import { aiApi } from "@/services/aiApi";
 
 export interface AuditLogItem {
@@ -29,117 +28,6 @@ export interface AuditLogItem {
   operator?: string;
   details?: Record<string, unknown>;
 }
-
-const DEFAULT_FALLBACK_LOGS: AuditLogItem[] = [
-  {
-    id: "LOG-98214",
-    time: "2026-10-02 02:25:12",
-    service: "API Gateway",
-    event: "Incoming JWT authenticated request routed to event-service",
-    status: "HEALTHY",
-    ipAddress: "192.168.1.102",
-    operator: "system_gateway",
-  },
-  {
-    id: "LOG-98213",
-    time: "2026-10-02 02:24:50",
-    service: "User & Auth Service",
-    event: "Admin token refresh completed via Keycloak realm 'haloticket'",
-    status: "HEALTHY",
-    ipAddress: "192.168.1.45",
-    operator: "admin@haloticket.com",
-  },
-  {
-    id: "LOG-98212",
-    time: "2026-10-02 02:22:18",
-    service: "Booking Service",
-    event: "Distributed lock acquired for seat reservation batch (Event EV_102)",
-    status: "INFO",
-    ipAddress: "10.0.4.15",
-    operator: "booking_worker_1",
-  },
-  {
-    id: "LOG-98211",
-    time: "2026-10-02 02:20:05",
-    service: "Payment Service",
-    event: "VNPay IPN webhook verified signature and updated transaction TXN_88412",
-    status: "HEALTHY",
-    ipAddress: "113.160.22.8",
-    operator: "vnpay_webhook",
-  },
-  {
-    id: "LOG-98210",
-    time: "2026-10-02 02:18:40",
-    service: "Event Service",
-    event: "Admin approved event draft 'Anh Trai Say Hi Concert' (EV_001)",
-    status: "HEALTHY",
-    ipAddress: "14.162.140.2",
-    operator: "admin@haloticket.com",
-  },
-  {
-    id: "LOG-98209",
-    time: "2026-10-02 02:15:33",
-    service: "Notification Service",
-    event: "Broadcast WebSocket notification to topic /topic/admin/events",
-    status: "HEALTHY",
-    ipAddress: "10.0.7.20",
-    operator: "notification_broker",
-  },
-  {
-    id: "LOG-98208",
-    time: "2026-10-02 02:12:10",
-    service: "Ticket Inventory",
-    event: "Inventory sync warning: high concurrency burst on tier VIP_ZONE",
-    status: "WARN",
-    ipAddress: "10.0.3.12",
-    operator: "inventory_sync",
-  },
-  {
-    id: "LOG-98207",
-    time: "2026-10-02 02:10:04",
-    service: "AI Assistant",
-    event: "Anomaly detection scan executed: 0 security violations detected",
-    status: "HEALTHY",
-    ipAddress: "10.0.8.2",
-    operator: "ai_scheduler",
-  },
-  {
-    id: "LOG-98206",
-    time: "2026-10-02 02:05:49",
-    service: "Resale Marketplace",
-    event: "Resale ticket listing verified under dynamic price ceiling (Max +20%)",
-    status: "INFO",
-    ipAddress: "171.244.10.88",
-    operator: "resale_engine",
-  },
-  {
-    id: "LOG-98205",
-    time: "2026-10-02 01:58:22",
-    service: "Voucher Service",
-    event: "Voucher validation requested for code EARLYBIRD2026",
-    status: "HEALTHY",
-    ipAddress: "115.79.20.14",
-    operator: "checkout_client",
-  },
-  {
-    id: "LOG-98204",
-    time: "2026-10-02 01:52:11",
-    service: "Search Engine",
-    event: "Elasticsearch index rebuilt for 45 active published events",
-    status: "HEALTHY",
-    ipAddress: "10.0.5.9",
-    operator: "search_indexer",
-  },
-  {
-    id: "LOG-98203",
-    time: "2026-10-02 01:45:00",
-    service: "API Gateway",
-    event: "Rate limiter throttled 12 excessive requests from IP 42.112.80.12",
-    status: "WARN",
-    ipAddress: "42.112.80.12",
-    operator: "rate_limiter",
-  },
-];
 
 export function AdminAuditLogs() {
   const { t, i18n } = useTranslation();
@@ -170,10 +58,10 @@ export function AdminAuditLogs() {
         }));
         setLogs(mapped);
       } else {
-        setLogs(DEFAULT_FALLBACK_LOGS);
+        setLogs([]);
       }
     } catch {
-      setLogs(DEFAULT_FALLBACK_LOGS);
+      setLogs([]);
     } finally {
       setIsLoading(false);
     }
@@ -209,12 +97,6 @@ export function AdminAuditLogs() {
     const start = (currentPage - 1) * pageSize;
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
-
-  // Statistics
-  const totalCount = logs.length;
-  const healthyCount = logs.filter((l) => l.status === "HEALTHY").length;
-  const warnCount = logs.filter((l) => l.status === "WARN" || l.status === "ERROR").length;
-  const serviceCount = new Set(logs.map((l) => l.service)).size;
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -290,7 +172,7 @@ export function AdminAuditLogs() {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 app-text-main transition-colors"
+            className="inline-flex items-center min-h-10 gap-2 px-3.5 text-xs font-semibold rounded-md border app-border bg-white dark:bg-[#1E1E20] hover:bg-slate-100 dark:hover:bg-slate-800 app-text-main transition-colors"
           >
             <FiDownload className="w-3.5 h-3.5" />
             <span>{label("Xuất CSV", "Export CSV")}</span>
@@ -321,7 +203,7 @@ export function AdminAuditLogs() {
                 setCurrentPage(1);
               }}
               placeholder={label("Tìm kiếm theo mã log, nội dung, dịch vụ...", "Search by log ID, content, service...")}
-              className="w-full min-h-9 pl-9 pr-4 text-xs rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-slate-400"
+              className="w-full pl-9 pr-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-[#1E1E20] focus:bg-white dark:focus:bg-[#171719] outline-none focus:border-blue-500 transition-colors app-text-main"
             />
           </div>
 
@@ -333,46 +215,37 @@ export function AdminAuditLogs() {
             </div>
 
             {/* Service Filter */}
-            <select
-              value={selectedService}
-              onChange={(e) => {
-                setSelectedService(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-            >
-              {serviceOptions.map((opt) => (
-                <option key={opt} value={opt} className="app-bg-card app-text-main">
-                  {opt === "ALL" ? label("Tất cả dịch vụ", "All services") : opt}
-                </option>
-              ))}
-            </select>
+            <div className="w-40 shrink-0">
+              <CustomSelect
+                value={selectedService}
+                onChange={(val) => {
+                  setSelectedService(val);
+                  setCurrentPage(1);
+                }}
+                options={serviceOptions.map((opt) => ({
+                  value: opt,
+                  label: opt === "ALL" ? label("Tất cả dịch vụ", "All services") : opt,
+                }))}
+              />
+            </div>
 
             {/* Status Filter */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => {
-                setSelectedStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-slate-800/50 app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-            >
-              <option value="ALL" className="app-bg-card app-text-main">
-                {label("Tất cả trạng thái", "All statuses")}
-              </option>
-              <option value="HEALTHY" className="app-bg-card app-text-main">
-                HEALTHY
-              </option>
-              <option value="WARN" className="app-bg-card app-text-main">
-                WARN
-              </option>
-              <option value="INFO" className="app-bg-card app-text-main">
-                INFO
-              </option>
-              <option value="ERROR" className="app-bg-card app-text-main">
-                ERROR
-              </option>
-            </select>
+            <div className="w-36 shrink-0">
+              <CustomSelect
+                value={selectedStatus}
+                onChange={(val) => {
+                  setSelectedStatus(val);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: "ALL", label: label("Tất cả trạng thái", "All statuses") },
+                  { value: "HEALTHY", label: "HEALTHY" },
+                  { value: "WARN", label: "WARN" },
+                  { value: "INFO", label: "INFO" },
+                  { value: "ERROR", label: "ERROR" },
+                ]}
+              />
+            </div>
 
             {(searchQuery || selectedService !== "ALL" || selectedStatus !== "ALL") && (
               <button
