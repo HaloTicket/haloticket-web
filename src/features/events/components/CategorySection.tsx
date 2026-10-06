@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import type { EventItem } from "@/mock/eventData";
 import type { EventApiData } from "@/types";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
@@ -11,7 +10,8 @@ interface CategorySectionProps {
   title: string;
   icon?: React.ReactNode;
   seeMoreLink?: string;
-  events: Array<EventItem | EventApiData>;
+  events: Array<EventApiData>;
+  limit?: number;
   className?: string;
 }
 
@@ -20,6 +20,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   icon,
   seeMoreLink,
   events,
+  limit = 8,
   className = "mb-10"
 }) => {
   useTranslation();
@@ -74,7 +75,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
           onScroll={checkScroll}
           className="flex items-center gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
         >
-          {events.map((event) => (
+          {events.slice(0, limit).map((event) => (
             <div key={event.id} className="w-[260px] md:w-[285px] shrink-0">
               <EventCard event={event} />
             </div>

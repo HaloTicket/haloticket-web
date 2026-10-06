@@ -7,7 +7,13 @@ import { eventApi } from "@/services/eventApi";
 
 import type { EventApiData } from "@/services/eventApi";
 
-export const SpecialEvents: React.FC = () => {
+interface SpecialEventsProps {
+  title?: string;
+  limit?: number;
+  events?: EventApiData[];
+}
+
+export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, events: propEvents }) => {
   useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
@@ -16,12 +22,27 @@ export const SpecialEvents: React.FC = () => {
 
   // fetch event data
   useEffect(() => {
-    eventApi.getAllEvents().then((data) => {
-      if (data && data.length > 0) {
-        setEvents(data);
+    const filterSpecialEvents = (data: EventApiData[]) => {
+      // special event criteria: high-value event or isHot
+      const special = data.filter(e => e.isHot || Number(e.minPrice || e.price) > 500000);
+      // if there aren't enough, select at random.
+      if (special.length < limit) {
+        const others = data.filter(e => !special.includes(e));
+        special.push(...others.sort(() => 0.5 - Math.random()).slice(0, limit - special.length));
       }
-    });
-  }, []);
+      return special.slice(0, limit);
+    };
+
+    if (propEvents && propEvents.length > 0) {
+      setEvents(filterSpecialEvents(propEvents));
+    } else {
+      eventApi.getAllEvents().then((data) => {
+        if (data && data.length > 0) {
+          setEvents(filterSpecialEvents(data));
+        }
+      });
+    }
+  }, [propEvents, limit]);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
@@ -54,7 +75,7 @@ export const SpecialEvents: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main tracking-tight">
-          {translate("Sự kiện đặc biệt")}</h2>
+          {translate(title || "Sự kiện đặc biệt")}</h2>
       </div>
 
       {/* Poster Cards Carousel Wrapper */}

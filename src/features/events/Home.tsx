@@ -10,106 +10,130 @@ import { CategorySection } from "./components/CategorySection";
 import { PromoBanner } from "./components/PromoBanner";
 import { DestinationsSection } from "./components/DestinationsSection";
 import { eventApi, type EventApiData } from "@/services/eventApi";
-import { FiMusic, FiTv, FiBookOpen, FiCompass, FiActivity } from "react-icons/fi";
+import { adminConfigApi } from "@/services/adminConfigApi";
+import type { Banner, EventSection } from "@/types/adminConfig";
+import { FiMusic } from "react-icons/fi";
 
-export const Home: React.FC = () => {
+interface HomeProps {
+  previewBanners?: Banner[];
+  previewSections?: EventSection[];
+}
+
+export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) => {
   useTranslation();
   const [allEvents, setAllEvents] = useState<EventApiData[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [sections, setSections] = useState<EventSection[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
     eventApi.getAllEvents().then((data) => {
-      if (data && data.length > 0) {
-        setAllEvents(data);
-      }
+      if (data && data.length > 0) setAllEvents(data);
     });
-  }, []);
 
-  const musicEvents = allEvents.filter((e) => e.categoryName === "Nhạc sống" || e.categoryId === "cat-001");
-  const stageEvents = allEvents.filter((e) => e.categoryName === "Sân khấu & Nghệ thuật" || e.categoryId === "cat-003");
-  const workshopEvents = allEvents.filter((e) => e.categoryName === "Hội thảo & Workshop" || e.categoryId === "cat-004");
-  const experienceEvents = allEvents.filter((e) => e.categoryName === "Tham quan & Trải nghiệm" || e.categoryId === "cat-005");
-  const sportsEvents = allEvents.filter((e) => e.categoryName === "Thể Thao" || e.categoryId === "cat-002");
+    adminConfigApi.getCategories().then(res => {
+      const cats = (res as any)?.data || res;
+      if (Array.isArray(cats)) setCategories(cats);
+    }).catch(() => {});
+
+    if (!previewBanners) {
+      adminConfigApi.getBanners().then(res => {
+        const data = Array.isArray(res) ? res : res?.data;
+        if (data?.length) setBanners(data);
+      }).catch(() => {});
+    }
+
+    if (!previewSections) {
+      adminConfigApi.getEventSections().then(res => {
+        const data = Array.isArray(res) ? res : res?.data;
+        if (data?.length) setSections(data);
+      }).catch(() => {});
+    }
+  }, [previewBanners, previewSections]);
+
+  const displayBanners = previewBanners || banners;
+  const displaySections = previewSections || sections;
+
+  // Static fallback if no config from DB
+  const isDefaultFallback = displaySections.length === 0;
+
+  const renderSection = (section: EventSection, index: number) => {
+    switch (section.type) {
+      case "featured":
+        return <FeaturedStars key={section.id} title={section.title} limit={section.limit} events={allEvents} />;
+      case "ads":
+        return (
+          <PromoBanner 
+            key={section.id} 
+            title={section.title}
+            subtitle={section.adsSubtitle}
+            description={section.adsDescription}
+            imageUrl={section.adsImageUrl}
+            buttonText={section.adsButtonText}
+            buttonUrl={section.adsButtonUrl}
+          />
+        );
+      case "resale":
+        return <ResaleTicketsSection key={section.id} title={section.title} limit={section.limit} />;
+      case "locations":
+        return <DestinationsSection key={section.id} title={section.title} limit={section.limit} events={allEvents} />;
+      case "trending":
+        return <TrendingEvents key={section.id} title={section.title} limit={section.limit} events={allEvents} />;
+      case "upcoming":
+      case "weekend_events":
+      case "month_events":
+        return <SpecialEvents key={section.id} title={section.title} limit={section.limit} events={allEvents} />;
+      case "categories":
+        const catName = section.title.split(":").pop()?.trim() || "";
+        const matchedCat = categories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+        const catEvents = matchedCat 
+          ? allEvents.filter(e => e.categoryName === matchedCat.name || e.categoryId === matchedCat.id)
+          : allEvents.filter(e => e.categoryName === "Nhạc sống" || e.categoryId === "cat-001");
+        
+        if (catEvents.length > 0) {
+           return (
+             <CategorySection
+               key={section.id}
+               title={section.title}
+               icon={<FiMusic className="w-5 h-5" />}
+               seeMoreLink={`/category/${matchedCat?.slug || "music"}`}
+               events={catEvents.slice(0, section.limit || 4)}
+             />
+           );
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="app-bg-page min-h-screen pb-16 transition-colors duration-300">
-      {/* Main Container with generous horizontal side padding */}
-      <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 pt-6">
-        {/* Hero Carousel Switcher */}
-        <HeroCarousel />
+    <div className={`app-bg-page ${previewSections ? "min-h-0" : "min-h-screen"} pb-16 transition-colors duration-300`}>
+      <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 pt-6 space-y-10">
+        <HeroCarousel customBanners={displayBanners} />
 
-        {/* Featured Stars Carousel */}
-        <FeaturedStars />
-
-        {/* Special Events (Tall Posters) */}
-        <SpecialEvents />
-
-        {/* Trending Events (Ranked 1..4 + Weekend/Month filter) */}
-        <TrendingEvents />
-
-        {/* Resale Tickets Mechanism Highlight */}
-        <ResaleTicketsSection />
-
-        {/* Sponsored Promo Banner 1 */}
-        <PromoBanner type="greensm" />
-
-        {/* Category: Nhạc sống */}
-        {musicEvents.length > 0 && (
-          <CategorySection
-            title={translate("Nhạc sống")}
-            icon={<FiMusic className="w-5 h-5" />}
-            seeMoreLink="/category/music"
-            events={musicEvents}
-          />
+        {isDefaultFallback ? (
+          <>
+            <FeaturedStars />
+            <SpecialEvents />
+            <TrendingEvents />
+            <ResaleTicketsSection />
+            <PromoBanner type="greensm" />
+            
+            {allEvents.filter((e) => e.categoryName === "Nhạc sống" || e.categoryId === "cat-001").length > 0 && (
+              <CategorySection
+                title={translate("Nhạc sống")}
+                icon={<FiMusic className="w-5 h-5" />}
+                seeMoreLink="/category/music"
+                events={allEvents.filter((e) => e.categoryName === "Nhạc sống" || e.categoryId === "cat-001")}
+              />
+            )}
+            
+            <DestinationsSection />
+          </>
+        ) : (
+          displaySections.map((section, idx) => renderSection(section, idx))
         )}
-
-        {/* Category: Sân khấu & Nghệ thuật */}
-        {stageEvents.length > 0 && (
-          <CategorySection
-            title={translate("Sân khấu & Nghệ thuật")}
-            icon={<FiTv className="w-5 h-5" />}
-            seeMoreLink="/category/stage"
-            events={stageEvents}
-          />
-        )}
-
-        {/* Sponsored Promo Banner 2 */}
-        <PromoBanner type="vib" />
-
-        {/* Category: Hội thảo & Workshop */}
-        {workshopEvents.length > 0 && (
-          <CategorySection
-            title={translate("Hội thảo & Workshop")}
-            icon={<FiBookOpen className="w-5 h-5" />}
-            seeMoreLink="/category/workshop"
-            events={workshopEvents}
-          />
-        )}
-
-        {/* Category: Tham quan & Trải nghiệm */}
-        {experienceEvents.length > 0 && (
-          <CategorySection
-            title={translate("Tham quan & Trải nghiệm")}
-            icon={<FiCompass className="w-5 h-5" />}
-            seeMoreLink="/category/experience"
-            events={experienceEvents}
-          />
-        )}
-
-        {/* Sponsored Promo Banner 3 */}
-        <PromoBanner type="shopee" />
-
-        {/* Category: Thể thao & Thể loại khác */}
-        {sportsEvents.length > 0 && (
-          <CategorySection
-            title={translate("Thể thao & Thể loại khác")}
-            icon={<FiActivity className="w-5 h-5" />}
-            seeMoreLink="/category/sports"
-            events={sportsEvents}
-          />
-        )}
-
-        {/* Destinations Highlight Section */}
-        <DestinationsSection />
       </div>
     </div>
   );

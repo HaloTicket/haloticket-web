@@ -3,14 +3,21 @@ import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiRefreshCw, FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { RESALE_EVENTS } from "@/mock/eventData";
+import { eventApi, type EventApiData } from "@/services/eventApi";
+import { marketplaceApi } from "@/services/marketplaceApi";
 import { EventCard } from "@/components/common/EventCard";
 
-export const ResaleTicketsSection: React.FC = () => {
+interface ResaleTicketsSectionProps {
+  title?: string;
+  limit?: number;
+}
+
+export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ title, limit = 4 }) => {
   useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
+  const [events, setEvents] = useState<EventApiData[]>([]);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
@@ -22,7 +29,40 @@ export const ResaleTicketsSection: React.FC = () => {
 
   useEffect(() => {
     checkScroll();
-  }, []);
+  }, [events]);
+
+  useEffect(() => {
+    // Lấy dữ liệu thật từ marketplace
+    marketplaceApi.getResaleEvents().then((data: any) => {
+      if (data && data.length > 0) {
+        // Map ResaleEventSummary sang EventApiData format cho EventCard
+        const mapped = data.map((item: any) => ({
+          id: item.eventId,
+          title: item.title,
+          image: item.image,
+          thumbnailUrl: item.image,
+          startTime: item.eventDate,
+          locationName: item.location,
+          minPrice: item.minPrice,
+          isResale: true,
+          resaleCount: item.listingCount || 1,
+          minResalePrice: item.minPrice
+        }));
+        
+        // Trộn ngẫu nhiên và lấy số lượng limit
+        const shuffled = mapped.sort(() => 0.5 - Math.random());
+        setEvents(shuffled.slice(0, limit));
+      }
+    }).catch(() => {
+      // Nếu lỗi API, fallback về mock
+      eventApi.getAllEvents().then(data => {
+        if (data && data.length > 0) {
+          const shuffled = data.sort(() => 0.5 - Math.random());
+          setEvents(shuffled.slice(0, limit));
+        }
+      });
+    });
+  }, [limit]);
 
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
@@ -46,7 +86,7 @@ export const ResaleTicketsSection: React.FC = () => {
             <span>{translate("RESALE TICKET - VÉ BÁN LẠI")}</span>
           </div>
           <h3 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2">
-            <span>{translate("Sàn Nhượng Vé Chính Thức")}</span>
+            <span>{translate(title || "Sàn Nhượng Vé Chính Thức")}</span>
             <FiCheckCircle className="w-5 h-5 text-emerald-500" />
           </h3>
           <p className="text-xs md:text-sm app-text-muted mt-1">
@@ -80,9 +120,16 @@ export const ResaleTicketsSection: React.FC = () => {
           onScroll={checkScroll}
           className="flex items-center gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
         >
-          {RESALE_EVENTS.map((event) => (
-            <div key={event.id} className="w-[260px] md:w-[285px] shrink-0 h-full">
-              <EventCard event={event} />
+          {events.map((ev) => (
+            <div key={ev.id} className="w-[260px] md:w-[285px] shrink-0 h-full">
+              <EventCard 
+                event={{
+                  ...ev,
+                  isResale: true,
+                  resaleCount: ev.resaleCount || Math.floor(Math.random() * 10) + 1,
+                  minResalePrice: ev.minResalePrice || (Number(ev.minPrice) || 500000) * 0.8
+                } as any} 
+              />
             </div>
           ))}
         </div>

@@ -4,8 +4,15 @@ import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiStar, FiCheck, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
+import type { EventApiData } from "@/services/eventApi";
 
-export const FeaturedStars: React.FC = () => {
+interface FeaturedStarsProps {
+  title?: string;
+  limit?: number;
+  events?: EventApiData[];
+}
+
+export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10, events }) => {
   useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
@@ -13,37 +20,53 @@ export const FeaturedStars: React.FC = () => {
   const [stars, setStars] = useState<{id: string, name: string, avatar: string, verified: boolean}[]>([]);
 
   useEffect(() => {
-    eventApi.getAllEvents().then(data => {
-      if (!data) return;
-      const names = new Set<string>();
-      const computedStars: any[] = [];
+    const processData = (data: EventApiData[]) => {
+      if (!data || data.length === 0) return;
+      const organizerMap = new Map<string, any>();
+      
       data.forEach(e => {
-        const persons = [];
-        if (e.author) persons.push(e.author);
-        if (e.director) persons.push(e.director);
-        if (Array.isArray(e.cast)) persons.push(...e.cast);
+        const eAny = e as any;
+        // try to get real organizer from event object or fallback to author
+        const orgId = eAny.organizer?.id || eAny.organizer?.userId || e.author || eAny.organizerName || "unknown";
+        if (orgId === "unknown") return;
         
-        persons.forEach(p => {
-          if (p && !names.has(p)) {
-            names.add(p);
-            computedStars.push({
-              id: p.toLowerCase().replace(/\s+/g, '-'),
-              name: p,
-              avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80",
-              verified: true
-            });
-          }
-        });
+        const orgName = eAny.organizer?.name || e.author || eAny.organizerName || orgId;
+        const orgAvatar = eAny.organizer?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80";
+        
+        if (!organizerMap.has(orgId)) {
+          organizerMap.set(orgId, {
+            id: orgId.toString().toLowerCase().replace(/\s+/g, '-'),
+            name: orgName,
+            avatar: orgAvatar,
+            verified: true,
+            eventCount: 1,
+            // mock some popularity metrics since we don't have ticket sales data in allEvents
+            popularityScore: (e.pageViews as number || 0) + 10
+          });
+        } else {
+          const org = organizerMap.get(orgId);
+          org.eventCount += 1;
+          org.popularityScore += (e.pageViews as number || 0) + 10;
+        }
       });
-      // fallback if no artists found
-      if (computedStars.length === 0) {
-         computedStars.push({
-           id: "hoang-dung", name: "Hoàng Dũng", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80", verified: true
-         });
-      }
-      setStars(computedStars.slice(0, 10));
-    });
-  }, []);
+      
+      // sort by popularity and event count
+      const computedStars = Array.from(organizerMap.values()).sort((a, b) => {
+        if (b.popularityScore !== a.popularityScore) return b.popularityScore - a.popularityScore;
+        return b.eventCount - a.eventCount;
+      });
+      
+      setStars(computedStars.slice(0, limit));
+    };
+
+    if (events && events.length > 0) {
+      processData(events);
+    } else {
+      eventApi.getAllEvents().then(data => {
+        if (data) processData(data);
+      });
+    }
+  }, [events, limit]);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
@@ -149,7 +172,7 @@ export const FeaturedStars: React.FC = () => {
       <div className="relative z-10 flex items-center justify-between mb-5 px-1">
         <h2 className="text-xl md:text-2xl font-extrabold text-white flex items-center gap-2 tracking-tight">
           <FiStar className="w-5 h-5 text-amber-400 fill-amber-400" />
-          <span>{translate("Nghệ sĩ nổi bật")}</span>
+          <span>{translate(title || "Nghệ sĩ nổi bật")}</span>
         </h2>
         <Link
           to="/artists"

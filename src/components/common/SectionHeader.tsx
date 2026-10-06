@@ -37,7 +37,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
 
         {/* Filter Tabs with Smooth Button Transition Animation */}
         {tabs && tabs.length > 0 && (
-          <div className="relative flex items-center bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-300/60 dark:border-slate-700/60">
+          <div className="relative flex items-center app-bg-subnav p-1 rounded-xl border app-border">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -47,7 +47,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                   onClick={() => onTabChange && onTabChange(tab.id)}
                   className={`relative z-10 px-4 py-1.5 text-xs md:text-sm font-extrabold rounded-lg transition-all duration-300 ease-in-out cursor-pointer ${
                     isActive
-                      ? "bg-blue-600 dark:bg-blue-500 text-white shadow-sm"
+                      ? "gradient-btn shadow-sm"
                       : "app-text-muted hover:app-text-main scale-100"
                   }`}
                 >

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight, FiPlay } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
+import type { Banner } from "@/types/adminConfig";
 
 interface HeroBannerItem {
   id: string;
@@ -14,13 +15,28 @@ interface HeroBannerItem {
   subtitle?: string;
 }
 
-export const HeroCarousel: React.FC = () => {
+interface HeroCarouselProps {
+  customBanners?: Banner[];
+}
+
+export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => {
   useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
   const [banners, setBanners] = useState<HeroBannerItem[]>([]);
 
-  // fetch live event data
   useEffect(() => {
+    if (customBanners && customBanners.length > 0) {
+      const liveBanners = customBanners.filter(b => b.active).map(b => ({
+        id: b.id,
+        title: b.title,
+        image: b.imageUrl,
+        link: b.linkUrl || "#",
+        badge: "Quảng cáo"
+      }));
+      setBanners(liveBanners);
+      return;
+    }
+
     eventApi.getAllEvents().then((data) => {
       if (data && data.length > 0) {
         const liveBanners = data.map((ev) => ({
@@ -33,7 +49,7 @@ export const HeroCarousel: React.FC = () => {
         setBanners(liveBanners);
       }
     });
-  }, []);
+  }, [customBanners]);
 
   useEffect(() => {
     if (!banners || banners.length === 0) return;
@@ -65,7 +81,7 @@ export const HeroCarousel: React.FC = () => {
         {[currentBanner1, currentBanner2].map((banner, index) => (
           <div
             key={`${banner.id}-${index}`}
-            className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl group/item"
+            className={`relative aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl group/item ${index === 1 ? 'hidden md:block' : ''}`}
           >
             <img
               src={banner.image}
@@ -83,13 +99,14 @@ export const HeroCarousel: React.FC = () => {
                 {banner.title}
               </h3>
 
-              <div className="flex items-center justify-between">
-                <Link
-                  to={banner.link}
-                  className="px-4 py-1.5 gradient-btn text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95"
-                >
-                  {translate("Xem chi tiết")}</Link>
-                <div className="w-8 h-8 rounded-full bg-slate-950/60 flex items-center justify-center text-white backdrop-blur-md">
+                <div className="flex items-center justify-between gap-2">
+                  <Link
+                    to={banner.link}
+                    className="px-3 md:px-4 py-1.5 gradient-btn text-white text-[10px] md:text-xs font-bold rounded-lg transition-all shadow-md active:scale-95 whitespace-nowrap"
+                  >
+                    {translate("Xem chi tiết")}
+                  </Link>
+                  <div className="w-7 h-7 md:w-8 md:h-8 shrink-0 rounded-full bg-slate-950/60 flex items-center justify-center text-white backdrop-blur-md">
                   <FiPlay className="w-3.5 h-3.5 fill-current ml-0.5" />
                 </div>
               </div>

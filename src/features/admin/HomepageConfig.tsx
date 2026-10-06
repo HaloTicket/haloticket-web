@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiSave, FiEye, FiImage, FiMonitor, FiSmartphone } from "react-icons/fi";
+import { FiSave, FiEye, FiMonitor, FiSmartphone, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { BannerConfig } from "./homepage-config/BannerConfig";
@@ -7,14 +7,89 @@ import { EventAreasConfig } from "./homepage-config/EventAreasConfig";
 import type { Banner, EventSection } from "@/types/adminConfig";
 import { adminConfigApi } from "@/services/adminConfigApi";
 import { useEffect } from "react";
+import Home from "@/features/events/Home";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { createPortal } from "react-dom";
+import { useRef } from "react";
 
-function HomepageLivePreview({ banners, sections }: { banners: Banner[], sections: EventSection[] }) {
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
-  const activeBanners = banners.filter(b => b.active);
-  const topBanner = activeBanners.length > 0 ? activeBanners[0] : null;
+function IframePreview({ children, className }: { children: React.ReactNode; className?: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+    
+    // Inject styles and meta
+    const head = doc.head;
+    
+    // Add viewport meta tag so mobile media queries work correctly
+    const meta = doc.createElement("meta");
+    meta.name = "viewport";
+    meta.content = "width=device-width, initial-scale=1.0";
+    head.appendChild(meta);
+
+    Array.from(document.head.querySelectorAll("style, link[rel='stylesheet']")).forEach(el => {
+      head.appendChild(el.cloneNode(true));
+    });
+    
+    // Setup html and body classes
+    doc.documentElement.className = document.documentElement.className;
+    doc.body.className = document.body.className;
+    
+    const rootDiv = doc.createElement("div");
+    rootDiv.className = "min-h-screen flex flex-col app-bg-page transition-colors duration-300 font-sans antialiased selection:bg-brand-primary selection:text-white relative bg-white dark:bg-[#1E1E20]";
+    doc.body.appendChild(rootDiv);
+    
+    setMountNode(rootDiv);
+    
+    return () => {
+      rootDiv.remove();
+    };
+  }, []);
 
   return (
-    <div className="app-bg-card border app-border rounded-lg overflow-hidden flex flex-col shadow-sm" style={{ height: "calc(100vh - 120px)" }}>
+    <iframe ref={iframeRef} className={className} style={{ border: 'none', backgroundColor: 'transparent' }}>
+      {mountNode && createPortal(children, mountNode)}
+    </iframe>
+  );
+}
+
+function HomepageLivePreview({ 
+  banners, 
+  sections,
+  isExpanded,
+}: { 
+  banners: Banner[], 
+  sections: EventSection[],
+  isExpanded: boolean,
+  onToggleExpand: () => void
+}) {
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (device === "mobile") {
+        setZoom(1);
+      } else {
+        if (isExpanded) {
+          setZoom(Math.min(1, (window.innerWidth - 80) / 1280));
+        } else {
+          setZoom(Math.min(0.7, (window.innerWidth * 0.6 - 80) / 1280));
+        }
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [device, isExpanded]);
+
+  return (
+    <div className="app-bg-card border app-border rounded-lg overflow-hidden flex flex-col shadow-sm transition-all duration-300" style={{ height: "calc(100vh - 150px)" }}>
       {/* Browser Chrome */}
       <div className="bg-[#565656] dark:bg-[#1E1E20] border-b app-border p-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5 ml-2 w-16">
@@ -36,60 +111,35 @@ function HomepageLivePreview({ banners, sections }: { banners: Banner[], section
       </div>
       
       {/* Viewport container */}
-      <div className="flex-1 app-bg-main overflow-hidden flex justify-center py-4">
-        {/* Actual screen wrapper */}
-        <div 
-          className={`bg-white dark:bg-[#1E1E20] overflow-y-auto custom-scrollbar transition-all duration-300 ease-in-out shadow-lg ${
-            device === "mobile" 
-              ? "w-[375px] rounded-3xl border-[6px] border-slate-800" 
-              : "w-full mx-4 rounded border app-border"
-          }`}
-        >
-          <div className="p-4 md:p-6">
-            {/* Mock Header */}
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800/50">
-              <div className="text-sm font-bold text-blue-600 dark:text-blue-500">HALOTICKET</div>
-              <div className="flex gap-2">
-                <div className="w-8 h-2 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
-                <div className="w-8 h-2 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
-              </div>
-            </div>
-
-            {/* Hero Banner Preview */}
-            {topBanner ? (
-              <div className="w-full h-32 md:h-48 rounded-lg bg-slate-100 dark:bg-slate-800 mb-6 overflow-hidden relative group">
-                <img src={topBanner.imageUrl} alt="banner" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4">
-                   <h3 className="text-white font-semibold text-sm truncate">{topBanner.title}</h3>
-                </div>
-              </div>
+      <div className="flex-1 app-bg-main overflow-hidden flex justify-center py-4 relative">
+        <div className="absolute inset-0 overflow-y-auto custom-scrollbar flex justify-center py-4">
+          <div 
+            className={`bg-white dark:bg-[#1E1E20] transition-all duration-300 ease-in-out shadow-lg transform origin-top ${
+              device === "mobile" 
+                ? "w-[620px] h-[932px] rounded-[3rem] border-[14px] border-slate-800 scale-[0.7] overflow-hidden shrink-0 mx-auto" 
+                : "w-[1280px] rounded border app-border"
+            }`}
+            style={device === "desktop" ? { zoom } : undefined}
+          >
+            {device === "mobile" ? (
+              <IframePreview className="w-full h-full border-0">
+                <Header />
+                <Home previewBanners={banners} previewSections={sections} />
+                <Footer />
+              </IframePreview>
             ) : (
-              <div className="w-full h-32 md:h-48 rounded-lg bg-slate-50 dark:bg-slate-800/30 mb-6 flex flex-col items-center justify-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-700">
-                <FiImage className="w-5 h-5 mb-1 opacity-50" />
-                <span className="text-[10px] font-medium">Trống</span>
-              </div>
+              <>
+                <div className="w-full">
+                  <Header />
+                </div>
+                <div className="w-full">
+                  <Home previewBanners={banners} previewSections={sections} />
+                </div>
+                <div className="w-full">
+                  <Footer />
+                </div>
+              </>
             )}
-
-            {/* Sections Preview */}
-            <div className="space-y-6">
-              {sections.map(section => (
-                 <div key={section.id}>
-                   <div className="flex items-center justify-between mb-3">
-                     <h4 className="font-semibold text-sm app-text-main">{section.title}</h4>
-                     <span className="text-[10px] text-blue-500">Xem thêm</span>
-                   </div>
-                   <div className={`grid gap-3 ${device === "mobile" ? "grid-cols-2" : "grid-cols-4"}`}>
-                     {[1, 2, 3, 4, 5, 6, 7, 8].slice(0, Math.min(device === "mobile" ? 4 : 8, section.limit)).map(i => (
-                       <div key={i} className="flex flex-col gap-2">
-                         <div className="w-full aspect-[4/3] rounded bg-slate-100 dark:bg-slate-800/50 border app-border"></div>
-                         <div className="w-10/12 h-2 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-                         <div className="w-1/2 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
@@ -99,6 +149,7 @@ function HomepageLivePreview({ banners, sections }: { banners: Banner[], section
 
 export function HomepageConfig() {
   const [isSaving, setIsSaving] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const [banners, setBanners] = useState<Banner[]>([
     { id: "BN_1", title: "Khuyến mãi Hè Rực Rỡ", imageUrl: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800", active: true },
@@ -106,10 +157,34 @@ export function HomepageConfig() {
   ]);
 
   const [sections, setSections] = useState<EventSection[]>([
-    { id: "SEC_1", title: "Sự kiện nổi bật", type: "featured", limit: 8 },
-    { id: "SEC_2", title: "Resale / Pass vé an toàn", type: "resale", limit: 4 },
-    { id: "SEC_3", title: "Sự kiện sắp diễn ra", type: "upcoming", limit: 8 },
-    { id: "SEC_4", title: "Theo thể loại: Nhạc kịch", type: "category", limit: 4 },
+    { id: "SEC_1", title: "Nghệ sĩ nổi bật", type: "featured", limit: 8 },
+    { id: "SEC_2", title: "Sự kiện đặc biệt", type: "upcoming", limit: 8 },
+    { id: "SEC_3", title: "Sự kiện xu hướng", type: "trending", limit: 8 },
+    { id: "SEC_4", title: "Sàn Nhượng Vé Chính Thức", type: "resale", limit: 4 },
+    { 
+      id: "SEC_5", title: "Ads GreenSM", type: "ads", limit: 1,
+      adsSubtitle: "GREEN SM | HaloTicket",
+      adsDescription: "Áp dụng cho dịch vụ Taxi Xanh khi di chuyển đến các sự kiện",
+      adsButtonText: "Nhận ưu đãi"
+    },
+    { id: "SEC_6", title: "Theo thể loại: Nhạc sống", type: "categories", limit: 4 },
+    { id: "SEC_7", title: "Theo thể loại: Sân khấu & Nghệ thuật", type: "categories", limit: 4 },
+    { 
+      id: "SEC_8", title: "Ads VIB", type: "ads", limit: 1,
+      adsSubtitle: "VIB | HALOTICKET",
+      adsDescription: "Mua vé Idol cực hời khi thanh toán bằng thẻ VIB Platinum",
+      adsButtonText: "Mở thẻ ngay"
+    },
+    { id: "SEC_9", title: "Theo thể loại: Hội thảo & Workshop", type: "categories", limit: 4 },
+    { id: "SEC_10", title: "Theo thể loại: Tham quan & Trải nghiệm", type: "categories", limit: 4 },
+    { 
+      id: "SEC_11", title: "Ads ShopeePay", type: "ads", limit: 1,
+      adsSubtitle: "SPayLater | ShopeePay",
+      adsDescription: "Khi thanh toán bằng Ví ShopeePay hoặc SPayLater - Mua Trước Trả Sau",
+      adsButtonText: "Nhận voucher"
+    },
+    { id: "SEC_12", title: "Theo thể loại: Thể thao & Thể loại khác", type: "categories", limit: 4 },
+    { id: "SEC_13", title: "Điểm đến thú vị", type: "locations", limit: 4 },
   ]);
 
   useEffect(() => {
@@ -120,7 +195,11 @@ export function HomepageConfig() {
     
     adminConfigApi.getEventSections().then(res => {
       const data = Array.isArray(res) ? res : res?.data;
-      if (data?.length) setSections(data);
+      // If backend returns less than 5 items, it's likely the old mock config.
+      // Ignore it so the initial 13-item default config is used.
+      if (data && data.length > 4) {
+        setSections(data);
+      }
     }).catch(() => {});
   }, []);
 
@@ -165,13 +244,34 @@ export function HomepageConfig() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-5 space-y-6">
-          <BannerConfig banners={banners} onChange={setBanners} />
-          <EventAreasConfig sections={sections} onChange={setSections} />
+      <div className="flex flex-col lg:flex-row gap-6 items-start relative">
+        <div className={`transition-all duration-500 ease-in-out shrink-0 overflow-hidden ${
+          isSidebarCollapsed ? "w-0 opacity-0 m-0" : "w-full lg:w-[45%] xl:w-[40%] opacity-100"
+        }`}>
+          <div className="w-[100%] min-w-[300px] space-y-6">
+            <BannerConfig banners={banners} onChange={setBanners} />
+            <EventAreasConfig sections={sections} onChange={setSections} />
+          </div>
         </div>
-        <div className="lg:col-span-7 hidden lg:block sticky top-20">
-          <HomepageLivePreview banners={banners} sections={sections} />
+        
+        {/* Sticky floating expand/collapse button */}
+        <div className="absolute -left-3 top-6 z-10">
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="w-8 h-8 rounded-full bg-white dark:bg-[#1E1E20] border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-500 hover:text-blue-600 hover:scale-105 transition-all duration-300"
+            title={isSidebarCollapsed ? "Hiện thanh cài đặt" : "Thu gọn thanh cài đặt"}
+          >
+            {isSidebarCollapsed ? <FiChevronRight className="w-4 h-4" /> : <FiChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
+
+        <div className={`w-full ${isSidebarCollapsed ? "lg:w-full" : "lg:w-[55%] xl:w-[60%]"} hidden lg:block sticky top-6 transition-all duration-300`}>
+          <HomepageLivePreview 
+            banners={banners} 
+            sections={sections} 
+            isExpanded={isSidebarCollapsed}
+            onToggleExpand={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          />
         </div>
       </div>
     </div>

@@ -16,7 +16,13 @@ interface TrendingRankItem {
   [key: string]: unknown;
 }
 
-export const TrendingEvents: React.FC = () => {
+interface TrendingEventsProps {
+  title?: string;
+  limit?: number;
+  events?: EventApiData[];
+}
+
+export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8, events: propEvents }) => {
   useTranslation();
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
   const rankScrollRef = useRef<HTMLDivElement>(null);
@@ -30,23 +36,81 @@ export const TrendingEvents: React.FC = () => {
 
   const [trendingList, setTrendingList] = useState<TrendingRankItem[]>([]);
   const [tabEvents, setTabEvents] = useState<Array<EventApiData>>([]);
+  const [allEventsList, setAllEventsList] = useState<EventApiData[]>([]);
 
-  // fetch trending events
+  // fetch and store all events
   useEffect(() => {
-    eventApi.getAllEvents().then((data) => {
-      if (data && data.length > 0) {
-        // build ranked list 1..N
-        const ranked = data.map((ev, index) => ({
-          id: ev.id,
-          rank: index + 1,
-          title: ev.title,
-          image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
-        }));
-        setTrendingList(ranked);
-        setTabEvents(data);
-      }
+    if (propEvents && propEvents.length > 0) {
+      setAllEventsList(propEvents);
+    } else {
+      eventApi.getAllEvents().then((data) => {
+        if (data) setAllEventsList(data);
+      });
+    }
+  }, [propEvents]);
+
+  // process trending rank and tab events
+  useEffect(() => {
+    if (allEventsList.length === 0) return;
+    
+    // 1. process top trending
+    const sorted = [...allEventsList].sort((a, b) => {
+      const viewsA = (a.pageViews as number) || (a.viewCount as number) || 0;
+      const viewsB = (b.pageViews as number) || (b.viewCount as number) || 0;
+      return viewsB - viewsA;
     });
-  }, []);
+    
+    const sliced = sorted.slice(0, limit);
+    const ranked = sliced.map((ev, index) => ({
+      id: ev.id,
+      rank: index + 1,
+      title: ev.title,
+      image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
+    }));
+    setTrendingList(ranked);
+    
+    // 2. process filtered events for tabs
+    const now = new Date();
+    let filtered = allEventsList;
+    
+    if (activeTab === "weekend") {
+      // find the upcoming weekend (Saturday and Sunday)
+      const day = now.getDay(); // 0 is Sunday, 6 is Saturday
+      const daysUntilSaturday = (day === 0) ? 6 : (6 - day);
+      
+      const saturday = new Date(now);
+      saturday.setDate(now.getDate() + daysUntilSaturday);
+      saturday.setHours(0, 0, 0, 0);
+      
+      const sunday = new Date(saturday);
+      sunday.setDate(saturday.getDate() + 1);
+      sunday.setHours(23, 59, 59, 999);
+      
+      filtered = allEventsList.filter(ev => {
+        if (!ev.startTime) return false;
+        const eventDate = new Date(ev.startTime);
+        return eventDate >= saturday && eventDate <= sunday;
+      });
+    } else if (activeTab === "month") {
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      filtered = allEventsList.filter(ev => {
+        if (!ev.startTime) return false;
+        const eventDate = new Date(ev.startTime);
+        return eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear;
+      });
+    }
+    
+    // sort the filtered list by trending views and set
+    const sortedFiltered = filtered.sort((a, b) => {
+      const viewsA = (a.pageViews as number) || (a.viewCount as number) || 0;
+      const viewsB = (b.pageViews as number) || (b.viewCount as number) || 0;
+      return viewsB - viewsA;
+    });
+    setTabEvents(sortedFiltered.slice(0, limit));
+    
+  }, [allEventsList, activeTab, limit]);
 
   const filterTabs = [
     { id: "weekend", label: "Cuối tuần này" },
@@ -106,7 +170,7 @@ export const TrendingEvents: React.FC = () => {
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
           <FaFire className="w-6 h-6 text-rose-500 animate-pulse" />
-          <span>{translate("Sự kiện xu hướng")}</span>
+          <span>{translate(title || "Sự kiện xu hướng")}</span>
         </h2>
       </div>
 

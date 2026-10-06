@@ -10,9 +10,10 @@ import { toast } from "sonner";
 interface Props {
   banners: Banner[];
   onChange: (banners: Banner[]) => void;
+  onCollapse?: () => void;
 }
 
-export function BannerConfig({ banners, onChange }: Props) {
+export function BannerConfig({ banners, onChange, onCollapse }: Props) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
@@ -113,13 +114,24 @@ export function BannerConfig({ banners, onChange }: Props) {
           <FiImage className="w-4 h-4 text-slate-400" />
           Quản lý Banner (Hero Slider)
         </h3>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
-        >
-          <FiPlus className="w-3.5 h-3.5" />
-          Thêm cấu hình
-        </button>
+        <div className="flex items-center gap-2">
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="inline-flex items-center justify-center w-8 h-8 rounded text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+              title="Thu gọn cột"
+            >
+              <FiToggleLeft className="w-5 h-5" />
+            </button>
+          )}
+          <button 
+            onClick={() => handleOpenModal()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+          >
+            <FiPlus className="w-3.5 h-3.5" />
+            Thêm cấu hình
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -170,7 +182,7 @@ export function BannerConfig({ banners, onChange }: Props) {
               <button
                 onClick={() => toggleBanner(banner.id)}
                 className={`transition-colors p-1.5 rounded ${
-                  banner.active ? "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10" : "text-slate-300 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  banner.active ? "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10" : "text-slate-300 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 {banner.active ? <FiToggleRight className="w-5 h-5" /> : <FiToggleLeft className="w-5 h-5" />}
