@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/hooks/useTheme";
@@ -13,7 +13,7 @@ import { NotificationDropdown } from "@/components/notifications/NotificationDro
 import { NotificationToast } from "@/components/notifications/NotificationToast";
 import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/adminNavigation";
 import { aiApi } from "@/services/aiApi";
-
+import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
 import {
   FiSun,
   FiMoon,
@@ -25,21 +25,10 @@ import {
   FiLogOut,
   FiSettings,
   FiUserCheck,
+  FiMessageSquare,
+  FiZap,
+  FiEdit3,
 } from "react-icons/fi";
-
-interface NavItem {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
-  badge?: number | string;
-  collapsedBadge?: number | string;
-  badgeColor?: string;
-}
-
-interface NavGroup {
-  groupTitle: string;
-  items: NavItem[];
-}
 
 export const AdminLayout: React.FC = () => {
   const { t: translate } = useTranslation();
@@ -81,7 +70,10 @@ export const AdminLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [aiDrawerPrompt, setAiDrawerPrompt] = useState("");
   const [systemUptime, setSystemUptime] = useState<string | null>(null);
+  const [textSelection, setTextSelection] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
     getCachedUserProfile()
@@ -91,6 +83,38 @@ export const AdminLayout: React.FC = () => {
   const [currentTime, setCurrentTime] = useState("");
 
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        const activeSelection = window.getSelection();
+        if (activeSelection && activeSelection.toString().trim().length > 10) {
+          const range = activeSelection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          setTextSelection({
+            text: activeSelection.toString().trim(),
+            x: rect.left + rect.width / 2,
+            y: rect.top - 10
+          });
+        } else {
+          setTextSelection(null);
+        }
+      }, 10);
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if ((e.target as Element).closest('#ai-selection-popover')) return;
+      setTextSelection(null);
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousedown', handleMouseDown);
+    
+    return () => {
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -520,6 +544,69 @@ export const AdminLayout: React.FC = () => {
         actionText={translate("Nhấn để kiểm duyệt ngay →")}
         accentColor="blue"
       />
+
+      {/* AI Text Selection Popover */}
+      {textSelection && (
+        <div 
+          id="ai-selection-popover"
+          className="fixed z-[100] animate-in fade-in zoom-in-95 duration-200"
+          style={{ left: textSelection.x, top: textSelection.y, transform: 'translate(-50%, -100%)' }}
+        >
+          <button
+            onClick={() => {
+              setAiDrawerPrompt(`Hãy soạn thảo một email phản hồi chuyên nghiệp, lịch sự và giải quyết vấn đề cho nội dung khiếu nại/yêu cầu sau:\n\n"${textSelection.text}"`);
+              setIsAiDrawerOpen(true);
+              setTextSelection(null);
+              window.getSelection()?.removeAllRanges();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[11px] font-bold rounded-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+          >
+            <FiEdit3 className="w-3.5 h-3.5" />
+            Nhờ AI soạn trả lời
+          </button>
+          <div className="w-2 h-2 bg-indigo-600 rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2"></div>
+        </div>
+      )}
+
+      {/* Floating AI Action Button */}
+      <button
+        onClick={() => setIsAiDrawerOpen(true)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-full flex items-center justify-center text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(59,130,246,0.3)] hover:scale-105 transition-all duration-300 group"
+      >
+        <FiMessageSquare className="w-6 h-6 group-hover:scale-110 transition-transform" />
+      </button>
+
+      {/* AI Assistant Drawer */}
+      {isAiDrawerOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-end">
+          <div 
+            className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm" 
+            onClick={() => setIsAiDrawerOpen(false)}
+          />
+          <div className="relative w-full max-w-sm md:max-w-md h-full app-bg-card shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex items-center justify-between p-3 border-b app-border app-bg-subnav">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+                  <FiZap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold app-text-main">Halo AI Assistant</h3>
+                  <p className="text-[10px] font-medium app-text-muted">Luôn sẵn sàng hỗ trợ bạn</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsAiDrawerOpen(false)}
+                className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 app-text-main transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AdminAiAssistant isDrawer={true} initialPrompt={aiDrawerPrompt} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

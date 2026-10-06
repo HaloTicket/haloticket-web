@@ -8,6 +8,11 @@ export const aiApi = {
     return response as any; // axiosClient interceptor returns data directly
   },
 
+  chatAdminAssistant: async (message: string, history: any[] = []): Promise<AiChatResponse> => {
+    const response = await axiosClient.post('/admin/assistant-chat', { message, history });
+    return response as any;
+  },
+
   analyzeData: async (question: string): Promise<any> => {
     const response = await axiosClient.post('/organizer/data-analysis', { question });
     return response; // axiosClient interceptor returns data directly

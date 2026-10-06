@@ -2,14 +2,32 @@ import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSend, FiLoader, FiZap, FiDatabase } from "react-icons/fi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import ReactMarkdown from 'react-markdown';
 import { aiApi } from "@/services/aiApi";
+import { eventApi } from "@/services/eventApi";
+import { Link } from "react-router-dom";
+import { PATHS } from "@/routes/paths";
 
-export default function AdminAiAssistant() {
+interface ActionableEvent {
+  id: string | number;
+  title: string;
+  organizer?: { name?: string };
+}
+
+interface ChatMessage {
+  id: string;
+  sender: "ai" | "user";
+  text: string;
+  timestamp: Date;
+  actionableEvents?: ActionableEvent[];
+}
+
+export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" }: { isDrawer?: boolean, initialPrompt?: string }) {
   const { t, i18n } = useTranslation();
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<{ id: string; sender: "ai" | "user"; text: string; timestamp: Date }[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       sender: "ai",
@@ -20,8 +38,14 @@ export default function AdminAiAssistant() {
       timestamp: new Date(),
     }
   ]);
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState(initialPrompt);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialPrompt) {
+      setInputText(initialPrompt);
+    }
+  }, [initialPrompt]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,15 +75,31 @@ export default function AdminAiAssistant() {
         role: m.sender === "user" ? "user" : "assistant", 
         content: m.text 
       }));
-      
-      const response = await aiApi.chatWithSmartBooking(userMessage.text, history);
+      const isApprovalQuestion = userMessage.text.toLowerCase().includes("duyệt") && (userMessage.text.toLowerCase().includes("sự kiện") || userMessage.text.toLowerCase().includes("event"));
+      let actionableEvents: ActionableEvent[] | undefined = undefined;
+
+      const response = await aiApi.chatAdminAssistant(userMessage.text, history);
+
+      if (isApprovalQuestion) {
+         try {
+            const pendingEvents = await eventApi.getApprovalEvents("PENDING");
+            if (pendingEvents && pendingEvents.length > 0) {
+               actionableEvents = pendingEvents.slice(0, 3) as unknown as ActionableEvent[];
+            }
+         } catch (e) {
+            console.error("Failed to load actionable events for AI:", e);
+         }
+      }
+
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         sender: "ai",
         text: response.reply,
+        actionableEvents,
         timestamp: new Date()
       }]);
     } catch (error) {
+      console.error("AI Assistant Error:", error);
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         sender: "ai",
@@ -72,16 +112,18 @@ export default function AdminAiAssistant() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] min-h-0 space-y-4">
-      <AdminPageHeader
-        title={label("Trợ lý AI Quản trị viên", "Admin AI Assistant")}
-        description={label(
-          "Hỗ trợ phân tích dữ liệu, giải đáp thắc mắc và đề xuất hướng xử lý cho các tác vụ quản trị.",
-          "Supports data analysis, answers queries, and suggests actions for administrative tasks."
-        )}
-      />
+    <div className={`flex flex-col min-h-0 space-y-4 ${isDrawer ? 'h-full' : 'h-[calc(100vh-100px)]'}`}>
+      {!isDrawer && (
+        <AdminPageHeader
+          title={label("Trợ lý AI Quản trị viên", "Admin AI Assistant")}
+          description={label(
+            "Hỗ trợ phân tích dữ liệu, giải đáp thắc mắc và đề xuất hướng xử lý cho các tác vụ quản trị.",
+            "Supports data analysis, answers queries, and suggests actions for administrative tasks."
+          )}
+        />
+      )}
 
-      <div className="flex-1 min-h-0 border app-border rounded-lg app-bg-card flex flex-col shadow-xs">
+      <div className={`flex-1 min-h-0 flex flex-col shadow-xs ${isDrawer ? '' : 'border app-border rounded-lg app-bg-card'}`}>
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
           {messages.length === 1 && (
@@ -90,10 +132,10 @@ export default function AdminAiAssistant() {
                 <FiZap className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold app-text-main mb-1">
+                <h3 className="text-sm font-bold app-text-main mb-1">
                   {label("Tôi có thể giúp gì cho bạn?", "How can I help you?")}
                 </h3>
-                <p className="text-sm app-text-muted max-w-md mx-auto">
+                <p className="text-[11px] app-text-muted max-w-md mx-auto">
                   {label("Bạn có thể đặt câu hỏi về doanh thu, sự kiện đang chờ duyệt, hoặc kiểm tra trạng thái của các microservices.", "You can ask about revenue, pending events, or check the status of microservices.")}
                 </p>
               </div>
@@ -108,7 +150,7 @@ export default function AdminAiAssistant() {
                     onClick={() => {
                       setInputText(prompt);
                     }}
-                    className="px-4 py-2 rounded-md border border-slate-200 dark:border-slate-800 text-xs font-bold app-text-main hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors shadow-xs hover:border-blue-500"
+                    className="px-3.5 py-1.5 rounded-md border app-border text-[11px] font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors shadow-xs hover:border-blue-500"
                   >
                     {prompt}
                   </button>
@@ -119,10 +161,10 @@ export default function AdminAiAssistant() {
 
           {messages.map((msg, idx) => (
             <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-4 py-3 text-sm shadow-xs ${
+              <div className={`max-w-[85%] sm:max-w-[75%] rounded-md px-3.5 py-2.5 text-xs shadow-xs ${
                 msg.sender === "user" 
-                  ? "bg-blue-600 text-white rounded-br-sm" 
-                  : "bg-slate-100 dark:bg-slate-800 app-text-main rounded-bl-sm border border-slate-200 dark:border-slate-700"
+                  ? "gradient-btn rounded-br-sm text-white" 
+                  : "app-bg-subnav app-text-main rounded-bl-sm border app-border"
               }`}>
                 {msg.sender === "ai" && idx === 0 ? (
                   <div className="flex items-center gap-2 mb-1">
@@ -130,8 +172,35 @@ export default function AdminAiAssistant() {
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400">System AI</span>
                   </div>
                 ) : null}
-                <div className="leading-relaxed whitespace-pre-wrap">{msg.text}</div>
-                <div className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-blue-100 text-right" : "app-text-muted"}`}>
+                <div className="leading-relaxed text-xs prose prose-sm max-w-none dark:prose-invert prose-p:text-xs prose-li:text-xs">
+                  {msg.sender === "ai" ? (
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                  )}
+                </div>
+                {msg.actionableEvents && msg.actionableEvents.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-[11px] font-bold text-slate-500 mb-2 uppercase tracking-wider">⚡ Hành động đề xuất:</p>
+                    {msg.actionableEvents.map((ev) => (
+                      <div key={ev.id} className="app-bg-card border app-border rounded-md p-2.5 flex items-center justify-between shadow-xs hover:border-blue-500 transition-colors">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <p className="text-sm font-bold app-text-main truncate">{ev.title}</p>
+                          <p className="text-[11px] app-text-muted mt-0.5 truncate">{ev.organizer?.name || 'Unknown Organizer'}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                           <Link to={`${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${ev.id}`} className="px-3 py-1.5 gradient-btn rounded-md text-[11px] font-bold transition-colors shadow-xs">Xem & Duyệt</Link>
+                        </div>
+                      </div>
+                    ))}
+                    {msg.actionableEvents.length >= 3 && (
+                       <div className="text-center mt-2">
+                         <Link to={PATHS.ADMIN_EVENTS_APPROVAL} className="text-xs font-semibold text-blue-600 hover:underline">Xem tất cả</Link>
+                       </div>
+                    )}
+                  </div>
+                )}
+                <div className={`text-[10px] mt-2 ${msg.sender === "user" ? "text-blue-100 text-right" : "app-text-muted"}`}>
                   {msg.timestamp.toLocaleTimeString(i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN', { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
@@ -139,9 +208,9 @@ export default function AdminAiAssistant() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-lg rounded-bl-sm px-4 py-3 flex items-center gap-2 border border-slate-200 dark:border-slate-700 shadow-xs">
+              <div className="app-bg-subnav rounded-md rounded-bl-sm px-3.5 py-2.5 flex items-center gap-2 border app-border shadow-xs">
                 <FiLoader className="w-4 h-4 text-blue-600 animate-spin" />
-                <span className="text-xs font-medium app-text-muted">{label("Đang phân tích...", "Analyzing...")}</span>
+                <span className="text-[11px] font-medium app-text-muted">{label("Đang phân tích...", "Analyzing...")}</span>
               </div>
             </div>
           )}
@@ -149,21 +218,21 @@ export default function AdminAiAssistant() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t app-border rounded-b-lg">
+        <div className="p-3.5 app-bg-subnav border-t app-border rounded-b-md">
           <form onSubmit={handleSendMessage} className="relative flex items-center">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md pl-4 pr-12 min-h-9 py-2 text-xs font-medium app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-xs transition-all placeholder:text-slate-400"
+              className="w-full app-bg-card border app-border rounded-md pl-3.5 pr-11 min-h-8 py-1.5 text-xs font-medium app-text-main focus:outline-none focus:border-blue-500 shadow-xs transition-all placeholder:text-slate-400"
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={!inputText.trim() || isLoading}
-              className="absolute right-1.5 h-7 w-7 flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 text-white transition-colors"
+              className="absolute right-1.5 h-6 w-6 flex items-center justify-center rounded-md gradient-btn disabled:opacity-50 transition-colors"
             >
-              <FiSend className="w-4 h-4" />
+              <FiSend className="w-3.5 h-3.5" />
             </button>
           </form>
           <div className="text-center mt-2">

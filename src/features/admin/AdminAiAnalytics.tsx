@@ -1,12 +1,43 @@
 import React, { useState } from 'react';
-import { FiSearch, FiCode, FiDatabase, FiLoader, FiAlertCircle } from 'react-icons/fi';
+import { FiSearch, FiCode, FiDatabase, FiLoader, FiAlertCircle, FiDownload, FiBookmark, FiPieChart, FiBarChart2 } from 'react-icons/fi';
+import ReactMarkdown from 'react-markdown';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { aiApi } from '@/services/aiApi';
+import { FiRefreshCw } from 'react-icons/fi';
 
 export const AdminAiAnalytics: React.FC = () => {
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState(() => sessionStorage.getItem('admin_ai_question') || '');
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<any>(() => {
+    try {
+      const saved = sessionStorage.getItem('admin_ai_result');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [error, setError] = useState<string | null>(null);
+  
+  const [showSchema, setShowSchema] = useState(false);
+  const [chartTypeOverride, setChartTypeOverride] = useState<'bar'|'pie'|'line'|null>(null);
+
+  const [savedQueries, setSavedQueries] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('admin_ai_saved_queries');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveCurrentQuery = () => {
+    if (!question.trim()) return;
+    if (!savedQueries.includes(question.trim())) {
+      const newSaved = [question.trim(), ...savedQueries].slice(0, 10); // keep max 10
+      setSavedQueries(newSaved);
+      localStorage.setItem('admin_ai_saved_queries', JSON.stringify(newSaved));
+    }
+  };
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -15,16 +46,65 @@ export const AdminAiAnalytics: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setChartTypeOverride(null);
 
     try {
       const response = await aiApi.analyzeData(question);
       setResult(response);
+      saveCurrentQuery();
+      sessionStorage.setItem('admin_ai_question', question);
+      sessionStorage.setItem('admin_ai_result', JSON.stringify(response));
     } catch (err: any) {
       console.error("AI Analytics error:", err);
       setError("Rất tiếc, AI không thể phân tích yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn hoặc kiểm tra kết nối CSDL.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const exportToCSV = () => {
+    if (!result?.data || !Array.isArray(result.data) || result.data.length === 0) return;
+    const columns = Object.keys(result.data[0]);
+    const csvContent = [
+      columns.join(","),
+      ...result.data.map((row: any) => columns.map(col => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `ai_analytics_export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePinDashboard = () => {
+    // Dispatch a custom event to show notification via AdminLayout / Notification context
+    const event = new CustomEvent('toast-notification', {
+      detail: {
+        id: `pin-${Date.now()}`,
+        title: "Đã ghim thành công",
+        message: "Biểu đồ này đã được ghim ra màn hình chính (Admin Dashboard).",
+        type: "success",
+        timestamp: new Date().toISOString()
+      }
+    });
+    window.dispatchEvent(event);
+    
+    // Fallback native alert if needed
+    if (!window.dispatchEvent) {
+      alert("Đã ghim báo cáo ra màn hình Dashboard thành công!");
+    }
+  };
+
+  const handleReset = () => {
+    setQuestion('');
+    setResult(null);
+    setError(null);
+    setChartTypeOverride(null);
+    sessionStorage.removeItem('admin_ai_question');
+    sessionStorage.removeItem('admin_ai_result');
   };
 
   // helper to render table dynamically
@@ -62,6 +142,81 @@ export const AdminAiAnalytics: React.FC = () => {
     );
   };
 
+  const renderChart = (data: any[]) => {
+    if (!data || data.length === 0) return null;
+    const columns = Object.keys(data[0]);
+    if (columns.length < 2) return null; 
+
+    // Try to find a string/categorical column and a numeric column
+    let labelCol = columns.find(col => typeof data[0][col] === 'string') || columns[0];
+    let numCols = columns.filter(col => typeof data[0][col] === 'number');
+
+    if (numCols.length === 0) {
+       // attempt to parse numbers
+       numCols = columns.filter(col => col !== labelCol && !isNaN(Number(data[0][col])));
+    }
+
+    if (numCols.length === 0) return null; 
+
+    const valueCol = numCols[0];
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+
+    // Auto detect chart type if not explicitly set
+    let activeChartType = chartTypeOverride;
+    if (!activeChartType) {
+      activeChartType = (data.length <= 6 && numCols.length === 1) ? 'pie' : 'bar';
+    }
+
+    const chartData = data.map(row => ({
+      ...row,
+      [valueCol]: Number(row[valueCol]) || 0
+    }));
+
+    return (
+      <div className="w-full h-80 app-bg-card border app-border rounded-lg shadow-xs mt-4 p-4 flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-xs font-bold app-text-muted uppercase tracking-wider">
+            {activeChartType === 'pie' ? <FiPieChart className="w-4 h-4 text-purple-500" /> : <FiBarChart2 className="w-4 h-4 text-blue-500" />}
+            <span>Biểu đồ trực quan</span>
+          </div>
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5">
+            <button onClick={() => setChartTypeOverride('bar')} className={`px-2 py-1 text-xs font-bold rounded ${activeChartType === 'bar' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Bar</button>
+            <button onClick={() => setChartTypeOverride('line')} className={`px-2 py-1 text-xs font-bold rounded ${activeChartType === 'line' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Line</button>
+            <button onClick={() => setChartTypeOverride('pie')} className={`px-2 py-1 text-xs font-bold rounded ${activeChartType === 'pie' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Pie</button>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height="100%">
+          {activeChartType === 'pie' ? (
+            <PieChart>
+              <Pie data={chartData} dataKey={valueCol} nameKey={labelCol} cx="50%" cy="50%" outerRadius={100} label>
+                {chartData.map((index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+            </PieChart>
+          ) : activeChartType === 'line' ? (
+            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis dataKey={labelCol} tick={{fontSize: 12}} stroke="#94a3b8" />
+              <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
+              <RechartsTooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+              <Line type="monotone" dataKey={valueCol} stroke="#8b5cf6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+            </LineChart>
+          ) : (
+            <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis dataKey={labelCol} tick={{fontSize: 12}} stroke="#94a3b8" />
+              <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
+              <RechartsTooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+              <Bar dataKey={valueCol} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full min-h-screen app-bg-page p-4 md:p-8 space-y-6">
       
@@ -74,19 +229,19 @@ export const AdminAiAnalytics: React.FC = () => {
           Phân Tích Dữ Liệu AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">(Text-to-SQL)</span>
         </h1>
         <p className="text-sm app-text-muted max-w-lg mx-auto">
-          Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh, AI (Gemini Flash) sẽ tự động viết câu lệnh SQL để truy vấn cơ sở dữ liệu và trả về kết quả ngay lập tức!
+          Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh, AI (Gemini Flash) sẽ tự động viết câu lệnh SQL để truy vấn cơ sở dữ liệu và trả về kết quả kèm phân tích ngay lập tức!
         </p>
       </div>
 
       {/* Search Box */}
-      <div className="max-w-3xl mx-auto relative z-10">
-        <form onSubmit={handleSearch} className="relative group shadow-xs rounded-lg">
+      <div className="max-w-4xl mx-auto relative z-10 flex items-center gap-3">
+        <form onSubmit={handleSearch} className="relative shadow-sm rounded-lg flex-1">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FiSearch className="h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <FiSearch className="h-4 w-4 text-blue-500" />
           </div>
           <input
             type="text"
-            className="block w-full pl-11 pr-[140px] min-h-9 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md text-xs app-text-main focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none"
+            className="block w-full pl-11 pr-[140px] min-h-12 app-bg-card border app-border rounded-lg text-sm app-text-main focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none shadow-xs"
             placeholder="Ví dụ: Lấy cho tôi tổng doanh thu của tất cả sự kiện..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -96,7 +251,7 @@ export const AdminAiAnalytics: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || !question.trim()}
-              className="px-4 py-1.5 min-h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white text-xs font-bold rounded-md transition-all active:scale-95 flex items-center gap-1.5"
+              className="px-4 py-2 min-h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white text-xs font-bold rounded-md transition-all active:scale-95 flex items-center gap-1.5"
             >
               {isLoading ? (
                 <><FiLoader className="w-4 h-4 animate-spin" /> Đang phân tích</>
@@ -106,14 +261,94 @@ export const AdminAiAnalytics: React.FC = () => {
             </button>
           </div>
         </form>
-        
-        {/* Helper tags */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-xs font-medium text-gray-500 dark:text-gray-400">
-          <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700" onClick={() => setQuestion('Top 5 sự kiện có doanh thu cao nhất?')}>Top 5 sự kiện doanh thu cao</span>
-          <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700" onClick={() => setQuestion('Hiển thị danh sách vé đã được bán trong tháng này')}>Vé đã bán tháng này</span>
-          <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700" onClick={() => setQuestion('Tổng số user đang có trong hệ thống')}>Tổng User hệ thống</span>
-        </div>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="shrink-0 inline-flex items-center min-h-12 gap-2 px-4 text-xs font-semibold rounded-lg app-bg-card border app-border app-text-main hover:brightness-95 dark:hover:brightness-110 transition-colors shadow-xs"
+          title="Xóa lịch sử và làm mới trang"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          <span className="hidden sm:inline">Làm mới</span>
+        </button>
       </div>
+      
+      {/* Helper & Saved tags */}
+      <div className="max-w-4xl mx-auto mt-4 flex flex-col items-center">
+          <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">
+            <span className="flex items-center gap-1.5"><FiBookmark className="w-3.5 h-3.5" /> Gợi ý & Đã lưu</span>
+            {savedQueries.length > 0 && (
+              <button 
+                onClick={() => { setSavedQueries([]); localStorage.removeItem('admin_ai_saved_queries'); }} 
+                className="text-slate-400 hover:text-rose-500 transition-colors normal-case font-medium flex items-center gap-1 cursor-pointer"
+                title="Xóa lịch sử truy vấn"
+              >
+                (Xóa)
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 max-h-24 overflow-y-auto no-scrollbar">
+            {savedQueries.length > 0 ? (
+              savedQueries.map((q, idx) => (
+                <span key={idx} className="cursor-pointer hover:text-blue-500 hover:border-blue-300 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion(q)}>
+                  {q.length > 40 ? q.substring(0, 40) + '...' : q}
+                </span>
+              ))
+            ) : (
+              <>
+                <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Top 5 sự kiện có doanh thu cao nhất?')}>Top 5 sự kiện doanh thu cao</span>
+                <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Thống kê số vé bán ra theo từng thể loại')}>Vé bán theo thể loại</span>
+                <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Tổng doanh thu theo từng tháng trong năm nay')}>Doanh thu theo tháng</span>
+              </>
+            )}
+          </div>
+        </div>
+
+      {/* Database Schema Explorer Toggle */}
+      <div className="max-w-4xl mx-auto flex justify-end">
+        <button 
+          onClick={() => setShowSchema(!showSchema)}
+          className="text-[11px] font-bold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1 app-bg-card px-3 py-1.5 rounded-full border app-border shadow-sm"
+        >
+          <FiDatabase className="w-3.5 h-3.5" /> 
+          {showSchema ? 'Ẩn Cấu Trúc DB' : 'Xem Cấu Trúc Bảng (Schema)'}
+        </button>
+      </div>
+
+      {/* Schema Drawer/Panel */}
+      {showSchema && (
+        <div className="max-w-4xl mx-auto app-bg-subnav border app-border rounded-lg p-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
+          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Từ điển dữ liệu (Data Dictionary)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="app-bg-card border app-border rounded p-3">
+              <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm mb-1.5 flex items-center gap-1.5"><FiDatabase className="w-3 h-3"/> events</h4>
+              <ul className="text-[11px] text-slate-500 space-y-1 font-mono">
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">id</span>: uuid (PK)</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">title</span>: varchar</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">category</span>: varchar</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">status</span>: varchar</li>
+              </ul>
+            </div>
+            <div className="app-bg-card border app-border rounded p-3">
+              <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm mb-1.5 flex items-center gap-1.5"><FiDatabase className="w-3 h-3"/> bookings</h4>
+              <ul className="text-[11px] text-slate-500 space-y-1 font-mono">
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">id</span>: uuid (PK)</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">event_id</span>: uuid (FK)</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">total_amount</span>: numeric</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">status</span>: varchar</li>
+              </ul>
+            </div>
+            <div className="app-bg-card border app-border rounded p-3">
+              <h4 className="font-bold text-purple-600 dark:text-purple-400 text-sm mb-1.5 flex items-center gap-1.5"><FiDatabase className="w-3 h-3"/> tickets</h4>
+              <ul className="text-[11px] text-slate-500 space-y-1 font-mono">
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">id</span>: uuid (PK)</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">ticket_type_id</span>: uuid</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">price</span>: numeric</li>
+                <li><span className="font-bold text-slate-700 dark:text-slate-300">buyer_id</span>: uuid</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (
@@ -127,13 +362,32 @@ export const AdminAiAnalytics: React.FC = () => {
       {result && !isLoading && (
         <div className="max-w-4xl mx-auto mt-10 space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-500">
           
-          {/* AI Response Text */}
+          {/* AI Response Text (Insights & Explanations) */}
           {result.reply && (
-            <div className="p-5 rounded-lg shadow-xs bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-              <p className="text-[15px] font-medium text-blue-900 dark:text-blue-100 whitespace-pre-wrap leading-relaxed">
-                {result.reply}
-              </p>
+            <div className="p-5 rounded-xl shadow-sm app-bg-card border app-border relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-1.5 h-full app-bg-brand"></div>
+              
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold app-text-main flex items-center gap-2 mb-3">
+                    <span className="w-6 h-6 rounded-full app-bg-brand-light text-blue-600 dark:text-blue-400 flex items-center justify-center">💡</span>
+                    Phân tích & Đề xuất từ AI
+                  </h3>
+                  <div className="text-[13px] font-medium app-text-main leading-relaxed prose prose-sm max-w-none dark:prose-invert">
+                    <ReactMarkdown>{result.reply}</ReactMarkdown>
+                  </div>
+                </div>
+                
+                {/* Pin to Dashboard feature */}
+                <button 
+                  onClick={handlePinDashboard}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 gradient-btn rounded-md text-[11px] font-bold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5"
+                  title="Ghim Báo Cáo Này Ra Dashboard"
+                >
+                  <FiBookmark className="w-3.5 h-3.5" />
+                  <span>Ghim Dashboard</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -151,14 +405,28 @@ export const AdminAiAnalytics: React.FC = () => {
               </div>
             )}
 
-            {/* Data Table */}
+            {/* Data Table & Chart */}
             {result.data && Array.isArray(result.data) && (
-              <div className="pb-10">
-                <div className="flex items-center gap-2 mb-1 text-[11px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider pl-1">
-                  <FiDatabase className="w-4 h-4 text-emerald-500" /> 
-                  <span>Dữ liệu trích xuất từ DB</span>
+              <div className="pb-10 space-y-6">
+                
+                {renderChart(result.data)}
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 text-[11px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider pl-1">
+                      <FiDatabase className="w-4 h-4 text-emerald-500" /> 
+                      <span>Dữ liệu trích xuất từ DB</span>
+                    </div>
+                    <button 
+                      onClick={exportToCSV}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-md text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-sm"
+                    >
+                      <FiDownload className="w-3.5 h-3.5" />
+                      <span>Xuất CSV</span>
+                    </button>
+                  </div>
+                  {renderTable(result.data)}
                 </div>
-                {renderTable(result.data)}
               </div>
             )}
           </div>

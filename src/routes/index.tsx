@@ -75,7 +75,6 @@ import EventApproval from "@/features/admin/EventApproval";
 import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import EkycApproval from "@/features/admin/EkycApproval";
 import AdminAiAnalytics from "@/features/admin/AdminAiAnalytics";
-import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
 import SystemHealth from "@/features/admin/SystemHealth";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
 import AdminSectionHub from "@/features/admin/AdminSectionHub";
@@ -463,7 +462,6 @@ export const router = createBrowserRouter([
       { path: PATHS.ADMIN_TICKET_MARKET, element: <AdminResaleManagement /> },
       { path: PATHS.ADMIN_HOMEPAGE_CONTENT, element: <AdminHomepageConfig /> },
       { path: PATHS.ADMIN_EVENT_CATEGORIES, element: <AdminCategoryConfig /> },
-      { path: PATHS.ADMIN_AI_ASSISTANT, element: <AdminAiAssistant /> },
       { path: PATHS.ADMIN_AI_ANALYTICS, element: <AdminAiAnalytics /> },
       { path: PATHS.ADMIN_SYSTEM_MONITORING, element: <SystemHealth /> },
       { path: PATHS.ADMIN_SYSTEM_SETTINGS, element: <AdminSettings /> },

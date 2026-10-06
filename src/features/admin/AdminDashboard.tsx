@@ -22,7 +22,7 @@ export const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     // simulate AI summary generation
     const timer = setTimeout(() => {
-      setAiSummary("Hệ thống phát hiện **3 sự kiện** có dấu hiệu rủi ro cao cần duyệt gấp. \n\nGiá trần bán lại ở mức **+20%** đang hoạt động ổn định, ngăn chặn 125 giao dịch phe vé.\n\nTất cả **8 microservices** đều đang hoạt động bình thường (99.9% uptime).");
+      setAiSummary("Sếp ơi, hôm nay doanh thu đột ngột giảm 30% so với tuần trước. Tuy nhiên, sự kiện **Đêm Nhạc EDM** lại có lượng traffic tăng vọt, hãy cân nhắc chạy thêm Ads cho sự kiện này.\n\nHệ thống cũng phát hiện **3 sự kiện** có dấu hiệu rủi ro cao cần duyệt gấp.\n\nGiá trần bán lại ở mức **+20%** đang hoạt động ổn định, ngăn chặn 125 giao dịch phe vé.");
       setIsAiAnalyzing(false);
     }, 2000);
     return () => clearTimeout(timer);
@@ -206,6 +206,9 @@ export const AdminDashboard: React.FC = () => {
                 <Link to={PATHS.ADMIN_SYSTEM_HEALTH} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
                   <FiActivity className="w-4 h-4" /> Giám sát Hệ thống
                 </Link>
+                <button onClick={() => alert('Đang nhờ AI soạn email báo cáo tự động...')} className="px-4 py-2 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ml-auto">
+                  <FiStar className="w-4 h-4" /> Nhờ AI nháp Email / Báo cáo
+                </button>
               </div>
             </>
           )}

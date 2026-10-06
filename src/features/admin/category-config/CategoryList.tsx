@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiUploadCloud, FiLink, FiLock, FiUnlock } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiUploadCloud, FiLink, FiLock, FiUnlock } from "react-icons/fi";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
 import type { Category } from "@/types/adminConfig";

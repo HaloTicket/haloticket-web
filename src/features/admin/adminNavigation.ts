@@ -1,4 +1,4 @@
-import { FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiLayout, FiMapPin, FiMessageSquare, FiSettings, FiSliders, FiTag, FiUsers, FiZap } from "react-icons/fi";
+import { FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiLayout, FiMapPin, FiSettings, FiSliders, FiTag, FiUsers, FiZap } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { PATHS } from "@/routes/paths";
 
@@ -28,7 +28,6 @@ export const adminNavGroups: AdminNavGroup[] = [
     { path: PATHS.ADMIN_EVENT_CATEGORIES, label: "Danh mục và cấu hình", english: "Event categories", icon: FiGrid, description: "Quản lý cấu trúc danh mục và nhóm sự kiện." },
   ] },
   { id: "ai", path: PATHS.ADMIN_AI, label: "AI hỗ trợ quản trị", english: "AI administration support", icon: FiZap, description: "Tra cứu, phát hiện bất thường và đề xuất dựa trên dữ liệu.", items: [
-    { path: PATHS.ADMIN_AI_ASSISTANT, label: "Trợ lý AI", english: "AI assistant", icon: FiMessageSquare, description: "Đặt câu hỏi với ngữ cảnh, nguồn dữ liệu và đề xuất xử lý." },
     { path: PATHS.ADMIN_AI_ANALYTICS, label: "Phân tích & đề xuất", english: "Analysis & recommendations", icon: FiBarChart2, description: "Phân tích câu hỏi quản trị và xem gợi ý có nguồn đối chiếu." },
   ] },
   { id: "monitoring", path: PATHS.ADMIN_SYSTEM_MONITORING, label: "Giám sát hệ thống", english: "System monitoring", icon: FiActivity, description: "Theo dõi tình trạng microservices, hiệu năng hạ tầng và nhật ký kiểm toán.", items: [

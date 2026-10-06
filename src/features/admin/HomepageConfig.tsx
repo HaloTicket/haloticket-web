@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiSave, FiEye, FiMonitor, FiSmartphone, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiSave, FiMonitor, FiSmartphone, FiChevronLeft, FiChevronRight, FiImage, FiLayout, FiStar, FiGlobe } from "react-icons/fi";
 import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { BannerConfig } from "./homepage-config/BannerConfig";
@@ -89,7 +89,7 @@ function HomepageLivePreview({
   }, [device, isExpanded]);
 
   return (
-    <div className="app-bg-card border app-border rounded-lg overflow-hidden flex flex-col shadow-sm transition-all duration-300" style={{ height: "calc(100vh - 150px)" }}>
+    <div className="app-bg-card border app-border rounded-md overflow-hidden flex flex-col shadow-sm transition-all duration-300" style={{ height: "calc(100vh - 110px)" }}>
       {/* Browser Chrome */}
       <div className="bg-[#565656] dark:bg-[#1E1E20] border-b app-border p-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5 ml-2 w-16">
@@ -223,26 +223,59 @@ export function HomepageConfig() {
       <AdminPageHeader
         title="Nội dung & Quảng cáo"
         description="Quản lý cấu trúc giao diện trang chủ, banner quảng cáo và các khu vực hiển thị sự kiện."
-        actions={
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => toast.info("Xem trước toàn bộ giao diện...")}
-              className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md border app-border bg-white dark:bg-[#1E1E20] hover:bg-slate-50 dark:hover:bg-slate-800 app-text-main transition-colors shadow-sm"
-            >
-              <FiEye className="w-3.5 h-3.5" />
-              <span>Preview</span>
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm disabled:opacity-50"
-            >
-              <FiSave className="w-3.5 h-3.5" />
-              <span>{isSaving ? "Đang xử lý..." : "Xuất bản"}</span>
-            </button>
-          </div>
-        }
       />
+      
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
+          <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-md flex items-center justify-center">
+            <FiImage className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-bold app-text-main leading-tight">{banners.filter(b => b.active).length} / {banners.length}</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Banner Active</div>
+          </div>
+        </div>
+        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
+          <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-md flex items-center justify-center">
+            <FiLayout className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-bold app-text-main leading-tight">{sections.length}</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Sections UI</div>
+          </div>
+        </div>
+        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
+          <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-md flex items-center justify-center">
+            <FiStar className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-bold app-text-main leading-tight">{sections.filter(s => s.type === "ads").length}</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Ads Spots</div>
+          </div>
+        </div>
+        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
+          <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-md flex items-center justify-center">
+            <FiGlobe className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-bold app-text-main leading-tight">100%</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Uptime Display</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-9 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+        >
+          <FiSave className="w-4 h-4" />
+          <span>{isSaving ? "Đang xử lý..." : "Xuất bản"}</span>
+        </button>
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-6 items-start relative">
         <div className={`transition-all duration-500 ease-in-out shrink-0 overflow-hidden ${
