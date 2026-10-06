@@ -21,7 +21,7 @@ import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { preferenceIdentity, useAdminPreferences } from "@/utils/adminPreferences";
 import { PATHS } from "@/routes/paths";
-import { resolveAdminNavigation } from "../adminNavigation";
+import { resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 import type { NotificationItem, UserProfile } from "@/types";
 
 interface AdminHeaderProps {

@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { FiArrowUpRight } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { resolveAdminNavigation } from "@/features/admin/adminNavigation";
+import { resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 
 export default function AdminSectionHub() {
   const { pathname } = useLocation();

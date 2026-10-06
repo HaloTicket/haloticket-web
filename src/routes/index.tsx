@@ -73,7 +73,6 @@ import AdminNotifications from "@/features/admin/AdminNotifications";
 import AdminSettings from "@/features/admin/settings/AdminSettings";
 import EventApproval from "@/features/admin/EventApproval";
 import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
-import EkycApproval from "@/features/admin/EkycApproval";
 import AdminAiAnalytics from "@/features/admin/AdminAiAnalytics";
 import SystemHealth from "@/features/admin/SystemHealth";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
@@ -484,10 +483,6 @@ export const router = createBrowserRouter([
       {
         path: "/admin/events-approval/:eventId",
         element: <EventApprovalDetail />,
-      },
-      {
-        path: PATHS.ADMIN_EKYC_APPROVAL,
-        element: <EkycApproval />,
       },
       {
         path: PATHS.ADMIN_RESALE_PRICE_CAP,

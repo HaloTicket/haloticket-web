@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
-import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/adminNavigation";
+import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 import { aiApi } from "@/services/aiApi";
 import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
 import {
