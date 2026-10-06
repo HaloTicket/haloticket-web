@@ -10,6 +10,7 @@ import { addSearchHistory } from "@/utils/searchHistory";
 import { eventApi } from "@/services/eventApi";
 import { getCachedUserProfile, userApi, type UserProfile } from "@/services/userApi";
 import { getKeycloakSession } from "@/services/keycloakSession";
+import { adminConfigApi } from "@/services/adminConfigApi";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import type { NotificationItem } from "@/types";
@@ -176,16 +177,27 @@ export const Header: React.FC = () => {
     "M"
   ).toUpperCase();
 
-  const categories = [
-    { label: "Nhạc sống", path: "/category/music" },
-    { label: "Sân khấu & Nghệ thuật", path: "/category/stage" },
-    { label: "Thể Thao", path: "/category/sports" },
-    { label: "Hội thảo & Workshop", path: "/category/workshop" },
-    { label: "Tham quan & Trải nghiệm", path: "/category/experience" },
-    { label: "Khác", path: "/category/others" },
+  const [categories, setCategories] = useState<{ label: string; path: string; isResale?: boolean }[]>([
     { label: "Vé bán lại", path: "/resale-ticket", isResale: true },
     { label: "Blog", path: "/blog" },
-  ];
+  ]);
+
+  useEffect(() => {
+    adminConfigApi.getCategories().then(res => {
+      const cats = (res as any)?.data || res;
+      if (Array.isArray(cats)) {
+        const dynamicCats = cats
+          .filter(c => c.active && c.status !== "INACTIVE")
+          .map(c => ({ label: c.name, path: `/category/${c.slug}` }));
+        
+        setCategories([
+          ...dynamicCats,
+          { label: "Vé bán lại", path: "/resale-ticket", isResale: true },
+          { label: "Blog", path: "/blog" },
+        ]);
+      }
+    }).catch(() => {});
+  }, []);
 
   const isBookingFlow = location.pathname.includes("select-ticket") || location.pathname.includes("checkout");
 

@@ -96,6 +96,8 @@ export function CustomSelect({
             e.stopPropagation();
             e.nativeEvent.stopPropagation();
           }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
         >
           <div className="max-h-60 w-full overflow-auto rounded-lg border app-border app-bg-card p-1 shadow-xl animate-in fade-in zoom-in-95 duration-150 scrollbar-thin">
             {options.length === 0 ? (
@@ -107,7 +109,9 @@ export function CustomSelect({
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => {
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     onChange(option.value);
                     setOpen(false);
                   }}

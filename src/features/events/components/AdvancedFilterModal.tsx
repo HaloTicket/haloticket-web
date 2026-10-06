@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { adminConfigApi } from "@/services/adminConfigApi";
 
 interface AdvancedFilterModalProps {
   isOpen: boolean;
@@ -32,14 +33,16 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
     "Vị trí khác"
   ];
 
-  const categories = [
-    "Nhạc sống",
-    "Sân khấu & Nghệ thuật",
-    "Thể Thao",
-    "Hội thảo & Workshop",
-    "Tham quan & Trải nghiệm",
-    "Khác"
-  ];
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    adminConfigApi.getCategories().then(res => {
+      const cats = (res as any)?.data || res;
+      if (Array.isArray(cats)) {
+        setCategories(cats.filter(c => c.active && c.status !== "INACTIVE").map(c => c.name));
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleReset = () => {
     setSelectedLocation("Toàn quốc");

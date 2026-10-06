@@ -29,6 +29,8 @@ import {
 import type { Step1Errors } from "@/types/organizer";
 import { eventApi, type EventApiData } from "@/services/eventApi";
 import { mediaApi } from "@/services/mediaApi";
+import { adminConfigApi } from "@/services/adminConfigApi";
+import type { Category } from "@/types/adminConfig";
 import { type SystemVenue } from "@/utils/venueUtils";
 import {
   DEFAULT_DESCRIPTION_TEMPLATE,
@@ -149,6 +151,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [aiBulletPoints, setAiBulletPoints] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -171,7 +174,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     const loadRealData = async () => {
       try {
         const realEvents = await eventApi.getAllEvents();
+        const cats = await adminConfigApi.getCategories().catch(() => []);
         if (!isMounted) return;
+        
+        setCategoriesList(Array.isArray(cats) ? cats : (cats as any)?.data || []);
 
         if (Array.isArray(realEvents)) {
           const venueMap = new Map<string, SystemVenue>();
@@ -667,11 +673,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.category ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
               } focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold cursor-pointer`}
           >
-            <option value="Nhạc sống">Nhạc sống</option>
-            <option value="Sân khấu & Nghệ thuật">Sân khấu & Nghệ thuật</option>
-            <option value="Thể thao">Thể thao</option>
-            <option value="Hội thảo & Workshop">Hội thảo & Workshop</option>
-            <option value="Tham quan & Trải nghiệm">Tham quan & Trải nghiệm</option>
+            <option value="" disabled>-- Chọn thể loại --</option>
+            {categoriesList.filter(c => c.active && c.status !== "INACTIVE").map(cat => (
+              <option key={cat.id} value={cat.name}>{cat.name}</option>
+            ))}
             <option value="Khác">Khác</option>
           </select>
           {errors.category && (
