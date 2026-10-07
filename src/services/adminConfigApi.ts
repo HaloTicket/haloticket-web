@@ -10,7 +10,7 @@ export const adminConfigApi = {
 
   // system config
   getSystemConfig: () => axiosClient.get<SystemConfig>("/events/admin/config/system-config"),
-  updateSystemConfig: (data: SystemConfig) => axiosClient.put<SystemConfig>("/events/admin/config/system-config", data),
+  updateSystemConfig: (data: Partial<SystemConfig>) => axiosClient.put<SystemConfig>("/events/admin/config/system-config", data),
 
   // homepage config (banners)
   getBanners: () => axiosClient.get<Banner[]>("/events/admin/config/homepage/banners"),

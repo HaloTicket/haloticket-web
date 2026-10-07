@@ -11,3 +11,4 @@ export * from "./member";
 export * from "./ticket";
 export * from "./payment";
 export * from "./marketplace";
+export * from "./payout";

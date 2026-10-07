@@ -14,11 +14,20 @@ export interface NotificationToastProps {
 
 function compactMessage(message?: string): string | undefined {
   if (!message) return undefined;
-  const quoted = message.match(/"([^"]+)"/);
-  if (quoted && (message.includes("phê duyệt") || message.includes("cập nhật") || message.includes("xem xét"))) {
+  // format any scientific numbers like 7.6E8đ into readable format
+  let text = message.replace(/(\d+(?:\.\d+)?)[eE]\+?(\d+)/g, (match) => {
+    try {
+      const num = Number(match);
+      return num.toLocaleString("vi-VN");
+    } catch {
+      return match;
+    }
+  });
+  const quoted = text.match(/"([^"]+)"/);
+  if (quoted && (text.includes("phê duyệt") || text.includes("cập nhật") || text.includes("xem xét"))) {
     return `"${quoted[1]}"`;
   }
-  return message;
+  return text;
 }
 
 export function NotificationToast({
@@ -50,18 +59,14 @@ export function NotificationToast({
       <div className="app-bg-card border app-border shadow-lg rounded-xl p-4 w-full sm:w-[356px] flex flex-col pointer-events-auto">
         <h3 className="font-semibold text-sm app-text-main">{toast.title}</h3>
         {compactMessage(toast.message) && (
-          <p className="text-xs app-text-muted mt-1.5">{compactMessage(toast.message)}</p>
+          <p className="text-xs app-text-muted mt-1.5 leading-relaxed">{compactMessage(toast.message)}</p>
         )}
         <button
           onClick={() => {
             handlers.current.onToastClick(toast);
             sonnerToast.dismiss(toastId);
           }}
-          className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors border ${
-            accentColor === "emerald"
-              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500/30 dark:border-emerald-800/50"
-              : "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:hover:bg-blue-500/30 dark:border-blue-800/50"
-          }`}
+          className="mt-3 w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm active:scale-[0.98] cursor-pointer"
         >
           {actionText}
         </button>

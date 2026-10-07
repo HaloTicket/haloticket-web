@@ -13,6 +13,7 @@ import { NotificationDropdown } from "@/components/notifications/NotificationDro
 import { NotificationToast } from "@/components/notifications/NotificationToast";
 import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 import { aiApi } from "@/services/aiApi";
+import { payoutApi } from "@/services/payoutApi";
 import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
 import {
   FiSun,
@@ -40,6 +41,7 @@ export const AdminLayout: React.FC = () => {
 
   const [pendingEventsCount, setPendingEventsCount] = useState<number>(0);
   const [pendingUpdatesCount, setPendingUpdatesCount] = useState<number>(0);
+  const [pendingPayoutsCount, setPendingPayoutsCount] = useState<number>(0);
 
   const fetchPendingCount = useCallback(async () => {
     try {
@@ -50,6 +52,14 @@ export const AdminLayout: React.FC = () => {
       const updateData = await eventApi.getApprovalEvents("UPDATE_PENDING");
       if (Array.isArray(updateData)) {
         setPendingUpdatesCount(updateData.length);
+      }
+      try {
+        const payouts = await payoutApi.getPendingPayouts();
+        if (Array.isArray(payouts)) {
+          setPendingPayoutsCount(payouts.length);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch pending payouts", e);
       }
     } catch (err) {
       console.warn("Failed to fetch pending approval count", err);
@@ -175,7 +185,10 @@ export const AdminLayout: React.FC = () => {
     await markAsRead(n.id);
     clearToast();
     let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;
-    if (n.message) {
+    
+    if (n.type && n.type.includes("PAYOUT")) {
+      targetPath = PATHS.ADMIN_FINANCE;
+    } else if (n.message) {
       const match = n.message.match(/EV_[a-zA-Z0-9_-]+/);
       if (match) {
         targetPath = `${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${match[0]}`;
@@ -237,6 +250,10 @@ export const AdminLayout: React.FC = () => {
       if (item.path === PATHS.ADMIN_EVENTS_APPROVAL && (pendingEventsCount > 0 || pendingUpdatesCount > 0)) {
         badge = pendingEventsCount + pendingUpdatesCount;
         collapsedBadge = pendingEventsCount + pendingUpdatesCount;
+        badgeColor = "bg-rose-500 text-white font-bold";
+      } else if (item.path === PATHS.ADMIN_FINANCE && pendingPayoutsCount > 0) {
+        badge = pendingPayoutsCount;
+        collapsedBadge = pendingPayoutsCount;
         badgeColor = "bg-rose-500 text-white font-bold";
       } else if (item.path === PATHS.ADMIN_SYSTEM_MONITORING && systemUptime) {
         badge = systemUptime;

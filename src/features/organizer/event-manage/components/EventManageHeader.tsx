@@ -82,7 +82,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
     };
   }, []);
 
-  const organizerTargetId = userProfile?.id || userProfile?.keycloakId || "ORGANIZER";
+  const organizerTargetId = userProfile?.keycloakId || userProfile?.id || "ORGANIZER";
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(organizerTargetId);
 
   const handleNotificationClick = async (n: NotificationItem) => {
@@ -126,7 +126,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
       (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
     ) || false;
 
-  // Dynamic Header Title based on current tab route path
+  // dynamic header title based on current tab route path
   const getHeaderTitle = () => {
     const p = location.pathname;
     if (p.endsWith("/overview")) return "Phân tích & Báo cáo sự kiện";
@@ -145,8 +145,8 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText="Nhấn để xem thông báo →"
-        accentColor="emerald"
+        actionText="Nhấn để xem chi tiết →"
+        accentColor="blue"
       />
 
       <header className="sticky top-0 z-30 app-bg-header border-b app-border backdrop-blur-md px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
@@ -156,7 +156,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             type="button"
             onClick={onOpenSidebar}
             className="lg:hidden p-2 rounded-xl app-bg-card border app-border app-text-main cursor-pointer"
-          >
+          > 
             <FiMenu className="w-5 h-5" />
           </button>
           <div className="space-y-0.5">
@@ -291,7 +291,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span>Báo cáo doanh thu</span>
+                    <span>Doanh thu & Đối soát</span>
                   </Link>
 
                   <Link

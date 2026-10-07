@@ -13,9 +13,10 @@ export interface AdminConfirmModalProps {
   children?: ReactNode;
   pending?: boolean;
   dismissible?: boolean;
+  maxWidth?: string;
 }
 
-export function AdminConfirmModal({ title, subtitle, confirmText = "Xác nhận", cancelText = "Hủy bỏ", isDanger = true, onClose, onConfirm, children, pending = false, dismissible = true }: AdminConfirmModalProps) {
+export function AdminConfirmModal({ title, subtitle, confirmText = "Xác nhận", cancelText = "Hủy bỏ", isDanger = true, onClose, onConfirm, children, pending = false, dismissible = true, maxWidth = "max-w-lg" }: AdminConfirmModalProps) {
   const canClose = dismissible && !pending;
   const cancelRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -37,7 +38,7 @@ export function AdminConfirmModal({ title, subtitle, confirmText = "Xác nhận"
             else contentRef.current?.focus();
           }}
           onCloseAutoFocus={(event) => { event.preventDefault(); previousFocus.current?.focus(); }}
-          className="fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border app-border app-bg-card p-6 shadow-2xl focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 duration-150 motion-reduce:animate-none"
+          className={`fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] ${maxWidth} max-h-[92dvh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border app-border app-bg-card p-6 sm:p-7 shadow-2xl focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 duration-150 motion-reduce:animate-none`}
         >
           <div className="mb-5 flex items-center gap-3 border-b app-border pb-4">
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg border ${isDanger ? "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400" : "border-blue-500/20 bg-blue-500/10 app-text-brand"}`}><FiAlertTriangle className="h-5 w-5" aria-hidden="true" /></span>

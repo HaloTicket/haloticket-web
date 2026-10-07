@@ -53,6 +53,7 @@ export interface TicketListing {
 
 export interface ResaleEventSummary {
   eventId: string;
+  eventName?: string;
   activeListings: number;
   minPrice: number;
 }

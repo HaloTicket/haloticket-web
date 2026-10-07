@@ -1,5 +1,6 @@
 import React from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { CustomSelect } from "./CustomSelect";
 
 interface TablePaginationProps {
   currentPage: number;
@@ -50,14 +51,17 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
       <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         <label className="flex items-center gap-2 app-text-muted">
           <span>Số dòng:</span>
-          <select
-            aria-label="Số dòng trên trang"
-            value={pageSize}
-            onChange={event => onPageSizeChange(Number(event.target.value))}
-            className="min-h-11 rounded-lg border app-border app-bg-card px-2.5 font-semibold app-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/20"
-          >
-            {[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}
-          </select>
+          <div className="w-20">
+            <CustomSelect
+              options={[
+                { value: "10", label: "10" },
+                { value: "20", label: "20" },
+                { value: "50", label: "50" },
+              ]}
+              value={pageSize.toString()}
+              onChange={(val) => onPageSizeChange(Number(val))}
+            />
+          </div>
         </label>
         <div className="flex items-center gap-1.5">
         {/* Previous Button */}

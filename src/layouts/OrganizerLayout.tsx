@@ -83,14 +83,18 @@ export const OrganizerLayout: React.FC = () => {
     };
   }, [navigate]);
 
-  const organizerTargetId = userProfile?.id || userProfile?.keycloakId || "ORGANIZER";
+  const organizerTargetId = userProfile?.keycloakId || userProfile?.id || "ORGANIZER";
   const isAdmin = Boolean(userProfile?.roles?.includes("ADMIN"));
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(organizerTargetId);
 
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
-    navigate(PATHS.MY_EVENTS);
+    if (n.type === "PAYOUT_APPROVED") {
+      navigate(PATHS.REPORTS);
+    } else {
+      navigate(PATHS.MY_EVENTS);
+    }
   };
 
   useEffect(() => {
@@ -131,8 +135,8 @@ export const OrganizerLayout: React.FC = () => {
       icon: <FiStar className="w-4 h-4 shrink-0" />,
     },
     {
-      label: "Quản lý báo cáo",
-      path: "/organizer/reports",
+      label: "Doanh thu & Đối soát",
+      path: "/organizer/finance",
       icon: <FiFolder className="w-4 h-4 shrink-0" />,
     },
     {
@@ -144,7 +148,7 @@ export const OrganizerLayout: React.FC = () => {
 
   const getHeaderTitle = () => {
     if (location.pathname === "/organizer/my-events") return "Sự kiện của tôi";
-    if (location.pathname === "/organizer/reports") return "Quản lý báo cáo";
+    if (location.pathname === "/organizer/finance" || location.pathname === "/organizer/reports") return "Doanh thu & Đối soát";
     if (location.pathname === "/organizer/terms") return "Điều khoản cho Ban tổ chức";
     if (location.pathname === "/organizer/create-event") return "Tạo sự kiện";
     return "Organizer Center";
@@ -356,7 +360,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                      <span>{translate("Báo cáo doanh thu")}</span>
+                      <span>{translate("Doanh thu & Đối soát")}</span>
                     </Link>
 
                     <Link
@@ -413,8 +417,8 @@ export const OrganizerLayout: React.FC = () => {
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText="Nhấn để xem sự kiện của bạn →"
-        accentColor="emerald"
+        actionText="Nhấn để xem chi tiết →"
+        accentColor="blue"
       />
     </div>
   );

@@ -189,6 +189,10 @@ export function useNotificationSocket(userId: string = "ADMIN") {
     try {
       socket = new WebSocket(wsUrl);
 
+      socket.onerror = () => {
+        
+      };
+
       socket.onopen = () => {
         socket?.send("CONNECT\naccept-version:1.1,1.0\nheart-beat:10000,10000\n\n\0");
         const topic = userId === "ADMIN" ? "/topic/admin-notifications" : `/topic/user-notifications/${userId}`;
@@ -212,18 +216,13 @@ export function useNotificationSocket(userId: string = "ADMIN") {
                 createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : undefined,
               };
 
-              // Ignore spam / duplicate notifications arriving within window
               if (!shouldProcessIncomingNotification(newNotif)) {
                 return;
               }
 
               setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
               setLatestToast(newNotif);
-
-              // play realtime chime sound effect (throttled)
               playNotificationChime();
-
-              // broadcast global event so UI components auto-refresh
               window.dispatchEvent(new CustomEvent("approval-events-updated", { detail: newNotif }));
               loadNotifications();
             }
@@ -243,7 +242,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
         socket.onmessage = null;
         socket.onerror = null;
         try {
-          if (socket.readyState !== WebSocket.CLOSED) {
+          if (socket.readyState === WebSocket.OPEN) {
             socket.close();
           }
         } catch {

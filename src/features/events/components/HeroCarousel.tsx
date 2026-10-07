@@ -29,7 +29,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
       const liveBanners = customBanners.filter(b => b.active).map(b => ({
         id: b.id,
         title: b.title,
-        image: b.imageUrl,
+        image: b.imageUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80",
         link: b.linkUrl || "#",
         badge: "Quảng cáo"
       }));
@@ -42,7 +42,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
         const liveBanners = data.map((ev) => ({
           id: ev.id,
           title: ev.title,
-          image: ev.bannerUrl || ev.thumbnailUrl || ev.image,
+          image: ev.bannerUrl || ev.thumbnailUrl || ev.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80",
           link: `/events/${ev.id}`,
           badge: ev.categoryName || "Sự kiện nổi bật"
         }));

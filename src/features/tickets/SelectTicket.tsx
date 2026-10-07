@@ -10,7 +10,7 @@ import { SeatCanvas } from "@/features/organizer/event-manage/components/seating
 import { PRESET_TEMPLATES } from "@/mock/presetTemplates";
 import { formatCurrency } from "@/utils/formatters";
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
+
 
 export interface CartTicketItem {
   zoneId: string;
@@ -329,7 +329,12 @@ export default function SelectTicket() {
 
     // setup WebSocket STOMP client for real-time seat status updates
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}`.replace(/\/api\/?$/, "") + "/ws"),
+      webSocketFactory: () => {
+        const urlStr = `${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}`.replace(/\/api\/?$/, "") + "/ws";
+        // for Spring Boot withSockJS(), the native websocket path is usually appended with /websocket
+        const wsUrl = urlStr.replace(/^http/, "ws") + "/websocket";
+        return new WebSocket(wsUrl);
+      },
       reconnectDelay: 5000,
       onConnect: () => {
         if (id) {

@@ -67,7 +67,7 @@ interface OrganizerEventItem {
 
 export const MyEvents: React.FC = () => {
   const { t: translate } = useTranslation();
-  const [activeTab, setActiveTab] = useState<MyEventTab>("pending");
+  const [activeTab, setActiveTab] = useState<MyEventTab>("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [showEkycModal, setShowEkycModal] = useState(false);
@@ -84,7 +84,7 @@ export const MyEvents: React.FC = () => {
         setShowEkycModal(true);
       }
     } catch {
-      // If error or endpoint offline, proceed
+      // if error or endpoint offline, proceed
     }
   };
   const [currentPage, setCurrentPage] = useState(1);

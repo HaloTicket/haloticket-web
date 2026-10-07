@@ -379,7 +379,7 @@ export const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span>{translate("Báo cáo doanh thu")}</span>
+                    <span>{translate("Doanh thu & Đối soát")}</span>
                   </Link>
 
                   <Link
@@ -599,7 +599,7 @@ export const Header: React.FC = () => {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 text-xs font-semibold py-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors app-text-main"
                     >
-                      <LuChartColumn className="h-4 w-4 text-indigo-500" /> {translate("Báo cáo doanh thu")}</Link>
+                      <LuChartColumn className="h-4 w-4 text-indigo-500" /> {translate("Doanh thu & Đối soát")}</Link>
                     <Link
                       to={PATHS.TERMS}
                       onClick={() => setIsMobileMenuOpen(false)}

@@ -66,6 +66,17 @@ export const userApi = {
     axiosClient.get<unknown, { userId: string; email: string; fullName: string }>(
       `/users/gift-recipient?email=${encodeURIComponent(email.trim())}`,
     ),
+
+  getUserByKeycloakId: async (id: string): Promise<{ userId: string; fullName: string | null } | null> => {
+    try {
+      const response = await axiosClient.get<unknown, { userId: string; fullName: string | null }>(
+        `/users/by-keycloak-id?id=${encodeURIComponent(id)}`
+      );
+      return response as { userId: string; fullName: string | null };
+    } catch {
+      return null;
+    }
+  },
   syncCurrentUser: async (): Promise<UserProfile> => {
     const response = await axiosClient.get<unknown, UserProfile>("/users/me");
     setCachedUserProfile(response, true);
