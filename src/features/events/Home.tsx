@@ -54,7 +54,7 @@ export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) =
   const displayBanners = previewBanners || banners;
   const displaySections = previewSections || sections;
 
-  // Static fallback if no config from DB
+  // static fallback if no config from DB
   const isDefaultFallback = displaySections.length === 0;
 
   const renderSection = (section: EventSection) => {
@@ -132,7 +132,7 @@ export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) =
             <DestinationsSection />
           </>
         ) : (
-          displaySections.map(renderSection)
+          displaySections.map((section) => renderSection(section))
         )}
       </div>
     </div>

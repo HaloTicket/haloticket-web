@@ -5,38 +5,91 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { aiApi } from '@/services/aiApi';
 import { FiRefreshCw } from 'react-icons/fi';
 
-export const AdminAiAnalytics: React.FC = () => {
-  const [question, setQuestion] = useState(() => sessionStorage.getItem('admin_ai_question') || '');
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(() => {
-    try {
-      const saved = sessionStorage.getItem('admin_ai_result');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [error, setError] = useState<string | null>(null);
-  
-  const [showSchema, setShowSchema] = useState(false);
-  const [chartTypeOverride, setChartTypeOverride] = useState<'bar'|'pie'|'line'|null>(null);
+interface AiQueryHistoryItem {
+  id: string;
+  question: string;
+  result: any;
+  timestamp: string;
+}
 
-  const [savedQueries, setSavedQueries] = useState<string[]>(() => {
+export const AdminAiAnalytics: React.FC = () => {
+  const [history, setHistory] = useState<AiQueryHistoryItem[]>(() => {
     try {
-      const saved = localStorage.getItem('admin_ai_saved_queries');
+      const saved = localStorage.getItem('admin_ai_query_history');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
 
-  const saveCurrentQuery = () => {
-    if (!question.trim()) return;
-    if (!savedQueries.includes(question.trim())) {
-      const newSaved = [question.trim(), ...savedQueries].slice(0, 10); // keep max 10
-      setSavedQueries(newSaved);
-      localStorage.setItem('admin_ai_saved_queries', JSON.stringify(newSaved));
+  const [question, setQuestion] = useState(() => {
+    try {
+      const last = localStorage.getItem('admin_ai_last_query');
+      if (last) {
+        const parsed = JSON.parse(last);
+        return parsed.question || '';
+      }
+    } catch {}
+    return '';
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<any>(() => {
+    try {
+      const last = localStorage.getItem('admin_ai_last_query');
+      if (last) {
+        const parsed = JSON.parse(last);
+        return parsed.result || null;
+      }
+    } catch {}
+    return null;
+  });
+
+  const [error, setError] = useState<string | null>(null);
+  const [showSchema, setShowSchema] = useState(false);
+  const [chartTypeOverride, setChartTypeOverride] = useState<'bar'|'pie'|'line'|null>(null);
+
+  const saveToHistory = (q: string, res: any) => {
+    const newItem: AiQueryHistoryItem = {
+      id: String(Date.now()),
+      question: q.trim(),
+      result: res,
+      timestamp: new Date().toISOString(),
+    };
+    const updated = [newItem, ...history.filter(h => h.question !== q.trim())].slice(0, 20);
+    setHistory(updated);
+    try {
+      localStorage.setItem('admin_ai_query_history', JSON.stringify(updated));
+      localStorage.setItem('admin_ai_last_query', JSON.stringify(newItem));
+    } catch (e) {
+      console.warn("Storage quota exceeded", e);
     }
+  };
+
+  const selectHistoryItem = (item: AiQueryHistoryItem) => {
+    setQuestion(item.question);
+    setResult(item.result);
+    setError(null);
+    setChartTypeOverride(null);
+    try {
+      localStorage.setItem('admin_ai_last_query', JSON.stringify(item));
+    } catch {}
+  };
+
+  const removeHistoryItem = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const updated = history.filter(h => h.id !== id);
+    setHistory(updated);
+    localStorage.setItem('admin_ai_query_history', JSON.stringify(updated));
+  };
+
+  const clearAllHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('admin_ai_query_history');
+    localStorage.removeItem('admin_ai_last_query');
+    setQuestion('');
+    setResult(null);
+    setError(null);
   };
 
   const handleSearch = async (e?: React.FormEvent) => {
@@ -45,15 +98,12 @@ export const AdminAiAnalytics: React.FC = () => {
 
     setIsLoading(true);
     setError(null);
-    setResult(null);
     setChartTypeOverride(null);
 
     try {
       const response = await aiApi.analyzeData(question);
       setResult(response);
-      saveCurrentQuery();
-      sessionStorage.setItem('admin_ai_question', question);
-      sessionStorage.setItem('admin_ai_result', JSON.stringify(response));
+      saveToHistory(question, response);
     } catch (err: any) {
       console.error("AI Analytics error:", err);
       setError("Rất tiếc, AI không thể phân tích yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn hoặc kiểm tra kết nối CSDL.");
@@ -80,7 +130,6 @@ export const AdminAiAnalytics: React.FC = () => {
   };
 
   const handlePinDashboard = () => {
-    // Dispatch a custom event to show notification via AdminLayout / Notification context
     const event = new CustomEvent('toast-notification', {
       detail: {
         id: `pin-${Date.now()}`,
@@ -91,11 +140,6 @@ export const AdminAiAnalytics: React.FC = () => {
       }
     });
     window.dispatchEvent(event);
-    
-    // Fallback native alert if needed
-    if (!window.dispatchEvent) {
-      alert("Đã ghim báo cáo ra màn hình Dashboard thành công!");
-    }
   };
 
   const handleReset = () => {
@@ -103,11 +147,8 @@ export const AdminAiAnalytics: React.FC = () => {
     setResult(null);
     setError(null);
     setChartTypeOverride(null);
-    sessionStorage.removeItem('admin_ai_question');
-    sessionStorage.removeItem('admin_ai_result');
+    localStorage.removeItem('admin_ai_last_query');
   };
-
-  // helper to render table dynamically
   const renderTable = (data: any[]) => {
     if (!data || data.length === 0) return <p className="text-sm app-text-muted mt-4 text-center py-8">Không tìm thấy dữ liệu phù hợp với yêu cầu của bạn.</p>;
 
@@ -272,36 +313,51 @@ export const AdminAiAnalytics: React.FC = () => {
         </button>
       </div>
       
-      {/* Helper & Saved tags */}
+      {/* Query History & Saved tags */}
       <div className="max-w-4xl mx-auto mt-4 flex flex-col items-center">
-          <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">
-            <span className="flex items-center gap-1.5"><FiBookmark className="w-3.5 h-3.5" /> Gợi ý & Đã lưu</span>
-            {savedQueries.length > 0 && (
-              <button 
-                onClick={() => { setSavedQueries([]); localStorage.removeItem('admin_ai_saved_queries'); }} 
-                className="text-slate-400 hover:text-rose-500 transition-colors normal-case font-medium flex items-center gap-1 cursor-pointer"
-                title="Xóa lịch sử truy vấn"
-              >
-                (Xóa)
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 max-h-24 overflow-y-auto no-scrollbar">
-            {savedQueries.length > 0 ? (
-              savedQueries.map((q, idx) => (
-                <span key={idx} className="cursor-pointer hover:text-blue-500 hover:border-blue-300 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion(q)}>
-                  {q.length > 40 ? q.substring(0, 40) + '...' : q}
-                </span>
-              ))
-            ) : (
-              <>
-                <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Top 5 sự kiện có doanh thu cao nhất?')}>Top 5 sự kiện doanh thu cao</span>
-                <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Thống kê số vé bán ra theo từng thể loại')}>Vé bán theo thể loại</span>
-                <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Tổng doanh thu theo từng tháng trong năm nay')}>Doanh thu theo tháng</span>
-              </>
-            )}
-          </div>
+        <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">
+          <span className="flex items-center gap-1.5"><FiBookmark className="w-3.5 h-3.5" /> Lịch sử truy vấn ({history.length})</span>
+          {history.length > 0 && (
+            <button 
+              onClick={clearAllHistory} 
+              className="text-slate-400 hover:text-rose-500 transition-colors normal-case font-medium flex items-center gap-1 cursor-pointer"
+              title="Xóa tất cả lịch sử truy vấn"
+            >
+              (Xóa tất cả)
+            </button>
+          )}
         </div>
+        <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 max-h-36 overflow-y-auto no-scrollbar">
+          {history.length > 0 ? (
+            history.map((item) => (
+              <div 
+                key={item.id} 
+                onClick={() => selectHistoryItem(item)}
+                className={`group cursor-pointer hover:text-blue-500 hover:border-blue-300 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs flex items-center gap-1.5 ${
+                  question === item.question ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-bold' : ''
+                }`}
+                title={`Nhấp để tải lại kết quả: "${item.question}"`}
+              >
+                <span>{item.question.length > 40 ? item.question.substring(0, 40) + '...' : item.question}</span>
+                <button
+                  type="button"
+                  onClick={(e) => removeHistoryItem(e, item.id)}
+                  className="opacity-0 group-hover:opacity-100 hover:text-rose-500 text-slate-400 p-0.5 rounded-full transition-opacity cursor-pointer"
+                  title="Xóa mục này"
+                >
+                  &times;
+                </button>
+              </div>
+            ))
+          ) : (
+            <>
+              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Top 5 sự kiện có doanh thu cao nhất?')}>Top 5 sự kiện doanh thu cao</span>
+              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Thống kê số vé bán ra theo từng thể loại')}>Vé bán theo thể loại</span>
+              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Tổng doanh thu theo từng tháng trong năm nay')}>Doanh thu theo tháng</span>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Database Schema Explorer Toggle */}
       <div className="max-w-4xl mx-auto flex justify-end">
@@ -370,7 +426,6 @@ export const AdminAiAnalytics: React.FC = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="text-sm font-bold app-text-main flex items-center gap-2 mb-3">
-                    <span className="w-6 h-6 rounded-full app-bg-brand-light text-blue-600 dark:text-blue-400 flex items-center justify-center">💡</span>
                     Phân tích & Đề xuất từ AI
                   </h3>
                   <div className="text-[13px] font-medium app-text-main leading-relaxed prose prose-sm max-w-none dark:prose-invert">

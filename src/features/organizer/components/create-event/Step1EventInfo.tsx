@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   FiUploadCloud,
   FiMapPin,
@@ -113,14 +114,16 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const modalUploadInputRef = useRef<HTMLInputElement>(null);
+  const modalVideoInputRef = useRef<HTMLInputElement>(null);
+  const cursorPositionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
 
   const [selectedFormat, setSelectedFormat] = useState<string>("Paragraph");
   const [selectedColor, setSelectedColor] = useState<string>("#ffffff");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  // Insert/Edit Image Modal State (Matching Screenshots 3 & 4)
+  // insert/edit image modal state
   const [showImageModal, setShowImageModal] = useState(false);
-  const [imageTab, setImageTab] = useState<"general" | "upload">("general");
+  const [imageTab, setImageTab] = useState<"general" | "upload" | "gallery">("general");
   const [imageSource, setImageSource] = useState("");
   const [imageAlt, setImageAlt] = useState("");
   const [imageWidth, setImageWidth] = useState("");
@@ -128,7 +131,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [imageLockRatio, setImageLockRatio] = useState(true);
   const [imageRatio, setImageRatio] = useState<number | null>(null);
 
-  // Insert/Edit Media Modal State (Matching Screenshots 5 & 6)
+  // insert/edit media modal state
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [mediaTab, setMediaTab] = useState<"general" | "advanced">("general");
   const [mediaSource, setMediaSource] = useState("");
@@ -138,6 +141,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [mediaRatio, setMediaRatio] = useState<number>(16 / 9);
   const [mediaAltSource, setMediaAltSource] = useState("");
   const [mediaPoster, setMediaPoster] = useState("");
+
+  const [selectedGalleryPreview, setSelectedGalleryPreview] = useState<string | null>(null);
 
   const [venueCategory, setVenueCategory] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [systemVenues, setSystemVenues] = useState<SystemVenue[]>([]);
@@ -193,6 +198,12 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             const approval = String(ev.eventApprovalStatus || ev.approvalStatus || "").toUpperCase();
             const isCompletedOrPublished = status === "COMPLETED" || status === "PUBLISHED" || approval === "APPROVED";
 
+            // exclude past, completed, cancelled, or rejected events so expired events do NOT falsely hold the venue
+            const evEndTime = ev.endTime ? new Date(ev.endTime).getTime() : (ev.startTime ? new Date(ev.startTime).getTime() + 4 * 3600000 : 0);
+            const isPast = evEndTime > 0 && evEndTime < Date.now();
+            const isCancelled = status === "CANCELLED" || status === "COMPLETED" || approval === "REJECTED";
+            const isHoldingBooking = !isPast && !isCancelled;
+
             const bookingItem = {
               eventName: ev.title || "Sự kiện",
               organizer: (ev.organizer as { name?: string })?.name || (ev.author as string) || "Ban Tổ Chức",
@@ -205,10 +216,12 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             };
 
             if (existing) {
-              const exists = existing.bookings.some((b) => b.eventName === bookingItem.eventName);
-              if (!exists) {
-                existing.bookings.push(bookingItem);
-                existing.eventsHosted += 1;
+              existing.eventsHosted += 1;
+              if (isHoldingBooking) {
+                const exists = existing.bookings.some((b) => b.eventName === bookingItem.eventName);
+                if (!exists) {
+                  existing.bookings.push(bookingItem);
+                }
               }
               if (isCompletedOrPublished) {
                 existing.verified = true;
@@ -223,7 +236,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 capacity: 3000,
                 verified: isCompletedOrPublished,
                 eventsHosted: 1,
-                bookings: [bookingItem]
+                bookings: isHoldingBooking ? [bookingItem] : []
               });
             }
           });
@@ -299,12 +312,25 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
     const tempUrl = URL.createObjectURL(file);
     setter(tempUrl);
+
+    // automatically add vertical poster and horizontal banner to galleryImages upon selection
+    if (setter === setPosterImage || setter === setBannerImage) {
+      if (setGalleryImages) {
+        setGalleryImages((prev) => (prev.includes(tempUrl) ? prev : [...prev, tempUrl]));
+      }
+    }
+
     setIsUploadingImage(true);
 
     try {
       const res = await mediaApi.uploadImage(file, folder);
       if (res && res.imageUrl) {
         setter(res.imageUrl);
+        if (setter === setPosterImage || setter === setBannerImage) {
+          if (setGalleryImages) {
+            setGalleryImages((prev) => prev.map((url) => (url === tempUrl ? res.imageUrl : url)));
+          }
+        }
       }
     } catch (err) {
       console.warn("S3 upload error, keeping temporary blob preview", err);
@@ -351,12 +377,62 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       const res = await mediaApi.uploadImage(file, "gallery");
       if (res && res.imageUrl) {
         setImageSource(res.imageUrl);
+        if (setGalleryImages) {
+          setGalleryImages((prev) => (prev.includes(res.imageUrl) ? prev : [...prev, res.imageUrl]));
+        }
       }
     } catch (err) {
       console.warn("Upload image in modal failed, using blob preview", err);
     }
     setIsUploadingImage(false);
     e.target.value = "";
+  };
+
+  // upload small video (<= 20MB)
+  const handleModalVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      showToast("Dung lượng video không được vượt quá 20MB. Vui lòng chọn video ngắn/nhỏ hơn.", "error");
+      e.target.value = "";
+      return;
+    }
+
+    const tempUrl = URL.createObjectURL(file);
+    setMediaSource(tempUrl);
+    setIsUploadingImage(true);
+
+    try {
+      const res = await mediaApi.uploadVideo(file, "events");
+      if (res && res.imageUrl) {
+        setMediaSource(res.imageUrl);
+        showToast("Tải video lên thành công!", "success");
+      }
+    } catch (err) {
+      console.warn("Upload video in modal failed, using blob preview", err);
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
+    }
+  };
+
+  // helper to insert markdown/HTML at exact cursor position in the description textarea
+  const insertAtCursor = (markup: string) => {
+    const textarea = document.getElementById("event-description-textarea") as HTMLTextAreaElement | null;
+    const start = textarea?.selectionStart ?? cursorPositionRef.current.start ?? description.length;
+    const end = textarea?.selectionEnd ?? cursorPositionRef.current.end ?? description.length;
+    const before = description.substring(0, start);
+    const after = description.substring(end);
+    const newContent = `${before}${markup}${after}`;
+    setDescription(newContent);
+    cursorPositionRef.current = { start: start + markup.length, end: start + markup.length };
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(start + markup.length, start + markup.length);
+      }
+    }, 50);
   };
 
   // upload and insert multiple direct images into gallery images list with instant preview
@@ -405,7 +481,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       width: imageWidth,
       height: imageHeight
     });
-    setDescription(description ? `${description}\n${markup}` : markup);
+    insertAtCursor(markup);
     if (setGalleryImages) {
       setGalleryImages((prev) => (prev.includes(imageSource.trim()) ? prev : [...prev, imageSource.trim()]));
     }
@@ -441,7 +517,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       altSource: mediaAltSource,
       poster: mediaPoster
     });
-    setDescription(description ? `${description}\n${markup}` : markup);
+    insertAtCursor(markup);
     setShowMediaModal(false);
   };
 
@@ -468,10 +544,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       if (res && res.description) {
         let fullDesc = res.description;
         if (res.terms_and_conditions) {
-          fullDesc += "\n\n### Điều khoản & Quy định\n" + res.terms_and_conditions;
+          fullDesc += "\n\nĐiều khoản & Quy định:\n" + res.terms_and_conditions;
         }
-        // remove markdown bold tags per user request
-        fullDesc = fullDesc.replace(/\*\*/g, '');
+        // Strictly remove all markdown headers (#, ##, ###), bold/italic (***, **, *)
+        fullDesc = fullDesc
+          .replace(/^#{1,6}\s+/gm, '')
+          .replace(/\*{2,3}/g, '')
+          .replace(/_{2,3}/g, '');
         setDescription(fullDesc);
         setShowAIGenerateModal(false);
         setAiBulletPoints("");
@@ -1019,14 +1098,22 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               {/* Detailed Address Inputs Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold app-text-main">
-                    <span className="text-rose-500">*</span> Tỉnh/Thành phố
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold app-text-main">
+                      <span className="text-rose-500">*</span> Tỉnh/Thành phố
+                    </label>
+                    {selectedVenue && (
+                      <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <FiLock className="w-3 h-3" /> Tự động khóa theo địa điểm
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
+                    disabled={!!selectedVenue}
                     className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.city ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-                      } cursor-pointer`}
+                      } cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed`}
                   >
                     <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
                     <option value="Hà Nội">Hà Nội</option>
@@ -1043,19 +1130,34 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold app-text-main">Phường/Xã</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold app-text-main">Phường/Xã</label>
+                    {selectedVenue && (
+                      <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <FiLock className="w-3 h-3" /> Đã cố định
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={ward}
                     onChange={(e) => setWard(e.target.value)}
+                    disabled={!!selectedVenue}
                     placeholder="Nhập Phường/Xã..."
-                    className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border"
+                    className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
                   <div className="flex justify-between text-xs font-bold app-text-main">
-                    <span><span className="text-rose-500">*</span> Số nhà, tên đường</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-rose-500">*</span> Số nhà, tên đường
+                      {selectedVenue && (
+                        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1">
+                          <FiLock className="w-3 h-3" /> Đã cố định theo địa điểm
+                        </span>
+                      )}
+                    </span>
                     <span className="text-[11px] app-text-muted">{address.length} / 80</span>
                   </div>
                   <input
@@ -1063,9 +1165,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     maxLength={80}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    disabled={!!selectedVenue}
                     placeholder="Ví dụ: 240 Đường 3/2, Phường 12..."
                     className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.address ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
-                      }`}
+                      } disabled:opacity-60 disabled:cursor-not-allowed`}
                   />
                   {errors.address && (
                     <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
@@ -1308,7 +1411,19 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           id="event-description-textarea"
           rows={12}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            cursorPositionRef.current = { start: e.target.selectionStart, end: e.target.selectionEnd };
+          }}
+          onSelect={(e) => {
+            cursorPositionRef.current = { start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd };
+          }}
+          onClick={(e) => {
+            cursorPositionRef.current = { start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd };
+          }}
+          onKeyUp={(e) => {
+            cursorPositionRef.current = { start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd };
+          }}
           className={`w-full app-bg-subnav app-text-main text-sm rounded-xl p-4 border ${errors.description ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
             } focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed`}
         />
@@ -1346,14 +1461,33 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
           {galleryImages.length === 0 ? (
             <div className="p-4 rounded-xl app-bg-subnav border app-border text-center">
-              <p className="text-xs app-text-muted">Chưa có ảnh gallery nào. Hãy bấm "Thêm ảnh" hoặc chèn hình trong mô tả để tự động bổ sung vào gallery.</p>
+              <p className="text-xs app-text-muted">Chưa có ảnh gallery nào. Poster, banner hoặc ảnh bạn tải lên sẽ tự động có mặt tại đây để tái sử dụng.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {galleryImages.map((imgUrl, idx) => (
                 <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border app-border app-bg-subnav shadow-xs">
                   <img src={imgUrl} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGalleryPreview(imgUrl)}
+                      className="p-1.5 bg-slate-700/80 text-white rounded-lg hover:bg-slate-600 transition-colors shadow-md text-xs"
+                      title="Xem ảnh lớn"
+                    >
+                      <FiSearch className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        insertAtCursor(buildImageMarkup({ source: imgUrl, alt: `Gallery image ${idx + 1}` }));
+                        showToast("Đã chèn ảnh vào vị trí con trỏ trong mô tả!");
+                      }}
+                      className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md text-xs"
+                      title="Chèn ảnh này vào mô tả sự kiện"
+                    >
+                      <FiPlus className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -1362,13 +1496,33 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         }
                       }}
                       className="p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors shadow-md"
-                      title="Xóa khỏi Gallery"
+                      title="Xóa vĩnh viễn khỏi Gallery"
                     >
                       <FiTrash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Full Size Gallery Preview Modal */}
+          {selectedGalleryPreview && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+              <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGalleryPreview(null)}
+                  className="absolute -top-10 right-0 p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-full transition-colors cursor-pointer"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+                <img
+                  src={selectedGalleryPreview}
+                  alt="Gallery Preview"
+                  className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border app-border"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -1490,8 +1644,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       </div>
 
       {/* Modal 1: Khai báo địa điểm mới */}
-      {showNewVenueModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+      {showNewVenueModal && createPortal(
+        <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="app-bg-card border app-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
@@ -1591,12 +1745,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal 2: Lịch đặt sự kiện tại địa điểm */}
-      {showScheduleModal && selectedVenue && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+      {showScheduleModal && selectedVenue && createPortal(
+        <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="app-bg-card border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b app-border pb-3">
               <div className="space-y-0.5">
@@ -1649,22 +1804,24 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal: Insert/Edit Image (Screenshots 3 & 4) */}
-      {showImageModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#1e293b] text-slate-100 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+      {/* Modal: Insert/Edit Image (Styled with app design tokens & Gallery selector) */}
+      {showImageModal && createPortal(
+        <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="app-bg-card app-text-main border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-              <h3 className="text-base font-semibold text-slate-100">
-                Insert/Edit Image
+            <div className="flex items-center justify-between border-b app-border pb-3">
+              <h3 className="text-base font-bold app-text-main flex items-center gap-2">
+                <FiImage className="w-4 h-4 text-blue-500" />
+                <span>Chèn / Chỉnh sửa hình ảnh (Insert/Edit Image)</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShowImageModal(false)}
-                className="text-slate-400 hover:text-white transition-colors cursor-pointer text-lg"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer text-lg p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -1673,87 +1830,102 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             {/* Modal Content */}
             <div className="grid grid-cols-12 gap-5 min-h-[220px]">
               {/* Left Tabs */}
-              <div className="col-span-3 border-r border-slate-700/70 pr-3 space-y-3 pt-1">
+              <div className="col-span-3 border-r app-border pr-3 space-y-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setImageTab("general")}
-                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${imageTab === "general" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-                    }`}
+                  className={`w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                    imageTab === "general"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                      : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
                 >
-                  General
-                  {imageTab === "general" && (
-                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
-                  )}
+                  Thông tin
                 </button>
                 <button
                   type="button"
                   onClick={() => setImageTab("upload")}
-                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${imageTab === "upload" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-                    }`}
+                  className={`w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                    imageTab === "upload"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                      : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
                 >
-                  Upload
-                  {imageTab === "upload" && (
-                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
-                  )}
+                  Tải ảnh lên
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageTab("gallery")}
+                  className={`w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                    imageTab === "gallery"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                      : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  Từ Gallery ({galleryImages.length})
                 </button>
               </div>
 
               {/* Right Form Fields */}
-              <div className="col-span-9 space-y-4">
+              <div className="col-span-9 pl-4 space-y-4">
                 {imageTab === "general" ? (
                   <>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-300 font-medium block">Source</label>
+                      <label className="text-xs font-bold app-text-muted block">Đường dẫn hình ảnh (Source URL)</label>
                       <input
                         type="text"
                         value={imageSource}
                         onChange={(e) => setImageSource(e.target.value)}
-                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        placeholder="https://..."
+                        className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-300 font-medium block">Alternative description</label>
+                      <label className="text-xs font-bold app-text-muted block">Mô tả thay thế (Alt text)</label>
                       <input
                         type="text"
                         value={imageAlt}
                         onChange={(e) => setImageAlt(e.target.value)}
-                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        placeholder="Mô tả hình ảnh..."
+                        className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="grid grid-cols-12 gap-3 items-end">
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs text-slate-300 font-medium block">Width</label>
+                        <label className="text-xs font-bold app-text-muted block">Chiều rộng (px)</label>
                         <input
                           type="text"
                           value={imageWidth}
                           onChange={(e) => handleImageWidthChange(e.target.value)}
-                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          placeholder="Auto / 800"
+                          className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs text-slate-300 font-medium block">Height</label>
+                        <label className="text-xs font-bold app-text-muted block">Chiều cao (px)</label>
                         <input
                           type="text"
                           value={imageHeight}
                           onChange={(e) => handleImageHeightChange(e.target.value)}
-                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          placeholder="Auto"
+                          className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="col-span-2 pb-0.5">
                         <button
                           type="button"
                           onClick={() => setImageLockRatio(!imageLockRatio)}
-                          className={`w-full py-2 bg-[#0f172a] border ${imageLockRatio ? "border-blue-500 text-blue-400" : "border-slate-700 text-slate-400"
-                            } hover:border-slate-500 rounded-lg flex items-center justify-center cursor-pointer transition-colors`}
-                          title={imageLockRatio ? "Lock aspect ratio" : "Unlock aspect ratio"}
+                          className={`w-full py-2 app-bg-subnav border ${imageLockRatio ? "border-blue-500 text-blue-500" : "app-border app-text-muted"
+                            } rounded-xl flex items-center justify-center cursor-pointer transition-colors`}
+                          title={imageLockRatio ? "Đang khóa tỉ lệ khung hình" : "Mở khóa tỉ lệ khung hình"}
                         >
                           {imageLockRatio ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
                   </>
-                ) : (
-                  <div className="w-full h-44 border-2 border-dashed border-slate-600 rounded-xl bg-[#0f172a]/40 flex flex-col items-center justify-center p-6 text-center">
+                ) : imageTab === "upload" ? (
+                  <div className="w-full h-44 border-2 border-dashed app-border rounded-xl app-bg-subnav flex flex-col items-center justify-center p-6 text-center">
                     <input
                       type="file"
                       ref={modalUploadInputRef}
@@ -1761,53 +1933,87 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       className="hidden"
                       onChange={handleModalImageUpload}
                     />
+                    <FiUploadCloud className="w-8 h-8 text-blue-500 mb-2" />
                     <button
                       type="button"
                       disabled={isUploadingImage}
                       onClick={() => modalUploadInputRef.current?.click()}
-                      className="px-4 py-2 bg-[#2d3a4e] hover:bg-[#37475f] text-slate-100 font-medium text-xs rounded-lg border border-slate-600 cursor-pointer shadow-xs active:scale-95 transition-all disabled:opacity-50"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs active:scale-95 transition-all disabled:opacity-50"
                     >
-                      {isUploadingImage ? "Uploading..." : "Browse for an image"}
+                      {isUploadingImage ? "Đang tải lên..." : "Chọn ảnh từ máy tính"}
                     </button>
+                    <span className="text-[10px] app-text-muted mt-2">Định dạng JPG, PNG, WebP (Tối đa 5MB)</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-52 overflow-y-auto no-scrollbar p-1">
+                    <span className="text-xs font-bold app-text-muted block">Chọn ảnh từ Gallery sự kiện:</span>
+                    {galleryImages.length === 0 ? (
+                      <p className="text-xs app-text-muted italic py-6 text-center">Gallery chưa có ảnh nào. Bạn có thể tải ảnh ở tab "Tải ảnh lên".</p>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {galleryImages.map((url, i) => (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              setImageSource(url);
+                              setImageTab("general");
+                            }}
+                            className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-all ${
+                              imageSource === url ? "border-blue-500 ring-2 ring-blue-500" : "app-border hover:border-blue-400"
+                            }`}
+                          >
+                            <img src={url} alt={`Gallery item ${i + 1}`} className="w-full h-full object-cover" />
+                            {imageSource === url && (
+                              <div className="absolute inset-0 bg-blue-600/30 flex items-center justify-center">
+                                <FiCheckCircle className="w-5 h-5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="pt-3 border-t border-slate-700 flex items-center justify-end gap-3">
+            <div className="pt-3 border-t app-border flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowImageModal(false)}
-                className="px-4 py-2 bg-[#2d3a4e] hover:bg-[#37475f] text-slate-200 font-medium text-xs rounded-lg border border-slate-600 cursor-pointer transition-all"
+                className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border cursor-pointer transition-all hover:brightness-95"
               >
-                Cancel
+                Hủy
               </button>
               <button
                 type="button"
                 onClick={handleSaveImageModal}
-                className="px-5 py-2 bg-[#0070f3] hover:bg-[#0060d8] text-white font-medium text-xs rounded-lg shadow-md cursor-pointer transition-all active:scale-95"
+                disabled={!imageSource.trim()}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
               >
-                Save
+                Chèn hình ảnh
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal: Insert/Edit Media (Screenshots 5 & 6) */}
-      {showMediaModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#1e293b] text-slate-100 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+      {/* Modal: Insert/Edit Media (Styled with app design tokens & Video Upload <=20MB) */}
+      {showMediaModal && createPortal(
+        <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="app-bg-card app-text-main border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-              <h3 className="text-base font-semibold text-slate-100">
-                Insert/Edit Media
+            <div className="flex items-center justify-between border-b app-border pb-3">
+              <h3 className="text-base font-bold app-text-main flex items-center gap-2">
+                <FiVideo className="w-4 h-4 text-blue-500" />
+                <span>Chèn / Chỉnh sửa Media Video</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShowMediaModal(false)}
-                className="text-slate-400 hover:text-white transition-colors cursor-pointer text-lg"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer text-lg p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -1816,28 +2022,28 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             {/* Modal Content */}
             <div className="grid grid-cols-12 gap-5 min-h-[220px]">
               {/* Left Tabs */}
-              <div className="col-span-3 border-r border-slate-700/70 pr-3 space-y-3 pt-1">
+              <div className="col-span-3 border-r app-border pr-3 space-y-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setMediaTab("general")}
-                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${mediaTab === "general" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-                    }`}
+                  className={`w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                    mediaTab === "general"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                      : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
                 >
-                  General
-                  {mediaTab === "general" && (
-                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
-                  )}
+                  Thông tin video
                 </button>
                 <button
                   type="button"
                   onClick={() => setMediaTab("advanced")}
-                  className={`w-full text-left pb-1 text-sm font-medium relative transition-colors ${mediaTab === "advanced" ? "text-blue-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-                    }`}
+                  className={`w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                    mediaTab === "advanced"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+                      : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
                 >
-                  Advanced
-                  {mediaTab === "advanced" && (
-                    <div className="absolute bottom-0 left-0 w-8 h-0.5 bg-blue-500 rounded-full" />
-                  )}
+                  Nâng cao & Poster
                 </button>
               </div>
 
@@ -1846,41 +2052,61 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 {mediaTab === "general" ? (
                   <>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-300 font-medium block">Source</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold app-text-muted block">Đường dẫn Video (URL)</label>
+                        <input
+                          type="file"
+                          ref={modalVideoInputRef}
+                          accept="video/mp4,video/webm"
+                          className="hidden"
+                          onChange={handleModalVideoUpload}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => modalVideoInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                        >
+                          <FiUploadCloud className="w-3.5 h-3.5" />
+                          <span>Tải video (&le; 20MB)</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
                         value={mediaSource}
                         onChange={(e) => setMediaSource(e.target.value)}
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        placeholder="https://www.youtube.com/watch?v=... hoặc link video MP4"
+                        className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="grid grid-cols-12 gap-3 items-end">
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs text-slate-300 font-medium block">Width</label>
+                        <label className="text-xs font-bold app-text-muted block">Chiều rộng (px)</label>
                         <input
                           type="text"
                           value={mediaWidth}
                           onChange={(e) => handleMediaWidthChange(e.target.value)}
-                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          placeholder="640"
+                          className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs text-slate-300 font-medium block">Height</label>
+                        <label className="text-xs font-bold app-text-muted block">Chiều cao (px)</label>
                         <input
                           type="text"
                           value={mediaHeight}
                           onChange={(e) => handleMediaHeightChange(e.target.value)}
-                          className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          placeholder="360"
+                          className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="col-span-2 pb-0.5">
                         <button
                           type="button"
                           onClick={() => setMediaLockRatio(!mediaLockRatio)}
-                          className={`w-full py-2 bg-[#0f172a] border ${mediaLockRatio ? "border-blue-500 text-blue-400" : "border-slate-700 text-slate-400"
-                            } hover:border-slate-500 rounded-lg flex items-center justify-center cursor-pointer transition-colors`}
-                          title={mediaLockRatio ? "Lock aspect ratio" : "Unlock aspect ratio"}
+                          className={`w-full py-2 app-bg-subnav border ${mediaLockRatio ? "border-blue-500 text-blue-500" : "app-border app-text-muted"
+                            } rounded-xl flex items-center justify-center cursor-pointer transition-colors`}
+                          title={mediaLockRatio ? "Đang khóa tỉ lệ 16:9" : "Mở khóa tỉ lệ"}
                         >
                           {mediaLockRatio ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
                         </button>
@@ -1890,21 +2116,23 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 ) : (
                   <>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-300 font-medium block">Alternative source URL</label>
+                      <label className="text-xs font-bold app-text-muted block">Nguồn video thay thế (Alternative source URL)</label>
                       <input
                         type="text"
                         value={mediaAltSource}
                         onChange={(e) => setMediaAltSource(e.target.value)}
-                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        placeholder="https://..."
+                        className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-300 font-medium block">Media poster (Image URL)</label>
+                      <label className="text-xs font-bold app-text-muted block">Ảnh bìa video (Poster Image URL)</label>
                       <input
                         type="text"
                         value={mediaPoster}
                         onChange={(e) => setMediaPoster(e.target.value)}
-                        className="w-full bg-[#0f172a] text-slate-100 text-sm rounded-lg px-3 py-2 border border-blue-500 ring-1 ring-blue-500 outline-none"
+                        placeholder="https://... ảnh bìa hiển thị trước khi phát video"
+                        className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                       />
                     </div>
                   </>
@@ -1913,29 +2141,31 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="pt-3 border-t border-slate-700 flex items-center justify-end gap-3">
+            <div className="pt-3 border-t app-border flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowMediaModal(false)}
-                className="px-4 py-2 bg-[#2d3a4e] hover:bg-[#37475f] text-slate-200 font-medium text-xs rounded-lg border border-slate-600 cursor-pointer transition-all"
+                className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border cursor-pointer transition-all hover:brightness-95"
               >
-                Cancel
+                Hủy
               </button>
               <button
                 type="button"
                 onClick={handleSaveMediaModal}
-                className="px-5 py-2 bg-[#0070f3] hover:bg-[#0060d8] text-white font-medium text-xs rounded-lg shadow-md cursor-pointer transition-all active:scale-95"
+                disabled={!mediaSource.trim()}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
               >
-                Save
+                Chèn Media
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* AI Generative Modal */}
-      {showAIGenerateModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {showAIGenerateModal && createPortal(
+        <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
               <h3 className="text-lg font-black text-blue-600 dark:text-blue-400 flex items-center gap-2">
@@ -1995,7 +2225,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Next Step Action Button & Save Draft */}

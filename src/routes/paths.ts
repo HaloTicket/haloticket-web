@@ -78,6 +78,7 @@ export const PATHS = {
   ADMIN_SYSTEM_HEALTH: "/admin/system-health",
   ADMIN_HOMEPAGE_CONFIG: "/admin/homepage-config",
   ADMIN_VENUES_MANAGEMENT: "/admin/venues",
+  ADMIN_VENUE_SEATMAP: (id: string | number) => `/admin/venues/${id}/seatmap`,
   PAYMENT_CALLBACK: "/payment/callback",
   NOT_FOUND: "*",
 };

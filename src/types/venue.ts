@@ -7,6 +7,9 @@ export interface VenueApiData {
   capacity: number;
   type?: 'indoor' | 'outdoor' | 'hybrid';
   verified: boolean;
+  isPublic?: boolean;
+  organizerId?: string;
+  seatmapTemplate?: string;
   eventsHosted: number;
   createdAt?: string;
   updatedAt?: string;
@@ -20,6 +23,9 @@ export interface SystemVenue {
   address: string;
   capacity: number;
   verified: boolean;
+  isPublic?: boolean;
+  organizerId?: string;
+  seatmapTemplate?: string;
   eventsHosted: number;
   bookings: {
     eventName: string;
@@ -28,4 +34,22 @@ export interface SystemVenue {
     timeSlot: string;
     status: "CONFIRMED" | "PENDING";
   }[];
+}
+
+export interface VenueOrganizerSeatmap {
+  eventId: string;
+  seatLayoutId?: string;
+  eventTitle: string;
+  organizerName?: string;
+  updatedAt?: string;
+  draftJson?: string;
+  capacity?: number;
+  zonesCount?: number;
+}
+
+export interface VenueSeatmapsResponse {
+  venueId: number | string;
+  venueName: string;
+  adminTemplate?: string | null;
+  organizerSeatmaps: VenueOrganizerSeatmap[];
 }

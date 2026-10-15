@@ -28,7 +28,6 @@ import {
   FiUserCheck,
   FiMessageSquare,
   FiZap,
-  FiEdit3,
 } from "react-icons/fi";
 
 export const AdminLayout: React.FC = () => {
@@ -81,9 +80,7 @@ export const AdminLayout: React.FC = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
-  const [aiDrawerPrompt, setAiDrawerPrompt] = useState("");
   const [systemUptime, setSystemUptime] = useState<string | null>(null);
-  const [textSelection, setTextSelection] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
     getCachedUserProfile()
@@ -93,38 +90,6 @@ export const AdminLayout: React.FC = () => {
   const [currentTime, setCurrentTime] = useState("");
 
   const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleMouseUp = () => {
-      setTimeout(() => {
-        const activeSelection = window.getSelection();
-        if (activeSelection && activeSelection.toString().trim().length > 10) {
-          const range = activeSelection.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          setTextSelection({
-            text: activeSelection.toString().trim(),
-            x: rect.left + rect.width / 2,
-            y: rect.top - 10
-          });
-        } else {
-          setTextSelection(null);
-        }
-      }, 10);
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if ((e.target as Element).closest('#ai-selection-popover')) return;
-      setTextSelection(null);
-    };
-
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mousedown', handleMouseDown);
-    
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -562,28 +527,6 @@ export const AdminLayout: React.FC = () => {
         accentColor="blue"
       />
 
-      {/* AI Text Selection Popover */}
-      {textSelection && (
-        <div 
-          id="ai-selection-popover"
-          className="fixed z-[100] animate-in fade-in zoom-in-95 duration-200"
-          style={{ left: textSelection.x, top: textSelection.y, transform: 'translate(-50%, -100%)' }}
-        >
-          <button
-            onClick={() => {
-              setAiDrawerPrompt(`Hãy soạn thảo một email phản hồi chuyên nghiệp, lịch sự và giải quyết vấn đề cho nội dung khiếu nại/yêu cầu sau:\n\n"${textSelection.text}"`);
-              setIsAiDrawerOpen(true);
-              setTextSelection(null);
-              window.getSelection()?.removeAllRanges();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[11px] font-bold rounded-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
-          >
-            <FiEdit3 className="w-3.5 h-3.5" />
-            Nhờ AI soạn trả lời
-          </button>
-          <div className="w-2 h-2 bg-indigo-600 rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2"></div>
-        </div>
-      )}
 
       {/* Floating AI Action Button */}
       <button
@@ -619,7 +562,7 @@ export const AdminLayout: React.FC = () => {
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <AdminAiAssistant isDrawer={true} initialPrompt={aiDrawerPrompt} />
+              <AdminAiAssistant isDrawer={true} />
             </div>
           </div>
         </div>

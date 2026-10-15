@@ -1341,3 +1341,23 @@ input[type="search"]::-webkit-search-results-decoration {
   transform: translateY(0);
 }
 
+/* Event Detail Styles */
+.event-ticket-card {
+  background-color: var(--bg-card);
+}
+
+.event-mobile-buybar {
+  background-color: color-mix(in srgb, var(--bg-card) 94%, transparent);
+}
+
+.event-detail-tabs {
+  background-color: color-mix(in srgb, var(--bg-page) 95%, transparent);
+}
+
+@media (max-width: 1023px) {
+  body:has(.event-detail-screen) header.app-bg-header.border-b.app-border.sticky {
+    display: none;
+  }
+}
+
+

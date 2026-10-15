@@ -67,6 +67,7 @@ export interface EventDetailData {
   director: string;
   cast: string[];
   descriptionText: string;
+  description?: string;
   galleryImages: string[];
   showtimes: Showtime[];
   organizer?: EventOrganizerInfo;

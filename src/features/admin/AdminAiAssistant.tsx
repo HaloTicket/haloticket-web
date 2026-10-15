@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { FiSend, FiLoader, FiZap, FiDatabase } from "react-icons/fi";
+import { FiSend, FiLoader, FiZap, FiDatabase, FiTrash2 } from "react-icons/fi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import ReactMarkdown from 'react-markdown';
 import { aiApi } from "@/services/aiApi";
@@ -27,19 +27,48 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      sender: "ai",
-      text: label(
-        "Xin chào, tôi là trợ lý AI dành cho Quản trị viên. Tôi có thể giúp bạn kiểm tra hệ thống, tóm tắt sự kiện hoặc tra cứu Audit Logs. Bạn cần giúp gì hôm nay?",
-        "Hello, I am your Admin AI Assistant. I can help you check system health, summarize events, or query Audit Logs. How can I help you today?"
-      ),
-      timestamp: new Date(),
-    }
-  ]);
+  const getWelcomeMessage = (): ChatMessage => ({
+    id: "welcome-1",
+    sender: "ai",
+    text: label(
+      "Xin chào, tôi là trợ lý AI dành cho Quản trị viên. Tôi có thể giúp bạn kiểm tra hệ thống, tóm tắt sự kiện hoặc tra cứu Audit Logs. Bạn cần giúp gì hôm nay?",
+      "Hello, I am your Admin AI Assistant. I can help you check system health, summarize events, or query Audit Logs. How can I help you today?"
+    ),
+    timestamp: new Date(),
+  });
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('admin_ai_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp || Date.now())
+          }));
+        }
+      }
+    } catch {}
+    return [getWelcomeMessage()];
+  });
+
   const [inputText, setInputText] = useState(initialPrompt);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('admin_ai_chat_history', JSON.stringify(messages));
+    } catch (e) {
+      console.warn("Storage quota exceeded", e);
+    }
+  }, [messages]);
+
+  const clearChatHistory = () => {
+    const fresh = [getWelcomeMessage()];
+    setMessages(fresh);
+    localStorage.setItem('admin_ai_chat_history', JSON.stringify(fresh));
+  };
 
   useEffect(() => {
     if (initialPrompt) {
@@ -113,14 +142,40 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
 
   return (
     <div className={`flex flex-col min-h-0 space-y-4 ${isDrawer ? 'h-full' : 'h-[calc(100vh-100px)]'}`}>
-      {!isDrawer && (
+      {!isDrawer ? (
         <AdminPageHeader
           title={label("Trợ lý AI Quản trị viên", "Admin AI Assistant")}
           description={label(
             "Hỗ trợ phân tích dữ liệu, giải đáp thắc mắc và đề xuất hướng xử lý cho các tác vụ quản trị.",
             "Supports data analysis, answers queries, and suggests actions for administrative tasks."
           )}
+          actions={
+            messages.length > 1 ? (
+              <button
+                type="button"
+                onClick={clearChatHistory}
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border app-border app-bg-card px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+              >
+                <FiTrash2 className="w-3.5 h-3.5" />
+                <span>{label("Xóa lịch sử trò chuyện", "Clear conversation")}</span>
+              </button>
+            ) : undefined
+          }
         />
+      ) : (
+        <div className="flex justify-between items-center px-2 pb-1 border-b app-border">
+          <span className="text-xs font-bold app-text-main flex items-center gap-1.5"><FiZap className="w-3.5 h-3.5 text-blue-500" /> System AI</span>
+          {messages.length > 1 && (
+            <button
+              type="button"
+              onClick={clearChatHistory}
+              className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+            >
+              <FiTrash2 className="w-3 h-3" />
+              <span>{label("Xóa lịch sử", "Clear")}</span>
+            </button>
+          )}
+        </div>
       )}
 
       <div className={`flex-1 min-h-0 flex flex-col shadow-xs ${isDrawer ? '' : 'border app-border rounded-lg app-bg-card'}`}>

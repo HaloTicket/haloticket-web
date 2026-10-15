@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ticketApi } from '@/services/ticketApi';
 import { venueApi } from '@/services/venueApi';
+import { eventApi } from '@/services/eventApi';
 import {
   FiCamera,
   FiCheck,
@@ -9,6 +10,7 @@ import {
   FiCopy,
   FiDownload,
   FiLayers,
+  FiRefreshCw,
   FiSave,
   FiSend,
   FiTag,
@@ -180,6 +182,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     onConfirm: () => void;
   } | null>(null);
 
+  const [eventVenue, setEventVenue] = useState<{ id?: string; name?: string; address?: string } | null>(null);
+  const [previousSnapshotBeforePreset, setPreviousSnapshotBeforePreset] = useState<StudioSnapshot | null>(null);
+
+  const handleRevertToPreviousVersion = () => {
+    if (!previousSnapshotBeforePreset) return;
+    applySnapshot(previousSnapshotBeforePreset);
+    latestRef.current = previousSnapshotBeforePreset;
+    pushHistory(previousSnapshotBeforePreset);
+    setPreviousSnapshotBeforePreset(null);
+    showToast('info', 'Đã khôi phục lại phiên bản sơ đồ trước khi áp dụng mẫu.');
+  };
+
   const showToast = (type: 'success' | 'error' | 'warning' | 'info', text: string) => {
     const id = `toast_${Date.now()}_${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, text }]);
@@ -198,7 +212,32 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     latestRef.current = { seats, stages, structures, zones, canvasSettings };
   }, [canvasSettings, seats, stages, structures, zones]);
 
-  // Load Real Venues from Backend API via venueApi service
+  // load current event's venue from DB
+  useEffect(() => {
+    const fetchEventVenue = async () => {
+      try {
+        const ev = await eventApi.getEventById(activeEventId);
+        if (ev) {
+          const locName = (ev.locationName as string) || (ev.address as string) || '';
+          const venues = await venueApi.getVenues();
+          const matched = venues.find(v => 
+            (locName && v.name && v.name.toLowerCase().includes(locName.toLowerCase())) ||
+            (locName && v.name && locName.toLowerCase().includes(v.name.toLowerCase()))
+          );
+          if (matched) {
+            setEventVenue({ id: String(matched.id), name: matched.name, address: matched.address });
+          } else if (locName) {
+            setEventVenue({ name: locName, address: ev.address as string });
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load event venue for seating map", e);
+      }
+    };
+    fetchEventVenue();
+  }, [activeEventId]);
+
+  // load Real Venues from Backend API via venueApi service
   useEffect(() => {
     const fetchVenues = async () => {
       try {
@@ -208,7 +247,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           venues.forEach((v: any, idx: number) => {
             if (v.verified === false) return; // Only public verified venues
 
-            // Layout Variant 1: Concert & Music Stage
+            // layout variant 1: concert & music stage
             const preset1 = PRESET_TEMPLATES[idx % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[0];
             venueTemplates.push({
               id: `venue_${v.id}_concert`,
@@ -267,18 +306,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           setTemplates((prev) => [...venueTemplates, ...prev.filter((t) => !t.id.startsWith('venue_'))]);
         }
       } catch {
-        // Fallback to presets if backend endpoint offline
+        // fallback to presets if backend endpoint offline
       }
     };
     fetchVenues();
   }, []);
 
-  // Fetch Ticket Types & Existing Seat Layout from Backend API via ticketApi service
+  // fetch ticket types & existing seat layout from Backend API via ticketApi service
   useEffect(() => {
     if (!activeEventId) return;
     const fetchLayoutAndTypes = async () => {
       try {
-        // 1. Fetch ticket types via ticketApi
+        // fetch ticket types via ticketApi
         const typesList = await ticketApi.getTicketTypesByEventId(activeEventId);
         if (typesList && typesList.length > 0) {
           const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
@@ -298,7 +337,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           setBackendTiers(mappedTiers);
         }
 
-        // 2. Fetch layout via ticketApi
+        // fetch layout via ticketApi
         const layoutData = await ticketApi.getSeatLayoutByEventId(activeEventId);
         if (layoutData) {
           if (layoutData.status) {
@@ -364,7 +403,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     fetchLayoutAndTypes();
   }, [activeEventId]);
 
-  // Realtime Auto-Save (LocalStorage + Debounced Backend Draft Save)
+  // realtime auto-save (LocalStorage + Debounced Backend Draft Save)
   const autoSaveTimerRef = useRef<any>(null);
   useEffect(() => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
@@ -383,7 +422,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           ticketTiers: effectiveTiers,
         });
 
-        // Save locally for instant recovery
+        // save locally for instant recovery
         localStorage.setItem(`haloticket_seatmap_draft_${activeEventId}`, JSON.stringify(payload));
         localStorage.setItem(`haloticket_seatmap_draft_${eventName}`, JSON.stringify(payload));
 
@@ -431,7 +470,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     };
   }, [seats, stages, structures, zones, canvasSettings, eventName, effectiveTiers, selectedTemplateId, activeEventId]);
 
-  // Export SeatMap Image Function
+  // export seatMap image function
   const handleExportImage = () => {
     const payload: SeatMapDocument = {
       version: '2.0',
@@ -1185,6 +1224,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   // handle load preset template
   const handleLoadPreset = (template: VenueTemplate) => {
+    const current = latestRef.current;
+    if (current.seats.length > 0 || current.stages.length > 0 || Object.keys(current.zones).length > 0) {
+      setPreviousSnapshotBeforePreset(safeClone(current));
+    }
 
     const cloned = cloneTemplateForCurrentEvent(template, effectiveTiers);
     const snapshot: StudioSnapshot = {
@@ -1201,6 +1244,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setSelectedTemplateId(template.id);
     setAttendeeCart([]);
     setIsTemplateModalOpen(false);
+    showToast('success', `Đã áp dụng mẫu "${template.name}". Bạn có thể bấm "Khôi phục bản trước" nếu muốn hoàn tác.`);
   };
 
   const handleClearCanvas = () => {
@@ -1472,6 +1516,17 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {previousSnapshotBeforePreset && (
+            <button
+              type="button"
+              onClick={handleRevertToPreviousVersion}
+              className="seat-studio-secondary-button border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 font-bold flex items-center gap-1.5"
+              title="Khôi phục lại sơ đồ trước khi áp dụng mẫu địa điểm"
+            >
+              <FiRefreshCw className="w-3.5 h-3.5" />
+              <span>Khôi phục bản trước</span>
+            </button>
+          )}
           <button type="button" onClick={() => setIsTemplateModalOpen(true)} className="seat-studio-secondary-button"><FiLayers className="w-4 h-4" />Mẫu địa điểm <span className="seat-studio-badge ml-1">{templates.length}</span></button>
           <button type="button" onClick={() => setIsTierModalOpen(true)} className="seat-studio-secondary-button"><FiTag className="w-4 h-4" />Hạng vé <span className="seat-studio-badge ml-1">{assignedZoneCount}/{Object.keys(zones).length}</span></button>
           <button type="button" onClick={handleExportImage} className="seat-studio-secondary-button border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10" title="Xuất file ảnh PNG sơ đồ sự kiện"><FiCamera className="w-4 h-4" />Xuất ảnh sơ đồ</button>
@@ -1617,6 +1672,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         templates={templates}
         selectedTemplateId={selectedTemplateId}
         onSelectTemplate={handleLoadPreset}
+        venueId={eventVenue?.id}
+        venueName={eventVenue?.name}
       />
 
       <TierManagerModal

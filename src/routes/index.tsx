@@ -76,6 +76,7 @@ import EventApprovalDetail from "@/features/admin/events/EventApprovalDetail";
 import AdminAiAnalytics from "@/features/admin/AdminAiAnalytics";
 import SystemHealth from "@/features/admin/SystemHealth";
 import AdminVenuesManagement from "@/features/admin/AdminVenuesManagement";
+import AdminVenueSeatmapDesigner from "@/features/admin/venues/AdminVenueSeatmapDesigner";
 import AdminSectionHub from "@/features/admin/AdminSectionHub";
 import AdminUserManagement from "@/features/admin/UserManagement";
 import AdminUserDetail from "@/features/admin/UserDetail";
@@ -536,5 +537,13 @@ export const router = createBrowserRouter([
         element: <AdminVenuesManagement />,
       },
     ],
+  },
+  {
+    path: "/admin/venues/:venueId/seatmap",
+    element: (
+      <AdminProtectedRoute>
+        <AdminVenueSeatmapDesigner />
+      </AdminProtectedRoute>
+    ),
   },
 ]);

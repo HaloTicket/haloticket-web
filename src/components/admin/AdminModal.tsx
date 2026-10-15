@@ -9,12 +9,20 @@ export interface AdminModalProps {
   icon?: ReactNode;
   onClose: () => void;
   children: ReactNode;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl";
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
   dismissible?: boolean;
   pending?: boolean;
 }
 
-const widths = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl", "2xl": "max-w-2xl" };
+const widths = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
+  "4xl": "max-w-4xl",
+};
 
 export function AdminModal({ title, subtitle, icon, onClose, children, maxWidth = "lg", dismissible = true, pending = false }: AdminModalProps) {
   const { t } = useTranslation();
