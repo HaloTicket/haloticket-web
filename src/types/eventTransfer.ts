@@ -3,6 +3,8 @@ export interface ResalePolicyData {
   enabled: boolean;
   minPricePercent: number;
   maxPricePercent: number;
+  serviceFeePercent?: number;
+  requireApproval?: boolean;
   opensAt: string | null;
   closesAt: string | null;
   ticketTypeScope: "ALL" | "SELECTED";
@@ -17,6 +19,8 @@ export interface GiftPolicyData {
   opensAt: string | null;
   closesAt: string | null;
   invitationTtlHours: number;
+  requireEkyc?: boolean;
+  maxGiftCount?: number;
   ticketTypeScope: "ALL" | "SELECTED";
   allowedTicketTypeIds: string[];
   version: number;
@@ -43,9 +47,16 @@ export interface OrganizerListingItem {
   seatCode: string | null;
   sellerEmailMasked: string;
   price: number;
+  originalPrice?: number | null;
+  minPriceSnapshot?: number | null;
+  maxPriceSnapshot?: number | null;
   currency: string;
+  serviceFeePercent?: number;
+  moderationReason?: string | null;
   status: string;
   createdAt: string;
+  quantity?: number;
+  ticketIds?: string[];
 }
 
 export interface OrganizerGiftItem {
@@ -55,7 +66,12 @@ export interface OrganizerGiftItem {
   ticketTypeName: string;
   sentAt: string;
   expiresAt: string;
+  receivedAt?: string | null;
   status: string;
+  quantity?: number;
+  ticketIds?: string[];
+  requireEkyc?: boolean | null;
+  isRecipientEkycVerified?: boolean | null;
 }
 
 export interface PageData<T> {
