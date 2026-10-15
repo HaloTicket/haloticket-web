@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { CustomSelect } from "@/components/common/CustomSelect";
 import {
   FiCheckSquare,
-  FiSearch,
   FiEye,
   FiCheckCircle,
   FiXCircle,
@@ -13,17 +12,11 @@ import {
   FiCalendar,
   FiMapPin,
   FiUser,
-  FiTag,
-  FiX,
-  FiFileText,
   FiChevronLeft,
   FiChevronRight,
-  FiRefreshCw,
-  FiImage,
-  FiShield
+  FiRefreshCw
 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
-import { aiApi } from "@/services/aiApi";
 import type { ApprovalEventItem } from "@/types";
 
 interface ApprovalTicket {
@@ -62,8 +55,6 @@ interface ApprovalEventRaw {
 
 export const EventApproval: React.FC = () => {
   const { t: translate } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const eventIdParam = searchParams.get("eventId");
 
   const [activeTab, setActiveTab] = useState<"PENDING" | "UPDATE_PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
   const [searchQuery, setSearchQuery] = useState("");

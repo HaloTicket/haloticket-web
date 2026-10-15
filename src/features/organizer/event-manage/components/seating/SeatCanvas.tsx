@@ -1191,14 +1191,20 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <span className="text-sm md:text-base font-black uppercase tracking-widest drop-shadow-md text-white">
                     {isZoneSoldOut ? `${zone.name} (ĐÃ HẾT VÉ)` : (zone.centerText || zone.name)}
                   </span>
-                  <span className="text-xs font-extrabold font-mono text-white/90 drop-shadow-sm mt-0.5">
-                    {tiers?.find((t) => t.id === zone.tierId)?.name || 'Hạng vé chưa gán'} • {getZonePrice(zone).toLocaleString('vi-VN')} đ
-                  </span>
-                  {zoneSeatsCount === 0 && zone.capacity && (
-                    <span className="text-[10px] font-bold text-white/90 bg-black/40 px-2.5 py-0.5 rounded-full mt-1 border border-white/20 font-mono">
-                      Khối đứng: {zone.capacity} vé {isZoneSoldOut ? '(Hết vé)' : ''}
+                  {zone.tierId ? (
+                    <span className="text-xs font-extrabold font-mono text-white/90 drop-shadow-sm mt-0.5">
+                      {tiers?.find((t) => t.id === zone.tierId)?.name || 'Hạng vé'} • {getZonePrice(zone).toLocaleString('vi-VN')} đ
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold text-white/80 drop-shadow-sm mt-0.5">
+                      {zoneSeatsCount > 0 ? `${zoneSeatsCount} ghế` : 'Chưa gán hạng vé'}
                     </span>
                   )}
+                  {zoneSeatsCount === 0 && zone.capacity ? (
+                    <span className="text-[10px] font-bold text-white/90 bg-black/40 px-2.5 py-0.5 rounded-full mt-1 border border-white/20 font-mono">
+                      Khối đứng: {zone.capacity} {zone.tierId ? 'vé' : 'chỗ'} {isZoneSoldOut ? '(Hết vé)' : ''}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* 8 Directional Resizable Handles */}

@@ -12,16 +12,32 @@ import type { SystemVenue, VenueApiData } from "@/types";
 import { VenueDeleteModal } from "./components/venues/VenueDeleteModal";
 import { VenueModal, type VenueFormData } from "./components/venues/VenueModal";
 import { VenueTable } from "./components/venues/VenueTable";
+import { AdminVenueSeatmapModal } from "./components/venues/AdminVenueSeatmapModal";
 import { CustomSelect } from "@/components/common/CustomSelect";
 
-type AdminVenue = SystemVenue & { type?: VenueApiData["type"]; eventsHostedKnown: boolean };
-type Status = "ALL" | "VERIFIED" | "UNVERIFIED";
+import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
+
+type AdminVenue = SystemVenue & { type?: VenueApiData["type"]; eventsHostedKnown: boolean; isPublic?: boolean; organizerId?: string; seatmapTemplate?: string };
+type Status = "ALL" | "PUBLIC" | "PRIVATE" | "VERIFIED" | "UNVERIFIED";
 const PAGE_SIZE = 10;
 
 function mapVenue(v: VenueApiData): AdminVenue {
-  return { id: String(v.id), name: v.name, address: v.address ?? "", city: v.city ?? "",
-    ward: v.ward ?? "", capacity: v.capacity ?? 0, type: v.type, verified: v.verified === true,
-    eventsHosted: v.eventsHosted ?? 0, eventsHostedKnown: v.eventsHosted != null, bookings: [] };
+  return {
+    id: String(v.id),
+    name: v.name,
+    address: v.address ?? "",
+    city: v.city ?? "",
+    ward: v.ward ?? "",
+    capacity: v.capacity ?? 0,
+    type: v.type,
+    verified: v.verified === true,
+    isPublic: v.isPublic !== false,
+    organizerId: v.organizerId,
+    seatmapTemplate: v.seatmapTemplate,
+    eventsHosted: v.eventsHosted ?? 0,
+    eventsHostedKnown: v.eventsHosted != null,
+    bookings: []
+  };
 }
 
 export function AdminVenuesManagement() {
@@ -39,6 +55,8 @@ export function AdminVenuesManagement() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AdminVenue | null>(null);
   const [deleting, setDeleting] = useState<AdminVenue | null>(null);
+  const [verifyingVenue, setVerifyingVenue] = useState<AdminVenue | null>(null);
+  const [seatmapVenue, setSeatmapVenue] = useState<AdminVenue | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -125,7 +143,8 @@ export function AdminVenuesManagement() {
 
   const query = search.trim().toLocaleLowerCase("vi-VN");
   const filtered = venues.filter(v => (!query || [v.name, v.address, v.city].some(x => x.toLocaleLowerCase("vi-VN").includes(query)))
-    && (status === "ALL" || (status === "VERIFIED" ? v.verified : !v.verified))
+    && (status === "ALL"
+      || (status === "VERIFIED" ? v.verified : status === "UNVERIFIED" ? !v.verified : status === "PUBLIC" ? v.isPublic !== false : v.isPublic === false))
     && (city === "ALL" || v.city === city));
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -137,7 +156,9 @@ export function AdminVenuesManagement() {
     <section className="overflow-hidden rounded-lg border app-border app-bg-card shadow-xs">
       {loadState === "ready" && <div className="px-5 pt-3">
         <AdminStatusTabs value={status} onChange={value => { setStatus(value as Status); setPage(1); }} options={[
-          { value: "ALL", label: t("Tất cả trạng thái"), count: venues.length },
+          { value: "ALL", label: t("Tất cả"), count: venues.length },
+          { value: "PUBLIC", label: t("Địa điểm công cộng"), count: venues.filter(v => v.isPublic !== false).length },
+          { value: "PRIVATE", label: t("Địa điểm riêng (BTC)"), count: venues.filter(v => v.isPublic === false).length },
           { value: "VERIFIED", label: t("Đã xác minh"), count: venues.filter(v => v.verified).length },
           { value: "UNVERIFIED", label: t("Chưa xác minh"), count: venues.filter(v => !v.verified).length },
         ]} />
@@ -168,7 +189,16 @@ export function AdminVenuesManagement() {
           : <>
             {venues.length === 0 ? <AdminDataState state="empty" message={t("Chưa có địa điểm nào.")} />
               : filtered.length === 0 ? <AdminDataState state="no-results" message={t("Không tìm thấy địa điểm nào phù hợp.")} onReset={() => { setSearch(""); setCity("ALL"); setStatus("ALL"); setPage(1); }} />
-                : <VenueTable venues={visible} page={safePage} pageSize={pageSize} busyId={busyId} onToggleVerification={venue => void toggle(venue as AdminVenue)} onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }} onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }} />}
+                : <VenueTable
+                    venues={visible}
+                    page={safePage}
+                    pageSize={pageSize}
+                    busyId={busyId}
+                    onRequestVerify={venue => setVerifyingVenue(venue as AdminVenue)}
+                    onOpenSeatmap={venue => setSeatmapVenue(venue as AdminVenue)}
+                    onEdit={venue => { setEditing(venue as AdminVenue); setOpen(true); }}
+                    onDelete={venue => { setDeleting(venue as AdminVenue); setDeleteError(""); }}
+                  />}
             <AdminPagination
               currentPage={safePage}
               totalPages={totalPages}
@@ -185,6 +215,36 @@ export function AdminVenuesManagement() {
     </section>
     <VenueModal isOpen={open} editingVenue={editing} onClose={() => { setOpen(false); setEditing(null); }} onSubmit={save} />
     <VenueDeleteModal isOpen={!!deleting} venue={deleting} pending={deletePending} error={deleteError} onClose={() => { if (!deletePending) setDeleting(null); }} onConfirm={() => void confirmDelete()} />
+    <AdminVenueSeatmapModal
+      isOpen={!!seatmapVenue}
+      venue={seatmapVenue}
+      onClose={() => setSeatmapVenue(null)}
+      onTemplateUpdated={() => void load(true)}
+    />
+
+    {/* Verification Confirm Modal */}
+    {verifyingVenue && (
+      <AdminConfirmModal
+        title={t("Xác nhận Xác Minh Địa Điểm")}
+        subtitle={t("Bạn có chắc chắn muốn xác minh địa điểm '{{name}}' là địa điểm công cộng hợp lệ của hệ thống?", { name: verifyingVenue.name })}
+        confirmText={t("Xác minh ngay")}
+        cancelText={t("Hủy bỏ")}
+        isDanger={false}
+        pending={busyId !== null}
+        onClose={() => setVerifyingVenue(null)}
+        onConfirm={async () => {
+          const v = verifyingVenue;
+          setVerifyingVenue(null);
+          await toggle(v);
+        }}
+      >
+        <div className="text-xs app-text-muted space-y-1.5 p-3 rounded-xl app-bg-subnav border app-border">
+          <p>• <strong>{t("Tên địa điểm")}:</strong> {verifyingVenue.name}</p>
+          <p>• <strong>{t("Địa chỉ")}:</strong> {verifyingVenue.address}, {verifyingVenue.city}</p>
+          <p>• <strong>{t("Sức chứa tối đa")}:</strong> {verifyingVenue.capacity.toLocaleString("vi-VN")} {t("chỗ")}</p>
+        </div>
+      </AdminConfirmModal>
+    )}
   </div>;
 }
 

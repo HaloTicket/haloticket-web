@@ -65,4 +65,26 @@ export const venueApi = {
       return false;
     }
   },
+
+  // get all seatmaps associated with a venue (admin template + organizer seatmaps)
+  getVenueSeatmaps: async (id: number | string): Promise<import("@/types").VenueSeatmapsResponse | null> => {
+    try {
+      const response: unknown = await axiosClient.get(`/events/venues/${id}/seatmaps`);
+      return response as import("@/types").VenueSeatmapsResponse;
+    } catch (err) {
+      console.warn(`Failed to fetch seatmaps for venue ${id}:`, err);
+      return null;
+    }
+  },
+
+  // save admin seatmap template for a venue
+  saveVenueSeatmapTemplate: async (id: number | string, seatmapTemplate: string): Promise<VenueApiData | null> => {
+    try {
+      const response: unknown = await axiosClient.put(`/events/venues/${id}/seatmap-template`, { seatmapTemplate });
+      return response as VenueApiData;
+    } catch (err) {
+      console.error(`Failed to save seatmap template for venue ${id}:`, err);
+      return null;
+    }
+  },
 };

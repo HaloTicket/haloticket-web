@@ -7,7 +7,6 @@ import { FaTicketAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import type { EventDetailData } from "@/types";
 import { formatCurrency, parseVndAmount } from "@/utils/formatters";
-import "./EventDetail.css";
 
 interface EventHeroProps {
   event: EventDetailData;
@@ -241,7 +240,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
       {/* ── MAIN HERO SECTION ── */}
       <div className="relative w-full mb-8">
         {/* DESKTOP LAYOUT: Ticket Style */}
-        <div className="hidden lg:flex w-full relative rounded-3xl overflow-hidden shadow-2xl border app-border app-bg-card">
+        <div className="hidden lg:flex w-full relative rounded-3xl overflow-hidden shadow-2xl app-bg-card">
           {/* Left: Banner Image (Ticket Left Side) */}
           <div className="w-[65%] relative bg-slate-950 aspect-[16/10] group shrink-0">
             <img
@@ -275,10 +274,10 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
           </div>
 
           {/* Ticket Perforation (Vertical) */}
-          <div className="relative flex flex-col items-center justify-between w-6 h-auto bg-transparent z-20 pointer-events-none -ml-3 -mr-3 self-stretch">
-             <div className="w-6 h-6 -mt-3 rounded-full bg-[var(--bg-page)] border-b app-border" />
-             <div className="h-full border-l-2 border-dashed border-slate-300 dark:border-slate-700 my-2" />
-             <div className="w-6 h-6 -mb-3 rounded-full bg-[var(--bg-page)] border-t app-border" />
+          <div className="relative flex flex-col items-center justify-between w-10 h-auto bg-transparent z-20 pointer-events-none -ml-5 -mr-5 self-stretch">
+             <div className="w-10 h-10 -mt-5 rounded-full bg-[var(--bg-page)]" />
+             <div className="h-full border-l-[3px] border-dashed border-slate-400/80 dark:border-slate-500/80 my-2" />
+             <div className="w-10 h-10 -mb-5 rounded-full bg-[var(--bg-page)]" />
           </div>
 
           {/* Right: Event Info Card (Ticket Right Side) */}
@@ -360,7 +359,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
           </div>
 
           {/* Ticket Card Stub: Outer rounded container */}
-          <div className="event-ticket-card relative rounded-3xl overflow-hidden shadow-2xl border app-border app-bg-card app-text-main">
+          <div className="event-ticket-card relative rounded-3xl overflow-hidden shadow-2xl app-bg-card app-text-main">
             {/* Top: Banner Image */}
             <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
               <img
@@ -385,10 +384,10 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             </div>
 
             {/* Perforated / Scalloped ticket divider with side circular notches */}
-            <div className="relative flex items-center justify-between w-full h-6 -my-3 overflow-hidden z-20 pointer-events-none">
-              <div className="w-6 h-6 -ml-3 rounded-full bg-[var(--bg-page)] border-r app-border" />
-              <div className="flex-1 border-b-2 border-dashed border-slate-300 dark:border-slate-700 mx-2" />
-              <div className="w-6 h-6 -mr-3 rounded-full bg-[var(--bg-page)] border-l app-border" />
+            <div className="relative flex items-center justify-between w-full h-10 -my-5 overflow-hidden z-20 pointer-events-none">
+              <div className="w-10 h-10 -ml-5 rounded-full bg-[var(--bg-page)]" />
+              <div className="flex-1 border-b-[3px] border-dashed border-slate-400/80 dark:border-slate-500/80 mx-2" />
+              <div className="w-10 h-10 -mr-5 rounded-full bg-[var(--bg-page)]" />
             </div>
 
             {/* Bottom Info Section (Adapts dynamically to both Light & Dark modes) */}

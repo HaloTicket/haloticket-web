@@ -11,7 +11,6 @@ import EventCard from "@/components/common/EventCard";
 import { eventApi } from "@/services/eventApi";
 import { PATHS } from "@/routes/paths";
 import { FiGrid } from "react-icons/fi";
-import "./components/detail/EventDetail.css";
 
 import type { EventDetailData, EventApiData } from "@/types";
 

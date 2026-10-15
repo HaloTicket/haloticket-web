@@ -11,7 +11,17 @@ interface EventDescriptionProps {
 export const EventDescription: React.FC<EventDescriptionProps> = ({ event }) => {
   useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
-  const description = event.descriptionText || translate("Chưa có mô tả.");
+  const rawDescription = event.description || event.descriptionText || translate("Chưa có mô tả.");
+  const formattedDescription = React.useMemo(() => {
+    if (!rawDescription) return "";
+    if (/<[a-z][\s\S]*>/i.test(rawDescription)) {
+      return rawDescription.replace(/\n/g, "<br />");
+    }
+    return rawDescription
+      .split(/\n{2,}/)
+      .map((para) => `<p class="mb-3">${para.replace(/\n/g, "<br />")}</p>`)
+      .join("");
+  }, [rawDescription]);
 
   return (
     <div className="mb-6">
@@ -24,38 +34,14 @@ export const EventDescription: React.FC<EventDescriptionProps> = ({ event }) => 
       <div className="relative app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-lg transition-all duration-500 overflow-hidden">
         {/* Content Box with Collapsible Max-Height */}
         <div
-          className={`transition-all duration-500 overflow-hidden ${isExpanded ? "max-h-[5000px] mb-2" : "max-h-[240px]"
+          className={`transition-all duration-500 overflow-hidden ${isExpanded ? "max-h-[8000px] mb-2" : "max-h-[260px]"
             }`}
         >
-          {/* Main Summary Text */}
-          <div className="whitespace-pre-line text-sm md:text-base app-text-main font-medium leading-relaxed mb-4">
-            {description}
-          </div>
-
-
-
-          {/* Gallery Images Grid */}
-          {event.galleryImages && event.galleryImages.length > 0 && (
-            <div className="mt-4 pb-2">
-              <h4 className="font-extrabold text-sm md:text-base app-text-main mb-3">
-                {translate("Hình ảnh chương trình")}</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-                {event.galleryImages.map((imgUrl, index) => (
-                  <div
-                    key={index}
-                    className="rounded-2xl overflow-hidden shadow-md aspect-[4/3] bg-slate-900 border app-border hover:scale-105 transition-transform duration-300"
-                  >
-                    <img
-                      src={imgUrl}
-                      alt={`Gallery ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Main Rich Description Content */}
+          <div
+            className="prose dark:prose-invert max-w-none text-sm md:text-base app-text-main font-medium leading-relaxed mb-4 break-words whitespace-pre-line [&_img]:rounded-2xl [&_img]:max-h-[550px] [&_img]:w-auto [&_img]:my-4 [&_video]:rounded-2xl [&_video]:max-w-full [&_p]:mb-3"
+            dangerouslySetInnerHTML={{ __html: formattedDescription }}
+          />
         </div>
 
         {/* Gradient overlay when collapsed */}

@@ -41,4 +41,23 @@ export const mediaApi = {
       return null;
     }
   },
+
+  // upload video file via FormData (max 20MB)
+  uploadVideo: async (file: File, folder = "videos"): Promise<FileUploadResult | null> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", folder);
+
+      const response: unknown = await axiosClient.post("/media/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response as FileUploadResult;
+    } catch (err) {
+      console.warn("Failed to upload video file to media-service:", err);
+      return null;
+    }
+  },
 };

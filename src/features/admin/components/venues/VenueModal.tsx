@@ -13,6 +13,7 @@ export interface VenueFormData {
   capacity: number;
   type?: 'indoor' | 'outdoor' | 'hybrid';
   verified: boolean;
+  isPublic?: boolean;
 }
 
 interface VenueModalProps {
@@ -84,7 +85,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
       icon={<FiHome className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
       onClose={() => { if (!submitLock.current) onClose(); }}
       pending={pending}
-      maxWidth="lg"
+      maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Venue Name */}
@@ -162,11 +163,26 @@ export const VenueModal: React.FC<VenueModalProps> = ({
           </div>
         </div>
 
-        {/* Venue Type & Verification Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Venue Type, Scope & Verification Status */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="venue-scope" className="block text-sm font-semibold app-text-main mb-1.5">
+              {translate("Phân loại địa điểm")}
+            </label>
+            <CustomSelect
+              value={formData.isPublic !== false ? 'public' : 'private'}
+              onChange={(val) => setFormData({ ...formData, isPublic: val === 'public' })}
+              options={[
+                { value: "public", label: translate("Địa điểm công cộng") },
+                { value: "private", label: translate("Địa điểm riêng (BTC)") }
+              ]}
+              className="w-full"
+            />
+          </div>
+
           <div>
             <label htmlFor="venue-type" className="block text-sm font-semibold app-text-main mb-1.5">
-              {translate("Loại hình địa điểm")}
+              {translate("Loại hình")}
             </label>
             <CustomSelect
               value={formData.type || 'indoor'}

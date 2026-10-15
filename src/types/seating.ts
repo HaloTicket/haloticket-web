@@ -356,6 +356,8 @@ export interface VenueTemplateModalProps {
   templates: VenueTemplate[];
   selectedTemplateId?: string;
   onSelectTemplate: (template: VenueTemplate) => void;
+  venueId?: string;
+  venueName?: string;
 }
 
 export interface ZoneGeneratorModalProps {

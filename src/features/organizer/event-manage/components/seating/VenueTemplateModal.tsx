@@ -9,9 +9,11 @@ import { venueApi } from '@/services/venueApi';
 export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   isOpen,
   onClose,
-  templates,
+  templates: initialTemplates,
   selectedTemplateId,
   onSelectTemplate,
+  venueId,
+  venueName,
 }) => {
   // search query, city filter, venue location filter, and preview state
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,12 +21,13 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   const [selectedVenueId, setSelectedVenueId] = useState<string>('ALL');
   const [previewTemplate, setPreviewTemplate] = useState<VenueTemplate | null>(null);
   const [dbVenues, setDbVenues] = useState<VenueApiData[]>([]);
+  const [loadedDbTemplates, setLoadedDbTemplates] = useState<VenueTemplate[]>([]);
 
-  // Custom venue dropdown open state & ref
+  // custom venue dropdown open state & ref
   const [isVenueDropdownOpen, setIsVenueDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
+  // close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -35,7 +38,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Prevent background page scrolling when modal is open
+  // prevent background page scrolling when modal is open
   useEffect(() => {
     if (isOpen) {
       const originalOverflow = document.body.style.overflow;
@@ -46,12 +49,80 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     }
   }, [isOpen]);
 
-  // Fetch public venues from backend DB API
+  // fetch venue seatmaps from real DB API when venueId is provided
+  useEffect(() => {
+    if (isOpen && venueId) {
+      venueApi.getVenueSeatmaps(venueId).then((res) => {
+        if (!res) return;
+        const extraTemplates: VenueTemplate[] = [];
+
+        // admin official template
+        if (res.adminTemplate) {
+          try {
+            const parsed = JSON.parse(res.adminTemplate);
+            extraTemplates.push({
+              id: `admin_tpl_${venueId}`,
+              name: `${res.venueName || venueName || 'Địa điểm'} - Mẫu chuẩn Admin HaloTicket`,
+              city: 'TP. Hồ Chí Minh',
+              address: res.venueName || venueName,
+              capacity: parsed.zones?.reduce((sum: number, z: any) => sum + (z.capacity || 0), 0) || 5000,
+              description: 'Sơ đồ chuẩn thiết kế bởi Quản trị viên HaloTicket.',
+              source: 'system',
+              stages: parsed.stages || [],
+              structures: parsed.structures || [],
+              seats: parsed.seats || [],
+              zones: parsed.zones || {},
+              canvasSettings: parsed.canvasSettings || { width: 1400, height: 900, gridSize: 20 },
+            });
+          } catch (e) {
+            console.warn("Failed to parse admin template", e);
+          }
+        }
+
+        // organizer seatmaps
+        if (Array.isArray(res.organizerSeatmaps)) {
+          res.organizerSeatmaps.forEach((s) => {
+            if (!s.draftJson) return;
+            try {
+              const parsed = JSON.parse(s.draftJson);
+              const rawZones = parsed.zones;
+              const zonesList: any[] = Array.isArray(rawZones)
+                ? rawZones
+                : (rawZones && typeof rawZones === 'object' ? Object.values(rawZones) : []);
+              const totalCapacity: number = zonesList.reduce((sum: number, z: any) => sum + (Number(z?.capacity) || 0), 0) || 3000;
+              extraTemplates.push({
+                id: `org_seatmap_${s.seatLayoutId || s.eventId}`,
+                name: `${res.venueName || venueName} - Bản vẽ: ${s.eventTitle || 'BTC'}`,
+                city: 'TP. Hồ Chí Minh',
+                address: res.venueName || venueName,
+                capacity: totalCapacity,
+                description: `Sơ đồ bố cục thiết kế cho sự kiện "${s.eventTitle || 'Sự kiện'}".`,
+                source: 'community',
+                stages: parsed.stages || [],
+                structures: parsed.structures || [],
+                seats: parsed.seats || [],
+                zones: parsed.zones || {},
+                canvasSettings: parsed.canvasSettings || { width: 1400, height: 900, gridSize: 20 },
+              });
+            } catch (e) {
+              console.warn("Failed to parse organizer seatmap", e);
+            }
+          });
+        }
+
+        if (extraTemplates.length > 0) {
+          setLoadedDbTemplates(extraTemplates);
+        }
+      }).catch((e) => console.warn("Failed to load venue seatmaps", e));
+    }
+  }, [isOpen, venueId, venueName]);
+
+  // fetch public venues from backend DB API
   useEffect(() => {
     if (isOpen) {
       venueApi.getVenues().then((data) => {
         if (data && Array.isArray(data)) {
-          // Filter public & verified venues
+          // filter public & verified venues
           const publicVenues = data.filter((v) => v.verified !== false);
           setDbVenues(publicVenues);
         }
@@ -59,16 +130,37 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     }
   }, [isOpen]);
 
+  const allAvailableTemplates = useMemo(() => {
+    return [...loadedDbTemplates, ...initialTemplates];
+  }, [loadedDbTemplates, initialTemplates]);
+
   useEffect(() => {
-    if (templates && templates.length > 0) {
-      const current = templates.find((t) => t.id === selectedTemplateId) || templates[0];
+    if (allAvailableTemplates.length > 0) {
+      const current = allAvailableTemplates.find((t) => t.id === selectedTemplateId) || allAvailableTemplates[0];
       setPreviewTemplate(current);
     }
-  }, [templates, selectedTemplateId, isOpen]);
+  }, [allAvailableTemplates, selectedTemplateId, isOpen]);
 
-  // Filter templates by search query, city, and selected venue location
+  // filter templates: if venueName or venueId is provided, ONLY display templates for this venue
   const filteredTemplates = useMemo(() => {
-    return templates.filter((tpl) => {
+    return allAvailableTemplates.filter((tpl) => {
+      // strict venue filter if venueName is set
+      if (venueName && venueName.trim()) {
+        const vName = venueName.toLowerCase().trim();
+        const tplName = (tpl.name || '').toLowerCase();
+        const tplAddr = (tpl.address || '').toLowerCase();
+        const tplDesc = (tpl.description || '').toLowerCase();
+
+        const matchCurrentVenue = 
+          tplName.includes(vName) ||
+          vName.includes(tplName.split(' - ')[0].trim().toLowerCase()) ||
+          tplAddr.includes(vName) ||
+          vName.includes(tplAddr) ||
+          tplDesc.includes(vName);
+
+        if (!matchCurrentVenue) return false;
+      }
+
       const matchesSearch =
         tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (tpl.address && tpl.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -85,9 +177,9 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
 
       return matchesSearch && matchesCity && matchesVenue;
     });
-  }, [templates, searchQuery, selectedCity, selectedVenueId]);
+  }, [allAvailableTemplates, venueName, searchQuery, selectedCity, selectedVenueId]);
 
-  // Group filtered templates by Venue Location
+  // group filtered templates by Venue Location
   const groupedVenues = useMemo(() => {
     const map = new Map<string, { venueName: string; address?: string; city?: string; templates: VenueTemplate[] }>();
 
@@ -112,20 +204,20 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     return Array.from(map.values());
   }, [filteredTemplates]);
 
-  // Find all available templates for the venue of the current previewTemplate
+  // find all available templates for the venue of the current previewTemplate
   const currentVenueGroupTemplates = useMemo(() => {
     if (!previewTemplate) return [];
     const previewKey = previewTemplate.address
       ? `${previewTemplate.address.toLowerCase().trim()}_${(previewTemplate.city || '').toLowerCase().trim()}`
       : previewTemplate.name.split(' - ')[0].trim().toLowerCase();
 
-    return templates.filter((tpl) => {
+    return allAvailableTemplates.filter((tpl: VenueTemplate) => {
       const key = tpl.address
         ? `${tpl.address.toLowerCase().trim()}_${(tpl.city || '').toLowerCase().trim()}`
         : tpl.name.split(' - ')[0].trim().toLowerCase();
       return key === previewKey;
     });
-  }, [templates, previewTemplate]);
+  }, [allAvailableTemplates, previewTemplate]);
 
   if (!isOpen) return null;
 
@@ -221,7 +313,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                   {dbVenues.map((v) => {
                     const venueValue = String(v.name || v.id);
                     const isSelected = selectedVenueId === venueValue;
-                    const templateCount = templates.filter((tpl) => {
+                    const templateCount = allAvailableTemplates.filter((tpl: VenueTemplate) => {
                       if (tpl.id.includes(String(v.id))) return true;
                       if (tpl.address && v.address && tpl.address.toLowerCase().includes(v.address.toLowerCase().substring(0, 10))) return true;
                       if (tpl.name && tpl.name.toLowerCase().includes((v.name || '').toLowerCase())) return true;
@@ -453,7 +545,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                      {currentVenueGroupTemplates.map((vTpl) => {
+                      {currentVenueGroupTemplates.map((vTpl: VenueTemplate) => {
                         const isActive = previewTemplate.id === vTpl.id;
                         const vTitle = vTpl.name.includes(' - ')
                           ? vTpl.name.split(' - ').slice(1).join(' - ')
