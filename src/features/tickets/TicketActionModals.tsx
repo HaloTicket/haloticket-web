@@ -85,6 +85,7 @@ function errorMessage(error: unknown) {
   if (code.includes("POLICY_CHANGED")) return "Chính sách vừa thay đổi. Quay lại để kiểm tra điều kiện vé.";
   if (code.includes("TICKET_NOT_ELIGIBLE")) return "Một vé đã chọn không còn đủ điều kiện chuyển nhượng. Vui lòng tải lại danh sách.";
   if (code.includes("GIFT_DISABLED")) return "Ban tổ chức chưa mở tính năng tặng vé cho sự kiện này.";
+  if (code.includes("GIFT_LIMIT_REACHED")) return "Một vé đã đạt giới hạn số lần tặng của sự kiện. Vui lòng chọn vé khác.";
   return "Không thể hoàn tất thao tác. Vui lòng kiểm tra trạng thái vé và thử lại.";
 }
 
@@ -122,15 +123,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const count = selection.selectedIds.length;
   const allowRetail = count <= 1 || !noRetail;
 
-  const sellerFeePercent = (() => {
-    try {
-      const savedFee = localStorage.getItem("haloticket_resale_fee_config");
-      const parsed = savedFee ? JSON.parse(savedFee) : null;
-      return parsed?.secondarySellerFee ?? 5.0;
-    } catch {
-      return 5.0;
-    }
-  })();
+  const sellerFeePercent = policies[0]?.serviceFeePercent ?? 5;
 
   const minPrice = Math.max(...policies.map(policy => policy.minPrice ?? 0));
   const maxPrice = policies.length ? Math.min(...policies.map(policy => policy.maxPrice ?? 0)) : 0;
@@ -231,7 +224,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
               <span className="text-blue-600 dark:text-blue-400 font-black text-base">{formatCurrency(netSellerReceives)}</span>
             </div>
             <p className="text-[11px] text-slate-500 pt-1 leading-relaxed">
-              * Quỹ bảo chứng (Escrow): Tiền bán vé được thanh toán ngay sau khi người mua chuyển khoản thành công.
+              Tiền bán vé được ghi nhận sau khi chuyển vé thành công và chờ đối soát trước khi thanh toán cho bạn.
             </p>
           </div>
         )}
@@ -251,7 +244,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           </div>
         </div>
         <div className="rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 p-3 text-xs leading-relaxed text-blue-900 dark:text-blue-200">
-          <strong>Cơ chế chuyển giao an toàn (Escrow):</strong> Vé đang bán sẽ được tạm khóa check-in để chống trùng lặp. Khi khớp lệnh, hệ thống tự động đổi mã vé sang người mua mới và chuyển tiền thực nhận vào tài khoản của bạn.
+          <strong>Chuyển giao an toàn:</strong> Vé đang bán được khóa check-in. Sau khi thanh toán và chuyển vé thành công, khoản phải trả cho bạn sẽ chờ đối soát trước khi chuyển tiền.
         </div>
         <label className="flex min-h-11 cursor-pointer items-start gap-3 border-t app-border pt-4 text-sm">
           <input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" />

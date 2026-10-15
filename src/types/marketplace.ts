@@ -13,6 +13,7 @@ export interface ResaleEligibility {
   eligible: boolean;
   reasonCode?: string | null;
   originalPrice?: number | null;
+  serviceFeePercent?: number | null;
   minPrice?: number | null;
   maxPrice?: number | null;
   policyVersion?: number | null;
