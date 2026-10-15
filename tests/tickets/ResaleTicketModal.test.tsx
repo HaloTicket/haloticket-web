@@ -17,6 +17,7 @@ vi.mock("@/services/userApi", () => ({ userApi: { findGiftRecipient: vi.fn() }, 
 const ticket: TicketItem = { id: "t1", eventTitle: "Concert", ticketTypeName: "VIP", totalAmount: 200000, bookingCode: "ORDER", eventId: "event", eventTime: "20:00", eventLocation: "Hà Nội", quantity: 1, rawStatus: "VALID", status: "UPCOMING" };
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
   vi.mocked(ticketApi.getMyTickets).mockResolvedValue([1, 2, 3].map(index => ({ id: `t${index}`, eventId: "event", bookingId: "ORDER", showtimeId: "show", ticketTypeName: index === 3 ? "GA" : "VIP", status: "VALID", seatNumber: `A${index}` })));
   vi.mocked(ekycApi.getOrganizerEligibility).mockResolvedValue({ eligible: true });
   vi.mocked(marketplaceApi.getResaleEligibility).mockImplementation(async id => ({ ticketId: id, eventId: "event", eligible: true, originalPrice: 200000, minPrice: 160000, maxPrice: 240000, policyVersion: 1 }));
@@ -35,6 +36,25 @@ async function confirmResale() {
   await waitFor(() => expect(marketplaceApi.createResaleListing).toHaveBeenCalled());
 }
 describe("multi-ticket seller flow", () => {
+  it("uses the event price range even when an old admin cap is stored locally", async () => {
+    localStorage.setItem("haloticket_resale_cap_percentage", "0");
+    localStorage.setItem("haloticket_resale_fee_config", JSON.stringify({ capPercentage: 0 }));
+    renderFlow(); await screen.findByRole("checkbox", { name: "Chọn vé A1" });
+    await nextToPrice();
+    fireEvent.change(screen.getByLabelText("Giá bán mỗi vé"), { target: { value: "240000" } });
+    expect((screen.getByRole("button", { name: "Tiếp tục" }) as HTMLButtonElement).disabled).toBe(false);
+    await confirmResale();
+    expect(marketplaceApi.createResaleListing).toHaveBeenCalledWith(expect.objectContaining({ price: 240000, policyVersion: 1 }), expect.any(String));
+  });
+  it("enforces a lower event price ceiling despite a higher cached admin cap", async () => {
+    localStorage.setItem("haloticket_resale_cap_percentage", "100");
+    vi.mocked(marketplaceApi.getResaleEligibility).mockResolvedValue({ ticketId: "t1", eventId: "event", eligible: true, originalPrice: 200000, minPrice: 100000, maxPrice: 200000, policyVersion: 2 });
+    renderFlow(); await screen.findByRole("checkbox", { name: "Chọn vé A1" });
+    await nextToPrice();
+    expect(screen.getByText(/50%–100%/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Giá bán mỗi vé"), { target: { value: "200001" } });
+    expect((screen.getByRole("button", { name: "Tiếp tục" }) as HTMLButtonElement).disabled).toBe(true);
+  });
   it("sends selected real ticket IDs and enforces non-retail only for multiple tickets", async () => {
     renderFlow(); await selectSecond();
     fireEvent.click(screen.getByRole("switch", { name: "Không bán lẻ" }));

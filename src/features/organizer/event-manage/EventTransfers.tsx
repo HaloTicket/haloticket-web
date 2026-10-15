@@ -1,699 +1,340 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import {
-  FiSave,
-  FiX,
-  FiAlertCircle,
-  FiRepeat,
-  FiList,
-  FiToggleLeft,
-  FiToggleRight,
-  FiRefreshCw,
-  FiLock,
-} from "react-icons/fi";
+import { useEffect, useState, type ReactNode } from "react";
+import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { FiAlertCircle, FiCheck, FiChevronDown, FiDownload, FiGift, FiInfo, FiLock, FiMoreHorizontal, FiRefreshCw, FiRepeat, FiSave, FiSearch } from "react-icons/fi";
 import { eventTransferApi } from "@/services/eventTransferApi";
-import type {
-  GiftPolicyData,
-  OrganizerGiftItem,
-  OrganizerListingItem,
-  PageData,
-  ResalePolicyData,
-  TransferSettingsData,
-} from "@/types/eventTransfer";
+import { TablePagination } from "@/components/common/TablePagination";
+import type { GiftPolicyData, OrganizerGiftItem, OrganizerListingItem, PageData, ResalePolicyData, TransferSettingsData } from "@/types/eventTransfer";
+import { GiftDetailModal } from "./components/GiftDetailModal";
+import { ResaleListingDetailModal } from "./components/ResaleListingDetailModal";
+import { TransferStatus, transferDate, transferMoney, type TransferEventInfo } from "./components/TransferRecordDetails";
+import "./EventTransfers.css";
 
-// ─────────────────────── helpers ─────────────────────────────────────────────
-const toLocalDatetime = (iso: string | null): string => {
-  if (!iso) return "";
-  const d = new Date(iso);
+const localDate = (value: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
 };
-const fromLocalDatetime = (local: string): string | null => {
-  if (!local) return null;
-  return new Date(local).toISOString();
-};
-const fmtVND = (n: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
-const fmtDate = (iso: string) =>
-  new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(iso));
+const instant = (value: string) => value ? new Date(value).toISOString() : null;
+const windowError = (start: string, end: string) => start && end && start >= end ? "Thời gian kết thúc phải sau thời gian bắt đầu." : "";
+const saveError = (error: unknown) => (error as { response?: { status?: number } })?.response?.status === 409
+  ? "Cấu hình đã được thay đổi. Tải lại trang để xem phiên bản mới nhất."
+  : "Chưa lưu được thay đổi. Cấu hình hiện tại vẫn được giữ nguyên, vui lòng thử lại.";
 
-// ─────────────────────── status badge ────────────────────────────────────────
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  RESERVED: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  SOLD: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
-  PAUSED_BY_EVENT: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-  EXPIRED: "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400",
-  WAITING_RECIPIENT: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  COMPLETED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-};
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: "Đang bán",
-  RESERVED: "Đang giữ",
-  SOLD: "Đã bán",
-  PAUSED_BY_EVENT: "Tạm dừng",
-  CANCELLED: "Đã hủy",
-  EXPIRED: "Hết hạn",
-  WAITING_RECIPIENT: "Chờ nhận",
-  COMPLETED: "Hoàn thành",
-};
-const StatusBadge = ({ status }: { status: string }) => (
-  <span
-    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-      STATUS_COLORS[status] ?? "bg-slate-100 text-slate-600"
-    }`}
-  >
-    {STATUS_LABELS[status] ?? status}
-  </span>
-);
-
-// ─────────────────────── mini components ─────────────────────────────────────
-const Spinner = () => (
-  <div className="flex items-center justify-center py-12">
-    <div className="w-8 h-8 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600 rounded-full animate-spin" />
-  </div>
-);
-const Toggle = ({
-  checked,
-  onChange,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  disabled?: boolean;
-}) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    disabled={disabled}
-    onClick={() => !disabled && onChange(!checked)}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-      disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-    } ${checked ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-600"}`}
-  >
-    <span
-      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-        checked ? "translate-x-6" : "translate-x-1"
-      }`}
-    />
-  </button>
-);
-const FormField = ({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) => (
-  <div className="space-y-1">
-    <label className="text-xs font-semibold app-text-muted block">{label}</label>
-    {children}
-    {hint && <p className="text-[10px] app-text-muted">{hint}</p>}
-  </div>
-);
-
-// ─────────────────────── resale records table ─────────────────────────────────
-function ResaleRecordsTable({ eventId }: { eventId: string }) {
-  const [data, setData] = useState<PageData<OrganizerListingItem> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [page, setPage] = useState(0);
-
-  const load = useCallback(async (p: number) => {
-    setLoading(true); setError(false);
-    try {
-      const res = await eventTransferApi.getListings(eventId, p);
-      setData(res);
-      setPage(p);
-    } catch { setError(true); }
-    finally { setLoading(false); }
-  }, [eventId]);
-
-  useEffect(() => { load(0); }, [load]);
-
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
-        <FiList className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        Lịch sử đăng bán lại
-      </h3>
-      {loading ? <Spinner /> : error ? (
-        <div className="text-xs app-text-muted flex items-center gap-2 py-4">
-          <FiAlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-          Không thể tải dữ liệu.
-          <button onClick={() => load(page)} className="text-blue-600 dark:text-blue-400 underline cursor-pointer">Thử lại</button>
-        </div>
-      ) : !data?.content?.length ? (
-        <p className="text-xs app-text-muted py-4">Chưa có đơn bán lại nào.</p>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b app-border">
-                  {["Mã", "Hạng vé", "Người bán", "Giá", "Trạng thái", "Thời điểm"].map(h => (
-                    <th key={h} className="text-left py-2 pr-3 font-semibold app-text-muted whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.content.map(item => (
-                  <tr key={item.listingId} className="border-b app-border hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="py-2 pr-3 font-mono text-[10px] app-text-muted whitespace-nowrap">{item.refCode}</td>
-                    <td className="py-2 pr-3 app-text-main whitespace-nowrap">{item.ticketTypeName}{item.seatCode && <span className="app-text-muted"> · {item.seatCode}</span>}</td>
-                    <td className="py-2 pr-3 app-text-muted whitespace-nowrap">{item.sellerEmailMasked}</td>
-                    <td className="py-2 pr-3 font-semibold app-text-main whitespace-nowrap">{fmtVND(item.price)}</td>
-                    <td className="py-2 pr-3 whitespace-nowrap"><StatusBadge status={item.status} /></td>
-                    <td className="py-2 app-text-muted whitespace-nowrap">{fmtDate(item.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {data.totalPages > 1 && (
-            <div className="flex items-center gap-2 text-xs app-text-muted">
-              <button disabled={page === 0} onClick={() => load(page - 1)}
-                className="px-2 py-1 rounded app-bg-subnav border app-border disabled:opacity-40 cursor-pointer hover:app-text-main">‹ Trước</button>
-              <span>Trang {page + 1} / {data.totalPages}</span>
-              <button disabled={page >= data.totalPages - 1} onClick={() => load(page + 1)}
-                className="px-2 py-1 rounded app-bg-subnav border app-border disabled:opacity-40 cursor-pointer hover:app-text-main">Sau ›</button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+function Toggle({ checked, disabled, onChange, label, showState = false }: { checked: boolean; disabled?: boolean; onChange?: (value: boolean) => void; label: string; showState?: boolean }) {
+  return <div className="transfer-switch-wrap">
+    <button type="button" role="switch" aria-label={label} aria-checked={checked} disabled={disabled}
+      className="transfer-switch" onClick={() => onChange?.(!checked)}><span /></button>
+    {showState && <span className="text-xs app-text-muted">{checked ? "Đang bật" : "Đang tắt"}</span>}
+  </div>;
 }
 
-// ─────────────────────── gift records table ───────────────────────────────────
-function GiftRecordsTable({ eventId }: { eventId: string }) {
-  const [data, setData] = useState<PageData<OrganizerGiftItem> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [page, setPage] = useState(0);
-
-  const load = useCallback(async (p: number) => {
-    setLoading(true); setError(false);
-    try {
-      const res = await eventTransferApi.getGifts(eventId, p);
-      setData(res);
-      setPage(p);
-    } catch { setError(true); }
-    finally { setLoading(false); }
-  }, [eventId]);
-
-  useEffect(() => { load(0); }, [load]);
-
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
-        <FiList className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        Lịch sử tặng vé
-      </h3>
-      {loading ? <Spinner /> : error ? (
-        <div className="text-xs app-text-muted flex items-center gap-2 py-4">
-          <FiAlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-          Không thể tải dữ liệu.
-          <button onClick={() => load(page)} className="text-blue-600 dark:text-blue-400 underline cursor-pointer">Thử lại</button>
-        </div>
-      ) : !data?.content?.length ? (
-        <p className="text-xs app-text-muted py-4">Chưa có lời mời tặng vé nào.</p>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b app-border">
-                  {["Người gửi", "Người nhận", "Hạng vé", "Gửi lúc", "Hết hạn", "Trạng thái"].map(h => (
-                    <th key={h} className="text-left py-2 pr-3 font-semibold app-text-muted whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.content.map(item => (
-                  <tr key={item.sagaId} className="border-b app-border hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="py-2 pr-3 app-text-muted whitespace-nowrap">{item.senderEmailMasked}</td>
-                    <td className="py-2 pr-3 app-text-muted whitespace-nowrap">{item.recipientEmailMasked}</td>
-                    <td className="py-2 pr-3 app-text-main whitespace-nowrap">{item.ticketTypeName}</td>
-                    <td className="py-2 pr-3 app-text-muted whitespace-nowrap">{fmtDate(item.sentAt)}</td>
-                    <td className="py-2 pr-3 app-text-muted whitespace-nowrap">{fmtDate(item.expiresAt)}</td>
-                    <td className="py-2 whitespace-nowrap"><StatusBadge status={item.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {data.totalPages > 1 && (
-            <div className="flex items-center gap-2 text-xs app-text-muted">
-              <button disabled={page === 0} onClick={() => load(page - 1)}
-                className="px-2 py-1 rounded app-bg-subnav border app-border disabled:opacity-40 cursor-pointer hover:app-text-main">‹ Trước</button>
-              <span>Trang {page + 1} / {data.totalPages}</span>
-              <button disabled={page >= data.totalPages - 1} onClick={() => load(page + 1)}
-                className="px-2 py-1 rounded app-bg-subnav border app-border disabled:opacity-40 cursor-pointer hover:app-text-main">Sau ›</button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ReactNode }) {
+  return <div className="transfer-field"><label htmlFor={id}>{label}</label>{children}{hint && <p>{hint}</p>}</div>;
 }
 
-// ─────────────────────── resale policy section ───────────────────────────────
-function ResalePolicySection({
-  eventId,
-  policy,
-  canWrite,
-  onSaved,
-}: {
-  eventId: string;
-  policy: ResalePolicyData | null;
-  canWrite: boolean;
-  onSaved: (p: ResalePolicyData) => void;
-}) {
-  const [enabled, setEnabled] = useState(policy?.enabled ?? false);
-  const [minPct, setMinPct] = useState(String(policy?.minPricePercent ?? 80));
-  const [maxPct, setMaxPct] = useState(String(policy?.maxPricePercent ?? 120));
-  const [opensAt, setOpensAt] = useState(toLocalDatetime(policy?.opensAt ?? null));
-  const [closesAt, setClosesAt] = useState(toLocalDatetime(policy?.closesAt ?? null));
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
-
-  const markDirty = () => setDirty(true);
-
-  const reset = () => {
-    setEnabled(policy?.enabled ?? false);
-    setMinPct(String(policy?.minPricePercent ?? 80));
-    setMaxPct(String(policy?.maxPricePercent ?? 120));
-    setOpensAt(toLocalDatetime(policy?.opensAt ?? null));
-    setClosesAt(toLocalDatetime(policy?.closesAt ?? null));
-    setDirty(false);
-    setSaveError(null);
-  };
-
-  const SAMPLE_PRICE = 400000;
-  const minPreview = Math.ceil((SAMPLE_PRICE * Number(minPct || 0)) / 100);
-  const maxPreview = Math.floor((SAMPLE_PRICE * Number(maxPct || 0)) / 100);
-
-  const save = async () => {
-    setSaving(true); setSaveError(null);
-    try {
-      const saved = await eventTransferApi.updateResalePolicy(eventId, {
-        enabled,
-        minPricePercent: Number(minPct),
-        maxPricePercent: Number(maxPct),
-        opensAt: fromLocalDatetime(opensAt),
-        closesAt: fromLocalDatetime(closesAt),
-        ticketTypeScope: "ALL",
-        allowedTicketTypeIds: [],
-        termsVersion: null,
-        expectedVersion: policy?.version ?? null,
-      });
-      onSaved(saved);
-      setDirty(false);
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { message?: string } } };
-      if (e?.response?.status === 409) setSaveError("Cấu hình vừa được thay đổi bởi người khác. Vui lòng tải lại trang.");
-      else if (e?.response?.status === 422) setSaveError("Dữ liệu không hợp lệ: " + (e?.response?.data?.message ?? ""));
-      else setSaveError("Lưu thất bại. Vui lòng thử lại.");
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="app-bg-card border app-border rounded-2xl p-5 space-y-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-              <FiRepeat className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold app-text-main">Cấu hình bán lại vé</h2>
-              <p className="text-xs app-text-muted">Cho phép người mua đăng bán lại vé của họ</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!canWrite && <FiLock className="w-3.5 h-3.5 app-text-muted" />}
-            <Toggle checked={enabled} onChange={(v) => { setEnabled(v); markDirty(); }} disabled={!canWrite} />
-          </div>
-        </div>
-
-        {/* form */}
-        <div className={`space-y-4 transition-opacity ${!enabled ? "opacity-40 pointer-events-none" : ""}`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Giá tối thiểu (% giá gốc)" hint="Ví dụ: 80 = 80% giá gốc">
-              <div className="flex gap-2">
-                <input type="number" min={0} max={200} value={minPct} disabled={!canWrite}
-                  onChange={e => { setMinPct(e.target.value); markDirty(); }}
-                  className="flex-1 rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-                <span className="flex items-center text-sm app-text-muted font-medium">%</span>
-              </div>
-            </FormField>
-            <FormField label="Giá tối đa (% giá gốc)" hint="Ví dụ: 120 = 120% giá gốc">
-              <div className="flex gap-2">
-                <input type="number" min={0} max={500} value={maxPct} disabled={!canWrite}
-                  onChange={e => { setMaxPct(e.target.value); markDirty(); }}
-                  className="flex-1 rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-                <span className="flex items-center text-sm app-text-muted font-medium">%</span>
-              </div>
-            </FormField>
-          </div>
-
-          {/* preset */}
-          {canWrite && (
-            <button type="button" onClick={() => { setMaxPct("100"); markDirty(); }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
-              Đặt nhanh: Không vượt giá gốc (max = 100%)
-            </button>
-          )}
-
-          {/* price preview */}
-          {minPct && maxPct && (
-            <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 border app-border p-3 text-xs app-text-muted">
-              <span className="font-semibold app-text-main">Ví dụ:</span> Giá gốc {fmtVND(SAMPLE_PRICE)} →{" "}
-              từ <span className="font-semibold text-blue-600 dark:text-blue-400">{fmtVND(minPreview)}</span>{" "}
-              đến <span className="font-semibold text-blue-600 dark:text-blue-400">{fmtVND(maxPreview)}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Thời gian bắt đầu bán lại" hint="Để trống = mở ngay">
-              <input type="datetime-local" value={opensAt} disabled={!canWrite}
-                onChange={e => { setOpensAt(e.target.value); markDirty(); }}
-                className="w-full rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-            </FormField>
-            <FormField label="Thời gian kết thúc bán lại" hint="Để trống = không giới hạn">
-              <input type="datetime-local" value={closesAt} disabled={!canWrite}
-                onChange={e => { setClosesAt(e.target.value); markDirty(); }}
-                className="w-full rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-            </FormField>
-          </div>
-        </div>
-
-        {/* save error */}
-        {saveError && (
-          <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 text-xs text-red-700 dark:text-red-300">
-            <FiAlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            {saveError}
-          </div>
-        )}
-
-        {/* action buttons */}
-        {canWrite && (
-          <div className="flex items-center gap-3 pt-1">
-            <button type="button" onClick={save} disabled={saving || !dirty}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer">
-              {saving ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiSave className="w-3.5 h-3.5" />}
-              Lưu thay đổi
-            </button>
-            <button type="button" onClick={reset} disabled={saving || !dirty}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl app-bg-subnav border app-border text-xs font-bold app-text-main transition-colors disabled:opacity-50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
-              <FiX className="w-3.5 h-3.5" />
-              Hủy thay đổi
-            </button>
-            {dirty && (
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">● Chưa lưu</span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* records */}
-      <div className="app-bg-card border app-border rounded-2xl p-5">
-        <ResaleRecordsTable eventId={eventId} />
-      </div>
+function PolicyHeading({ gift = false, enabled, canWrite, onChange }: { gift?: boolean; enabled: boolean; canWrite: boolean; onChange: (value: boolean) => void }) {
+  return <div className="transfer-policy-heading">
+    <div className="flex min-w-0 items-center gap-3"><span className="transfer-section-icon">{gift ? <FiGift /> : <FiRepeat />}</span>
+      <div><h2>{gift ? "Cấu hình tặng vé" : "Cấu hình bán lại vé"}</h2><p>{gift ? "Cho phép người sở hữu vé chuyển nhượng vé cho người khác (miễn phí)" : "Cho phép người mua đăng bán lại vé của họ"}</p></div>
     </div>
-  );
+    <Toggle checked={enabled} disabled={!canWrite} onChange={onChange} label={gift ? "Bật tặng vé" : "Bật bán lại vé"} showState />
+  </div>;
 }
 
-// ─────────────────────── gift policy section ──────────────────────────────────
-function GiftPolicySection({
-  eventId,
-  policy,
-  canWrite,
-  onSaved,
-}: {
-  eventId: string;
-  policy: GiftPolicyData | null;
-  canWrite: boolean;
-  onSaved: (p: GiftPolicyData) => void;
-}) {
-  const [enabled, setEnabled] = useState(policy?.enabled ?? false);
-  const [ttl, setTtl] = useState(String(policy?.invitationTtlHours ?? 24));
-  const [opensAt, setOpensAt] = useState(toLocalDatetime(policy?.opensAt ?? null));
-  const [closesAt, setClosesAt] = useState(toLocalDatetime(policy?.closesAt ?? null));
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
-
-  const markDirty = () => setDirty(true);
-
-  const reset = () => {
-    setEnabled(policy?.enabled ?? false);
-    setTtl(String(policy?.invitationTtlHours ?? 24));
-    setOpensAt(toLocalDatetime(policy?.opensAt ?? null));
-    setClosesAt(toLocalDatetime(policy?.closesAt ?? null));
-    setDirty(false);
-    setSaveError(null);
-  };
-
-  const save = async () => {
-    setSaving(true); setSaveError(null);
-    try {
-      const saved = await eventTransferApi.updateGiftPolicy(eventId, {
-        enabled,
-        opensAt: fromLocalDatetime(opensAt),
-        closesAt: fromLocalDatetime(closesAt),
-        invitationTtlHours: Number(ttl) || 24,
-        ticketTypeScope: "ALL",
-        allowedTicketTypeIds: [],
-        expectedVersion: policy?.version ?? null,
-      });
-      onSaved(saved);
-      setDirty(false);
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { message?: string } } };
-      if (e?.response?.status === 409) setSaveError("Cấu hình vừa được thay đổi bởi người khác. Vui lòng tải lại trang.");
-      else if (e?.response?.status === 422) setSaveError("Dữ liệu không hợp lệ: " + (e?.response?.data?.message ?? ""));
-      else setSaveError("Lưu thất bại. Vui lòng thử lại.");
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="app-bg-card border app-border rounded-2xl p-5 space-y-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-              {enabled ? <FiToggleRight className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" /> : <FiToggleLeft className="w-4.5 h-4.5 app-text-muted" />}
-            </div>
-            <div>
-              <h2 className="text-sm font-bold app-text-main">Cấu hình tặng vé</h2>
-              <p className="text-xs app-text-muted">Cho phép người dùng tặng vé cho nhau</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!canWrite && <FiLock className="w-3.5 h-3.5 app-text-muted" />}
-            <Toggle checked={enabled} onChange={(v) => { setEnabled(v); markDirty(); }} disabled={!canWrite} />
-          </div>
-        </div>
-
-        <div className={`space-y-4 transition-opacity ${!enabled ? "opacity-40 pointer-events-none" : ""}`}>
-          <FormField label="Thời hạn nhận lời mời (giờ)" hint="Từ 1 đến 168 giờ (7 ngày)">
-            <input type="number" min={1} max={168} value={ttl} disabled={!canWrite}
-              onChange={e => { setTtl(e.target.value); markDirty(); }}
-              className="w-full md:w-48 rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-          </FormField>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Thời gian bắt đầu nhận tặng" hint="Để trống = mở ngay">
-              <input type="datetime-local" value={opensAt} disabled={!canWrite}
-                onChange={e => { setOpensAt(e.target.value); markDirty(); }}
-                className="w-full rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-            </FormField>
-            <FormField label="Thời gian kết thúc nhận tặng" hint="Để trống = không giới hạn">
-              <input type="datetime-local" value={closesAt} disabled={!canWrite}
-                onChange={e => { setClosesAt(e.target.value); markDirty(); }}
-                className="w-full rounded-xl border app-border app-bg-subnav px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-            </FormField>
-          </div>
-        </div>
-
-        {saveError && (
-          <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 text-xs text-red-700 dark:text-red-300">
-            <FiAlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            {saveError}
-          </div>
-        )}
-
-        {canWrite && (
-          <div className="flex items-center gap-3 pt-1">
-            <button type="button" onClick={save} disabled={saving || !dirty}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer">
-              {saving ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiSave className="w-3.5 h-3.5" />}
-              Lưu thay đổi
-            </button>
-            <button type="button" onClick={reset} disabled={saving || !dirty}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl app-bg-subnav border app-border text-xs font-bold app-text-main transition-colors disabled:opacity-50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
-              <FiX className="w-3.5 h-3.5" />
-              Hủy thay đổi
-            </button>
-            {dirty && (
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">● Chưa lưu</span>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="app-bg-card border app-border rounded-2xl p-5">
-        <GiftRecordsTable eventId={eventId} />
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────── tab button ──────────────────────────────────────────
-function TabBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
-        active
-          ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-          : "border-transparent app-text-muted hover:app-text-main"
-      }`}
-    >
-      {children}
+function Advanced({ id, open, onChange, children }: { id: string; open: boolean; onChange: () => void; children: ReactNode }) {
+  return <div>
+    <button type="button" className="transfer-advanced-toggle" aria-expanded={open} aria-controls={id} onClick={onChange}>
+      Nâng cao <FiChevronDown className={open ? "rotate-180" : ""} />
     </button>
-  );
+    <div id={id} className="transfer-expand" data-open={open} inert={!open}><div><div className="transfer-advanced-fields">{children}</div></div></div>
+  </div>;
 }
 
-// ─────────────────────── main page ───────────────────────────────────────────
+function SaveActions({ canWrite, dirty, saving, invalid, message, error, onSave, onReset }: { canWrite: boolean; dirty: boolean; saving: boolean; invalid: string; message: string; error: string; onSave: () => void; onReset: () => void }) {
+  return <>
+    {(error || invalid) && <p role="alert" className="transfer-error"><FiAlertCircle />{error || invalid}</p>}
+    <div className="transfer-save-actions">
+      <span role="status" className={message ? "transfer-saved" : "app-text-muted"}>{message ? <><FiCheck />{message}</> : dirty ? "Có thay đổi chưa lưu" : ""}</span>
+      {canWrite && <div className="flex flex-wrap gap-2">
+        {dirty && <button type="button" className="transfer-button" disabled={saving} onClick={onReset}>Hủy thay đổi</button>}
+        <button type="button" className="transfer-button transfer-button-primary" disabled={saving || !dirty || Boolean(invalid)} onClick={onSave}>
+          {saving ? <FiRefreshCw className="animate-spin" /> : <FiSave />}{saving ? "Đang lưu…" : "Lưu thay đổi"}
+        </button>
+      </div>}
+    </div>
+  </>;
+}
+
+function ResalePolicy({ eventId, policy, canWrite, onSaved }: { eventId: string; policy: ResalePolicyData | null; canWrite: boolean; onSaved: (value: ResalePolicyData) => void }) {
+  const original = { enabled: policy?.enabled ?? false, min: String(policy?.minPricePercent ?? 80), max: String(policy?.maxPricePercent ?? 120), fee: String(policy?.serviceFeePercent ?? 5), requireApproval: policy?.requireApproval ?? false, start: localDate(policy?.opensAt ?? null), end: localDate(policy?.closesAt ?? null) };
+  const [draft, setDraft] = useState(original);
+  const [advanced, setAdvanced] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const dirty = JSON.stringify(draft) !== JSON.stringify(original);
+  const locked = !canWrite || !draft.enabled || saving;
+  const min = Number(draft.min), max = Number(draft.max), fee = Number(draft.fee);
+  const invalid = !draft.min || !draft.max || !Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max < min
+    ? "Giá tối thiểu phải từ 0% và không được vượt giá trần."
+    : !draft.fee || !Number.isFinite(fee) || fee < 0 || fee > 100 ? "Phí dịch vụ phải từ 0% đến 100%." : windowError(draft.start, draft.end);
+  const change = (values: Partial<typeof draft>) => { setDraft({ ...draft, ...values }); setError(""); setMessage(""); };
+  const save = async () => {
+    if (!canWrite || saving || invalid || !dirty) return;
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const saved = await eventTransferApi.updateResalePolicy(eventId, { enabled: draft.enabled, minPricePercent: min, maxPricePercent: max, serviceFeePercent: fee, requireApproval: draft.requireApproval,
+        opensAt: instant(draft.start), closesAt: instant(draft.end), ticketTypeScope: policy?.ticketTypeScope ?? "ALL",
+        allowedTicketTypeIds: policy?.allowedTicketTypeIds ?? [], termsVersion: policy?.termsVersion ?? null, expectedVersion: policy?.version ?? null });
+      onSaved(saved); setDraft({ enabled: saved.enabled, min: String(saved.minPricePercent), max: String(saved.maxPricePercent), fee: String(saved.serviceFeePercent ?? 5), requireApproval: saved.requireApproval ?? false, start: localDate(saved.opensAt), end: localDate(saved.closesAt) }); setMessage("Đã lưu cấu hình bán lại vé");
+    } catch (cause) { setError(saveError(cause)); } finally { setSaving(false); }
+  };
+  return <section className="transfer-panel transfer-policy" aria-label="Cấu hình bán lại vé">
+    <PolicyHeading enabled={draft.enabled} canWrite={canWrite && !saving} onChange={enabled => change({ enabled })} />
+    <div className="transfer-policy-fields" data-disabled={locked}>
+      <div className="transfer-price-fields">
+        <Field id="resale-min" label="Giá tối thiểu (% giá gốc)" hint="Ví dụ: 80 = 80% giá gốc"><div className="transfer-input-unit">
+          <input id="resale-min" type="number" min={0} step="any" disabled={locked} value={draft.min} onChange={e => change({ min: e.target.value })} /><span>%</span>
+        </div></Field>
+        <Field id="resale-max" label="Giá trần (% giá gốc)" hint="Ví dụ: 120 = 120% giá gốc"><div className="transfer-input-unit">
+          <input id="resale-max" type="number" min={min} step="any" disabled={locked} value={draft.max} onChange={e => change({ max: e.target.value })} /><span>%</span>
+        </div></Field>
+        <Field id="resale-fee" label="Phí dịch vụ (áp dụng cho người bán)" hint="Từ 0% đến 100% giá bán"><div className="transfer-input-unit">
+          <input id="resale-fee" type="number" min={0} max={100} step="any" value={draft.fee} disabled={locked} onChange={e => change({ fee: e.target.value })} /><span>%</span>
+        </div></Field>
+      </div>
+      <Advanced id="resale-advanced" open={advanced} onChange={() => setAdvanced(!advanced)}>
+        <div className="transfer-gift-option"><Toggle label="Yêu cầu duyệt tin đăng bán lại" checked={draft.requireApproval} disabled={locked} onChange={requireApproval => change({ requireApproval })} /><div><h3>Yêu cầu duyệt tin đăng bán lại</h3><p>Tin mới cần được phê duyệt trước khi mở bán</p></div></div>
+        <Field id="resale-start" label="Thời gian bắt đầu bán lại" hint="Để trống = mở ngay"><input id="resale-start" type="datetime-local" disabled={locked} value={draft.start} onChange={e => change({ start: e.target.value })} /></Field>
+        <Field id="resale-end" label="Thời gian kết thúc bán lại" hint="Để trống = không giới hạn"><input id="resale-end" type="datetime-local" disabled={locked} value={draft.end} min={draft.start || undefined} onChange={e => change({ end: e.target.value })} /></Field>
+      </Advanced>
+    </div>
+    <div className="transfer-price-preview"><FiInfo /><p><strong>Ví dụ minh họa:</strong><br />Giá gốc {transferMoney(400000)} → Người dùng có thể đăng bán từ <b>{invalid ? "—" : transferMoney(Math.ceil(400000 * min / 100))}</b> đến <b>{invalid ? "—" : transferMoney(Math.floor(400000 * max / 100))}</b>.</p></div>
+    <SaveActions canWrite={canWrite} dirty={dirty} saving={saving} invalid={invalid} error={error} message={message} onSave={save} onReset={() => { setDraft(original); setError(""); setMessage(""); }} />
+  </section>;
+}
+
+function GiftPolicy({ eventId, policy, canWrite, onSaved }: { eventId: string; policy: GiftPolicyData | null; canWrite: boolean; onSaved: (value: GiftPolicyData) => void }) {
+  const original = { enabled: policy?.enabled ?? false, ttl: String(policy?.invitationTtlHours ?? 24), requireEkyc: policy?.requireEkyc ?? true, limitEnabled: (policy?.maxGiftCount ?? 3) > 0, limit: String(policy?.maxGiftCount || 3), start: localDate(policy?.opensAt ?? null), end: localDate(policy?.closesAt ?? null) };
+  const [draft, setDraft] = useState(original);
+  const [advanced, setAdvanced] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const dirty = JSON.stringify(draft) !== JSON.stringify(original);
+  const locked = !canWrite || !draft.enabled || saving;
+  const invalid = !draft.ttl || !Number.isInteger(Number(draft.ttl)) || Number(draft.ttl) < 1 || Number(draft.ttl) > 168
+    ? "Thời hạn nhận lời mời phải từ 1 đến 168 giờ."
+    : draft.limitEnabled && (!draft.limit || !Number.isInteger(Number(draft.limit)) || Number(draft.limit) < 1 || Number(draft.limit) > 100)
+      ? "Giới hạn số lần tặng phải từ 1 đến 100." : windowError(draft.start, draft.end);
+  const change = (values: Partial<typeof draft>) => { setDraft({ ...draft, ...values }); setError(""); setMessage(""); };
+  const save = async () => {
+    if (!canWrite || saving || invalid || !dirty) return;
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const saved = await eventTransferApi.updateGiftPolicy(eventId, { enabled: draft.enabled, invitationTtlHours: Number(draft.ttl), requireEkyc: draft.requireEkyc, maxGiftCount: draft.limitEnabled ? Number(draft.limit) : 0,
+        opensAt: instant(draft.start), closesAt: instant(draft.end), ticketTypeScope: policy?.ticketTypeScope ?? "ALL",
+        allowedTicketTypeIds: policy?.allowedTicketTypeIds ?? [], expectedVersion: policy?.version ?? null });
+      onSaved(saved); setDraft({ enabled: saved.enabled, ttl: String(saved.invitationTtlHours), requireEkyc: saved.requireEkyc ?? true, limitEnabled: (saved.maxGiftCount ?? 3) > 0, limit: String(saved.maxGiftCount || 3), start: localDate(saved.opensAt), end: localDate(saved.closesAt) }); setMessage("Đã lưu cấu hình tặng vé");
+    } catch (cause) { setError(saveError(cause)); } finally { setSaving(false); }
+  };
+  return <section className="transfer-panel transfer-policy" aria-label="Cấu hình tặng vé">
+    <PolicyHeading gift enabled={draft.enabled} canWrite={canWrite && !saving} onChange={enabled => change({ enabled })} />
+    <div className="transfer-gift-options">
+      <div className="transfer-gift-option"><Toggle label="Yêu cầu xác minh danh tính người nhận (eKYC)" checked={draft.requireEkyc} disabled={locked} onChange={requireEkyc => change({ requireEkyc })} />
+        <div><h3>Yêu cầu xác minh danh tính người nhận (eKYC)</h3><p>{draft.requireEkyc ? "Người nhận cần hoàn thành eKYC trước khi nhận vé" : "Không yêu cầu eKYC"}</p></div>
+      </div>
+      <div className="transfer-gift-option"><Toggle label="Giới hạn số lần tặng" checked={draft.limitEnabled} disabled={locked} onChange={limitEnabled => change({ limitEnabled })} />
+        <div className="transfer-field"><label htmlFor="gift-limit">Giới hạn số lần tặng</label>
+          <div className="flex items-center gap-2"><input id="gift-limit" className="transfer-limit-input" type="number" min={1} max={100} step={1} value={draft.limit} disabled={locked || !draft.limitEnabled} onChange={e => change({ limit: e.target.value })} /><span className="text-xs app-text-muted">lần/vé</span></div>
+          <p>{draft.limitEnabled ? "Mỗi vé tối đa " + draft.limit + " lần tặng (bao gồm cả lần hiện tại)" : "Không giới hạn số lần tặng"}</p>
+        </div>
+      </div>
+    </div>
+    <div className="transfer-policy-fields" data-disabled={locked}>
+      <Advanced id="gift-advanced" open={advanced} onChange={() => setAdvanced(!advanced)}>
+        <Field id="gift-ttl" label="Thời hạn nhận lời mời (giờ)" hint="Từ 1 đến 168 giờ (7 ngày)"><input id="gift-ttl" type="number" disabled={locked} min={1} max={168} value={draft.ttl} onChange={e => change({ ttl: e.target.value })} /></Field>
+        <Field id="gift-start" label="Thời gian bắt đầu nhận tặng" hint="Để trống = mở ngay"><input id="gift-start" type="datetime-local" disabled={locked} value={draft.start} onChange={e => change({ start: e.target.value })} /></Field>
+        <Field id="gift-end" label="Thời gian kết thúc nhận tặng" hint="Để trống = không giới hạn"><input id="gift-end" type="datetime-local" disabled={locked} min={draft.start || undefined} value={draft.end} onChange={e => change({ end: e.target.value })} /></Field>
+      </Advanced>
+    </div>
+    <SaveActions canWrite={canWrite} dirty={dirty} saving={saving} invalid={invalid} error={error} message={message} onSave={save} onReset={() => { setDraft(original); setError(""); setMessage(""); }} />
+  </section>;
+}
+
+type RecordItem = OrganizerListingItem | OrganizerGiftItem;
+const codeOf = (item: RecordItem) => "listingId" in item ? item.refCode : item.sagaId.startsWith("GFT-") ? item.sagaId : "GFT-" + item.sagaId.slice(0, 8).toUpperCase();
+const idOf = (item: RecordItem) => "listingId" in item ? item.listingId : item.sagaId;
+const states = { resale: [["PENDING_APPROVAL", "Chờ duyệt"], ["ACTIVE", "Đang bán"], ["RESERVED", "Đang giữ"], ["SOLD", "Đã bán"], ["PAUSED_BY_EVENT", "Tạm dừng"], ["CANCELLED", "Đã gỡ"], ["EXPIRED", "Hết hạn"]], gift: [["PENDING", "Chờ xác nhận"], ["COMPLETED", "Thành công"], ["CANCELLED", "Đã hủy"]] };
+
+function Records({ eventId, kind, eventInfo, resalePolicy, canWrite }: { eventId: string; kind: "resale" | "gift"; eventInfo: TransferEventInfo; resalePolicy?: ResalePolicyData | null; canWrite: boolean }) {
+  const gift = kind === "gift";
+  const [data, setData] = useState<PageData<RecordItem> | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [status, setStatus] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [tier, setTier] = useState("");
+  const [date, setDate] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [detail, setDetail] = useState<RecordItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [revision, setRevision] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true); setError(""); setSelected([]);
+      try {
+        const response = gift
+          ? await eventTransferApi.getGifts(eventId, page, pageSize, status === "ALL" ? undefined : status)
+          : await eventTransferApi.getListings(eventId, page, pageSize, status === "ALL" ? undefined : status);
+        if (active) {
+          if (page > 0 && (!response.content.length || page >= response.totalPages)) setPage(Math.max(0, Math.min(page - 1, response.totalPages - 1)));
+          else setData(response);
+        }
+      } catch { if (active) setError("Không thể tải danh sách. Vui lòng thử lại."); }
+      finally { if (active) setLoading(false); }
+    };
+    void load();
+    return () => { active = false; };
+  }, [eventId, gift, page, pageSize, status, revision]);
+  const items = data?.content ?? [];
+  const visible = items.filter(item => {
+    const text = "listingId" in item ? item.sellerEmailMasked + " " + (item.seatCode ?? "") : item.senderEmailMasked + " " + item.recipientEmailMasked;
+    const time = "listingId" in item ? item.createdAt : item.sentAt;
+    return (!search || (codeOf(item) + " " + text + " " + item.ticketTypeName).toLocaleLowerCase("vi").includes(search.toLocaleLowerCase("vi")))
+      && (!tier || item.ticketTypeName === tier) && (!date || localDate(time).slice(0, 10) === date);
+  });
+  const changeStatus = (value: string) => { setStatus(value); setPage(0); setSelected([]); };
+  const reload = () => setRevision(value => value + 1);
+  const reloadFirstPage = () => { setPage(0); reload(); };
+  const moderate = async (listingId: string, action: "APPROVE" | "REJECT", reason?: string) => {
+    if (!canWrite) return;
+    await eventTransferApi.moderateListing(eventId, listingId, action, reason);
+    setMessage(action === "APPROVE" ? "Đã gửi yêu cầu phê duyệt tin đăng." : "Đã gửi yêu cầu từ chối tin đăng. Hệ thống đang xử lý mở khóa vé."); reload();
+  };
+  const delist = async (listingId: string) => {
+    if (!canWrite) return;
+    await eventTransferApi.cancelListing(eventId, listingId);
+    setMessage("Đã gửi yêu cầu gỡ tin đăng. Hệ thống đang xử lý mở khóa vé."); reload();
+  };
+  const cancelGift = async (sagaId: string) => {
+    if (!canWrite) return;
+    await eventTransferApi.cancelGift(eventId, sagaId);
+    setMessage("Đã gửi yêu cầu hủy giao dịch tặng vé. Hệ thống đang xử lý mở khóa vé."); reload();
+  };
+  const exportRows = async () => {
+    setExporting(true); setError("");
+    try {
+      const rows = visible.filter(item => !selected.length || selected.includes(idOf(item)));
+      const { utils, writeFile } = await import("xlsx");
+      const sheet = utils.aoa_to_sheet([
+        gift ? ["Mã giao dịch", "Hạng vé", "Số lượng", "Người tặng", "Người nhận", "Trạng thái", "Thời gian gửi"] : ["Mã tin đăng", "Hạng vé", "Số lượng", "Giá đăng bán (VND)", "Giá gốc (VND)", "Người đăng", "Trạng thái", "Thời gian đăng"],
+        ...rows.map(item => "listingId" in item
+          ? [item.refCode, item.ticketTypeName, item.quantity ?? 1, item.price, item.originalPrice ?? "", item.sellerEmailMasked, item.status, transferDate(item.createdAt)]
+          : [codeOf(item), item.ticketTypeName, item.quantity ?? 1, item.senderEmailMasked, item.recipientEmailMasked, item.status, transferDate(item.sentAt)]),
+      ]);
+      const book = utils.book_new(); utils.book_append_sheet(book, sheet, gift ? "Tặng vé" : "Bán lại vé");
+      writeFile(book, "HaloTicket-" + kind + "-" + eventId + ".xlsx");
+    } catch { setError("Chưa xuất được danh sách. Vui lòng thử lại."); } finally { setExporting(false); }
+  };
+  const tabs = gift ? [["ALL", "Lịch sử tặng vé"], ["PENDING", "Chờ xác nhận"]] : [["ALL", "Tin đăng bán lại"], ["PENDING_APPROVAL", "Chờ duyệt"], ["RESERVED", "Đang giữ"], ["CANCELLED", "Đã gỡ"]];
+  return <section className="transfer-panel transfer-records" aria-label={gift ? "Danh sách tặng vé" : "Danh sách bán lại vé"}>
+    <div className="transfer-record-tabs" aria-label="Lọc nhanh">{tabs.map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => changeStatus(value)}>
+      {label}{status === value && data && !loading && <span> ({data.totalElements})</span>}
+    </button>)}</div>
+    <div className="transfer-toolbar">
+      <div className="transfer-search"><FiSearch /><input type="search" aria-label="Tìm trong trang hiện tại" value={search} placeholder={gift ? "Tìm mã vé, người tặng, người nhận…" : "Tìm mã tin đăng, hạng vé, người đăng…"} onChange={e => { setSearch(e.target.value); setSelected([]); }} /></div>
+      <select aria-label="Trạng thái" value={status} onChange={e => changeStatus(e.target.value)}><option value="ALL">Tất cả trạng thái</option>{states[kind].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <select aria-label="Hạng vé" value={tier} onChange={e => { setTier(e.target.value); setSelected([]); }}><option value="">Tất cả hạng vé</option>{Array.from(new Set(items.map(item => item.ticketTypeName))).map(value => <option key={value}>{value}</option>)}</select>
+      <input type="date" aria-label={gift ? "Ngày gửi" : "Ngày đăng"} value={date} onChange={e => { setDate(e.target.value); setSelected([]); }} />
+      <button type="button" className="transfer-button" aria-label="Tải lại bảng" disabled={loading} onClick={reloadFirstPage}><FiRefreshCw className={loading ? "animate-spin" : ""} />Tải lại</button>
+      <button type="button" className="transfer-button transfer-button-export" onClick={exportRows} disabled={loading || !visible.length || exporting}><FiDownload />{exporting ? "Đang xuất…" : "Xuất Excel"}{selected.length ? " (" + selected.length + ")" : ""}</button>
+    </div>
+    {message && <p role="status" className="transfer-saved"><FiCheck />{message}</p>}
+    {error && <div role="alert" className="transfer-list-message transfer-error"><FiAlertCircle />{error}<button type="button" onClick={() => setRevision(revision + 1)}>Thử lại</button></div>}
+    {loading ? <div role="status" className="transfer-list-message"><FiRefreshCw className="animate-spin" />Đang tải danh sách…</div> : !error && <div className="transfer-table-scroll" tabIndex={0} role="region" aria-label="Bảng giao dịch chuyển nhượng">
+      <table><thead><tr>
+        <th><input type="checkbox" aria-label="Chọn tất cả trong trang" checked={visible.length > 0 && visible.every(item => selected.includes(idOf(item)))} disabled={!visible.length} onChange={e => setSelected(e.target.checked ? visible.map(idOf) : [])} /></th>
+        <th>{gift ? "Mã giao dịch" : "Mã tin đăng"}</th><th>Vé / Hạng vé</th>
+        {gift ? <><th>Người tặng</th><th>Người nhận</th></> : <><th className="transfer-money">Giá đăng bán</th><th className="transfer-money">Giá gốc</th><th>Người đăng</th></>}
+        <th>Trạng thái</th><th>{gift ? "Thời gian gửi" : "Thời gian đăng"}</th><th>Thao tác</th>
+      </tr></thead><tbody>{visible.map(item => <tr key={idOf(item)} data-selected={selected.includes(idOf(item))}>
+        <td><input type="checkbox" aria-label={"Chọn " + codeOf(item)} checked={selected.includes(idOf(item))} onChange={e => setSelected(e.target.checked ? [...selected, idOf(item)] : selected.filter(id => id !== idOf(item)))} /></td>
+        <td><button type="button" className="transfer-record-link" onClick={() => setDetail(item)}>{codeOf(item)}</button></td>
+        <td><strong>{item.ticketTypeName}</strong><small>{item.quantity ?? 1} vé{"listingId" in item && item.seatCode ? " · " + item.seatCode : ""}</small></td>
+        {"listingId" in item ? <><td className="transfer-money"><strong>{transferMoney(item.price)}</strong></td><td className="transfer-money">{transferMoney(item.originalPrice)}</td><td>{item.sellerEmailMasked}</td></> : <><td>{item.senderEmailMasked}</td><td>{item.recipientEmailMasked}</td></>}
+        <td><TransferStatus status={item.status} gift={gift} /></td><td className="transfer-record-time">{transferDate("listingId" in item ? item.createdAt : item.sentAt)}</td>
+        <td><button type="button" className="transfer-row-action" aria-label={"Xem chi tiết " + codeOf(item)} onClick={() => setDetail(item)}><FiMoreHorizontal /></button></td>
+      </tr>)}
+      {!visible.length && <tr><td colSpan={gift ? 8 : 9}><div className="transfer-empty"><span className="transfer-section-icon">{gift ? <FiGift /> : <FiRepeat />}</span><strong>{items.length ? "Không có kết quả phù hợp" : gift ? "Chưa có giao dịch tặng vé" : "Chưa có tin đăng bán lại"}</strong><p>{items.length ? "Thử thay đổi từ khóa hoặc bộ lọc." : "Các giao dịch của sự kiện sẽ xuất hiện tại đây."}</p></div></td></tr>}
+      </tbody></table>
+    </div>}
+    {data && !loading && !error && <div className="p-4">
+      {(selected.length > 0 || search || tier || date) && <p className="mb-3 text-xs app-text-muted">{selected.length ? "Đã chọn " + selected.length + " · " : ""}{(search || tier || date) ? "Hiển thị " + visible.length + " kết quả lọc trong trang hiện tại" : ""}</p>}
+      <TablePagination currentPage={page + 1} totalPages={Math.max(1, data.totalPages)} totalItems={data.totalElements} pageSize={pageSize}
+        onPageChange={value => setPage(value - 1)} onPageSizeChange={value => { setPageSize(value); setPage(0); setSelected([]); }} />
+    </div>}
+    {detail && ("listingId" in detail ? <ResaleListingDetailModal isOpen onClose={() => setDetail(null)} listing={detail} {...eventInfo} serviceFeePercent={resalePolicy?.serviceFeePercent} maxPricePercent={resalePolicy?.maxPricePercent}
+      isModerationMode={canWrite && detail.status === "PENDING_APPROVAL"} onModerate={canWrite ? moderate : undefined} onDelist={canWrite ? delist : undefined} />
+      : <GiftDetailModal isOpen onClose={() => setDetail(null)} gift={detail} {...eventInfo} onCancelGift={canWrite ? cancelGift : undefined} />)}
+  </section>;
+}
+
 export function EventTransfers() {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get("tab") as "resale" | "gift") || "resale";
-
+  const context = useOutletContext<{ eventData?: Record<string, unknown> | null } | null>();
   const [settings, setSettings] = useState<TransferSettingsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<"forbidden" | "failed" | null>(null);
-
-  const fetchSettings = useCallback(async () => {
-    setLoading(true); setFetchError(null);
-    try {
-      const data = await eventTransferApi.getSettings(eventId!);
-      setSettings(data);
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number } };
-      setFetchError(e?.response?.status === 403 ? "forbidden" : "failed");
-    } finally { setLoading(false); }
-  }, [eventId]);
-
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (fetchError === "forbidden") {
-    return (
-      <div className="p-6 flex items-center gap-3 rounded-2xl app-bg-card border app-border">
-        <FiAlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-        <div>
-          <p className="text-sm font-bold app-text-main">Không có quyền truy cập</p>
-          <p className="text-xs app-text-muted mt-0.5">Bạn cần quyền OWNER, ADMIN hoặc MANAGER để xem trang này.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (fetchError === "failed") {
-    return (
-      <div className="p-6 flex items-center gap-3 rounded-2xl app-bg-card border app-border">
-        <FiAlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-        <div className="flex-1">
-          <p className="text-sm font-bold app-text-main">Không thể tải cài đặt</p>
-          <p className="text-xs app-text-muted mt-0.5">Đã có lỗi xảy ra khi tải cấu hình chuyển nhượng vé.</p>
-        </div>
-        <button onClick={fetchSettings}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl app-bg-subnav border app-border text-xs font-bold app-text-main cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
-          <FiRefreshCw className="w-3.5 h-3.5" />
-          Thử lại
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 md:p-6 space-y-5 max-w-4xl">
-      {/* header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-          <FiRepeat className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold app-text-main">Chuyển nhượng vé</h1>
-          <p className="text-xs app-text-muted">Quản lý bán lại và tặng vé cho sự kiện</p>
-        </div>
-        {!settings?.canWrite && (
-          <span className="ml-auto text-xs px-2.5 py-1 rounded-full app-bg-subnav border app-border app-text-muted font-medium flex items-center gap-1">
-            <FiLock className="w-3 h-3" /> Chỉ xem
-          </span>
-        )}
-      </div>
-
-      {/* tabs */}
-      <div className="flex gap-1 border-b app-border">
-        <TabBtn active={activeTab === "resale"} onClick={() => setSearchParams({ tab: "resale" })}>
-          Bán lại vé
-        </TabBtn>
-        <TabBtn active={activeTab === "gift"} onClick={() => setSearchParams({ tab: "gift" })}>
-          Tặng vé
-        </TabBtn>
-      </div>
-
-      {/* content */}
-      {activeTab === "resale" ? (
-        <ResalePolicySection
-          eventId={eventId!}
-          policy={settings?.resale ?? null}
-          canWrite={settings?.canWrite ?? false}
-          onSaved={(updated) =>
-            setSettings((s) => (s ? { ...s, resale: updated } : s))
-          }
-        />
-      ) : (
-        <GiftPolicySection
-          eventId={eventId!}
-          policy={settings?.gift ?? null}
-          canWrite={settings?.canWrite ?? false}
-          onSaved={(updated) =>
-            setSettings((s) => (s ? { ...s, gift: updated } : s))
-          }
-        />
-      )}
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+  const activeTab = searchParams.get("tab") === "gift" ? "gift" : "resale";
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true); setError("");
+      try {
+        if (!eventId) throw new Error("EVENT_REQUIRED");
+        const response = await eventTransferApi.getSettings(eventId);
+        if (active) setSettings(response);
+      } catch (cause) {
+        if (active) setError((cause as { response?: { status?: number } })?.response?.status === 403 ? "Bạn không có quyền quản lý chuyển nhượng của sự kiện này." : "Không thể tải cấu hình chuyển nhượng vé.");
+      } finally { if (active) setLoading(false); }
+    };
+    void load();
+    return () => { active = false; };
+  }, [eventId, revision]);
+  const event = context?.eventData;
+  const eventInfo: TransferEventInfo = { eventTitle: typeof event?.title === "string" ? event.title : undefined,
+    eventThumbnail: typeof event?.thumbnailUrl === "string" ? event.thumbnailUrl : typeof event?.bannerUrl === "string" ? event.bannerUrl : undefined };
+  const changeTab = (tab: string) => setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("tab", tab); return next; });
+  if (loading) return <div className="transfer-management"><div role="status" className="transfer-panel transfer-loading"><FiRefreshCw className="animate-spin" />Đang tải cấu hình chuyển nhượng…</div></div>;
+  if (error || !settings || !eventId) return <div className="transfer-management"><div role="alert" className="transfer-panel transfer-list-message"><FiAlertCircle />{error || "Không tìm thấy sự kiện."}<button className="transfer-button" onClick={() => setRevision(revision + 1)}>Thử lại</button></div></div>;
+  return <div className="transfer-management">
+    <div className="transfer-page-description"><p>Quản lý hoạt động bán lại và tặng vé của sự kiện</p>{!settings.canWrite && <span><FiLock />Chỉ xem</span>}</div>
+    <div role="tablist" aria-label="Hình thức chuyển nhượng" className="transfer-main-tabs">
+      {(["resale", "gift"] as const).map(tab => <button key={tab} id={"transfer-tab-" + tab} role="tab" type="button" aria-selected={activeTab === tab} aria-controls={"transfer-panel-" + tab} tabIndex={activeTab === tab ? 0 : -1}
+        onClick={() => changeTab(tab)} onKeyDown={e => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+          e.preventDefault(); const next = e.key === "Home" ? "resale" : e.key === "End" ? "gift" : tab === "gift" ? "resale" : "gift";
+          changeTab(next); document.getElementById("transfer-tab-" + next)?.focus();
+        }}>{tab === "resale" ? "Bán lại vé" : "Tặng vé"}</button>)}
     </div>
-  );
+    <div role="tabpanel" id="transfer-panel-resale" aria-labelledby="transfer-tab-resale" hidden={activeTab !== "resale"} className="transfer-tab-content" key={eventId + "-resale"}>
+      <ResalePolicy eventId={eventId} policy={settings.resale} canWrite={settings.canWrite} onSaved={resale => setSettings(current => current && ({ ...current, resale }))} />
+      <Records eventId={eventId} kind="resale" eventInfo={eventInfo} resalePolicy={settings.resale} canWrite={settings.canWrite} />
+    </div>
+    <div role="tabpanel" id="transfer-panel-gift" aria-labelledby="transfer-tab-gift" hidden={activeTab !== "gift"} className="transfer-tab-content" key={eventId + "-gift"}>
+      <GiftPolicy eventId={eventId} policy={settings.gift} canWrite={settings.canWrite} onSaved={gift => setSettings(current => current && ({ ...current, gift }))} />
+      <Records eventId={eventId} kind="gift" eventInfo={eventInfo} canWrite={settings.canWrite} />
+    </div>
+  </div>;
 }
 
 export default EventTransfers;

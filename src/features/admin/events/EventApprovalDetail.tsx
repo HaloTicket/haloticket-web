@@ -215,7 +215,7 @@ export function EventApprovalDetail() {
                               <div key={tIdx} className="relative rounded-md border app-border app-bg-card p-4 shadow-sm flex flex-col gap-1.5 transition-all hover:border-blue-300 dark:hover:border-blue-700">
                                 <div className="flex justify-between items-start gap-2">
                                   <span className="font-bold text-sm app-text-main line-clamp-2 leading-tight">{String(ticket.name || t("Hạng vé"))}</span>
-                                  {(ticket.status || ticket.statusText) && (
+                                  {Boolean(ticket.status || ticket.statusText) && (
                                     <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm app-bg-subnav text-slate-600 dark:text-slate-300 shrink-0">
                                       {String(ticket.statusText || ticket.status)}
                                     </span>

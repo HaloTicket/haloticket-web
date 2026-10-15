@@ -143,8 +143,9 @@ export function PaymentMonitoring() {
 
         try {
           const profile = await organizerApi.getOrganizerProfile(id);
-          if (profile && profile.name) {
-            setOrganizerNames(prev => ({ ...prev, [id]: profile.name }));
+          const organizerName = profile?.name;
+          if (organizerName) {
+            setOrganizerNames(prev => ({ ...prev, [id]: organizerName }));
             return;
           }
         } catch (e) {
@@ -153,8 +154,9 @@ export function PaymentMonitoring() {
 
         try {
           const publicUser = await userApi.getUserByKeycloakId(id);
-          if (publicUser && publicUser.fullName) {
-            setOrganizerNames(prev => ({ ...prev, [id]: publicUser.fullName }));
+          const fullName = publicUser?.fullName;
+          if (fullName) {
+            setOrganizerNames(prev => ({ ...prev, [id]: fullName }));
             return;
           }
         } catch (e) {

@@ -77,7 +77,13 @@ export default function GiftInvitation() {
     try {
       const result = await marketplaceApi.acceptGift(sagaId, token);
       setState(result.state);
-    } catch { setError("Không thể nhận vé. Vui lòng kiểm tra lại lời mời hoặc thử lại."); }
+    } catch (cause) {
+      const response = (cause as { response?: { data?: unknown } })?.response?.data;
+      const code = JSON.stringify(response ?? (cause instanceof Error ? cause.message : ""));
+      setError(code.includes("EKYC_REQUIRED") ? "Bạn cần hoàn tất eKYC trước khi nhận vé của sự kiện này."
+        : code.includes("EKYC_SERVICE_UNAVAILABLE") ? "Chưa thể kiểm tra eKYC. Lời mời vẫn được giữ nguyên, vui lòng thử lại."
+        : "Không thể nhận vé. Vui lòng kiểm tra lại lời mời hoặc thử lại.");
+    }
     finally { setBusy(false); }
   };
 
@@ -162,7 +168,7 @@ export default function GiftInvitation() {
         {error && (
           <div role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/20 dark:text-rose-300">
             <FiX className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{error}</p>
+            <div><p>{error}</p>{error.includes("hoàn tất eKYC") && <Link to={PATHS.EKYC + "?returnUrl=" + encodeURIComponent(PATHS.GIFT_ACCEPT + "?" + params.toString())} className="mt-2 inline-block font-semibold underline">Xác minh eKYC để nhận vé</Link>}</div>
           </div>
         )}
 

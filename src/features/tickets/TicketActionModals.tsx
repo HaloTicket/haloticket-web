@@ -85,6 +85,7 @@ function errorMessage(error: unknown) {
   if (code.includes("POLICY_CHANGED")) return "Chính sách vừa thay đổi. Quay lại để kiểm tra điều kiện vé.";
   if (code.includes("TICKET_NOT_ELIGIBLE")) return "Một vé đã chọn không còn đủ điều kiện chuyển nhượng. Vui lòng tải lại danh sách.";
   if (code.includes("GIFT_DISABLED")) return "Ban tổ chức chưa mở tính năng tặng vé cho sự kiện này.";
+  if (code.includes("GIFT_LIMIT_REACHED")) return "Một vé đã đạt giới hạn số lần tặng của sự kiện. Vui lòng chọn vé khác.";
   return "Không thể hoàn tất thao tác. Vui lòng kiểm tra trạng thái vé và thử lại.";
 }
 
@@ -122,34 +123,15 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const count = selection.selectedIds.length;
   const allowRetail = count <= 1 || !noRetail;
 
-  // read saved platform resale config (cap percentage and seller fee)
-  const resaleConfig = (() => {
-    try {
-      const savedFee = localStorage.getItem("haloticket_resale_fee_config");
-      const parsed = savedFee ? JSON.parse(savedFee) : null;
-      const savedCap = localStorage.getItem("haloticket_resale_cap_percentage");
-      const cap = savedCap ? Number(savedCap) : (parsed?.capPercentage ?? 20);
-      const sellerFee = parsed?.secondarySellerFee ?? 5.0;
-      return { capPercentage: cap, sellerFeePercent: sellerFee };
-    } catch {
-      return { capPercentage: 20, sellerFeePercent: 5.0 };
-    }
-  })();
+  const sellerFeePercent = policies[0]?.serviceFeePercent ?? 5;
 
-  const rawMinPrice = Math.max(...policies.map(policy => policy.minPrice ?? 0));
-  // apply cap percentage to policies: max allowed = originalPrice * (1 + capPercentage / 100)
-  const capAppliedMaxPrices = policies.map(policy => {
-    const orig = policy.originalPrice ?? 0;
-    const byCap = orig > 0 ? Math.round(orig * (1 + resaleConfig.capPercentage / 100)) : (policy.maxPrice ?? 0);
-    return policy.maxPrice ? Math.min(policy.maxPrice, byCap) : byCap;
-  });
-  const minPrice = rawMinPrice;
-  const maxPrice = capAppliedMaxPrices.length > 0 ? Math.min(...capAppliedMaxPrices) : 0;
+  const minPrice = Math.max(...policies.map(policy => policy.minPrice ?? 0));
+  const maxPrice = policies.length ? Math.min(...policies.map(policy => policy.maxPrice ?? 0)) : 0;
 
   const numPrice = Number(price);
   const priceValid = price !== "" && Number.isSafeInteger(numPrice) && numPrice >= minPrice && numPrice <= maxPrice;
   const totalPrice = numPrice * count;
-  const sellerFeeAmount = Math.round(totalPrice * (resaleConfig.sellerFeePercent / 100));
+  const sellerFeeAmount = Math.round(totalPrice * (sellerFeePercent / 100));
   const netSellerReceives = Math.max(0, totalPrice - sellerFeeAmount);
 
   const check = async () => {
@@ -166,11 +148,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
         return;
       }
       const min = Math.max(...results.map(result => result.minPrice ?? 0));
-      const max = Math.min(...results.map(result => {
-        const orig = result.originalPrice ?? 0;
-        const byCap = orig > 0 ? Math.round(orig * (1 + resaleConfig.capPercentage / 100)) : (result.maxPrice ?? 0);
-        return result.maxPrice ? Math.min(result.maxPrice, byCap) : byCap;
-      }));
+      const max = Math.min(...results.map(result => result.maxPrice ?? 0));
       if (min > max) { setError("Các vé có khoảng giá khác nhau. Vui lòng chọn cùng hạng vé hoặc đăng bán thành các nhóm riêng."); return; }
       setPolicies(results); setPrice(String(min)); setStep(2); setAccepted(false);
       requestKey.current = crypto.randomUUID();
@@ -209,7 +187,8 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
         <SelectedTickets tickets={selection.selectedTickets} />
         <div className="space-y-2 text-xs app-text-muted">{policies.map((policy, index) => <p key={policy.ticketId}>
           {selection.selectedTickets[index]?.ticketTypeName} · Giá gốc {formatCurrency(policy.originalPrice ?? 0)}.
-          {policy.originalPrice ? ` Giá trần (+${resaleConfig.capPercentage}%): tối đa ${formatCurrency(Math.round((policy.originalPrice ?? 0) * (1 + resaleConfig.capPercentage / 100)))}.` : " Vé miễn phí chỉ được đăng ở giá cho phép."}
+          {` Khoảng giá theo Ban tổ chức: ${formatCurrency(policy.minPrice ?? 0)} – ${formatCurrency(policy.maxPrice ?? 0)}`}
+          {policy.originalPrice ? ` (${Number((((policy.minPrice ?? 0) / policy.originalPrice) * 100).toFixed(2))}%–${Number((((policy.maxPrice ?? 0) / policy.originalPrice) * 100).toFixed(2))}% giá gốc).` : ". Vé miễn phí chỉ được đăng ở giá cho phép."}
         </p>)}</div>
         <label className="block text-sm font-semibold">Giá bán mỗi vé
           <input 
@@ -223,13 +202,10 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
         </label>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className="app-text-muted">Khoảng giá cho phép: {formatCurrency(minPrice)} – {formatCurrency(maxPrice)} / vé</span>
-          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-            Trần +{resaleConfig.capPercentage}% giá gốc
-          </span>
         </div>
         {price !== "" && numPrice > maxPrice && (
           <p className="text-xs text-rose-500 font-semibold">
-            Giá bán vượt quá trần quy định (+{resaleConfig.capPercentage}% so với giá gốc: tối đa {formatCurrency(maxPrice)}).
+            Giá bán vượt giới hạn của sự kiện: tối đa {formatCurrency(maxPrice)} mỗi vé.
           </p>
         )}
         {policies[0]?.closesAt && <p className="text-xs app-text-muted">Nhận đăng bán đến {new Date(policies[0].closesAt).toLocaleString("vi-VN")}.</p>}
@@ -240,7 +216,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
               <span className="font-semibold">{formatCurrency(totalPrice)}</span>
             </div>
             <div className="flex justify-between text-xs text-rose-600 dark:text-rose-400 font-medium">
-              <span>Phí dịch vụ sàn ({resaleConfig.sellerFeePercent}% khấu trừ người bán)</span>
+              <span>Phí dịch vụ sàn ({sellerFeePercent}% khấu trừ người bán)</span>
               <span>-{formatCurrency(sellerFeeAmount)}</span>
             </div>
             <div className="border-t app-border pt-2 flex justify-between font-bold">
@@ -248,7 +224,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
               <span className="text-blue-600 dark:text-blue-400 font-black text-base">{formatCurrency(netSellerReceives)}</span>
             </div>
             <p className="text-[11px] text-slate-500 pt-1 leading-relaxed">
-              * Quỹ bảo chứng (Escrow): Tiền bán vé được thanh toán ngay sau khi người mua chuyển khoản thành công.
+              Tiền bán vé được ghi nhận sau khi chuyển vé thành công và chờ đối soát trước khi thanh toán cho bạn.
             </p>
           </div>
         )}
@@ -259,7 +235,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           <div className="flex justify-between"><span className="app-text-muted">Giá mỗi vé</span><span>{formatCurrency(numPrice)}</span></div>
           <div className="flex justify-between"><span className="app-text-muted">Tổng giá niêm yết ({count} vé)</span><span className="font-semibold">{formatCurrency(totalPrice)}</span></div>
           <div className="flex justify-between text-xs text-rose-600 dark:text-rose-400">
-            <span>Phí sàn bán lại ({resaleConfig.sellerFeePercent}%)</span>
+            <span>Phí sàn bán lại ({sellerFeePercent}%)</span>
             <span>-{formatCurrency(sellerFeeAmount)}</span>
           </div>
           <div className="border-t app-border pt-2 flex justify-between font-bold">
@@ -268,7 +244,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
           </div>
         </div>
         <div className="rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 p-3 text-xs leading-relaxed text-blue-900 dark:text-blue-200">
-          <strong>Cơ chế chuyển giao an toàn (Escrow):</strong> Vé đang bán sẽ được tạm khóa check-in để chống trùng lặp. Khi khớp lệnh, hệ thống tự động đổi mã vé sang người mua mới và chuyển tiền thực nhận vào tài khoản của bạn.
+          <strong>Chuyển giao an toàn:</strong> Vé đang bán được khóa check-in. Sau khi thanh toán và chuyển vé thành công, khoản phải trả cho bạn sẽ chờ đối soát trước khi chuyển tiền.
         </div>
         <label className="flex min-h-11 cursor-pointer items-start gap-3 border-t app-border pt-4 text-sm">
           <input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" />

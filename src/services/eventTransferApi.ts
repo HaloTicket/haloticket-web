@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import type { MarketplaceSagaResponse } from "@/types/marketplace";
 import type {
   GiftPolicyData,
   OrganizerGiftItem,
@@ -20,6 +21,8 @@ export const eventTransferApi = {
       enabled: boolean;
       minPricePercent: number;
       maxPricePercent: number;
+      serviceFeePercent: number;
+      requireApproval: boolean;
       opensAt: string | null;
       closesAt: string | null;
       ticketTypeScope: string;
@@ -40,6 +43,8 @@ export const eventTransferApi = {
       opensAt: string | null;
       closesAt: string | null;
       invitationTtlHours: number;
+      requireEkyc: boolean;
+      maxGiftCount: number;
       ticketTypeScope: string;
       allowedTicketTypeIds: string[];
       expectedVersion: number | null;
@@ -58,5 +63,33 @@ export const eventTransferApi = {
   getGifts: (eventId: string, page = 0, size = 20, status?: string) =>
     axiosClient.get<unknown, PageData<OrganizerGiftItem>>(
       `/marketplace/organizer/events/${eventId}/gifts?page=${page}&size=${size}${status ? `&status=${status}` : ""}`
+    ),
+
+  getListingDetail: (eventId: string, listingId: string) =>
+    axiosClient.get<unknown, OrganizerListingItem>(
+      `/marketplace/organizer/events/${eventId}/listings/${listingId}`
+    ),
+
+  getGiftDetail: (eventId: string, sagaId: string) =>
+    axiosClient.get<unknown, OrganizerGiftItem>(
+      `/marketplace/organizer/events/${eventId}/gifts/${sagaId}`
+    ),
+
+  moderateListing: (eventId: string, listingId: string, action: "APPROVE" | "REJECT", reason?: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(
+      `/marketplace/organizer/events/${encodeURIComponent(eventId)}/listings/${encodeURIComponent(listingId)}/moderate`,
+      { action, ...(reason ? { reason } : {}) }
+    ),
+
+  cancelListing: (eventId: string, listingId: string, reason?: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(
+      `/marketplace/organizer/events/${encodeURIComponent(eventId)}/listings/${encodeURIComponent(listingId)}/cancel`,
+      reason ? { reason } : {}
+    ),
+
+  cancelGift: (eventId: string, sagaId: string, reason?: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(
+      `/marketplace/organizer/events/${encodeURIComponent(eventId)}/gifts/${encodeURIComponent(sagaId)}/cancel`,
+      reason ? { reason } : {}
     ),
 };

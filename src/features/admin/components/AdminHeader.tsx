@@ -10,7 +10,6 @@ import {
   LuLogOut,
   LuSettings,
   LuShieldCheck,
-  LuTag,
   LuTicket,
   LuUserCheck,
   LuUsers,
@@ -174,18 +173,6 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
                 <div className="flex items-center gap-3">
                   <LuUserCheck size={18} className="app-text-muted" />
                   <span>{label("Duyệt hồ sơ eKYC", "eKYC approval")}</span>
-                </div>
-                <LuChevronRight className="w-4 h-4 app-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Link>
-
-              <Link
-                to={PATHS.ADMIN_RESALE_PRICE_CAP}
-                onClick={onCloseProfileMenu}
-                className="group flex items-center justify-between w-full p-2.5 rounded-lg text-sm app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <LuTag size={18} className="app-text-muted" />
-                  <span>{label("Quản lý vé bán lại", "Resale price cap")}</span>
                 </div>
                 <LuChevronRight className="w-4 h-4 app-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
               </Link>

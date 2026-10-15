@@ -44,7 +44,7 @@ export const EventManageLayout: React.FC = () => {
 
         {/* Dynamic Page Content View */}
         <main className="flex-1 px-4 py-2 md:px-8 md:py-6 overflow-y-auto">
-          <Outlet context={{ myRole }} />
+          <Outlet context={{ myRole, eventData }} />
         </main>
       </div>
     </div>

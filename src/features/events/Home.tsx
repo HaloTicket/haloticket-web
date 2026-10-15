@@ -57,7 +57,7 @@ export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) =
   // Static fallback if no config from DB
   const isDefaultFallback = displaySections.length === 0;
 
-  const renderSection = (section: EventSection, index: number) => {
+  const renderSection = (section: EventSection) => {
     switch (section.type) {
       case "featured":
         return <FeaturedStars key={section.id} title={section.title} limit={section.limit} events={allEvents} />;
@@ -132,7 +132,7 @@ export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) =
             <DestinationsSection />
           </>
         ) : (
-          displaySections.map((section, idx) => renderSection(section, idx))
+          displaySections.map(renderSection)
         )}
       </div>
     </div>

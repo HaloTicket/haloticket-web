@@ -135,6 +135,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
     if (p.endsWith("/members")) return "Thành viên Ban tổ chức";
     if (p.endsWith("/vouchers")) return "Mã giảm giá (Voucher)";
     if (p.endsWith("/seating")) return "Sơ đồ ghế & Khán phòng";
+    if (p.endsWith("/transfers")) return "Chuyển nhượng vé";
     if (p.endsWith("/edit")) return "Chỉnh sửa thông tin sự kiện";
     return eventData?.title || "Quản trị sự kiện";
   };

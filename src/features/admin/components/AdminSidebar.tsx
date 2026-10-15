@@ -1,6 +1,8 @@
+/* Navigation metadata is shared with the admin layout and section pages. */
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FiChevronDown, FiChevronLeft, FiChevronRight, FiSettings, FiX, FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiLayout, FiMapPin, FiSliders, FiTag, FiUsers, FiZap } from "react-icons/fi";
+import { FiChevronDown, FiChevronLeft, FiChevronRight, FiSettings, FiX, FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiLayout, FiMapPin, FiSliders, FiUsers, FiZap } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { useTranslation } from "react-i18next";
 
@@ -23,9 +25,6 @@ export const adminNavGroups: AdminNavGroup[] = [
   ] },
   { id: "finance", path: PATHS.ADMIN_FINANCE, label: "Tài chính & Đối soát", english: "Finance & Payouts", icon: FiDollarSign, description: "Thanh toán, hoàn tiền và đối soát cho nhà tổ chức.", items: [
     { path: PATHS.ADMIN_FINANCE, label: "Quản lý tài chính", english: "Finance management", icon: FiDollarSign, description: "Quản lý tất cả giao dịch, hoàn tiền và đối soát." },
-  ] },
-  { id: "market", path: PATHS.ADMIN_TICKET_MARKET, label: "Vé bán lại & Giá trần", english: "Resale Market & Cap Pricing", icon: FiTag, description: "Vé bán lại và chính sách giá trần.", items: [
-    { path: PATHS.ADMIN_TICKET_MARKET, label: "Vé bán lại & Giá trần", english: "Resale Market & Cap Pricing", icon: FiTag, description: "Quản lý vé bán lại và chính sách giá trần." },
   ] },
   { id: "content", path: PATHS.ADMIN_CONTENT, label: "Quản lý nội dung", english: "Content management", icon: FiLayout, description: "Tổ chức nội dung hiển thị trên nền tảng HaloTicket.", items: [
     { path: PATHS.ADMIN_HOMEPAGE_CONTENT, label: "Nội dung & Ads", english: "Content & Advertising", icon: FiLayout, description: "Quản lý nội dung trang chủ và banner." },

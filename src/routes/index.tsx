@@ -82,7 +82,6 @@ import AdminUserDetail from "@/features/admin/UserDetail";
 import AdminEventReports from "@/features/admin/reports/AdminEventReports";
 import AdminEventReportDetail from "@/features/admin/reports/AdminEventReportDetail";
 import AdminPaymentMonitoring from "@/features/admin/PaymentMonitoring";
-import AdminResaleManagement from "@/features/admin/ResaleManagement";
 import AdminHomepageConfig from "@/features/admin/HomepageConfig";
 import AdminCategoryConfig from "@/features/admin/CategoryConfig";
 
@@ -462,7 +461,7 @@ export const router = createBrowserRouter([
       { path: PATHS.ADMIN_USER_MANAGEMENT, element: <AdminUserManagement /> },
       { path: `${PATHS.ADMIN_USER_MANAGEMENT}/:userId`, element: <AdminUserDetail /> },
       { path: PATHS.ADMIN_FINANCE, element: <AdminPaymentMonitoring /> },
-      { path: PATHS.ADMIN_TICKET_MARKET, element: <AdminResaleManagement /> },
+      { path: `${PATHS.ADMIN_TICKET_MARKET}/*`, element: <Navigate to={PATHS.ADMIN_EVENT_MANAGEMENT} replace /> },
       { path: PATHS.ADMIN_HOMEPAGE_CONTENT, element: <AdminHomepageConfig /> },
       { path: PATHS.ADMIN_EVENT_CATEGORIES, element: <AdminCategoryConfig /> },
       { path: PATHS.ADMIN_AI_ANALYTICS, element: <AdminAiAnalytics /> },
@@ -490,7 +489,7 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.ADMIN_RESALE_PRICE_CAP,
-        element: <Navigate to={PATHS.ADMIN_RESALE_TICKETS} replace />,
+        element: <Navigate to={PATHS.ADMIN_EVENT_MANAGEMENT} replace />,
       },
       {
         path: PATHS.ADMIN_AI_ANALYTICS,

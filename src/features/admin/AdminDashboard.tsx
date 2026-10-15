@@ -5,7 +5,6 @@ import { PATHS } from "@/routes/paths";
 import {
   FiCheckSquare,
   FiShield,
-  FiTrendingUp,
   FiActivity,
   FiArrowUpRight,
   FiChevronRight,
@@ -22,7 +21,7 @@ export const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     // simulate AI summary generation
     const timer = setTimeout(() => {
-      setAiSummary("Sếp ơi, hôm nay doanh thu đột ngột giảm 30% so với tuần trước. Tuy nhiên, sự kiện **Đêm Nhạc EDM** lại có lượng traffic tăng vọt, hãy cân nhắc chạy thêm Ads cho sự kiện này.\n\nHệ thống cũng phát hiện **3 sự kiện** có dấu hiệu rủi ro cao cần duyệt gấp.\n\nGiá trần bán lại ở mức **+20%** đang hoạt động ổn định, ngăn chặn 125 giao dịch phe vé.");
+      setAiSummary("Sếp ơi, hôm nay doanh thu đột ngột giảm 30% so với tuần trước. Tuy nhiên, sự kiện **Đêm Nhạc EDM** lại có lượng traffic tăng vọt, hãy cân nhắc chạy thêm Ads cho sự kiện này.\n\nHệ thống cũng phát hiện **3 sự kiện** có dấu hiệu rủi ro cao cần duyệt gấp.");
       setIsAiAnalyzing(false);
     }, 2000);
     return () => clearTimeout(timer);
@@ -50,17 +49,6 @@ export const AdminDashboard: React.FC = () => {
       bg: "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-900",
       link: PATHS.ADMIN_EKYC_APPROVAL,
       badgeText: "Hàng đợi BTC"
-    },
-    {
-      id: "resale-cap",
-      title: "Giá trần Bán vé lại (Resale)",
-      value: "Max +20%",
-      change: "125 vé đang giao dịch",
-      changeType: "positive",
-      icon: <FiTrendingUp className="w-5 h-5 text-emerald-500" />,
-      bg: "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900",
-      link: PATHS.ADMIN_RESALE_PRICE_CAP,
-      badgeText: "Đang hoạt động"
     },
     {
       id: "system-health",
@@ -106,20 +94,6 @@ export const AdminDashboard: React.FC = () => {
   ];
 
   const recentActivityLogs = [
-    {
-      id: "log-1",
-      user: "Trần Long Vũ (Admin)",
-      action: "Đã duyệt giá trần 120% cho thị trường vé Resale",
-      time: "25 phút trước",
-      type: "success"
-    },
-    {
-      id: "log-2",
-      user: "Hệ thống Bán vé",
-      action: "Tự động giữ 1 vé Resale #TK-8812 do nghi vấn đầu cơ",
-      time: "45 phút trước",
-      type: "warning"
-    },
     {
       id: "log-3",
       user: "Nguyễn Văn B (Admin)",
@@ -200,9 +174,6 @@ export const AdminDashboard: React.FC = () => {
                 <Link to={PATHS.ADMIN_EVENTS_APPROVAL} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
                   <FiCheckSquare className="w-4 h-4" /> Duyệt Sự kiện ngay
                 </Link>
-                <Link to={PATHS.ADMIN_RESALE_PRICE_CAP} className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
-                  <FiTrendingUp className="w-4 h-4" /> Cấu hình Giá trần
-                </Link>
                 <Link to={PATHS.ADMIN_SYSTEM_HEALTH} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
                   <FiActivity className="w-4 h-4" /> Giám sát Hệ thống
                 </Link>
@@ -216,7 +187,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Metric Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {statCards.map((card) => (
           <Link
             key={card.id}
@@ -326,17 +297,6 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <FiShield className="w-4 h-4 text-blue-500" />
                   <span>{translate("Duyệt hồ sơ eKYC (5)")}</span>
-                </div>
-                <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-
-              <Link
-                to={PATHS.ADMIN_RESALE_PRICE_CAP}
-                className="w-full p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 hover:border-blue-500 transition-all flex items-center justify-between text-xs font-semibold app-text-main group cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <FiTrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span>{translate("Điều chỉnh Giá trần Vé Resale")}</span>
                 </div>
                 <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
