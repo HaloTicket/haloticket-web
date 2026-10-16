@@ -45,6 +45,8 @@ export const SslCertificateCard: React.FC = () => {
       const data = await aiApi.getSslStatus(clean || undefined);
       if (data && typeof data === "object") {
         setSslData(data);
+      } else {
+        throw new Error("No SSL response");
       }
     } catch {
       // fallback to real client browser protocol detection

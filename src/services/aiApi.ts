@@ -55,21 +55,29 @@ export const aiApi = {
   },
 
   getSystemHealth: async (): Promise<any[]> => {
-    const response = await axiosClient.get('/admin/system-health');
-    return response as any;
+    try {
+      const response = await axiosClient.get('/admin/system-health');
+      return Array.isArray(response) ? response : [];
+    } catch {
+      return [];
+    }
   },
 
   getSystemLogs: async (): Promise<any[]> => {
     try {
       const response = await axiosClient.get('/admin/system-logs');
-      return response as any;
+      return Array.isArray(response) ? response : [];
     } catch {
       return [];
     }
   },
 
   getSslStatus: async (domain?: string): Promise<any> => {
-    const response = await axiosClient.get('/admin/ssl-status', { params: domain ? { domain } : {} });
-    return response as any;
+    try {
+      const response = await axiosClient.get('/admin/ssl-status', { params: domain ? { domain } : {} });
+      return response as any;
+    } catch {
+      return null;
+    }
   }
 };
