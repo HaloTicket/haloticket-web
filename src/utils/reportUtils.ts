@@ -81,6 +81,99 @@ export function buildExportMetadata(report: Pick<AdminEventReport, "from" | "to"
     ["Event scope", "APPROVED, LIVE, COMPLETED"],
     ["Search", filters.q ?? ""], ["Category ID", filters.categoryId ?? ""], ["Organizer ID", filters.organizerId ?? ""], ["Status", filters.status ?? ""], ["Sort", filters.sort], []];
 }
+export const REPORT_COLUMNS_VI = [
+  { key: "index", label: "STT" },
+  { key: "eventId", label: "Mã sự kiện" },
+  { key: "title", label: "Tên sự kiện" },
+  { key: "organizer", label: "Nhà tổ chức" },
+  { key: "category", label: "Thể loại" },
+  { key: "status", label: "Trạng thái" },
+  { key: "orders", label: "Đơn đã thanh toán" },
+  { key: "tickets", label: "Vé đã bán" },
+  { key: "revenue", label: "Doanh thu vé (VNĐ)" },
+];
+
+export function buildVietnameseReportExport(
+  report: Pick<AdminEventReport, "from" | "to" | "summary" | "generatedAt">,
+  filters: EventReportFilters,
+  rows: EventReportRow[],
+  filterNames?: {
+    categoryName?: string;
+    organizerName?: string;
+  }
+): unknown[][] {
+  const sortLabels: Record<string, string> = {
+    revenue: "Doanh thu",
+    orders: "Đơn hàng",
+    tickets: "Vé đã bán",
+    title: "Tên sự kiện",
+  };
+
+  const statusMap: Record<string, string> = {
+    APPROVED: "Đã duyệt",
+    LIVE: "Đang diễn ra",
+    COMPLETED: "Đã kết thúc",
+    CANCELLED: "Đã hủy",
+    REJECTED: "Từ chối",
+    DRAFT: "Bản nháp",
+  };
+
+  const activeFilters = [
+    filters.q ? `Tìm kiếm: "${filters.q}"` : "",
+    filterNames?.categoryName ? `Thể loại: ${filterNames.categoryName}` : filters.categoryId ? `Mã thể loại: ${filters.categoryId}` : "Thể loại: Tất cả",
+    filterNames?.organizerName ? `Nhà tổ chức: ${filterNames.organizerName}` : filters.organizerId ? `Mã nhà tổ chức: ${filters.organizerId}` : "Nhà tổ chức: Tất cả",
+    filters.status ? `Trạng thái: ${statusMap[filters.status] || filters.status}` : "Trạng thái: Tất cả",
+    filters.sort ? `Sắp xếp: ${sortLabels[filters.sort] || filters.sort}` : "",
+  ].filter(Boolean).join(" | ");
+
+  const metadata: unknown[][] = [
+    ["BÁO CÁO THỐNG KÊ VÀ DOANH THU SỰ KIỆN - HALOTICKET"],
+    ["Kỳ báo cáo:", `${report.from} đến ${report.to}`],
+    ["Thời gian xuất:", new Date().toLocaleString("vi-VN")],
+    ["Múi giờ:", "Asia/Ho_Chi_Minh (UTC+7)"],
+    ["Bộ lọc áp dụng:", activeFilters || "Mặc định"],
+    [],
+    ["TỔNG QUAN SỐ LIỆU TOÀN KỲ (THEO BỘ LỌC)"],
+    ["Tổng doanh thu vé (VNĐ):", report.summary?.revenue ?? 0],
+    ["Tổng số đơn đã thanh toán:", report.summary?.orders ?? 0],
+    ["Tổng số vé đã bán:", report.summary?.tickets ?? 0],
+    ["Số sự kiện phát sinh bán vé:", report.summary?.eventsWithSales ?? 0],
+    [],
+    ["STT", "Mã sự kiện", "Tên sự kiện", "Nhà tổ chức", "Thể loại", "Trạng thái", "Đơn đã thanh toán", "Vé đã bán", "Doanh thu vé (VNĐ)"],
+  ];
+
+  let totalOrders = 0;
+  let totalTickets = 0;
+  let totalRevenue = 0;
+
+  const dataRows: unknown[][] = rows.map((row, idx) => {
+    const orders = Number(row.orders) || 0;
+    const tickets = Number(row.tickets) || 0;
+    const revenue = Number(row.revenue) || 0;
+    totalOrders += orders;
+    totalTickets += tickets;
+    totalRevenue += revenue;
+
+    return [
+      idx + 1,
+      row.eventId,
+      row.title || "Sự kiện không có tên",
+      row.organizer || "N/A",
+      row.category || "N/A",
+      statusMap[row.status] || row.status,
+      orders,
+      tickets,
+      revenue,
+    ];
+  });
+
+  const totalRow: unknown[][] = [
+    ["", "TỔNG CỘNG", "", "", "", "", totalOrders, totalTickets, totalRevenue],
+  ];
+
+  return [...metadata, ...dataRows, ...totalRow];
+}
+
 export function formatHcmInstant(value: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(value));
 }

@@ -39,6 +39,32 @@ export const ticketApi = {
     }
   },
 
+  // get ALL ticket types for an event without deduplication (all showtimes & tiers)
+  getAllTicketTypesByEventId: async (eventId: string): Promise<TicketTypeApiResponse[]> => {
+    try {
+      const response: unknown = await axiosClient.get(`/tickets/types/event/${eventId}/all`);
+      if (Array.isArray(response) && response.length > 0) {
+        return response as TicketTypeApiResponse[];
+      }
+      return ticketApi.getTicketTypesByEventId(eventId);
+    } catch {
+      return ticketApi.getTicketTypesByEventId(eventId);
+    }
+  },
+
+  // get single ticket type by id
+  getTicketTypeById: async (id: string): Promise<TicketTypeApiResponse | null> => {
+    try {
+      const response: unknown = await axiosClient.get(`/tickets/types/${encodeURIComponent(id)}`);
+      if (response && typeof response === "object") {
+        return response as TicketTypeApiResponse;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
   // get ticket types for a showtime
   getTicketTypesByShowtimeId: async (showtimeId: string): Promise<TicketTypeApiResponse[]> => {
     try {

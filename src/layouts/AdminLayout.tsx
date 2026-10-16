@@ -28,6 +28,13 @@ import {
   FiUserCheck,
   FiMessageSquare,
   FiZap,
+  FiCheckSquare,
+  FiBarChart2,
+  FiUsers,
+  FiDollarSign,
+  FiMapPin,
+  FiActivity,
+  FiSliders,
 } from "react-icons/fi";
 
 export const AdminLayout: React.FC = () => {
@@ -465,36 +472,130 @@ export const AdminLayout: React.FC = () => {
 
               {/* Profile Dropdown Panel */}
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-56 app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-1.5 space-y-1 z-50">
+                <div className="absolute right-0 mt-2 w-64 app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-2 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="p-2 border-b border-slate-200 dark:border-slate-800 space-y-0.5">
-                    <p className="text-xs font-bold app-text-main truncate">
-                      {userProfile?.fullName || "Admin System"}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold app-text-main truncate">
+                        {userProfile?.fullName || "Admin System"}
+                      </p>
+                      <span className="px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[9px] font-bold border border-blue-200 dark:border-blue-800 uppercase tracking-wider shrink-0">
+                        Admin
+                      </span>
+                    </div>
                     <p className="text-[11px] app-text-muted truncate">
-                      {userProfile?.email || "admin@haloticket.com"}
+                      {userProfile?.email || "admin@haloticket.vn"}
                     </p>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] font-semibold border border-blue-200 dark:border-blue-800">
                       {translate("Toàn quyền quản trị")}
                     </span>
                   </div>
 
-                  <Link
-                    to={PATHS.ADMIN_USERS_PERMISSIONS}
-                    onClick={() => setShowProfileMenu(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <FiUserCheck className="w-3.5 h-3.5 text-blue-600" />
-                    <span>{translate("Quản lý phân quyền")}</span>
-                  </Link>
+                  {/* Section: Tác vụ quản trị */}
+                  <div className="py-1">
+                    <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Tác vụ quản trị
+                    </p>
+                    <Link
+                      to={PATHS.ADMIN_EVENTS_APPROVAL}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FiCheckSquare className="w-3.5 h-3.5 text-blue-600" />
+                        <span>{translate("Kiểm duyệt sự kiện")}</span>
+                      </div>
+                      {pendingEventsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-bold">
+                          {pendingEventsCount}
+                        </span>
+                      )}
+                    </Link>
 
-                  <Link
-                    to={PATHS.ADMIN_CATEGORIES_CONFIG}
-                    onClick={() => setShowProfileMenu(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <FiSettings className="w-3.5 h-3.5 text-blue-600" />
-                    <span>{translate("Cấu hình hệ thống")}</span>
-                  </Link>
+                    <Link
+                      to={PATHS.ADMIN_EVENT_REPORTS}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiBarChart2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Báo cáo & thống kê")}</span>
+                    </Link>
+
+                    <Link
+                      to={PATHS.ADMIN_USER_MANAGEMENT}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiUsers className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Quản lý người dùng")}</span>
+                    </Link>
+
+                    <Link
+                      to={PATHS.ADMIN_FINANCE}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FiDollarSign className="w-3.5 h-3.5 text-blue-600" />
+                        <span>{translate("Quản lý tài chính")}</span>
+                      </div>
+                      {pendingPayoutsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-bold">
+                          {pendingPayoutsCount}
+                        </span>
+                      )}
+                    </Link>
+
+                    <Link
+                      to={PATHS.ADMIN_VENUES_MANAGEMENT}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiMapPin className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Quản lý địa điểm")}</span>
+                    </Link>
+                  </div>
+
+                  {/* Section: Cấu hình & Vận hành */}
+                  <div className="py-1 border-t border-slate-200 dark:border-slate-800">
+                    <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Cấu hình & Hệ thống
+                    </p>
+                    <Link
+                      to={PATHS.ADMIN_USERS_PERMISSIONS}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiUserCheck className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Quản lý phân quyền")}</span>
+                    </Link>
+
+                    <Link
+                      to={PATHS.ADMIN_CATEGORIES_CONFIG}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiSliders className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Cấu hình hệ thống")}</span>
+                    </Link>
+
+                    <Link
+                      to={PATHS.ADMIN_SYSTEM_MONITORING}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiActivity className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Giám sát hệ thống")}</span>
+                    </Link>
+
+                    <Link
+                      to={PATHS.ADMIN_SYSTEM_SETTINGS}
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <FiSettings className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{translate("Cài đặt")}</span>
+                    </Link>
+                  </div>
 
                   <div className="pt-1 border-t border-slate-200 dark:border-slate-800">
                     <button
