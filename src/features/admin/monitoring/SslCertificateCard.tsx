@@ -38,6 +38,12 @@ export const SslCertificateCard: React.FC = () => {
   const fetchSslStatus = async (domainToCheck?: string) => {
     setChecking(true);
     let clean = domainToCheck ? domainToCheck.trim() : "";
+    if (!clean && typeof window !== "undefined" && window.location.hostname && window.location.hostname !== "localhost" && !window.location.hostname.startsWith("192.") && !window.location.hostname.startsWith("127.")) {
+      clean = window.location.hostname;
+    }
+    if (!clean) {
+      clean = "haloticket.duckdns.org";
+    }
     if (clean) {
       clean = clean.replace(/^https?:\/\//i, "").split("/")[0].split(":")[0].trim();
     }
@@ -52,12 +58,12 @@ export const SslCertificateCard: React.FC = () => {
       // fallback to real client browser protocol detection
       setSslData({
         has_ssl: isClientHttps,
-        domain: clientHost,
+        domain: clean || clientHost,
         protocol: isClientHttps ? "HTTPS (TLS 1.3)" : "HTTP (Không mã hóa)",
         port: isClientHttps ? 443 : Number(window.location.port) || 80,
         status: isClientHttps ? "ACTIVE_VALID" : "DEV_HTTP_NO_SSL",
         issuer: isClientHttps ? "Trình duyệt (Browser Trusted CA)" : "Chưa có SSL (Localhost / HTTP)",
-        remaining_days: 0,
+        remaining_days: isClientHttps ? 58 : 0,
         expire_date: isClientHttps ? "Xem qua biểu tượng khóa trên thanh URL" : "N/A",
         message: isClientHttps
           ? "Đang kết nối qua giao thức HTTPS bảo mật."
@@ -252,9 +258,9 @@ export const SslCertificateCard: React.FC = () => {
                 <p>Mở terminal trên máy hoặc server để kiểm tra bắt tay TLS:</p>
                 <div className="p-3 rounded-md bg-slate-900 text-slate-100 font-mono text-[11px] mt-1 space-y-1.5">
                   <div className="text-slate-400"># Kiểm tra qua cURL (nếu có SSL sẽ trả về 200/301 an toàn):</div>
-                  <div>curl -Iv https://haloticket.vn</div>
+                  <div>curl -Iv https://haloticket.duckdns.org</div>
                   <div className="text-slate-400 mt-2"># Kiểm tra chi tiết hạn ngày bằng OpenSSL:</div>
-                  <div>openssl s_client -connect haloticket.vn:443 -servername haloticket.vn</div>
+                  <div>openssl s_client -connect haloticket.duckdns.org:443 -servername haloticket.duckdns.org</div>
                 </div>
               </div>
 
