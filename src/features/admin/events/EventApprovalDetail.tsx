@@ -80,7 +80,7 @@ export function EventApprovalDetail() {
   const checkVenueCollision = (currentEvent: ApprovalEventRecord, allEvents: ApprovalEventRecord[]) => {
     const venueName = (currentEvent.locationName || currentEvent.address || "").toLowerCase().trim();
     if (!venueName) {
-      setCollisionInfo({ hasCollision: false, message: "Sự kiện chưa thiết lập địa điểm cụ thể." } as any);
+      setCollisionInfo({ hasCollision: false, message: t("Sự kiện chưa thiết lập địa điểm cụ thể.") } as any);
       return;
     }
 
@@ -108,7 +108,7 @@ export function EventApprovalDetail() {
       setCollisionInfo({
         hasCollision: true,
         conflictingEvent: topConflict.title,
-        timeSlot: displayDate(topConflict.startTime) || "Thời gian đã được đăng ký",
+        timeSlot: displayDate(topConflict.startTime) || t("Thời gian đã được đăng ký"),
       });
     } else {
       setCollisionInfo({
@@ -159,7 +159,7 @@ export function EventApprovalDetail() {
         const id = z.id || `zone_${idx}`;
         zMap[id] = {
           id,
-          name: z.name || (z as any).zoneName || `Khu ${idx + 1}`,
+          name: z.name || (z as any).zoneName || `${t("Khu")} ${idx + 1}`,
           color: z.colorCode || z.fillColor || "#3b82f6",
           fillColor: z.fillColor || z.colorCode || "#3b82f6",
           strokeColor: z.strokeColor || "#2563eb",
@@ -176,7 +176,7 @@ export function EventApprovalDetail() {
         stages: [{
           id: "stage_main",
           type: "stage",
-          label: "SÂN KHẤU CHÍNH",
+          label: t("SÂN KHẤU CHÍNH"),
           x: 220,
           y: 40,
           width: 360,
@@ -417,7 +417,7 @@ export function EventApprovalDetail() {
                         className="w-3 h-3 rounded-full shrink-0"
                         style={{ backgroundColor: zone.colorCode || zone.fillColor || "#3b82f6" }}
                       />
-                      <span className="font-bold app-text-main">{zone.name || (zone as any).zoneName || "Khu vực"}</span>
+                      <span className="font-bold app-text-main">{zone.name || (zone as any).zoneName || t("Khu vực")}</span>
                       <span className="text-slate-500 font-mono">({zone.capacity || 0} {t("chỗ")})</span>
                     </div>
                   ))}
@@ -571,7 +571,7 @@ export function EventApprovalDetail() {
                                   )}
                                 </div>
                                 <div className="text-base font-black text-blue-600 dark:text-blue-400 mt-1">
-                                  {typeof ticket.price === "number" ? `${ticket.price.toLocaleString("vi-VN")} đ` : (ticket.price === 0 ? "Miễn phí" : t("Chưa cập nhật"))}
+                                  {typeof ticket.price === "number" ? `${ticket.price.toLocaleString("vi-VN")} đ` : (ticket.price === 0 ? t("Miễn phí") : t("Chưa cập nhật"))}
                                 </div>
                                 <div className="text-xs app-text-muted mt-2 pt-2 border-t app-border flex justify-between items-center">
                                   <span>{t("Số lượng")}</span>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiX, FiCheckCircle, FiClock, FiXCircle, FiUser, FiCreditCard, FiTag } from "react-icons/fi";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -22,6 +23,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   seatZones = [],
   ticketNameResolver,
 }) => {
+  const { t } = useTranslation();
   const [internalTypes, setInternalTypes] = useState<any[]>([]);
   const [internalZones, setInternalZones] = useState<any[]>([]);
 
@@ -204,28 +206,28 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     switch (status) {
       case "PAID":
         return {
-          label: "Thành công",
+          label: t("Thành công"),
           icon: FiCheckCircle,
           color: "text-emerald-600 dark:text-emerald-400",
           bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500/30",
         };
       case "PENDING":
         return {
-          label: "Chờ thanh toán",
+          label: t("Chờ thanh toán"),
           icon: FiClock,
           color: "text-amber-600 dark:text-amber-400",
           bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-500/30",
         };
       case "REFUNDED":
         return {
-          label: "Đã hoàn tiền",
+          label: t("Đã hoàn tiền"),
           icon: FiClock,
           color: "text-purple-600 dark:text-purple-400",
           bg: "bg-purple-50 dark:bg-purple-500/10 border-purple-500/30",
         };
       default:
         return {
-          label: status || "Đã hủy",
+          label: status ? t(status) : t("Đã hủy"),
           icon: FiXCircle,
           color: "text-rose-600 dark:text-rose-400",
           bg: "bg-rose-50 dark:bg-rose-500/10 border-rose-500/30",
@@ -261,7 +263,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               </span>
             </div>
             <p className="text-xs app-text-muted font-medium mt-1">
-              Thời gian mua:{" "}
+              {t("Thời gian mua:")}{" "}
               {order.createdAt
                 ? format(new Date(order.createdAt), "HH:mm, dd/MM/yyyy", {
                     locale: vi,
@@ -273,7 +275,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-md border app-border hover:bg-slate-100 dark:hover:bg-slate-800 app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            aria-label="Đóng"
+            aria-label={t("Đóng")}
           >
             <FiX className="w-5 h-5" />
           </button>
@@ -285,14 +287,14 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             {/* Customer Info Card */}
             <div className="app-bg-subnav border app-border rounded-lg p-4 space-y-2.5 shadow-xs">
               <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                <FiUser className="w-4 h-4 text-blue-500" /> Khách hàng
+                <FiUser className="w-4 h-4 text-blue-500" /> {t("Khách hàng")}
               </h4>
               <div>
                 <p className="font-bold app-text-main text-sm">
-                  {order.customerName || "Khách hàng"}
+                  {order.customerName || t("Khách hàng")}
                 </p>
                 <p className="text-xs app-text-muted mt-0.5">
-                  {order.customerEmail || "Không có email"}
+                  {order.customerEmail || t("Không có email")}
                 </p>
                 {order.customerPhone && (
                   <p className="text-xs app-text-muted mt-0.5 font-mono">
@@ -305,11 +307,11 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             {/* Payment Summary Card */}
             <div className="app-bg-subnav border app-border rounded-lg p-4 space-y-2.5 shadow-xs">
               <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                <FiCreditCard className="w-4 h-4 text-emerald-500" /> Thanh toán
+                <FiCreditCard className="w-4 h-4 text-emerald-500" /> {t("Thanh toán")}
               </h4>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between app-text-main">
-                  <span className="app-text-muted">Tạm tính:</span>
+                  <span className="app-text-muted">{t("Tạm tính:")}</span>
                   <span className="font-bold">
                     {(Number(order.subtotal) || Number(order.totalAmount) || 0).toLocaleString(
                       "vi-VN"
@@ -319,20 +321,20 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 </div>
                 {order.discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                    <span>Giảm giá:</span>
+                    <span>{t("Giảm giá:")}</span>
                     <span className="font-bold">
                       - {Number(order.discountAmount).toLocaleString("vi-VN")} đ
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between pt-1 mt-1 border-t app-border">
-                  <span className="font-bold text-sm">Tổng thanh toán:</span>
+                  <span className="font-bold text-sm">{t("Tổng thanh toán:")}</span>
                   <span className="font-black text-sm text-blue-600 dark:text-blue-400">
                     {(Number(order.totalAmount) || 0).toLocaleString("vi-VN")} đ
                   </span>
                 </div>
                 <div className="flex justify-between mt-1 text-[11px] app-text-muted">
-                  <span>Phương thức:</span>
+                  <span>{t("Phương thức:")}</span>
                   <span className="font-bold uppercase">
                     {order.paymentMethod || "VIETQR"}
                   </span>
@@ -344,7 +346,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           {/* Tickets Section */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">
-              <FiTag className="w-4 h-4 text-purple-500" /> Danh sách Vé
+              <FiTag className="w-4 h-4 text-purple-500" /> {t("Danh sách Vé")}
             </h4>
 
             {order.items && order.items.length > 0 ? (
@@ -352,10 +354,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50/80 dark:bg-slate-800/50 border-b app-border text-[11px] uppercase tracking-wider font-bold app-text-muted">
                     <tr>
-                      <th className="py-2.5 px-4">Loại vé</th>
-                      <th className="py-2.5 px-4 text-center">Số lượng</th>
-                      <th className="py-2.5 px-4 text-right">Đơn giá</th>
-                      <th className="py-2.5 px-4 text-right">Thành tiền</th>
+                      <th className="py-2.5 px-4">{t("Loại vé")}</th>
+                      <th className="py-2.5 px-4 text-center">{t("Số lượng")}</th>
+                      <th className="py-2.5 px-4 text-right">{t("Đơn giá")}</th>
+                      <th className="py-2.5 px-4 text-right">{t("Thành tiền")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
@@ -386,7 +388,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               </div>
             ) : (
               <div className="text-xs app-text-muted p-4 border app-border rounded-lg bg-slate-50/50 dark:bg-slate-800/30 text-center font-medium shadow-xs">
-                Không có dữ liệu vé
+                {t("Không có dữ liệu vé")}
               </div>
             )}
           </div>
@@ -408,7 +410,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                   />
                 </svg>
-                Ghế đã đặt
+                {t("Ghế đã đặt")}
               </h4>
               <div className="flex flex-wrap gap-2">
                 {order.seatReservations.map((seat: any) => (
@@ -416,7 +418,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     key={seat.id || seat.seatId}
                     className="px-2.5 py-1 text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-400 rounded-md shadow-xs"
                   >
-                    Ghế: {seat.seatId}
+                    {t("Ghế")}: {seat.seatId}
                   </span>
                 ))}
               </div>

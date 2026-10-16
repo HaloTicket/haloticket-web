@@ -38,7 +38,8 @@ import {
 } from "react-icons/fi";
 
 export const AdminLayout: React.FC = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate, i18n } = useTranslation();
+  const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -187,8 +188,9 @@ export const AdminLayout: React.FC = () => {
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString("vi-VN", { hour12: false });
-      const dateStr = now.toLocaleDateString("vi-VN", {
+      const isEn = i18n.language.startsWith("en");
+      const timeStr = now.toLocaleTimeString(isEn ? "en-US" : "vi-VN", { hour12: false });
+      const dateStr = now.toLocaleDateString(isEn ? "en-US" : "vi-VN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric"
@@ -198,7 +200,7 @@ export const AdminLayout: React.FC = () => {
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [i18n.language]);
 
   // close profile dropdown on click outside
   useEffect(() => {
@@ -212,7 +214,7 @@ export const AdminLayout: React.FC = () => {
   }, []);
 
   const navGroups = adminNavGroups.map((group) => ({
-    groupTitle: translate(group.label),
+    groupTitle: label(group.label, group.english),
     items: group.items.map((item) => {
       const Icon = item.icon;
       let badge: string | number | undefined;
@@ -234,7 +236,7 @@ export const AdminLayout: React.FC = () => {
       }
 
       return {
-        label: translate(item.label),
+        label: label(item.label, item.english),
         path: item.path,
         icon: <Icon className="w-4 h-4 shrink-0" />,
         badge,
@@ -247,9 +249,12 @@ export const AdminLayout: React.FC = () => {
   const getSectionTitle = () => {
     const nav = resolveAdminNavigation(location.pathname);
     if (nav) {
-      return { title: translate(nav.item.label), category: translate(nav.group.label) };
+      return { 
+        title: label(nav.item.label, nav.item.english), 
+        category: label(nav.group.label, nav.group.english) 
+      };
     }
-    return { title: translate("Admin Portal"), category: translate("Quản trị hệ thống HaloTicket") };
+    return { title: label("Admin Portal", "Admin Portal"), category: label("Quản trị hệ thống HaloTicket", "HaloTicket System Management") };
   };
 
   const currentSection = getSectionTitle();
@@ -278,9 +283,9 @@ export const AdminLayout: React.FC = () => {
                       ADMIN
                     </span>
                   </div>
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">
-                    System Management
-                  </span>
+                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">
+                      {label("Quản lý hệ thống", "System Management")}
+                    </span>
                 </div>
               )}
             </Link>
@@ -373,7 +378,9 @@ export const AdminLayout: React.FC = () => {
           {!isCollapsed && (
             <div className="flex items-center gap-1.5 px-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Online</span>
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                {label("Trực tuyến", "Online")}
+              </span>
             </div>
           )}
 
@@ -465,7 +472,7 @@ export const AdminLayout: React.FC = () => {
                     {userProfile?.fullName || "Admin System"}
                   </span>
                   <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 block leading-tight">
-                    Super Administrator
+                    {label("Quản trị viên cấp cao", "Super Administrator")}
                   </span>
                 </div>
               </button>
@@ -486,14 +493,14 @@ export const AdminLayout: React.FC = () => {
                       {userProfile?.email || "admin@haloticket.vn"}
                     </p>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] font-semibold border border-blue-200 dark:border-blue-800">
-                      {translate("Toàn quyền quản trị")}
+                      {label("Toàn quyền quản trị", "Full Administrator")}
                     </span>
                   </div>
 
                   {/* Section: Tác vụ quản trị */}
                   <div className="py-1">
                     <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Tác vụ quản trị
+                      {label("Tác vụ quản trị", "Admin Operations")}
                     </p>
                     <Link
                       to={PATHS.ADMIN_EVENTS_APPROVAL}
@@ -502,7 +509,7 @@ export const AdminLayout: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <FiCheckSquare className="w-3.5 h-3.5 text-blue-600" />
-                        <span>{translate("Kiểm duyệt sự kiện")}</span>
+                        <span>{label("Kiểm duyệt sự kiện", "Event moderation")}</span>
                       </div>
                       {pendingEventsCount > 0 && (
                         <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-bold">
@@ -517,7 +524,7 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiBarChart2 className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Báo cáo & thống kê")}</span>
+                      <span>{label("Báo cáo & thống kê", "Reports & statistics")}</span>
                     </Link>
 
                     <Link
@@ -526,7 +533,7 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiUsers className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Quản lý người dùng")}</span>
+                      <span>{label("Quản lý người dùng", "User management")}</span>
                     </Link>
 
                     <Link
@@ -536,7 +543,7 @@ export const AdminLayout: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <FiDollarSign className="w-3.5 h-3.5 text-blue-600" />
-                        <span>{translate("Quản lý tài chính")}</span>
+                        <span>{label("Quản lý tài chính", "Finance management")}</span>
                       </div>
                       {pendingPayoutsCount > 0 && (
                         <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-bold">
@@ -551,14 +558,14 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiMapPin className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Quản lý địa điểm")}</span>
+                      <span>{label("Quản lý địa điểm", "Venue management")}</span>
                     </Link>
                   </div>
 
                   {/* Section: Cấu hình & Vận hành */}
                   <div className="py-1 border-t border-slate-200 dark:border-slate-800">
                     <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Cấu hình & Hệ thống
+                      {label("Cấu hình & Hệ thống", "Configuration & System")}
                     </p>
                     <Link
                       to={PATHS.ADMIN_USERS_PERMISSIONS}
@@ -566,7 +573,7 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiUserCheck className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Quản lý phân quyền")}</span>
+                      <span>{label("Quản lý phân quyền", "Permissions Management")}</span>
                     </Link>
 
                     <Link
@@ -575,7 +582,7 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiSliders className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Cấu hình hệ thống")}</span>
+                      <span>{label("Cấu hình hệ thống", "System Configuration")}</span>
                     </Link>
 
                     <Link
@@ -584,7 +591,7 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiActivity className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Giám sát hệ thống")}</span>
+                      <span>{label("Giám sát hệ thống", "System monitoring")}</span>
                     </Link>
 
                     <Link
@@ -593,7 +600,7 @@ export const AdminLayout: React.FC = () => {
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       <FiSettings className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{translate("Cài đặt")}</span>
+                      <span>{label("Cài đặt", "Settings")}</span>
                     </Link>
                   </div>
 
@@ -604,7 +611,7 @@ export const AdminLayout: React.FC = () => {
                       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                     >
                       <FiLogOut className="w-3.5 h-3.5" />
-                      <span>{translate("Đăng xuất Quản trị")}</span>
+                      <span>{label("Đăng xuất Quản trị", "Logout Admin")}</span>
                     </button>
                   </div>
                 </div>
@@ -624,7 +631,7 @@ export const AdminLayout: React.FC = () => {
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText={translate("Nhấn để kiểm duyệt ngay →")}
+        actionText={label("Nhấn để kiểm duyệt ngay →", "Click to review now →")}
         accentColor="blue"
       />
 
@@ -651,8 +658,8 @@ export const AdminLayout: React.FC = () => {
                   <FiZap className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold app-text-main">Halo AI Assistant</h3>
-                  <p className="text-[10px] font-medium app-text-muted">Luôn sẵn sàng hỗ trợ bạn</p>
+                  <h3 className="text-sm font-bold app-text-main">{label("Halo AI Assistant", "Halo AI Assistant")}</h3>
+                  <p className="text-[10px] font-medium app-text-muted">{label("Luôn sẵn sàng hỗ trợ bạn", "Always ready to assist you")}</p>
                 </div>
               </div>
               <button 

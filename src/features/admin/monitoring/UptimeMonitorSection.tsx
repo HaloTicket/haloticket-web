@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AreaChart,
   Area,
@@ -23,6 +24,8 @@ interface UptimeMonitorSectionProps {
 }
 
 export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ services }) => {
+  const { t, i18n } = useTranslation();
+  const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("24h");
   const [activeMetric, setActiveMetric] = useState<"uptime" | "latency">("latency");
 
@@ -95,17 +98,17 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
             </div>
             <div>
               <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
-                <span>Biểu đồ Giám sát Hoạt động & Uptime SLA</span>
+                <span>{label("Biểu đồ Giám sát Hoạt động & Uptime SLA", "Service Activity & Uptime SLA Chart")}</span>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                   downServices === 0
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                     : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
                 }`}>
-                  {overallAvailability.toFixed(1)}% Operational
+                  {overallAvailability.toFixed(1)}% {label("Sẵn sàng", "Operational")}
                 </span>
               </h3>
               <p className="text-xs app-text-muted mt-0.5">
-                Theo dõi liên tục tính sẵn sàng và độ trễ mạng thực tế của các cụm Microservice
+                {label("Theo dõi liên tục tính sẵn sàng và độ trễ mạng thực tế của các cụm Microservice", "Continuously monitor availability and network latency across microservice clusters")}
               </p>
             </div>
           </div>
@@ -123,7 +126,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
                   : "app-text-muted hover:app-text-main"
               }`}
             >
-              Uptime (%)
+              {label("Uptime (%)", "Uptime (%)")}
             </button>
             <button
               type="button"
@@ -134,7 +137,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
                   : "app-text-muted hover:app-text-main"
               }`}
             >
-              Độ trễ (ms)
+              {label("Độ trễ (ms)", "Latency (ms)")}
             </button>
           </div>
 
@@ -161,46 +164,46 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-3.5 rounded-lg border app-border app-bg-subnav space-y-1">
           <span className="text-[11px] font-bold app-text-muted uppercase tracking-wider flex items-center gap-1">
-            <FiCheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Tính khả dụng SLA
+            <FiCheckCircle className="w-3.5 h-3.5 text-emerald-500" /> {label("Tính khả dụng SLA", "SLA Availability")}
           </span>
           <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">
             {overallAvailability.toFixed(1)}%
           </div>
           <span className="text-[11px] text-slate-500">
-            {upServices}/{totalServices} dịch vụ sẵn sàng
+            {upServices}/{totalServices} {label("dịch vụ sẵn sàng", "services operational")}
           </span>
         </div>
 
         <div className="p-3.5 rounded-lg border app-border app-bg-subnav space-y-1">
           <span className="text-[11px] font-bold app-text-muted uppercase tracking-wider flex items-center gap-1">
-            <FiClock className="w-3.5 h-3.5 text-blue-500" /> Độ trễ trung bình
+            <FiClock className="w-3.5 h-3.5 text-blue-500" /> {label("Độ trễ trung bình", "Average Latency")}
           </span>
           <div className="text-lg font-black text-blue-600 dark:text-blue-400">
             {avgLatency} ms
           </div>
-          <span className="text-[11px] text-slate-500">Đo trực tiếp từ Socket/Gateway</span>
+          <span className="text-[11px] text-slate-500">{label("Đo trực tiếp từ Socket/Gateway", "Live from Gateway & Microservices")}</span>
         </div>
 
         <div className="p-3.5 rounded-lg border app-border app-bg-subnav space-y-1">
           <span className="text-[11px] font-bold app-text-muted uppercase tracking-wider flex items-center gap-1">
-            <FiAlertCircle className={`w-3.5 h-3.5 ${downServices === 0 ? "text-emerald-500" : "text-red-500"}`} /> Sự cố (Outages)
+            <FiAlertCircle className={`w-3.5 h-3.5 ${downServices === 0 ? "text-emerald-500" : "text-red-500"}`} /> {label("Sự cố (Outages)", "Outages")}
           </span>
           <div className={`text-lg font-black ${downServices === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-            {downServices} dịch vụ tắt
+            {downServices} {label("dịch vụ tắt", "services down")}
           </div>
           <span className="text-[11px] text-slate-500">
-            {downServices === 0 ? "Không có gián đoạn" : "Cần kiểm tra dịch vụ"}
+            {downServices === 0 ? label("Không có gián đoạn", "All systems operational") : label("Cần kiểm tra dịch vụ", "Action required")}
           </span>
         </div>
 
         <div className="p-3.5 rounded-lg border app-border app-bg-subnav space-y-1">
           <span className="text-[11px] font-bold app-text-muted uppercase tracking-wider flex items-center gap-1">
-            <FiTrendingUp className="w-3.5 h-3.5 text-purple-500" /> Tổng số dịch vụ
+            <FiTrendingUp className="w-3.5 h-3.5 text-purple-500" /> {label("Tổng số dịch vụ", "Total Services")}
           </span>
           <div className="text-lg font-black text-purple-600 dark:text-purple-400">
-            {totalServices} cụm dịch vụ
+            {totalServices} {label("cụm dịch vụ", "service clusters")}
           </div>
-          <span className="text-[11px] text-slate-500">Được đồng bộ qua Eureka</span>
+          <span className="text-[11px] text-slate-500">{label("Được đồng bộ qua Eureka", "Synced via Eureka registry")}</span>
         </div>
       </div>
 
@@ -244,7 +247,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
               }}
               formatter={(val: any) => [
                 activeMetric === "uptime" ? `${val}%` : `${val} ms`,
-                activeMetric === "uptime" ? "Tỷ lệ Uptime" : "Độ trễ trung bình",
+                activeMetric === "uptime" ? label("Tỷ lệ Uptime", "Uptime Rate") : label("Độ trễ trung bình", "Average Latency"),
               ]}
               labelStyle={{ fontWeight: "bold", color: "#93c5fd" }}
             />
@@ -265,9 +268,9 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
         <div className="flex items-center justify-between text-xs">
           <span className="font-bold app-text-main flex items-center gap-1.5">
             <FiBarChart2 className="w-3.5 h-3.5 text-blue-500" />
-            Lịch sử vận hành 30 ngày qua theo từng Microservice
+            {label("Lịch sử vận hành 30 ngày qua theo từng Microservice", "30-Day Operational History by Microservice")}
           </span>
-          <span className="text-[11px] app-text-muted">30 ngày gần nhất</span>
+          <span className="text-[11px] app-text-muted">{label("30 ngày gần nhất", "Last 30 days")}</span>
         </div>
 
         <div className="space-y-2">
@@ -279,7 +282,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
               <div className="w-48 shrink-0">
                 <div className="text-xs font-bold app-text-main truncate">{svc.name}</div>
                 <div className="text-[10px] app-text-muted">
-                  Uptime: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{svc.uptime}</span> · {svc.latencyMs}ms
+                  {label("Uptime", "Uptime")}: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{svc.uptime}</span> · {svc.latencyMs}ms
                 </div>
               </div>
 
@@ -290,7 +293,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
                   return (
                     <div
                       key={idx}
-                      title={`Ngày ${idx + 1}/30: ${isUp ? "Hoạt động bình thường (UP)" : "Ngoại tuyến (DOWN)"}`}
+                      title={`${label("Ngày", "Day")} ${idx + 1}/30: ${isUp ? label("Hoạt động bình thường (UP)", "Operational (UP)") : label("Ngoại tuyến (DOWN)", "Offline (DOWN)")}`}
                       className={`h-6 flex-1 max-w-[10px] rounded-xs transition-transform hover:scale-125 cursor-pointer ${
                         isUp
                           ? "bg-emerald-500 hover:bg-emerald-400"

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { 
   FiCheckCircle, 
   FiDollarSign, 
@@ -28,6 +29,7 @@ import { adminConfigApi } from "@/services/adminConfigApi";
 import type { PayoutResponse } from "@/types";
 
 export function PaymentMonitoring() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED' | 'DISPUTE'>('PENDING');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGross, setFilterGross] = useState('ALL');
@@ -92,9 +94,9 @@ export function PaymentMonitoring() {
         platformFee: primaryTotalFee.toString()
       }).catch(() => {});
 
-      toast.success("Đã cập nhật cấu hình % hoa hồng sơ cấp thành công!");
+      toast.success(t("Đã cập nhật cấu hình % hoa hồng sơ cấp thành công!"));
     } catch (error) {
-      toast.error("Không thể lưu cấu hình phí.");
+      toast.error(t("Không thể lưu cấu hình phí."));
     } finally {
       setIsSavingFee(false);
     }
@@ -166,7 +168,7 @@ export function PaymentMonitoring() {
         setOrganizerNames(prev => ({ ...prev, [id]: 'Ban Tổ Chức Halo' }));
       });
     } catch (error) {
-      toast.error("Không thể tải danh sách lệnh đối soát.");
+      toast.error(t("Không thể tải danh sách lệnh đối soát."));
     } finally {
       setIsLoading(false);
     }
@@ -276,13 +278,13 @@ export function PaymentMonitoring() {
       setIsApproving(true);
       await payoutApi.approvePayout(selectedPayout.id);
       const shortId = selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0] : selectedPayout.id.slice(0, 8);
-      toast.success(`Phê duyệt thành công mã ${shortId}. Đã giải ngân cho BTC.`);
+      toast.success(`${t("Phê duyệt thành công mã")} ${shortId}. ${t("Đã giải ngân cho BTC.")}`);
       setPayoutModalOpen(false);
       setSelectedPayout(null);
       fetchAllPayouts();
       window.dispatchEvent(new Event("approval-events-updated"));
     } catch (error) {
-      toast.error("Có lỗi xảy ra khi phê duyệt lệnh.");
+      toast.error(t("Có lỗi xảy ra khi phê duyệt lệnh."));
     } finally {
       setIsApproving(false);
     }
@@ -346,17 +348,17 @@ export function PaymentMonitoring() {
   const totalFee = allPayouts.reduce((sum, p) => sum + p.platformFee, 0);
 
   const stats = [
-    { title: "Tổng Doanh Thu (Gross)", value: `${totalGross.toLocaleString('vi-VN')}đ`, subtext: "Tổng tiền vé bán được", icon: <FiDollarSign className="w-4 h-4 text-emerald-500" />, iconBgColor: "bg-emerald-500/10", valueColor: "text-emerald-600 dark:text-emerald-400" },
-    { title: "Tiền Tạm Giữ (Escrow)", value: `${totalEscrow.toLocaleString('vi-VN')}đ`, subtext: "Chưa giải ngân cho BTC", icon: <FiClock className="w-4 h-4 text-amber-500" />, iconBgColor: "bg-amber-500/10", valueColor: "text-amber-600 dark:text-amber-400" },
-    { title: "Tổng Hoa Hồng (Net Rev)", value: `${totalFee.toLocaleString('vi-VN')}đ`, subtext: `Phí nền tảng sơ cấp: ${primaryTotalFee}%`, icon: <FiCheckCircle className="w-4 h-4 text-blue-500" />, iconBgColor: "bg-blue-500/10", valueColor: "text-blue-600 dark:text-blue-400" },
-    { title: "Lệnh Chờ Duyệt", value: pendingPayouts.length.toString(), subtext: "Cần xử lý", icon: <FiAlertTriangle className="w-4 h-4 text-rose-500" />, iconBgColor: "bg-rose-500/10", valueColor: "text-rose-600 dark:text-rose-400" },
+    { title: t("Tổng Doanh Thu (Gross)"), value: `${totalGross.toLocaleString('vi-VN')}đ`, subtext: t("Tổng tiền vé bán được"), icon: <FiDollarSign className="w-4 h-4 text-emerald-500" />, iconBgColor: "bg-emerald-500/10", valueColor: "text-emerald-600 dark:text-emerald-400" },
+    { title: t("Tiền Tạm Giữ (Escrow)"), value: `${totalEscrow.toLocaleString('vi-VN')}đ`, subtext: t("Chưa giải ngân cho BTC"), icon: <FiClock className="w-4 h-4 text-amber-500" />, iconBgColor: "bg-amber-500/10", valueColor: "text-amber-600 dark:text-amber-400" },
+    { title: t("Tổng Hoa Hồng (Net Rev)"), value: `${totalFee.toLocaleString('vi-VN')}đ`, subtext: `${t("Phí nền tảng sơ cấp")}: ${primaryTotalFee}%`, icon: <FiCheckCircle className="w-4 h-4 text-blue-500" />, iconBgColor: "bg-blue-500/10", valueColor: "text-blue-600 dark:text-blue-400" },
+    { title: t("Lệnh Chờ Duyệt"), value: pendingPayouts.length.toString(), subtext: t("Cần xử lý"), icon: <FiAlertTriangle className="w-4 h-4 text-rose-500" />, iconBgColor: "bg-rose-500/10", valueColor: "text-rose-600 dark:text-rose-400" },
   ];
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Quản Lý Tài Chính & Đối Soát"
-        description="Giám sát dòng tiền vào (Gross), tiền ký quỹ (Escrow), doanh thu nền tảng và phê duyệt các lệnh thanh toán (Payout) cho Ban tổ chức."
+        title={t("Quản Lý Tài Chính & Đối Soát")}
+        description={t("Giám sát dòng tiền vào (Gross), tiền ký quỹ (Escrow), doanh thu nền tảng và phê duyệt các lệnh thanh toán (Payout) cho Ban tổ chức.")}
         actions={
           <div className="flex items-center gap-3">
             <button 
@@ -364,7 +366,7 @@ export function PaymentMonitoring() {
               className="inline-flex items-center min-h-9 gap-2 px-3.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
             >
               <FiRefreshCw className="w-3.5 h-3.5" />
-              <span>Làm mới dữ liệu</span>
+              <span>{t("Làm mới dữ liệu")}</span>
             </button>
           </div>
         }
@@ -383,33 +385,33 @@ export function PaymentMonitoring() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <h3 className="font-bold text-sm app-text-main flex items-center gap-2">
             <FiDollarSign className="w-4 h-4 text-emerald-500" />
-            Cơ Cấu Dòng Tiền Toàn Hệ Thống (Platform Cash Flow)
+            {t("Cơ Cấu Dòng Tiền Toàn Hệ Thống (Platform Cash Flow)")}
           </h3>
           <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
-            * Phí nền tảng sơ cấp mặc định: {primaryTotalFee}% (Cổng TT: {primaryGatewayFee}% | Net HaloTicket: {primaryPlatformFee}%)
+            * {t("Phí nền tảng sơ cấp mặc định")}: {primaryTotalFee}% ({t("Cổng TT")}: {primaryGatewayFee}% | Net HaloTicket: {primaryPlatformFee}%)
           </span>
         </div>
 
         <div className="flex h-3.5 w-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border app-border shadow-inner">
           <div className="bg-gradient-to-r from-amber-400 to-amber-500 relative group cursor-pointer transition-all hover:brightness-110" style={{ width: '38%' }}>
-            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded shadow-lg transition-opacity whitespace-nowrap z-10">Tạm giữ (Escrow): 38%</div>
+            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded shadow-lg transition-opacity whitespace-nowrap z-10">{t("Tạm giữ (Escrow)")}: 38%</div>
           </div>
           <div className="bg-gradient-to-r from-emerald-400 to-emerald-500 relative group cursor-pointer transition-all hover:brightness-110" style={{ width: '50%' }}>
-            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded shadow-lg transition-opacity whitespace-nowrap z-10">Đã giải ngân: 50%</div>
+            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded shadow-lg transition-opacity whitespace-nowrap z-10">{t("Đã giải ngân")}: 50%</div>
           </div>
           <div className="bg-gradient-to-r from-blue-500 to-indigo-500 relative group cursor-pointer transition-all hover:brightness-110" style={{ width: '12%' }}>
-            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 right-0 px-2 py-1 bg-slate-800 text-white text-[10px] rounded shadow-lg transition-opacity whitespace-nowrap z-10">Hoa hồng (Net): 12%</div>
+            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 right-0 px-2 py-1 bg-slate-800 text-white text-[10px] rounded shadow-lg transition-opacity whitespace-nowrap z-10">{t("Hoa hồng (Net)")}: 12%</div>
           </div>
         </div>
         <div className="flex items-center gap-6 mt-4 flex-wrap">
           <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div> Đang tạm giữ (Escrow)
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div> {t("Đang tạm giữ (Escrow)")}
           </div>
           <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div> Đã giải ngân (Payout)
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div> {t("Đã giải ngân (Payout)")}
           </div>
           <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div> Hoa hồng nền tảng (Net Rev)
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div> {t("Hoa hồng nền tảng (Net Rev)")}
           </div>
         </div>
       </div>
@@ -419,14 +421,14 @@ export function PaymentMonitoring() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-4 border-b app-border">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-600 text-white">Thị Trường Sơ Cấp</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-600 text-white">{t("Thị Trường Sơ Cấp")}</span>
               <h3 className="font-bold text-sm app-text-main flex items-center gap-2">
                 <FiSliders className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                Cơ Chế Bóc Tách & Thiết Lập % Hoa Hồng Nền Tảng (Vé Mới từ BTC)
+                {t("Cơ Chế Bóc Tách & Thiết Lập % Hoa Hồng Nền Tảng (Vé Mới từ BTC)")}
               </h3>
             </div>
             <p className="text-xs app-text-muted">
-              Minh bạch cơ cấu phân bổ giữa phí cổng thanh toán đối tác và doanh thu ròng của HaloTicket.
+              {t("Minh bạch cơ cấu phân bổ giữa phí cổng thanh toán đối tác và doanh thu ròng của HaloTicket.")}
             </p>
           </div>
           <button 
@@ -436,7 +438,7 @@ export function PaymentMonitoring() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all cursor-pointer disabled:opacity-50 self-start md:self-auto shrink-0"
           >
             <FiSave className="w-3.5 h-3.5" />
-            <span>{isSavingFee ? "Đang lưu..." : "Lưu Cấu Hình Phí"}</span>
+            <span>{isSavingFee ? t("Đang lưu...") : t("Lưu Cấu Hình Phí")}</span>
           </button>
         </div>
 
@@ -444,9 +446,9 @@ export function PaymentMonitoring() {
           {/* 1. Tổng phí thu */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border app-border space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tổng Phí Thu</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("Tổng Phí Thu")}</label>
               <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                Khuyến nghị: 5% – 6%
+                {t("Khuyến nghị")}: 5% – 6%
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -466,14 +468,14 @@ export function PaymentMonitoring() {
               <span className="text-sm font-bold app-text-muted">%</span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Tính trên tổng giá trị đơn hàng vé mới.
+              {t("Tính trên tổng giá trị đơn hàng vé mới.")}
             </p>
           </div>
 
           {/* 2. Cổng thanh toán */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border app-border space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cổng Thanh Toán Đối Tác</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("Cổng Thanh Toán Đối Tác")}</label>
               <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
                 1.5% – 2.0%
               </span>
@@ -495,14 +497,14 @@ export function PaymentMonitoring() {
               <span className="text-sm font-bold app-text-muted">%</span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Chi trả trực tiếp VNPAY / VietQR / SePay.
+              {t("Chi trả trực tiếp VNPAY / VietQR / SePay.")}
             </p>
           </div>
 
           {/* 3. Doanh thu ròng HaloTicket */}
           <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-900/20 border border-blue-200/80 dark:border-blue-800/80 space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Doanh Thu Ròng (Net Rev)</label>
+              <label className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">{t("Doanh Thu Ròng (Net Rev)")}</label>
               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
                 3.5% – 4.0%
               </span>
@@ -514,7 +516,7 @@ export function PaymentMonitoring() {
               <span className="text-sm font-bold app-text-muted">%</span>
             </div>
             <p className="text-[11px] text-blue-600/80 dark:text-blue-300/80">
-              Phần giữ lại sau khi đối soát trừ chi phí cổng TT.
+              {t("Phần giữ lại sau khi đối soát trừ chi phí cổng TT.")}
             </p>
           </div>
         </div>
@@ -522,7 +524,7 @@ export function PaymentMonitoring() {
         {/* Collection Method & Free events note */}
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/30 border app-border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
           <div className="space-y-1">
-            <span className="font-bold text-slate-600 dark:text-slate-300 text-[11px] block">Hình thức thu phí:</span>
+            <span className="font-bold text-slate-600 dark:text-slate-300 text-[11px] block">{t("Hình thức thu phí:")}</span>
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input 
@@ -532,7 +534,7 @@ export function PaymentMonitoring() {
                   onChange={() => setPrimaryFeePayer('ORGANIZER_DEDUCT')}
                   className="text-blue-600"
                 />
-                <span className="font-medium text-slate-700 dark:text-slate-200">Trừ thẳng vào tiền quyết toán trả về BTC sau sự kiện (Mặc định)</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">{t("Trừ thẳng vào tiền quyết toán trả về BTC sau sự kiện (Mặc định)")}</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input 
@@ -542,14 +544,14 @@ export function PaymentMonitoring() {
                   onChange={() => setPrimaryFeePayer('BUYER_PAYS')}
                   className="text-blue-600"
                 />
-                <span className="font-medium text-slate-700 dark:text-slate-200">Cho phép BTC cấu hình "Người mua chịu phí" (Buyer pays fee)</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">{t("Cho phép BTC cấu hình 'Người mua chịu phí' (Buyer pays fee)")}</span>
               </label>
             </div>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 shrink-0 font-medium">
             <FiShield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Sự kiện miễn phí: <strong>0%</strong> (Hỗ trợ cộng đồng & sinh viên)</span>
+            <span>{t("Sự kiện miễn phí: 0% (Hỗ trợ cộng đồng & sinh viên)")}</span>
           </div>
         </div>
       </div>
@@ -562,7 +564,7 @@ export function PaymentMonitoring() {
             onClick={() => { setActiveTab('PENDING'); setCurrentPage(1); }}
             className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer shrink-0 ${activeTab === 'PENDING' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
           >
-            <span>Chờ Đối Soát</span>
+            <span>{t("Chờ Đối Soát")}</span>
             <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold transition-all ${
               activeTab === 'PENDING' 
                 ? 'bg-amber-500 text-white shadow-xs' 
@@ -576,7 +578,7 @@ export function PaymentMonitoring() {
             onClick={() => { setActiveTab('COMPLETED'); setCurrentPage(1); }}
             className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer shrink-0 ${activeTab === 'COMPLETED' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
           >
-            <span>Đã Thanh Toán</span>
+            <span>{t("Đã Thanh Toán")}</span>
             <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold transition-all ${
               activeTab === 'COMPLETED' 
                 ? 'bg-emerald-500 text-white shadow-xs' 
@@ -591,7 +593,7 @@ export function PaymentMonitoring() {
             className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer shrink-0 ${activeTab === 'DISPUTE' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
           >
             <FiAlertTriangle className="w-3.5 h-3.5" />
-            <span>Tranh chấp / Hoàn tiền</span>
+            <span>{t("Tranh chấp / Hoàn tiền")}</span>
             <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold transition-all ${
               activeTab === 'DISPUTE' 
                 ? 'bg-rose-500 text-white shadow-xs' 
@@ -610,7 +612,7 @@ export function PaymentMonitoring() {
               type="text" 
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Tìm tên sự kiện, mã đối soát, BTC..." 
+              placeholder={t("Tìm tên sự kiện, mã đối soát, BTC...")}
               className="w-full pl-9 pr-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-[#1E1E20] focus:bg-white dark:focus:bg-[#171719] outline-none focus:border-blue-500 transition-colors app-text-main" 
             />
           </div>
@@ -620,14 +622,14 @@ export function PaymentMonitoring() {
             <div className="w-44">
               <CustomSelect 
                 options={[
-                  { value: 'ALL', label: 'Tất cả mức thu' },
-                  { value: 'UNDER_100M', label: '< 100 triệu' },
-                  { value: '100M_500M', label: '100 - 500 triệu' },
-                  { value: 'ABOVE_500M', label: '> 500 triệu' }
+                  { value: 'ALL', label: t('Tất cả mức thu') },
+                  { value: 'UNDER_100M', label: t('< 100 triệu') },
+                  { value: '100M_500M', label: t('100 - 500 triệu') },
+                  { value: 'ABOVE_500M', label: t('> 500 triệu') }
                 ]}
                 value={filterGross}
                 onChange={(val) => { setFilterGross(val); setCurrentPage(1); }}
-                placeholder="Khoảng Tổng thu"
+                placeholder={t("Khoảng Tổng thu")}
               />
             </div>
 
@@ -635,14 +637,14 @@ export function PaymentMonitoring() {
             <div className="w-36">
               <CustomSelect 
                 options={[
-                  { value: 'ALL', label: 'Mọi thời gian' },
-                  { value: 'TODAY', label: 'Hôm nay' },
-                  { value: 'WEEK', label: 'Tuần này' },
-                  { value: 'MONTH', label: 'Tháng này' }
+                  { value: 'ALL', label: t('Mọi thời gian') },
+                  { value: 'TODAY', label: t('Hôm nay') },
+                  { value: 'WEEK', label: t('Tuần này') },
+                  { value: 'MONTH', label: t('Tháng này') }
                 ]}
                 value={filterDate}
                 onChange={(val) => { setFilterDate(val); setCurrentPage(1); }}
-                placeholder="Thời gian"
+                placeholder={t("Thời gian")}
               />
             </div>
           </div>
@@ -653,12 +655,12 @@ export function PaymentMonitoring() {
           <table className="w-full text-left border-collapse min-w-[750px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/40 border-b app-border text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="px-4 py-3">Mã đối soát</th>
-                <th className="px-4 py-3">Sự kiện & BTC</th>
-                <th className="px-4 py-3 text-right">Tổng thu (Gross)</th>
-                <th className="px-4 py-3 text-right">Phí nền tảng</th>
-                <th className="px-4 py-3 text-right">Thực nhận (Net Payout)</th>
-                <th className="px-4 py-3 text-center">Thao tác</th>
+                <th className="px-4 py-3">{t("Mã đối soát")}</th>
+                <th className="px-4 py-3">{t("Sự kiện & BTC")}</th>
+                <th className="px-4 py-3 text-right">{t("Tổng thu (Gross)")}</th>
+                <th className="px-4 py-3 text-right">{t("Phí nền tảng")}</th>
+                <th className="px-4 py-3 text-right">{t("Thực nhận (Net Payout)")}</th>
+                <th className="px-4 py-3 text-center">{t("Thao tác")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-xs app-text-main font-medium">
@@ -666,15 +668,15 @@ export function PaymentMonitoring() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-slate-500 text-sm">
                     <FiLoader className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    Đang tải dữ liệu...
+                    {t("Đang tải dữ liệu...")}
                   </td>
                 </tr>
               ) : paginatedItems.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-slate-500 text-sm">
                     {searchQuery || filterGross !== 'ALL' || filterDate !== 'ALL'
-                      ? "Không tìm thấy lệnh đối soát nào phù hợp với bộ lọc."
-                      : (activeTab === 'PENDING' ? "Không có lệnh chờ đối soát nào." : activeTab === 'COMPLETED' ? "Không có lệnh đã thanh toán nào." : "Chưa có dữ liệu tranh chấp hoặc hoàn tiền.")}
+                      ? t("Không tìm thấy lệnh đối soát nào phù hợp với bộ lọc.")
+                      : (activeTab === 'PENDING' ? t("Không có lệnh chờ đối soát nào.") : activeTab === 'COMPLETED' ? t("Không có lệnh đã thanh toán nào.") : t("Chưa có dữ liệu tranh chấp hoặc hoàn tiền."))}
                   </td>
                 </tr>
               ) : (
@@ -705,38 +707,38 @@ export function PaymentMonitoring() {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
                               </span>
-                              Chờ duyệt
+                              {t("Chờ duyệt")}
                             </span>
                           )}
                           {item.status === 'COMPLETED' && (
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-100 dark:border-emerald-900/30 shrink-0">
                               <FiCheckCircle className="w-3 h-3" />
-                              Đã thanh toán
+                              {t("Đã thanh toán")}
                             </span>
                           )}
                           {item.status === 'DISPUTE' && (
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold border border-rose-100 dark:border-rose-900/30 shrink-0">
                               <FiAlertTriangle className="w-3 h-3" />
-                              Tranh chấp
+                              {t("Tranh chấp")}
                             </span>
                           )}
                         </div>
                         <p className="text-[10px] text-slate-500 font-medium">
                           {item.status === 'COMPLETED' 
-                            ? `Hoàn tất lúc: ${new Date(item.transferredAt || item.updatedAt).toLocaleString('vi-VN')}`
-                            : `Tạo lúc: ${new Date(item.createdAt).toLocaleString('vi-VN')}`}
+                            ? `${t("Hoàn tất lúc")}: ${new Date(item.transferredAt || item.updatedAt).toLocaleString('vi-VN')}`
+                            : `${t("Tạo lúc")}: ${new Date(item.createdAt).toLocaleString('vi-VN')}`}
                         </p>
                       </td>
 
                       {/* Sự kiện & Tên Ban Tổ Chức (Không hiển thị ID) */}
                       <td className="px-4 py-4">
-                        <p className="font-bold text-sm mb-0.5">Sự kiện: {item.eventId}</p>
+                        <p className="font-bold text-sm mb-0.5">{t("Sự kiện")}: {item.eventId}</p>
                         <div className="flex items-center gap-1.5">
                           <div className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-600 dark:text-slate-300 uppercase">
                             {organizerDisplay.substring(0, 1)}
                           </div>
                           <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold truncate max-w-[200px]" title={organizerDisplay}>
-                            Ban tổ chức: {organizerDisplay}
+                            {t("Ban tổ chức")}: {organizerDisplay}
                           </p>
                         </div>
                       </td>
@@ -749,7 +751,7 @@ export function PaymentMonitoring() {
                       {/* Phí nền tảng */}
                       <td className="px-4 py-3 text-right text-rose-600 dark:text-rose-400 font-medium">
                         <p>-{item.platformFee.toLocaleString('vi-VN')}đ</p>
-                        <p className="text-[10px] opacity-75">Cắt {primaryTotalFee}%</p>
+                        <p className="text-[10px] opacity-75">{t("Cắt")} {primaryTotalFee}%</p>
                       </td>
 
                       {/* Thực nhận */}
@@ -757,7 +759,7 @@ export function PaymentMonitoring() {
                         {item.status === 'PENDING' ? (
                           <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 inline-block text-right min-w-[120px]">
                             <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm mb-0.5">{item.netAmount.toLocaleString('vi-VN')}đ</p>
-                            <p className="text-[9px] font-bold text-emerald-700/60 dark:text-emerald-400/60 uppercase">Net Transfer</p>
+                            <p className="text-[9px] font-bold text-emerald-700/60 dark:text-emerald-400/60 uppercase">{t("Net Transfer")}</p>
                           </div>
                         ) : (
                           <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">{item.netAmount.toLocaleString('vi-VN')}đ</p>
@@ -771,15 +773,15 @@ export function PaymentMonitoring() {
                             onClick={() => { setSelectedPayout(item); setPayoutModalOpen(true); }}
                             className="inline-flex items-center min-h-8 gap-2 px-3 text-[11px] font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
                           >
-                            <FiCheck className="w-3.5 h-3.5" /> Duyệt Payout
+                            <FiCheck className="w-3.5 h-3.5" /> {t("Duyệt Payout")}
                           </button>
                         ) : item.status === 'COMPLETED' ? (
                           <span className="inline-flex items-center min-h-8 gap-1.5 px-3 text-[11px] font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 select-none">
-                            <FiCheck className="w-3.5 h-3.5" /> Đã Duyệt
+                            <FiCheck className="w-3.5 h-3.5" /> {t("Đã Duyệt")}
                           </span>
                         ) : (
                           <span className="inline-flex items-center min-h-8 gap-1.5 px-3 text-[11px] font-bold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 select-none">
-                            <FiAlertTriangle className="w-3.5 h-3.5" /> Chờ xử lý
+                            <FiAlertTriangle className="w-3.5 h-3.5" /> {t("Chờ xử lý")}
                           </span>
                         )}
                       </td>
@@ -809,10 +811,10 @@ export function PaymentMonitoring() {
         <AdminConfirmModal
           onClose={() => setPayoutModalOpen(false)}
           onConfirm={handleApprove}
-          title="Duyệt & Giải Ngân Lệnh Tất Toán (Payout)"
-          subtitle={`Phê duyệt lệnh đối soát #${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()} • Giải ngân quỹ Escrow sang tài khoản Ban tổ chức`}
-          confirmText={isApproving ? "Đang xử lý..." : "Xác nhận đã chuyển & Hoàn tất"}
-          cancelText="Đóng"
+          title={t("Duyệt & Giải Ngân Lệnh Tất Toán (Payout)")}
+          subtitle={`${t("Phê duyệt lệnh đối soát")} #${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()} • ${t("Giải ngân quỹ Escrow sang tài khoản Ban tổ chức")}`}
+          confirmText={isApproving ? t("Đang xử lý...") : t("Xác nhận đã chuyển & Hoàn tất")}
+          cancelText={t("Đóng")}
           isDanger={false}
           pending={isApproving}
           maxWidth="max-w-4xl"
@@ -827,7 +829,7 @@ export function PaymentMonitoring() {
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                       <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                        Tài khoản thụ hưởng BTC (Bước 5)
+                        {t("Tài khoản thụ hưởng BTC (Bước 5)")}
                       </span>
                     </div>
                     <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
@@ -837,19 +839,19 @@ export function PaymentMonitoring() {
 
                   {isLoadingBank ? (
                     <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-                      <FiLoader className="w-4 h-4 animate-spin text-blue-500" /> Đang tải thông tin tài khoản ngân hàng...
+                      <FiLoader className="w-4 h-4 animate-spin text-blue-500" /> {t("Đang tải thông tin tài khoản ngân hàng...")}
                     </div>
                   ) : (
                     <div className="space-y-2.5 text-xs">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">Chủ tài khoản:</span>
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">{t("Chủ tài khoản:")}</span>
                           <strong className="app-text-main font-bold text-sm block truncate" title={payoutBankInfo?.accountHolder}>
-                            {payoutBankInfo?.accountHolder || "Đang cập nhật"}
+                            {payoutBankInfo?.accountHolder || t("Đang cập nhật")}
                           </strong>
                         </div>
                         <div>
-                          <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">Ngân hàng:</span>
+                          <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">{t("Ngân hàng:")}</span>
                           <strong className="app-text-main font-bold text-sm block truncate" title={payoutBankInfo?.bankName}>
                             {payoutBankInfo?.bankName || "Vietcombank"}
                             {payoutBankInfo?.bankBranch ? ` (${payoutBankInfo.bankBranch})` : ""}
@@ -858,7 +860,7 @@ export function PaymentMonitoring() {
                       </div>
 
                       <div>
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-1">Số tài khoản:</span>
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-1">{t("Số tài khoản:")}</span>
                         <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-zinc-900 border app-border">
                           <span className="font-mono font-black text-base text-blue-600 dark:text-blue-400 tracking-wider">
                             {payoutBankInfo?.accountNumber || "---"}
@@ -868,14 +870,14 @@ export function PaymentMonitoring() {
                             onClick={() => {
                               if (payoutBankInfo?.accountNumber) {
                                 navigator.clipboard.writeText(payoutBankInfo.accountNumber);
-                                toast.success("Đã sao chép số tài khoản!");
+                                toast.success(t("Đã sao chép số tài khoản!"));
                               }
                             }}
                             className="px-2.5 py-1 text-xs font-medium hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800/60 flex items-center gap-1.5 cursor-pointer transition-colors"
-                            title="Sao chép STK"
+                            title={t("Sao chép STK")}
                           >
                             <FiCopy className="w-3.5 h-3.5" />
-                            <span>Sao chép</span>
+                            <span>{t("Sao chép")}</span>
                           </button>
                         </div>
                       </div>
@@ -886,18 +888,18 @@ export function PaymentMonitoring() {
                 {/* Financial Settlement Breakdown */}
                 <div className="p-4 rounded-xl border app-border bg-slate-50/70 dark:bg-slate-800/40 space-y-2.5 shadow-2xs">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
-                    Bóc tách đối soát tài chính
+                    {t("Bóc tách đối soát tài chính")}
                   </span>
                   <div className="space-y-1.5 text-xs">
                     <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                      <span>Doanh thu bán vé (Gross):</span>
+                      <span>{t("Doanh thu bán vé (Gross):")}</span>
                       <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
                         {selectedPayout.grossAmount.toLocaleString('vi-VN')}đ
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                       <span>
-                        Phí nền tảng khấu trừ
+                        {t("Phí nền tảng khấu trừ")}
                         {selectedPayout.grossAmount > 0 && selectedPayout.platformFee 
                           ? ` (${((selectedPayout.platformFee / selectedPayout.grossAmount) * 100).toFixed(0)}%)` 
                           : ""}:
@@ -907,7 +909,7 @@ export function PaymentMonitoring() {
                       </span>
                     </div>
                     <div className="pt-2 border-t app-border flex items-center justify-between">
-                      <span className="font-bold app-text-main text-sm">Thực nhận giải ngân (Net Payout):</span>
+                      <span className="font-bold app-text-main text-sm">{t("Thực nhận giải ngân (Net Payout):")}</span>
                       <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-lg">
                         {selectedPayout.netAmount.toLocaleString('vi-VN')}đ
                       </span>
@@ -919,9 +921,9 @@ export function PaymentMonitoring() {
                 <div className="p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wide">
-                      Nội dung chuyển khoản (Memo)
+                      {t("Nội dung chuyển khoản (Memo)")}
                     </span>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-500">Bắt buộc để khớp lệnh</span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-500">{t("Bắt buộc để khớp lệnh")}</span>
                   </div>
                   <div className="p-2 rounded-lg bg-white dark:bg-zinc-900 border app-border font-mono text-xs flex items-center justify-between font-bold">
                     <span className="text-slate-800 dark:text-slate-200 select-all truncate">
@@ -932,13 +934,13 @@ export function PaymentMonitoring() {
                       onClick={() => {
                         const note = `HALOTICKET PAYOUT ${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()}`;
                         navigator.clipboard.writeText(note);
-                        toast.success("Đã sao chép nội dung chuyển khoản!");
+                        toast.success(t("Đã sao chép nội dung chuyển khoản!"));
                       }}
                       className="px-2 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-600 dark:text-slate-300 flex items-center gap-1 cursor-pointer transition-colors shrink-0 ml-2"
-                      title="Sao chép nội dung CK"
+                      title={t("Sao chép nội dung CK")}
                     >
                       <FiCopy className="w-3.5 h-3.5" />
-                      <span>Sao chép</span>
+                      <span>{t("Sao chép")}</span>
                     </button>
                   </div>
                 </div>
@@ -950,10 +952,10 @@ export function PaymentMonitoring() {
                   <div className="w-full p-4 rounded-2xl border app-border bg-white dark:bg-zinc-900 shadow-md flex flex-col items-center text-center">
                     <div className="flex items-center gap-1.5 mb-2">
                       <span className="text-xs font-black tracking-wide text-emerald-600 dark:text-emerald-400 uppercase">
-                        Mã VietQR Napas 24/7
+                        {t("Mã VietQR Napas 24/7")}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
-                        Chuẩn SePay
+                        {t("Chuẩn SePay")}
                       </span>
                     </div>
 
@@ -971,7 +973,7 @@ export function PaymentMonitoring() {
                         {selectedPayout.netAmount.toLocaleString('vi-VN')} đ
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                        Mở App ngân hàng bất kỳ để quét mã chuyển nhanh 24/7. Số tiền và nội dung đối soát tự động điền chính xác 100%.
+                        {t("Mở App ngân hàng bất kỳ để quét mã chuyển nhanh 24/7. Số tiền và nội dung đối soát tự động điền chính xác 100%.")}
                       </p>
                       <a 
                         href={`https://img.vietqr.io/image/${getVietQRBankCode(payoutBankInfo.bankName)}-${payoutBankInfo.accountNumber}-compact2.png?amount=${selectedPayout.netAmount}&addInfo=HALOTICKET%20PAYOUT%20${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()}&accountName=${encodeURIComponent(payoutBankInfo.accountHolder)}`}
@@ -980,13 +982,13 @@ export function PaymentMonitoring() {
                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline pt-1 cursor-pointer"
                       >
                         <FiExternalLink className="w-3 h-3" />
-                        <span>Mở ảnh QR kích thước gốc</span>
+                        <span>{t("Mở ảnh QR kích thước gốc")}</span>
                       </a>
                     </div>
                   </div>
                 ) : (
                   <div className="w-full h-64 rounded-2xl border app-border bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-xs text-slate-400">
-                    <FiLoader className="w-5 h-5 animate-spin mr-2" /> Đang chuẩn bị mã QR...
+                    <FiLoader className="w-5 h-5 animate-spin mr-2" /> {t("Đang chuẩn bị mã QR...")}
                   </div>
                 )}
               </div>
@@ -996,7 +998,7 @@ export function PaymentMonitoring() {
             <div className="p-3 rounded-xl border border-blue-200/60 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2.5">
               <FiInfo className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                Số tiền giải ngân được trích trực tiếp từ quỹ Escrow (Ký quỹ giữ tiền) sang tài khoản Ban tổ chức. Sau khi kế toán chuyển tiền thành công, nhấn <strong>"Xác nhận đã chuyển & Hoàn tất"</strong> để cập nhật trạng thái lệnh sang <strong>Đã thanh toán</strong> và gửi biên lai đối soát cho BTC.
+                {t('Số tiền giải ngân được trích trực tiếp từ quỹ Escrow (Ký quỹ giữ tiền) sang tài khoản Ban tổ chức. Sau khi kế toán chuyển tiền thành công, nhấn')} <strong>"{t('Xác nhận đã chuyển & Hoàn tất')}"</strong> {t('để cập nhật trạng thái lệnh sang')} <strong>{t('Đã thanh toán')}</strong> {t('và gửi biên lai đối soát cho BTC.')}
               </p>
             </div>
           </div>

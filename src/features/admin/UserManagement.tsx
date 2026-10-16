@@ -104,7 +104,7 @@ export default function AdminUserManagement() {
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
       await adminUserApi.updateUserStatus(id, newStatus);
-      toast.success(t(`Đã ${newStatus === "ACTIVE" ? "mở khóa" : "khóa"} tài khoản thành công!`));
+      toast.success(newStatus === "ACTIVE" ? t("Đã mở khóa tài khoản thành công!") : t("Đã khóa tài khoản thành công!"));
       fetchUsers();
     } catch (err) {
       toast.error(t("Không thể cập nhật trạng thái tài khoản."));

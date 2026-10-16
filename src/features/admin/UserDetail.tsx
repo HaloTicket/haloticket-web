@@ -42,7 +42,7 @@ export default function AdminUserDetail() {
     if (!userId) return;
     try {
       await adminUserApi.updateUserStatus(userId, newStatus);
-      toast.success(t(`Đã ${newStatus === "ACTIVE" ? "mở khóa" : "khóa"} tài khoản thành công!`));
+      toast.success(newStatus === "ACTIVE" ? t("Đã mở khóa tài khoản thành công!") : t("Đã khóa tài khoản thành công!"));
       fetchUser();
     } catch (err) {
       toast.error(t("Không thể cập nhật trạng thái tài khoản."));

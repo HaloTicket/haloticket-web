@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FiSearch, FiCode, FiDatabase, FiLoader, FiAlertCircle, FiDownload, FiBookmark, FiPieChart, FiBarChart2 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -13,6 +14,8 @@ interface AiQueryHistoryItem {
 }
 
 export const AdminAiAnalytics: React.FC = () => {
+  const { t: translate, i18n } = useTranslation();
+  const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [history, setHistory] = useState<AiQueryHistoryItem[]>(() => {
     try {
       const saved = localStorage.getItem('admin_ai_query_history');
@@ -106,7 +109,7 @@ export const AdminAiAnalytics: React.FC = () => {
       saveToHistory(question, response);
     } catch (err: any) {
       console.error("AI Analytics error:", err);
-      setError("Rất tiếc, AI không thể phân tích yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn hoặc kiểm tra kết nối CSDL.");
+      setError(label("Rất tiếc, AI không thể phân tích yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn hoặc kiểm tra kết nối CSDL.", "Sorry, AI could not analyze this request. Please try again with a clearer question or check database connectivity."));
     } finally {
       setIsLoading(false);
     }
@@ -133,8 +136,8 @@ export const AdminAiAnalytics: React.FC = () => {
     const event = new CustomEvent('toast-notification', {
       detail: {
         id: `pin-${Date.now()}`,
-        title: "Đã ghim thành công",
-        message: "Biểu đồ này đã được ghim ra màn hình chính (Admin Dashboard).",
+        title: label("Đã ghim thành công", "Pinned successfully"),
+        message: label("Biểu đồ này đã được ghim ra màn hình chính (Admin Dashboard).", "This chart has been pinned to the Admin Dashboard."),
         type: "success",
         timestamp: new Date().toISOString()
       }
@@ -150,7 +153,7 @@ export const AdminAiAnalytics: React.FC = () => {
     localStorage.removeItem('admin_ai_last_query');
   };
   const renderTable = (data: any[]) => {
-    if (!data || data.length === 0) return <p className="text-sm app-text-muted mt-4 text-center py-8">Không tìm thấy dữ liệu phù hợp với yêu cầu của bạn.</p>;
+    if (!data || data.length === 0) return <p className="text-sm app-text-muted mt-4 text-center py-8">{label("Không tìm thấy dữ liệu phù hợp với yêu cầu của bạn.", "No matching data found for your request.")}</p>;
 
     const columns = Object.keys(data[0]);
 
@@ -218,7 +221,7 @@ export const AdminAiAnalytics: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 text-xs font-bold app-text-muted uppercase tracking-wider">
             {activeChartType === 'pie' ? <FiPieChart className="w-4 h-4 text-purple-500" /> : <FiBarChart2 className="w-4 h-4 text-blue-500" />}
-            <span>Biểu đồ trực quan</span>
+            <span>{label("Biểu đồ trực quan", "Visual Chart")}</span>
           </div>
           <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5">
             <button onClick={() => setChartTypeOverride('bar')} className={`px-2 py-1 text-xs font-bold rounded ${activeChartType === 'bar' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Bar</button>
@@ -267,10 +270,10 @@ export const AdminAiAnalytics: React.FC = () => {
           <FiDatabase className="w-7 h-7" />
         </div>
         <h1 className="text-2xl md:text-3xl font-extrabold app-text-main tracking-tight mb-3">
-          Phân Tích Dữ Liệu AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">(Text-to-SQL)</span>
+          {label("Phân Tích Dữ Liệu AI", "AI Data Analytics")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">(Text-to-SQL)</span>
         </h1>
         <p className="text-sm app-text-muted max-w-lg mx-auto">
-          Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh, AI (Gemini Flash) sẽ tự động viết câu lệnh SQL để truy vấn cơ sở dữ liệu và trả về kết quả kèm phân tích ngay lập tức!
+          {label("Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh, AI (Gemini Flash) sẽ tự động viết câu lệnh SQL để truy vấn cơ sở dữ liệu và trả về kết quả kèm phân tích ngay lập tức!", "Ask questions in Vietnamese or English, AI (Gemini Flash) will automatically generate SQL to query the database and return results with insights instantly!")}
         </p>
       </div>
 
@@ -283,7 +286,7 @@ export const AdminAiAnalytics: React.FC = () => {
           <input
             type="text"
             className="block w-full pl-11 pr-[140px] min-h-12 app-bg-card border app-border rounded-lg text-sm app-text-main focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none shadow-xs"
-            placeholder="Ví dụ: Lấy cho tôi tổng doanh thu của tất cả sự kiện..."
+            placeholder={label("Ví dụ: Lấy cho tôi tổng doanh thu của tất cả sự kiện...", "E.g.: Give me total revenue across all events...")}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             disabled={isLoading}
@@ -295,9 +298,9 @@ export const AdminAiAnalytics: React.FC = () => {
               className="px-4 py-2 min-h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white text-xs font-bold rounded-md transition-all active:scale-95 flex items-center gap-1.5"
             >
               {isLoading ? (
-                <><FiLoader className="w-4 h-4 animate-spin" /> Đang phân tích</>
+                <><FiLoader className="w-4 h-4 animate-spin" /> {label("Đang phân tích", "Analyzing")}</>
               ) : (
-                <>Truy vấn ngay</>
+                <>{label("Truy vấn ngay", "Query now")}</>
               )}
             </button>
           </div>
@@ -306,24 +309,24 @@ export const AdminAiAnalytics: React.FC = () => {
           type="button"
           onClick={handleReset}
           className="shrink-0 inline-flex items-center min-h-12 gap-2 px-4 text-xs font-semibold rounded-lg app-bg-card border app-border app-text-main hover:brightness-95 dark:hover:brightness-110 transition-colors shadow-xs"
-          title="Xóa lịch sử và làm mới trang"
+          title={label("Xóa lịch sử và làm mới trang", "Clear history and refresh page")}
         >
           <FiRefreshCw className="w-4 h-4" />
-          <span className="hidden sm:inline">Làm mới</span>
+          <span className="hidden sm:inline">{label("Làm mới", "Reset")}</span>
         </button>
       </div>
       
       {/* Query History & Saved tags */}
       <div className="max-w-4xl mx-auto mt-4 flex flex-col items-center">
         <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">
-          <span className="flex items-center gap-1.5"><FiBookmark className="w-3.5 h-3.5" /> Lịch sử truy vấn ({history.length})</span>
+          <span className="flex items-center gap-1.5"><FiBookmark className="w-3.5 h-3.5" /> {label("Lịch sử truy vấn", "Query history")} ({history.length})</span>
           {history.length > 0 && (
             <button 
               onClick={clearAllHistory} 
               className="text-slate-400 hover:text-rose-500 transition-colors normal-case font-medium flex items-center gap-1 cursor-pointer"
-              title="Xóa tất cả lịch sử truy vấn"
+              title={label("Xóa tất cả lịch sử truy vấn", "Clear all query history")}
             >
-              (Xóa tất cả)
+              ({label("Xóa tất cả", "Clear all")})
             </button>
           )}
         </div>
@@ -336,14 +339,14 @@ export const AdminAiAnalytics: React.FC = () => {
                 className={`group cursor-pointer hover:text-blue-500 hover:border-blue-300 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs flex items-center gap-1.5 ${
                   question === item.question ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-bold' : ''
                 }`}
-                title={`Nhấp để tải lại kết quả: "${item.question}"`}
+                title={`${label("Nhấp để tải lại kết quả", "Click to reload result")}: "${item.question}"`}
               >
                 <span>{item.question.length > 40 ? item.question.substring(0, 40) + '...' : item.question}</span>
                 <button
                   type="button"
                   onClick={(e) => removeHistoryItem(e, item.id)}
                   className="opacity-0 group-hover:opacity-100 hover:text-rose-500 text-slate-400 p-0.5 rounded-full transition-opacity cursor-pointer"
-                  title="Xóa mục này"
+                  title={label("Xóa mục này", "Delete this item")}
                 >
                   &times;
                 </button>
@@ -351,9 +354,9 @@ export const AdminAiAnalytics: React.FC = () => {
             ))
           ) : (
             <>
-              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Top 5 sự kiện có doanh thu cao nhất?')}>Top 5 sự kiện doanh thu cao</span>
-              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Thống kê số vé bán ra theo từng thể loại')}>Vé bán theo thể loại</span>
-              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion('Tổng doanh thu theo từng tháng trong năm nay')}>Doanh thu theo tháng</span>
+              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion(label('Top 5 sự kiện có doanh thu cao nhất?', 'Top 5 events with highest revenue?'))}>{label("Top 5 sự kiện doanh thu cao", "Top 5 revenue events")}</span>
+              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion(label('Thống kê số vé bán ra theo từng thể loại', 'Tickets sold by category'))}>{label("Vé bán theo thể loại", "Tickets by category")}</span>
+              <span className="cursor-pointer hover:text-blue-500 transition-colors px-3 py-1.5 rounded-full app-bg-card border app-border shadow-xs" onClick={() => setQuestion(label('Tổng doanh thu theo từng tháng trong năm nay', 'Total revenue by month this year'))}>{label("Doanh thu theo tháng", "Revenue by month")}</span>
             </>
           )}
         </div>
@@ -366,14 +369,16 @@ export const AdminAiAnalytics: React.FC = () => {
           className="text-[11px] font-bold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1 app-bg-card px-3 py-1.5 rounded-full border app-border shadow-sm"
         >
           <FiDatabase className="w-3.5 h-3.5" /> 
-          {showSchema ? 'Ẩn Cấu Trúc DB' : 'Xem Cấu Trúc Bảng (Schema)'}
+          {showSchema ? label('Ẩn Cấu Trúc DB', 'Hide DB Schema') : label('Xem Cấu Trúc Bảng (Schema)', 'View Table Schema')}
         </button>
       </div>
 
       {/* Schema Drawer/Panel */}
       {showSchema && (
         <div className="max-w-4xl mx-auto app-bg-subnav border app-border rounded-lg p-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Từ điển dữ liệu (Data Dictionary)</h3>
+          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+            {label("Từ điển dữ liệu (Data Dictionary)", "Data Dictionary (Database Schema)")}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="app-bg-card border app-border rounded p-3">
               <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm mb-1.5 flex items-center gap-1.5"><FiDatabase className="w-3 h-3"/> events</h4>
@@ -426,7 +431,7 @@ export const AdminAiAnalytics: React.FC = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="text-sm font-bold app-text-main flex items-center gap-2 mb-3">
-                    Phân tích & Đề xuất từ AI
+                    {label("Phân tích & Đề xuất từ AI", "AI Insights & Suggestions")}
                   </h3>
                   <div className="text-[13px] font-medium app-text-main leading-relaxed prose prose-sm max-w-none dark:prose-invert">
                     <ReactMarkdown>{result.reply}</ReactMarkdown>
@@ -437,10 +442,10 @@ export const AdminAiAnalytics: React.FC = () => {
                 <button 
                   onClick={handlePinDashboard}
                   className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 gradient-btn rounded-md text-[11px] font-bold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5"
-                  title="Ghim Báo Cáo Này Ra Dashboard"
+                  title={label("Ghim Báo Cáo Này Ra Dashboard", "Pin this report to Dashboard")}
                 >
                   <FiBookmark className="w-3.5 h-3.5" />
-                  <span>Ghim Dashboard</span>
+                  <span>{label("Ghim Dashboard", "Pin Dashboard")}</span>
                 </button>
               </div>
             </div>
@@ -452,7 +457,7 @@ export const AdminAiAnalytics: React.FC = () => {
               <div className="p-5 rounded-lg shadow-xs bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 mb-3 text-[11px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   <FiCode className="w-4 h-4 text-indigo-500" /> 
-                  <span>Truy vấn SQL (Tạo bởi AI)</span>
+                  <span>{label("Truy vấn SQL (Tạo bởi AI)", "Generated SQL Query (by AI)")}</span>
                 </div>
                 <pre className="p-4 bg-gray-50 dark:bg-[#09090b] rounded-lg text-[13px] font-mono text-indigo-700 dark:text-indigo-400 overflow-x-auto border border-gray-100 dark:border-gray-800">
                   {result.generated_sql}
@@ -470,14 +475,14 @@ export const AdminAiAnalytics: React.FC = () => {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2 text-[11px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider pl-1">
                       <FiDatabase className="w-4 h-4 text-emerald-500" /> 
-                      <span>Dữ liệu trích xuất từ DB</span>
+                      <span>{label("Dữ liệu trích xuất từ DB", "Extracted Data from DB")}</span>
                     </div>
                     <button 
                       onClick={exportToCSV}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-md text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-sm"
                     >
                       <FiDownload className="w-3.5 h-3.5" />
-                      <span>Xuất CSV</span>
+                      <span>{label("Xuất CSV", "Export CSV")}</span>
                     </button>
                   </div>
                   {renderTable(result.data)}

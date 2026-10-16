@@ -42,7 +42,8 @@ interface ActivityLogItem {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate, i18n } = useTranslation();
+  const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const navigate = useNavigate();
   const profile = getCachedUserProfile();
   const adminName = profile?.fullName || profile?.email?.split("@")[0] || "Ban Quản Trị";
@@ -133,35 +134,7 @@ export const AdminDashboard: React.FC = () => {
       // fallback
     }
 
-    // default seed logs if empty
-    const initialLogs: ActivityLogItem[] = [
-      {
-        id: "log-1",
-        user: "Trần Long Vũ (Admin)",
-        action: "Cập nhật và kiểm tra cấu hình giá trần Resale (+20%)",
-        time: "Vừa xong",
-        timestamp: Date.now(),
-        type: "success"
-      },
-      {
-        id: "log-2",
-        user: "Hệ thống HaloTicket",
-        action: "Tự động đồng bộ hóa trạng thái microservices và CSDL",
-        time: "15 phút trước",
-        timestamp: Date.now() - 15 * 60000,
-        type: "info"
-      },
-      {
-        id: "log-3",
-        user: "Admin Hệ thống",
-        action: "Kiểm duyệt và xác minh địa điểm công cộng hợp lệ",
-        time: "1 giờ trước",
-        timestamp: Date.now() - 60 * 60000,
-        type: "success"
-      }
-    ];
-    setActivityLogs(initialLogs);
-    localStorage.setItem("admin_activity_logs", JSON.stringify(initialLogs));
+    setActivityLogs([]);
   };
 
   useEffect(() => {
@@ -170,8 +143,10 @@ export const AdminDashboard: React.FC = () => {
 
   // ai executive summary generation with cache to prevent excessive runs
   const generateOrLoadAiSummary = useCallback((forceRefresh: boolean = false) => {
-    const cachedSummary = localStorage.getItem("admin_ai_executive_summary");
-    const cachedTime = localStorage.getItem("admin_ai_executive_summary_time");
+    const isEn = i18n.language.startsWith("en");
+    const cacheKey = `admin_ai_executive_summary_${isEn ? "en" : "vi"}`;
+    const cachedSummary = localStorage.getItem(cacheKey);
+    const cachedTime = localStorage.getItem(`${cacheKey}_time`);
 
     // use cached summary if less than 30 minutes old and not forced
     if (!forceRefresh && cachedSummary && cachedTime && Date.now() - Number(cachedTime) < 30 * 60 * 1000) {
@@ -183,16 +158,20 @@ export const AdminDashboard: React.FC = () => {
     setIsAiAnalyzing(true);
     setTimeout(() => {
       const pendingCount = pendingEvents.length;
-      const healthStatus = servicesCount.up === servicesCount.total ? "hoạt động hoàn toàn ổn định (100% UP)" : `có ${servicesCount.total - servicesCount.up} dịch vụ cần kiểm tra`;
+      const healthStatus = servicesCount.up === servicesCount.total 
+        ? (isEn ? "operating completely stable (100% UP)" : "hoạt động hoàn toàn ổn định (100% UP)")
+        : (isEn ? `has ${servicesCount.total - servicesCount.up} services needing inspection` : `có ${servicesCount.total - servicesCount.up} dịch vụ cần kiểm tra`);
 
-      const summaryText = `Báo cáo hệ thống thời gian thực: Hiện tại có **${pendingCount} sự kiện** đang trong hàng đợi phê duyệt cần Admin kiểm duyệt.\n\nChính sách kiểm soát giá trần vé Resale ở mức **+${resaleCap}%** đang có hiệu lực với **${resaleListingsCount} vé** đang giao dịch an toàn trên sàn thứ cấp.\n\nHạ tầng Microservices ${healthStatus}, kết nối cơ sở dữ liệu và các kênh thông báo hoạt động thông suốt. Hệ thống hiện quản lý **${venuesCount} địa điểm** với đầy đủ sơ đồ ghế chuẩn hóa.`;
+      const summaryText = isEn
+        ? `Real-time system report: Currently **${pendingCount} events** are in the approval queue awaiting Admin review.\n\nSecondary resale price cap policy at **+${resaleCap}%** is active with **${resaleListingsCount} tickets** trading safely.\n\nMicroservices infrastructure is ${healthStatus}, database connections and notification channels are running smoothly. The system currently manages **${venuesCount} venues** with standardized seatmaps.`
+        : `Báo cáo hệ thống thời gian thực: Hiện tại có **${pendingCount} sự kiện** đang trong hàng đợi phê duyệt cần Admin kiểm duyệt.\n\nChính sách kiểm soát giá trần vé Resale ở mức **+${resaleCap}%** đang có hiệu lực với **${resaleListingsCount} vé** đang giao dịch an toàn trên sàn thứ cấp.\n\nHạ tầng Microservices ${healthStatus}, kết nối cơ sở dữ liệu và các kênh thông báo hoạt động thông suốt. Hệ thống hiện quản lý **${venuesCount} địa điểm** với đầy đủ sơ đồ ghế chuẩn hóa.`;
 
       setAiSummary(summaryText);
-      localStorage.setItem("admin_ai_executive_summary", summaryText);
-      localStorage.setItem("admin_ai_executive_summary_time", String(Date.now()));
+      localStorage.setItem(cacheKey, summaryText);
+      localStorage.setItem(`${cacheKey}_time`, String(Date.now()));
       setIsAiAnalyzing(false);
     }, 1000);
-  }, [pendingEvents.length, resaleCap, resaleListingsCount, servicesCount, venuesCount]);
+  }, [i18n.language, pendingEvents.length, resaleCap, resaleListingsCount, servicesCount, venuesCount]);
 
   useEffect(() => {
     if (venuesCount >= 0) {
@@ -203,47 +182,47 @@ export const AdminDashboard: React.FC = () => {
   const statCards = [
     {
       id: "pending-events",
-      title: "Sự kiện chờ duyệt",
+      title: label("Sự kiện chờ duyệt", "Pending approval events"),
       value: String(pendingEvents.length),
-      change: pendingEvents.length > 0 ? `${pendingEvents.length} yêu cầu mới` : "Hàng đợi sạch",
+      change: pendingEvents.length > 0 ? `${pendingEvents.length} ${label("yêu cầu mới", "new requests")}` : label("Hàng đợi sạch", "Queue empty"),
       changeType: pendingEvents.length > 0 ? "warning" : "positive",
       icon: <FiCheckSquare className="w-5 h-5 text-amber-500" />,
       bg: "bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-900",
       link: PATHS.ADMIN_EVENTS_APPROVAL,
-      badgeText: pendingEvents.length > 0 ? "Cần xử lý ngay" : "Đã hoàn thành"
+      badgeText: pendingEvents.length > 0 ? label("Cần xử lý ngay", "Action required") : label("Đã hoàn thành", "Completed")
     },
     {
       id: "resale-cap",
-      title: "Giá trần Bán vé lại (Resale)",
+      title: label("Giá trần Bán vé lại (Resale)", "Resale Price Cap"),
       value: `Max +${resaleCap}%`,
-      change: `${resaleListingsCount} vé đang giao dịch`,
+      change: `${resaleListingsCount} ${label("vé đang giao dịch", "active listings")}`,
       changeType: "positive",
       icon: <FiTrendingUp className="w-5 h-5 text-emerald-500" />,
       bg: "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900",
       link: PATHS.ADMIN_RESALE_PRICE_CAP,
-      badgeText: "Đang hoạt động"
+      badgeText: label("Đang hoạt động", "Active")
     },
     {
       id: "system-health",
-      title: "Sức khỏe Microservices",
-      value: `${servicesCount.up}/${servicesCount.total} Dịch vụ`,
-      change: servicesCount.up === servicesCount.total ? "Hệ thống UP (Clean)" : "Cảnh báo dịch vụ",
+      title: label("Sức khỏe Microservices", "Microservices Health"),
+      value: `${servicesCount.up}/${servicesCount.total} ${label("Dịch vụ", "Services")}`,
+      change: servicesCount.up === servicesCount.total ? label("Hệ thống UP (Clean)", "System UP (Clean)") : label("Cảnh báo dịch vụ", "Service Warning"),
       changeType: servicesCount.up === servicesCount.total ? "positive" : "warning",
       icon: <FiActivity className="w-5 h-5 text-indigo-500" />,
       bg: "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-900",
       link: PATHS.ADMIN_SYSTEM_HEALTH,
-      badgeText: servicesCount.up === servicesCount.total ? "Ổn định" : "Cần kiểm tra"
+      badgeText: servicesCount.up === servicesCount.total ? label("Ổn định", "Stable") : label("Cần kiểm tra", "Needs check")
     },
     {
       id: "venues-seatmaps",
-      title: "Địa điểm & SeatMap",
-      value: `${venuesCount} Địa điểm`,
-      change: "Template & Sơ đồ sẵn sàng",
+      title: label("Địa điểm & SeatMap", "Venues & SeatMaps"),
+      value: `${venuesCount} ${label("Địa điểm", "Venues")}`,
+      change: label("Template & Sơ đồ sẵn sàng", "Templates & layouts ready"),
       changeType: "positive",
       icon: <FiLayers className="w-5 h-5 text-blue-500" />,
       bg: "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-900",
       link: PATHS.ADMIN_VENUES_MANAGEMENT,
-      badgeText: "Quản lý"
+      badgeText: label("Quản lý", "Manage")
     }
   ];
 
@@ -281,18 +260,6 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Combined Narrative & AI Live Summary */}
         <div className="relative z-10 text-xs md:text-sm text-blue-100/90 space-y-2.5 leading-relaxed max-w-4xl">
-          <p>
-            {translate("Hệ thống hiện có")}{" "}
-            <strong className="text-amber-300 font-extrabold px-1.5 py-0.5 rounded bg-amber-400/10">
-              {pendingEvents.length} {translate("sự kiện chờ duyệt")}
-            </strong>{" "}
-            {translate("và")}{" "}
-            <strong className="text-emerald-300 font-extrabold px-1.5 py-0.5 rounded bg-emerald-400/10">
-              {venuesCount} {translate("địa điểm")}
-            </strong>{" "}
-            {translate("được lưu trữ trên hệ thống.")}
-          </p>
-
           {isAiAnalyzing ? (
             <div className="flex items-center gap-2.5 text-sm text-blue-200 py-1">
               <FiRefreshCw className="w-4 h-4 animate-spin text-blue-300" />
@@ -301,15 +268,25 @@ export const AdminDashboard: React.FC = () => {
           ) : (
             aiSummary?.split("\n\n").map((line, i) => (
               <p key={i}>
-                {line.split("**").map((part, j) =>
-                  j % 2 === 1 ? (
-                    <strong key={j} className="text-amber-300 font-extrabold">
-                      {part}
-                    </strong>
-                  ) : (
-                    part
-                  )
-                )}
+                {line.split("**").map((part, j) => {
+                  if (j % 2 === 1) {
+                    const text = part.toLowerCase();
+                    let colorClass = "text-amber-300 bg-amber-400/20 border-amber-400/30"; // default: sự kiện / events
+                    if (text.includes("%")) {
+                      colorClass = "text-emerald-300 bg-emerald-400/20 border-emerald-400/30"; // resale cap +18%
+                    } else if (text.includes("vé") || text.includes("ticket")) {
+                      colorClass = "text-cyan-300 bg-cyan-400/20 border-cyan-400/30"; // 0 vé / listings
+                    } else if (text.includes("địa điểm") || text.includes("venue")) {
+                      colorClass = "text-purple-300 bg-purple-400/20 border-purple-400/30"; // 13 địa điểm / venues
+                    }
+                    return (
+                      <strong key={j} className={`font-extrabold px-1.5 py-0.5 rounded border ${colorClass}`}>
+                        {part}
+                      </strong>
+                    );
+                  }
+                  return part;
+                })}
               </p>
             ))
           )}
@@ -361,19 +338,19 @@ export const AdminDashboard: React.FC = () => {
                 {card.icon}
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                {translate(card.badgeText)}
+                {card.badgeText}
               </span>
             </div>
 
             <div className="space-y-0.5">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{translate(card.title)}</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{card.title}</span>
               <div className="text-xl font-extrabold app-text-main tracking-tight flex items-baseline gap-2">
-                <span>{translate(card.value)}</span>
+                <span>{card.value}</span>
               </div>
             </div>
 
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{translate(card.change)}</span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{card.change}</span>
               <FiArrowUpRight className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </div>
           </Link>
@@ -538,21 +515,28 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              {activityLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="text-xs space-y-1 p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800"
-                >
-                  <div className="flex items-center justify-between font-bold app-text-main">
-                    <span className="flex items-center gap-1.5">
-                      <FiUser className="w-3 h-3 text-blue-500" />
-                      <span>{translate(log.user)}</span>
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-normal">{translate(log.time)}</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 leading-snug">{translate(log.action)}</p>
+              {activityLogs.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  <FiClock className="w-5 h-5 mx-auto mb-1.5 opacity-50" />
+                  <p>{translate("Chưa có nhật ký hoạt động mới")}</p>
                 </div>
-              ))}
+              ) : (
+                activityLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="text-xs space-y-1 p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800"
+                  >
+                    <div className="flex items-center justify-between font-bold app-text-main">
+                      <span className="flex items-center gap-1.5">
+                        <FiUser className="w-3 h-3 text-blue-500" />
+                        <span>{translate(log.user)}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">{translate(log.time)}</span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 leading-snug">{translate(log.action)}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

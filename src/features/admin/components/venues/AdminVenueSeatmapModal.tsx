@@ -337,11 +337,11 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 md:p-6 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl app-bg-card border app-border shadow-2xl overflow-hidden">
+      <div className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-lg app-bg-card border app-border shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b app-border app-bg-subnav shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-600 flex items-center justify-center font-bold">
               <FiLayers className="w-5 h-5" />
             </div>
             <div>
@@ -349,15 +349,15 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                 <h3 className="text-base font-extrabold app-text-main">
                   {t('Quản lý Sơ đồ Ghế (SeatMap)')}
                 </h3>
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                <span className="text-xs px-2.5 py-0.5 rounded-md font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                   {venue.name}
                 </span>
                 {isPublicVenue ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                     <FiGlobe className="w-3 h-3" /> {t('Địa điểm công cộng')}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                     <FiLock className="w-3 h-3" /> {t('Địa điểm riêng (BTC)')}
                   </span>
                 )}
@@ -374,7 +374,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-md flex items-center justify-center app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors cursor-pointer"
           >
             <FiX className="w-5 h-5" />
           </button>
@@ -430,7 +430,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                 onClose();
                 navigate(`${PATHS.ADMIN_VENUE_SEATMAP(venue.id)}?isNew=1`);
               }}
-              className="mb-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="mb-2 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer min-h-8"
             >
               <FiPlus className="w-3.5 h-3.5" />
               <span>{t('Thiết kế Sơ đồ mới')}</span>
@@ -449,8 +449,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
             /* Tab 1: Admin Templates */
             adminTemplates.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <FiLayers className="w-8 h-8" />
+                <div className="w-14 h-14 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <FiLayers className="w-7 h-7" />
                 </div>
                 <div className="space-y-1 max-w-md">
                   <h4 className="text-base font-bold app-text-main">
@@ -469,7 +469,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                       onClose();
                       navigate(`${PATHS.ADMIN_VENUE_SEATMAP(venue.id)}?isNew=1`);
                     }}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md cursor-pointer"
+                    className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                   >
                     <FiPlus className="w-4 h-4" />
                     <span>{t('Tạo Sơ đồ mẫu đầu tiên ngay')}</span>
@@ -490,7 +490,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                       <div
                         key={tpl.id}
                         onClick={() => setSelectedAdminTplId(tpl.id)}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer space-y-3 ${
+                        className={`p-4 rounded-lg border transition-all cursor-pointer space-y-3 ${
                           isSelected
                             ? 'app-bg-subnav border-blue-500/60 ring-2 ring-blue-500/20 shadow-md'
                             : 'app-bg-card app-border hover:border-slate-400/50'
@@ -503,12 +503,12 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 {tpl.name}
                               </h5>
                               {tpl.isPublished ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                                   <FiCheckCircle className="w-3 h-3" />
                                   <span>{t('Đang Xuất Bản (Chính Thức)')}</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/20">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/20">
                                   <span>{t('Bản nháp / Mẫu phụ')}</span>
                                 </span>
                               )}
@@ -540,7 +540,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                   e.stopPropagation();
                                   handleUnpublishTemplate(tpl.id);
                                 }}
-                                className="px-2.5 py-1 rounded-lg text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                                className="px-2.5 py-1 rounded-md text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors cursor-pointer"
                               >
                                 {isPublishing ? t('Đang xử lý...') : t('Hủy xuất bản')}
                               </button>
@@ -552,7 +552,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                   e.stopPropagation();
                                   handlePublishTemplate(tpl);
                                 }}
-                                className="px-3 py-1 rounded-lg text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                className="px-3 py-1 rounded-md text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
                               >
                                 <FiSend className="w-3 h-3" />
                                 <span>{isPublishing ? t('Đang lưu...') : t('Xuất bản cho BTC')}</span>
@@ -565,7 +565,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 e.stopPropagation();
                                 handleEditInStudio(tpl);
                               }}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1 rounded-md text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <FiEdit className="w-3 h-3" />
                               <span>{t('Chỉnh sửa')}</span>
@@ -579,7 +579,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 e.stopPropagation();
                                 handleDuplicateTemplate(tpl);
                               }}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-500/10 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-md text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-500/10 transition-colors cursor-pointer"
                               title={t('Nhân bản sơ đồ mẫu này')}
                             >
                               <FiCopy className="w-3.5 h-3.5" />
@@ -590,7 +590,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 e.stopPropagation();
                                 handleDeleteTemplate(tpl);
                               }}
-                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-md text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                               title={t('Xóa sơ đồ mẫu')}
                             >
                               <FiTrash2 className="w-3.5 h-3.5" />
@@ -603,7 +603,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                 </div>
 
                 {/* Right: Live Interactive SVG Visual Preview (5 cols) */}
-                <div className="lg:col-span-5 p-4 rounded-xl app-bg-subnav border app-border flex flex-col justify-between overflow-y-auto space-y-4">
+                <div className="lg:col-span-5 p-4 rounded-lg app-bg-subnav border app-border flex flex-col justify-between overflow-y-auto space-y-4">
                   {activeAdminTemplate ? (
                     <div className="space-y-3.5 flex-1 flex flex-col">
                       <div className="flex items-center justify-between border-b app-border pb-2.5">
@@ -615,13 +615,13 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             {activeAdminTemplate.name}
                           </h4>
                         </div>
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-mono font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-mono font-bold">
                           {activeAdminTemplate.capacity.toLocaleString('vi-VN')} {t('khán giả')}
                         </span>
                       </div>
 
                       {/* SVG Live Preview */}
-                      <div className="relative w-full h-56 rounded-xl bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
+                      <div className="relative w-full h-56 rounded-md bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
                         <svg className="w-full h-full" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet">
                           <defs>
                             <pattern id="adminPreviewGrid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -650,7 +650,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 textAnchor="middle"
                                 dominantBaseline="middle"
                               >
-                                {stg.label || 'SÂN KHẤU CHÍNH'}
+                                {stg.label || t('SÂN KHẤU CHÍNH')}
                               </text>
                             </g>
                           ))}
@@ -676,7 +676,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 textAnchor="middle"
                                 dominantBaseline="middle"
                               >
-                                {zone.name || `KHU VỰC ${idx + 1}`}
+                                {zone.name || `${t('KHU VỰC')} ${idx + 1}`}
                               </text>
                             </g>
                           ))}
@@ -710,7 +710,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             return (
                               <div
                                 key={idx}
-                                className="p-2 rounded-lg app-bg-card border app-border flex items-center justify-between text-xs"
+                                className="p-2 rounded-md app-bg-card border app-border flex items-center justify-between text-xs"
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color || '#3b82f6' }} />
@@ -718,9 +718,9 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 </div>
                                 <span className="text-slate-400 font-mono text-[11px] shrink-0">
                                   {z.tierId ? (
-                                    `${zoneSeatsCount || z.capacity || 0} vé`
+                                    `${zoneSeatsCount || z.capacity || 0} ${t('vé')}`
                                   ) : zoneSeatsCount > 0 ? (
-                                    `${zoneSeatsCount} ghế`
+                                    `${zoneSeatsCount} ${t('ghế')}`
                                   ) : (
                                     <span className="text-amber-500/90 dark:text-amber-400/90 text-[10px] font-medium">
                                       {t('Chưa gán hạng vé')}
@@ -741,8 +741,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
             /* Tab 2: Organizer Seatmaps */
             (!data?.organizerSeatmaps || data.organizerSeatmaps.length === 0) ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                  <FiUsers className="w-8 h-8" />
+                <div className="w-14 h-14 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <FiUsers className="w-7 h-7" />
                 </div>
                 <div className="space-y-1 max-w-md">
                   <h4 className="text-base font-bold app-text-main">
@@ -788,7 +788,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                       <div
                         key={idx}
                         onClick={() => setSelectedOrgIndex(idx)}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer space-y-3 ${
+                        className={`p-4 rounded-lg border transition-all cursor-pointer space-y-3 ${
                           isSelected
                             ? 'app-bg-subnav border-indigo-500/60 ring-2 ring-indigo-500/20 shadow-md'
                             : 'app-bg-card app-border hover:border-slate-400/50'
@@ -829,7 +829,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 e.stopPropagation();
                                 handleCloneOrganizerSeatmap(s);
                               }}
-                              className="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                              className="px-3 py-1 rounded-md text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs flex items-center gap-1 cursor-pointer"
                             >
                               <FiCopy className="w-3 h-3" />
                               <span>{t('Sao chép thành Mẫu Admin')}</span>
@@ -842,7 +842,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                 </div>
 
                 {/* Right: Live Interactive SVG Visual Preview (5 cols) */}
-                <div className="lg:col-span-5 p-4 rounded-xl app-bg-subnav border app-border flex flex-col justify-between overflow-y-auto space-y-4">
+                <div className="lg:col-span-5 p-4 rounded-lg app-bg-subnav border app-border flex flex-col justify-between overflow-y-auto space-y-4">
                   {activeOrganizerSeatmap && activeOrganizerDoc ? (
                     <div className="space-y-3.5 flex-1 flex flex-col">
                       <div className="flex items-center justify-between border-b app-border pb-2.5">
@@ -857,7 +857,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                       </div>
 
                       {/* SVG Live Preview */}
-                      <div className="relative w-full h-56 rounded-xl bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
+                      <div className="relative w-full h-56 rounded-md bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
                         <svg className="w-full h-full" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet">
                           <defs>
                             <pattern id="orgPreviewGrid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -886,7 +886,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 textAnchor="middle"
                                 dominantBaseline="middle"
                               >
-                                {stg.label || 'SÂN KHẤU CHÍNH'}
+                                {stg.label || t('SÂN KHẤU CHÍNH')}
                               </text>
                             </g>
                           ))}
@@ -912,7 +912,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 textAnchor="middle"
                                 dominantBaseline="middle"
                               >
-                                {zone.name || `KHU VỰC ${idx + 1}`}
+                                {zone.name || `${t('KHU VỰC')} ${idx + 1}`}
                               </text>
                             </g>
                           ))}
@@ -946,7 +946,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             return (
                               <div
                                 key={idx}
-                                className="p-2 rounded-lg app-bg-card border app-border flex items-center justify-between text-xs"
+                                className="p-2 rounded-md app-bg-card border app-border flex items-center justify-between text-xs"
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color || '#3b82f6' }} />
@@ -954,9 +954,9 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                                 </div>
                                 <span className="text-slate-400 font-mono text-[11px] shrink-0">
                                   {z.tierId ? (
-                                    `${zoneSeatsCount || z.capacity || 0} vé`
+                                    `${zoneSeatsCount || z.capacity || 0} ${t('vé')}`
                                   ) : zoneSeatsCount > 0 ? (
-                                    `${zoneSeatsCount} ghế`
+                                    `${zoneSeatsCount} ${t('ghế')}`
                                   ) : (
                                     <span className="text-amber-500/90 dark:text-amber-400/90 text-[10px] font-medium">
                                       {t('Chưa gán hạng vé')}

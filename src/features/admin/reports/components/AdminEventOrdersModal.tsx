@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FiX,
   FiSearch,
@@ -31,6 +32,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
   eventId,
   eventTitle,
 }) => {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -251,28 +253,28 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <FiCheckCircle className="w-3 h-3" />
-            Thành công
+            {t("Thành công")}
           </span>
         );
       case "PENDING":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <FiClock className="w-3 h-3" />
-            Chờ thanh toán
+            {t("Chờ thanh toán")}
           </span>
         );
       case "REFUNDED":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400">
             <FiRefreshCw className="w-3 h-3" />
-            Đã hoàn tiền
+            {t("Đã hoàn tiền")}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400">
             <FiXCircle className="w-3 h-3" />
-            {status || "Đã hủy"}
+            {status ? t(status) : t("Đã hủy")}
           </span>
         );
     }
@@ -283,7 +285,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
     if (exporting) return;
     setExporting(true);
     try {
-      toast.info("Đang trích xuất toàn bộ dữ liệu đơn hàng...");
+      toast.info(t("Đang trích xuất toàn bộ dữ liệu đơn hàng..."));
       // fetch all bookings up to 5000
       const res: any = await eventApi.getEventBookings(
         eventId,
@@ -298,7 +300,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
       }
 
       if (allOrders.length === 0) {
-        toast.warning("Không có đơn hàng nào để xuất báo cáo.");
+        toast.warning(t("Không có đơn hàng nào để xuất báo cáo."));
         setExporting(false);
         return;
       }
@@ -443,10 +445,10 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
         URL.revokeObjectURL(url);
       }
 
-      toast.success("Đã xuất báo cáo đơn hàng thành công!");
+      toast.success(t("Đã xuất báo cáo đơn hàng thành công!"));
     } catch (err) {
       console.error("Export orders error:", err);
-      toast.error("Không thể xuất file báo cáo đơn hàng.");
+      toast.error(t("Không thể xuất file báo cáo đơn hàng."));
     } finally {
       setExporting(false);
     }
@@ -468,12 +470,12 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
             <div className="min-w-0 pr-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-600/20">
-                  Báo cáo đơn hàng
+                  {t("Báo cáo đơn hàng")}
                 </span>
                 <span className="text-xs font-mono app-text-muted">ID: {eventId}</span>
               </div>
               <h3 className="text-base sm:text-lg font-black app-text-main truncate mt-1">
-                {eventTitle || "Danh sách đơn hàng sự kiện"}
+                {eventTitle || t("Danh sách đơn hàng sự kiện")}
               </h3>
             </div>
 
@@ -486,7 +488,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                   className="min-h-9 px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   <FiDownload className="w-3.5 h-3.5" />
-                  <span>{exporting ? "Đang xuất..." : "Xuất báo cáo"}</span>
+                  <span>{exporting ? t("Đang xuất...") : t("Xuất báo cáo")}</span>
                 </button>
                 <div className="absolute top-10 right-0 z-30 hidden min-w-40 rounded-lg border app-border app-bg-card p-1 shadow-xl group-hover:block group-focus-within:block">
                   <button
@@ -494,14 +496,14 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                     onClick={() => handleExport("xlsx")}
                     className="w-full text-left px-3 py-2 text-xs font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   >
-                    Xuất Excel (.xlsx)
+                    {t("Xuất Excel (.xlsx)")}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExport("csv")}
                     className="w-full text-left px-3 py-2 text-xs font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   >
-                    Xuất CSV (.csv)
+                    {t("Xuất CSV (.csv)")}
                   </button>
                 </div>
               </div>
@@ -510,7 +512,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                 type="button"
                 onClick={onClose}
                 className="p-2 rounded-md border app-border hover:bg-slate-100 dark:hover:bg-slate-800 app-text-muted hover:app-text-main transition-colors cursor-pointer"
-                aria-label="Đóng"
+                aria-label={t("Đóng")}
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -532,7 +534,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                       setPage(1);
                     }
                   }}
-                  placeholder="Tìm mã đơn, tên khách, email..."
+                  placeholder={t("Tìm mã đơn, tên khách, email...")}
                   className="min-h-9 w-full pl-9 pr-3 py-1.5 rounded-md border app-border app-bg-card text-xs font-medium app-text-main placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 />
               </div>
@@ -544,7 +546,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                 }}
                 className="min-h-9 px-3.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold app-text-main transition-colors shrink-0 cursor-pointer"
               >
-                Tìm
+                {t("Tìm")}
               </button>
             </div>
 
@@ -557,11 +559,11 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                     setPage(1);
                   }}
                   options={[
-                    { value: "ALL", label: "Tất cả trạng thái" },
-                    { value: "PAID", label: "Thành công" },
-                    { value: "PENDING", label: "Chờ thanh toán" },
-                    { value: "REFUNDED", label: "Đã hoàn tiền" },
-                    { value: "CANCELLED", label: "Đã hủy" },
+                    { value: "ALL", label: t("Tất cả trạng thái") },
+                    { value: "PAID", label: t("Thành công") },
+                    { value: "PENDING", label: t("Chờ thanh toán") },
+                    { value: "REFUNDED", label: t("Đã hoàn tiền") },
+                    { value: "CANCELLED", label: t("Đã hủy") },
                   ]}
                 />
               </div>
@@ -576,7 +578,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                   fetchOrders();
                 }}
                 className="min-h-9 p-2 rounded-md border app-border hover:bg-slate-100 dark:hover:bg-slate-800 app-text-muted hover:app-text-main transition-colors shrink-0 cursor-pointer"
-                title="Làm mới"
+                title={t("Làm mới")}
               >
                 <FiRefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-blue-500" : ""}`} />
               </button>
@@ -588,18 +590,18 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
             {loading && orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-sm app-text-muted">
                 <FiRefreshCw className="w-6 h-6 animate-spin text-blue-500" />
-                <span>Đang tải danh sách đơn hàng...</span>
+                <span>{t("Đang tải danh sách đơn hàng...")}</span>
               </div>
             ) : orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center space-y-2">
                 <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
                   <FiShoppingCart className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-bold app-text-main">Không có đơn hàng nào</h4>
+                <h4 className="text-sm font-bold app-text-main">{t("Không có đơn hàng nào")}</h4>
                 <p className="text-xs app-text-muted max-w-sm">
                   {searchQuery || statusFilter !== "ALL"
-                    ? "Không tìm thấy đơn hàng phù hợp với điều kiện tìm kiếm/lọc."
-                    : "Sự kiện này chưa phát sinh đơn hàng nào."}
+                    ? t("Không tìm thấy đơn hàng phù hợp với điều kiện tìm kiếm/lọc.")
+                    : t("Sự kiện này chưa phát sinh đơn hàng nào.")}
                 </p>
               </div>
             ) : (
@@ -607,14 +609,14 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50/80 dark:bg-slate-800/50 uppercase tracking-wider text-[11px] font-bold app-text-muted border-b app-border">
                     <tr>
-                      <th className="px-4 py-3">Mã đơn</th>
-                      <th className="px-4 py-3">Khách hàng</th>
-                      <th className="px-4 py-3">Chi tiết vé</th>
-                      <th className="px-4 py-3">Tổng tiền</th>
-                      <th className="px-4 py-3">Phương thức</th>
-                      <th className="px-4 py-3">Trạng thái</th>
-                      <th className="px-4 py-3">Thời gian</th>
-                      <th className="px-4 py-3 text-right">Chi tiết</th>
+                      <th className="px-4 py-3">{t("Mã đơn")}</th>
+                      <th className="px-4 py-3">{t("Khách hàng")}</th>
+                      <th className="px-4 py-3">{t("Chi tiết vé")}</th>
+                      <th className="px-4 py-3">{t("Tổng tiền")}</th>
+                      <th className="px-4 py-3">{t("Phương thức")}</th>
+                      <th className="px-4 py-3">{t("Trạng thái")}</th>
+                      <th className="px-4 py-3">{t("Thời gian")}</th>
+                      <th className="px-4 py-3 text-right">{t("Chi tiết")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
@@ -635,7 +637,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                           </td>
                           <td className="px-4 py-3 max-w-[200px]">
                             <div className="font-bold app-text-main truncate">
-                              {o.customerName || "Khách hàng"}
+                              {o.customerName || t("Khách hàng")}
                             </div>
                             <div className="text-[11px] app-text-muted truncate">
                               {o.customerEmail || "N/A"}
@@ -643,7 +645,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                           </td>
                           <td className="px-4 py-3 max-w-[220px]">
                             <span className="font-bold app-text-main">
-                              {ticketsCount} vé
+                              {ticketsCount} {t("vé")}
                             </span>
                             {items.length > 0 && (
                               <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 truncate mt-0.5">
@@ -676,7 +678,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                               type="button"
                               onClick={() => setSelectedOrder(o)}
                               className="p-1.5 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors cursor-pointer"
-                              title="Xem chi tiết đơn hàng"
+                              title={t("Xem chi tiết đơn hàng")}
                             >
                               <FiEye className="w-4 h-4" />
                             </button>
@@ -699,7 +701,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
                 totalElements={totalElements}
                 size={size}
                 loading={loading}
-                itemLabel="đơn hàng"
+                itemLabel={t("đơn hàng")}
                 onPageChange={(p) => setPage(p)}
                 onPageSizeChange={(s) => {
                   setSize(s);

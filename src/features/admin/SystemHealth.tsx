@@ -118,10 +118,10 @@ export function SystemHealth() {
             <button
               type="button"
               onClick={() => setShowAlertModal(true)}
-              className="inline-flex items-center min-h-9 gap-1.5 px-3 text-xs font-semibold rounded-md border app-border bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 app-text-main transition-colors cursor-pointer"
+              className="p-2.5 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
             >
-              <FiBell className="w-3.5 h-3.5 text-amber-500" />
-              <span>Cảnh báo Email / Zalo</span>
+              <FiBell className="w-3.5 h-3.5 text-blue-500" />
+              <span>{label("Cảnh báo Email / Telegram / Zalo", "Email / Telegram / Zalo Alerts")}</span>
             </button>
             <button
               type="button"

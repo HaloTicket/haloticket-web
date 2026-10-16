@@ -1,15 +1,31 @@
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { FiList, FiSettings, FiActivity, FiShield } from "react-icons/fi";
 import { CategoryList } from "./category-config/CategoryList";
 import { SystemRulesConfig } from "./category-config/SystemRulesConfig";
+import { adminConfigApi } from "@/services/adminConfigApi";
 
 export function CategoryConfig() {
+  const { t } = useTranslation();
+  const [activeCategoryCount, setActiveCategoryCount] = useState<number>(0);
+  const [totalCategoryCount, setTotalCategoryCount] = useState<number>(0);
+
+  useEffect(() => {
+    adminConfigApi.getCategories().then((res) => {
+      const data = Array.isArray(res) ? res : (res?.data || []);
+      if (Array.isArray(data)) {
+        setTotalCategoryCount(data.length);
+        setActiveCategoryCount(data.filter((c: any) => c.active !== false && c.status !== "INACTIVE").length);
+      }
+    }).catch(() => {});
+  }, []);
  
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Danh mục & Cấu hình"
-        description="Quản lý tập trung các thể loại sự kiện trên HaloTicket và các thông số vận hành cốt lõi."
+        title={t("Danh mục & Cấu hình")}
+        description={t("Quản lý tập trung các thể loại sự kiện trên HaloTicket và các thông số vận hành cốt lõi.")}
       />
       
       {/* Overview Stats */}
@@ -19,8 +35,11 @@ export function CategoryConfig() {
             <FiList className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl font-bold app-text-main leading-tight">12</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Danh Mục (Active)</div>
+            <div className="text-xl font-bold app-text-main leading-tight">
+              {activeCategoryCount}
+              <span className="text-xs text-slate-400 font-normal ml-1">/ {totalCategoryCount}</span>
+            </div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Danh Mục (Active)")}</div>
           </div>
         </div>
         <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
@@ -28,8 +47,8 @@ export function CategoryConfig() {
             <FiSettings className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl font-bold app-text-main leading-tight">34</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Rules & Configs</div>
+            <div className="text-xl font-bold app-text-main leading-tight">{t("Sẵn sàng")}</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Quy tắc hệ thống")}</div>
           </div>
         </div>
         <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
@@ -37,8 +56,8 @@ export function CategoryConfig() {
             <FiActivity className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl font-bold app-text-main leading-tight">Tối ưu</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Trạng thái phí</div>
+            <div className="text-xl font-bold app-text-main leading-tight">{t("Tối ưu")}</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Trạng thái phí")}</div>
           </div>
         </div>
         <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
@@ -46,14 +65,14 @@ export function CategoryConfig() {
             <FiShield className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl font-bold app-text-main leading-tight">Bảo mật</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Chính sách</div>
+            <div className="text-xl font-bold app-text-main leading-tight">{t("Bảo mật")}</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Chính sách")}</div>
           </div>
         </div>
       </div>
 
       <div className="flex flex-col gap-6">
-        <CategoryList />
+        <CategoryList onCountChange={(total, active) => { setTotalCategoryCount(total); setActiveCategoryCount(active); }} />
         <SystemRulesConfig />
       </div>
     </div>

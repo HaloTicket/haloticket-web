@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiSave, FiMonitor, FiSmartphone, FiChevronLeft, FiChevronRight, FiImage, FiLayout, FiStar, FiGlobe } from "react-icons/fi";
 import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -148,6 +149,7 @@ function HomepageLivePreview({
 }
 
 export function HomepageConfig() {
+  const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -208,11 +210,11 @@ export function HomepageConfig() {
     try {
       await adminConfigApi.updateBanners(banners).catch(() => {});
       await adminConfigApi.updateEventSections(sections).catch(() => {});
-      toast.success("Xuất bản cấu hình trang chủ thành công", {
-        description: "Giao diện trang chủ đã được cập nhật."
+      toast.success(t("Xuất bản cấu hình trang chủ thành công"), {
+        description: t("Giao diện trang chủ đã được cập nhật.")
       });
     } catch (error) {
-      toast.error("Có lỗi xảy ra khi lưu cấu hình");
+      toast.error(t("Có lỗi xảy ra khi lưu cấu hình"));
     } finally {
       setIsSaving(false);
     }
@@ -221,8 +223,8 @@ export function HomepageConfig() {
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Nội dung & Quảng cáo"
-        description="Quản lý cấu trúc giao diện trang chủ, banner quảng cáo và các khu vực hiển thị sự kiện."
+        title={t("Nội dung & Quảng cáo")}
+        description={t("Quản lý cấu trúc giao diện trang chủ, banner quảng cáo và các khu vực hiển thị sự kiện.")}
       />
       
       {/* Overview Stats */}
@@ -233,7 +235,7 @@ export function HomepageConfig() {
           </div>
           <div>
             <div className="text-xl font-bold app-text-main leading-tight">{banners.filter(b => b.active).length} / {banners.length}</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Banner Active</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Banner Active")}</div>
           </div>
         </div>
         <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
@@ -242,7 +244,7 @@ export function HomepageConfig() {
           </div>
           <div>
             <div className="text-xl font-bold app-text-main leading-tight">{sections.length}</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Sections UI</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Sections UI")}</div>
           </div>
         </div>
         <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
@@ -251,7 +253,7 @@ export function HomepageConfig() {
           </div>
           <div>
             <div className="text-xl font-bold app-text-main leading-tight">{sections.filter(s => s.type === "ads").length}</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Ads Spots</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Ads Spots")}</div>
           </div>
         </div>
         <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
@@ -260,7 +262,7 @@ export function HomepageConfig() {
           </div>
           <div>
             <div className="text-xl font-bold app-text-main leading-tight">100%</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">Uptime Display</div>
+            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Uptime Display")}</div>
           </div>
         </div>
       </div>
@@ -273,7 +275,7 @@ export function HomepageConfig() {
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-9 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors"
         >
           <FiSave className="w-4 h-4" />
-          <span>{isSaving ? "Đang xử lý..." : "Xuất bản"}</span>
+          <span>{isSaving ? t("Đang xử lý...") : t("Xuất bản")}</span>
         </button>
       </div>
 
@@ -292,7 +294,7 @@ export function HomepageConfig() {
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="w-8 h-8 rounded-full bg-white dark:bg-[#1E1E20] border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-500 hover:text-blue-600 hover:scale-105 transition-all duration-300"
-            title={isSidebarCollapsed ? "Hiện thanh cài đặt" : "Thu gọn thanh cài đặt"}
+            title={isSidebarCollapsed ? t("Hiện thanh cài đặt") : t("Thu gọn thanh cài đặt")}
           >
             {isSidebarCollapsed ? <FiChevronRight className="w-4 h-4" /> : <FiChevronLeft className="w-4 h-4" />}
           </button>

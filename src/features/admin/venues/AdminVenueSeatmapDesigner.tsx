@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { venueApi } from "@/services/venueApi";
 import { PATHS } from "@/routes/paths";
 import {
@@ -49,6 +50,7 @@ const INITIAL_STAGES: StageElement[] = [];
 const INITIAL_ZONES: Record<string, ZoneBlock> = {};
 
 export const AdminVenueSeatmapDesigner: React.FC = () => {
+  const { t } = useTranslation();
   const { venueId } = useParams<{ venueId: string }>();
   const [searchParams] = useSearchParams();
   const isNew = searchParams.get("newTemplate") === "1" || searchParams.get("isNew") === "1";
@@ -1116,21 +1118,21 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="seat-studio-badge">HALOTICKET</span>
             <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.16em]">
-              SƠ ĐỒ MẪU ĐỊA ĐIỂM (ADMIN TEMPLATE)
+              {t("SƠ ĐỒ MẪU ĐỊA ĐIỂM (ADMIN TEMPLATE)")}
             </span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold">
-              {autoSaveStatus}
+              {t(autoSaveStatus)}
             </span>
           </div>
           <h2 className="text-base font-black app-text-main truncate mt-1">
-            {venueInfo?.venueName || "Địa điểm"}
+            {venueInfo?.venueName || t("Địa điểm")}
           </h2>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Link to={PATHS.ADMIN_VENUES_MANAGEMENT} className="seat-studio-secondary-button">
             <FiArrowLeft className="w-4 h-4" />
-            <span>Quay lại</span>
+            <span>{t("Quay lại")}</span>
           </Link>
 
           <button
@@ -1139,7 +1141,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
             className="seat-studio-secondary-button"
           >
             <FiLayers className="w-4 h-4" />
-            <span>Danh sách sơ đồ</span>
+            <span>{t("Danh sách sơ đồ")}</span>
             <span className="seat-studio-badge ml-1">{venueInfo?.organizerSeatmaps?.length || 0}</span>
           </button>
 
@@ -1147,17 +1149,17 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
             type="button"
             onClick={handleExportImage}
             className="seat-studio-secondary-button border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10"
-            title="Xuất file ảnh PNG sơ đồ"
+            title={t("Xuất file ảnh PNG sơ đồ")}
           >
             <FiCamera className="w-4 h-4" />
-            <span>Xuất ảnh sơ đồ</span>
+            <span>{t("Xuất ảnh sơ đồ")}</span>
           </button>
 
           <button
             type="button"
             onClick={handleClearCanvas}
             className="seat-studio-icon-button text-rose-500"
-            title="Xóa canvas"
+            title={t("Xóa canvas")}
           >
             <FiTrash2 />
           </button>
@@ -1167,10 +1169,10 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
             onClick={handleSaveDraft}
             disabled={isSaving}
             className="seat-studio-secondary-button border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
-            title="Lưu tạm sơ đồ dưới dạng Bản nháp"
+            title={t("Lưu tạm sơ đồ dưới dạng Bản nháp")}
           >
             <FiSave className="w-4 h-4" />
-            <span>{isSaving ? "Đang lưu..." : "Lưu nháp"}</span>
+            <span>{isSaving ? t("Đang lưu...") : t("Lưu nháp")}</span>
           </button>
 
           <button
@@ -1178,10 +1180,10 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
             onClick={handleSaveOfficialTemplate}
             disabled={isSaving}
             className="seat-studio-primary-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md"
-            title="Lưu mẫu chính thức cho Địa điểm này"
+            title={t("Lưu mẫu chính thức cho Địa điểm này")}
           >
             <FiSend className="w-4 h-4" />
-            <span>{isSaving ? "Đang lưu..." : "Lưu Sơ Đồ Mẫu"}</span>
+            <span>{isSaving ? t("Đang lưu...") : t("Lưu Sơ Đồ Mẫu")}</span>
           </button>
         </div>
       </div>
@@ -1189,7 +1191,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       {saveSuccess && (
         <div className="seat-studio-save-toast">
           <FiCheckCircle className="w-4 h-4" />
-          <span>Đã lưu Seat Map thành công.</span>
+          <span>{t("Đã lưu Seat Map thành công.")}</span>
         </div>
       )}
 
@@ -1292,10 +1294,10 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-sm app-text-main">
-                      Danh sách sơ đồ ghế tại địa điểm: {venueInfo?.venueName}
+                      {t("Danh sách sơ đồ ghế tại địa điểm:")} {venueInfo?.venueName}
                     </h3>
                     <p className="text-[11px] app-text-muted">
-                      Chọn sơ đồ của Ban Tổ Chức đã thiết kế hoặc khôi phục sơ đồ mẫu
+                      {t("Chọn sơ đồ của Ban Tổ Chức đã thiết kế hoặc khôi phục sơ đồ mẫu")}
                     </p>
                   </div>
                 </div>
@@ -1314,13 +1316,13 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                   <div className="p-4 rounded-xl border border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20 flex items-center justify-between gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-sm app-text-main">Sơ đồ mẫu chính thức của Địa điểm</span>
+                        <span className="font-extrabold text-sm app-text-main">{t("Sơ đồ mẫu chính thức của Địa điểm")}</span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-bold">
                           Admin Template
                         </span>
                       </div>
                       <p className="text-xs app-text-muted">
-                        Bản thiết kế mẫu chính thức đang được cung cấp cho các Ban Tổ Chức khi tạo sự kiện.
+                        {t("Bản thiết kế mẫu chính thức đang được cung cấp cho các Ban Tổ Chức khi tạo sự kiện.")}
                       </p>
                     </div>
                     <button
@@ -1334,15 +1336,15 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                           setZones(parsed.zones || INITIAL_ZONES);
                           if (parsed.canvasSettings) setCanvasSettings(parsed.canvasSettings);
                           setShowOrgMapsModal(false);
-                          showToast("success", "Đã nạp lại Sơ đồ mẫu chính thức vào Studio");
+                          showToast("success", t("Đã nạp lại Sơ đồ mẫu chính thức vào Studio"));
                         } catch {
-                          showToast("error", "Không thể nạp dữ liệu sơ đồ mẫu");
+                          showToast("error", t("Không thể nạp dữ liệu sơ đồ mẫu"));
                         }
                       }}
                       className="seat-studio-secondary-button border-blue-500/50 text-blue-600 dark:text-blue-400"
                     >
                       <FiDownload className="w-3.5 h-3.5" />
-                      <span>Nạp sơ đồ</span>
+                      <span>{t("Nạp sơ đồ")}</span>
                     </button>
                   </div>
                 )}
@@ -1352,7 +1354,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                   <div className="text-center py-12 space-y-2">
                     <FiLayers className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
                     <p className="text-xs app-text-muted">
-                      Chưa có Ban Tổ Chức nào tạo sơ đồ ghế cho địa điểm này.
+                      {t("Chưa có Ban Tổ Chức nào tạo sơ đồ ghế cho địa điểm này.")}
                     </p>
                   </div>
                 ) : (
@@ -1366,17 +1368,17 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                           <span className="font-extrabold text-sm app-text-main">{orgMap.eventTitle}</span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 font-bold flex items-center gap-1">
                             <FiUser className="w-2.5 h-2.5" />
-                            {orgMap.organizerName || "Ban Tổ Chức"}
+                            {orgMap.organizerName || t("Ban Tổ Chức")}
                           </span>
                         </div>
                         <div className="flex items-center gap-4 text-xs app-text-muted flex-wrap">
                           <span>
-                            Sức chứa: <strong className="app-text-main">{orgMap.capacity || "N/A"} ghế</strong>
+                            {t("Sức chứa:")} <strong className="app-text-main">{orgMap.capacity || "N/A"} {t("ghế")}</strong>
                           </span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
                             <FiCalendar className="w-3 h-3" />
-                            {orgMap.updatedAt ? new Date(orgMap.updatedAt).toLocaleDateString("vi-VN") : "Gần đây"}
+                            {orgMap.updatedAt ? new Date(orgMap.updatedAt).toLocaleDateString("vi-VN") : t("Gần đây")}
                           </span>
                         </div>
                       </div>
@@ -1388,7 +1390,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                           className="seat-studio-primary-button bg-blue-600 hover:bg-blue-500 text-xs flex items-center gap-1.5 shadow-xs"
                         >
                           <FiCopy className="w-3.5 h-3.5" />
-                          <span>Áp dụng vào Template</span>
+                          <span>{t("Áp dụng vào Template")}</span>
                         </button>
                       </div>
                     </div>
@@ -1402,7 +1404,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
                   onClick={() => setShowOrgMapsModal(false)}
                   className="px-4 py-2 rounded-xl border app-border app-text-main text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
-                  Đóng
+                  {t("Đóng")}
                 </button>
               </div>
             </div>

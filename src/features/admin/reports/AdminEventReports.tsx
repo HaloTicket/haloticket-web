@@ -690,7 +690,7 @@ export default function AdminEventReports() {
               <div className="absolute inset-0 z-10 bg-slate-900/10 dark:bg-black/20 backdrop-blur-[0.5px] flex items-center justify-center pointer-events-none transition-all">
                 <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/80 px-4 py-2 text-xs font-bold text-white shadow-lg">
                   <FiRefreshCw className="h-3.5 w-3.5 animate-spin text-blue-400" />
-                  <span>Đang cập nhật...</span>
+                  <span>{t("Đang cập nhật...")}</span>
                 </div>
               </div>
             )}
@@ -756,7 +756,7 @@ export default function AdminEventReports() {
                           </th>
                         ))}
                         <th className="px-4 py-3 font-bold border-b app-border text-right">
-                          Hành động
+                          {t("Hành động")}
                         </th>
                       </tr>
                     </thead>
@@ -819,10 +819,10 @@ export default function AdminEventReports() {
                                 })
                               }
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 text-xs font-bold transition-colors cursor-pointer"
-                              title="Xem danh sách đơn hàng"
+                              title={t("Xem danh sách đơn hàng")}
                             >
                               <FiShoppingBag className="w-3.5 h-3.5" />
-                              <span>Xem đơn</span>
+                              <span>{t("Xem đơn")}</span>
                             </button>
                           </td>
                         </tr>
