@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useTranslation } from "react-i18next";
+// import { useTranslation } from "react-i18next";
 import {
   FiAlertTriangle,
   FiCheckCircle,
@@ -32,9 +32,9 @@ export interface AuditLogItem {
 }
 
 export function AdminAuditLogs() {
-  const { t, i18n } = useTranslation();
-  const label = (vi: string, en: string) =>
-    t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
+  // const { t, i18n } = useTranslation();
+  // const label = (vi: string, en: string) =>
+  //   t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
 
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);

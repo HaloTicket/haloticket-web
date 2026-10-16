@@ -39,7 +39,6 @@ import { ToastContainer, type ToastMessage } from "@/features/organizer/event-ma
 import ConfirmModal from "@/components/common/ConfirmModal";
 import {
   DEFAULT_CANVAS_SETTINGS,
-  DEFAULT_EVENT_TICKET_TIERS,
   generateSeatMapSVG,
   isSeatInsideZone,
   safeClone,

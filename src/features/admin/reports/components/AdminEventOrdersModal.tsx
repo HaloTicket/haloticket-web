@@ -422,9 +422,9 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
         XLSX.writeFile(workbook, `BaoCaoDonHang_${eventId}_${stamp}.xlsx`);
       } else {
         const csvContent = fullSheetData
-          .map((row) =>
+          .map((row: any[]) =>
             row
-              .map((cell) => {
+              .map((cell: any) => {
                 const text = String(cell ?? "").replaceAll('"', '""');
                 return `"${text}"`;
               })
