@@ -39,17 +39,9 @@ export const ticketApi = {
     }
   },
 
-  // get ALL ticket types for an event without deduplication (all showtimes & tiers)
+  // get ALL ticket types for an event
   getAllTicketTypesByEventId: async (eventId: string): Promise<TicketTypeApiResponse[]> => {
-    try {
-      const response: unknown = await axiosClient.get(`/tickets/types/event/${eventId}/all`);
-      if (Array.isArray(response) && response.length > 0) {
-        return response as TicketTypeApiResponse[];
-      }
-      return ticketApi.getTicketTypesByEventId(eventId);
-    } catch {
-      return ticketApi.getTicketTypesByEventId(eventId);
-    }
+    return ticketApi.getTicketTypesByEventId(eventId);
   },
 
   // get single ticket type by id

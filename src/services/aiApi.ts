@@ -60,7 +60,16 @@ export const aiApi = {
   },
 
   getSystemLogs: async (): Promise<any[]> => {
-    const response = await axiosClient.get('/admin/system-logs');
+    try {
+      const response = await axiosClient.get('/admin/system-logs');
+      return response as any;
+    } catch {
+      return [];
+    }
+  },
+
+  getSslStatus: async (domain?: string): Promise<any> => {
+    const response = await axiosClient.get('/admin/ssl-status', { params: domain ? { domain } : {} });
     return response as any;
   }
 };
