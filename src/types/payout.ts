@@ -7,6 +7,7 @@ export interface PayoutResponse {
   netAmount: number;
   status: 'PENDING' | 'COMPLETED' | 'DISPUTE';
   transferredAt?: string;
+  disputeReason?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -132,7 +132,7 @@ export const SslCertificateCard: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowGuideModal(true)}
-              className="p-2.5 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
+              className="inline-flex items-center min-h-9.5 gap-2 px-3 text-xs font-semibold rounded-md border app-border app-bg-card hover:bg-slate-50 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer shadow-xs disabled:opacity-60"
             >
               <FiFileText className="w-3.5 h-3.5 text-blue-500" />
               <span>{label("Hướng dẫn kiểm tra SSL", "SSL Guide")}</span>
@@ -213,7 +213,7 @@ export const SslCertificateCard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => fetchSslStatus(customDomain)}
-                className="px-2 py-1 text-[11px] font-bold rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 app-text-main cursor-pointer"
+                className="inline-flex items-center min-h-6.5 gap-2 px-3 text-xs font-semibold rounded-md border app-border app-bg-card hover:bg-slate-50 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer shadow-xs disabled:opacity-60"
               >
                 {label("Quét", "Scan")}
               </button>

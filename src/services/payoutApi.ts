@@ -159,6 +159,58 @@ export const payoutApi = {
     };
   },
 
+  disputePayout: async (payoutId: string, reason?: string): Promise<PayoutResponse> => {
+    let result: PayoutResponse | null = null;
+    try {
+      const response = await axiosClient.post(`/payouts/admin/${payoutId}/dispute`, { reason });
+      result = (response as unknown) as PayoutResponse;
+    } catch (err) {
+      console.warn("Simulating disputePayout for UI testing:", err);
+    }
+
+    const current = getStoredPayouts();
+    const updated = current.map(p => {
+      if (p.id === payoutId) {
+        return {
+          ...p,
+          status: 'DISPUTE' as const,
+          disputeReason: reason || "Yêu cầu rà soát bổ sung chứng từ sự kiện",
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return p;
+    });
+    updateStoredPayouts(updated);
+
+    return result || (updated.find(p => p.id === payoutId) as PayoutResponse);
+  },
+
+  reopenPayout: async (payoutId: string): Promise<PayoutResponse> => {
+    let result: PayoutResponse | null = null;
+    try {
+      const response = await axiosClient.post(`/payouts/admin/${payoutId}/reopen`);
+      result = (response as unknown) as PayoutResponse;
+    } catch (err) {
+      console.warn("Simulating reopenPayout for UI testing:", err);
+    }
+
+    const current = getStoredPayouts();
+    const updated = current.map(p => {
+      if (p.id === payoutId) {
+        return {
+          ...p,
+          status: 'PENDING' as const,
+          disputeReason: undefined,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return p;
+    });
+    updateStoredPayouts(updated);
+
+    return result || (updated.find(p => p.id === payoutId) as PayoutResponse);
+  },
+
   getOrganizerPayouts: async (): Promise<PayoutResponse[]> => {
     try {
       const response = await axiosClient.get(`/payouts/organizer`);

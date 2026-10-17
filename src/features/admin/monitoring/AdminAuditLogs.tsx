@@ -254,7 +254,7 @@ export function AdminAuditLogs() {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="inline-flex items-center min-h-9 gap-1.5 px-3 rounded-md border app-border bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold app-text-main transition-colors cursor-pointer"
+            className="inline-flex items-center min-h-9.5 gap-2 px-3 text-xs font-semibold rounded-md border app-border app-bg-card hover:bg-slate-50 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer shadow-xs disabled:opacity-60"
           >
             <FiDownload className="w-3.5 h-3.5" />
             <span>{label("Xuất CSV", "Export CSV")}</span>
@@ -380,7 +380,7 @@ export function AdminAuditLogs() {
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Filter pills */}
-            <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-slate-800 border app-border text-xs font-semibold">
+            <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-card border app-border text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => {
@@ -389,7 +389,7 @@ export function AdminAuditLogs() {
                 }}
                 className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                   filterMode === "ALL"
-                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
+                    ? "bg-white dark:bg-[#2b2a29] text-blue-600 dark:text-blue-400 shadow-xs"
                     : "app-text-muted hover:app-text-main"
                 }`}
               >
@@ -403,7 +403,7 @@ export function AdminAuditLogs() {
                 }}
                 className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                   filterMode === "ERRORS_AND_WARNS"
-                    ? "bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs font-bold"
+                    ? "bg-white dark:bg-[#2b2a29] text-rose-600 dark:text-rose-400 shadow-xs font-bold"
                     : "app-text-muted hover:app-text-main"
                 }`}
               >
@@ -417,7 +417,7 @@ export function AdminAuditLogs() {
                 }}
                 className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                   filterMode === "ERROR"
-                    ? "bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs"
+                    ? "bg-white dark:bg-[#2b2a29] text-rose-600 dark:text-rose-400 shadow-xs"
                     : "app-text-muted hover:app-text-main"
                 }`}
               >

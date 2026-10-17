@@ -116,13 +116,13 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
 
         {/* Time range selector & Metric toggle */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-slate-800 border app-border text-xs font-semibold">
+          <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-card border app-border text-xs font-semibold">
             <button
               type="button"
               onClick={() => setActiveMetric("uptime")}
               className={`px-3 py-1 rounded transition-colors cursor-pointer ${
                 activeMetric === "uptime"
-                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
+                  ? "bg-white dark:bg-[#2b2a29] text-blue-600 dark:text-blue-400 shadow-xs"
                   : "app-text-muted hover:app-text-main"
               }`}
             >
@@ -133,7 +133,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
               onClick={() => setActiveMetric("latency")}
               className={`px-3 py-1 rounded transition-colors cursor-pointer ${
                 activeMetric === "latency"
-                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
+                  ? "bg-white dark:bg-[#2b2a29] text-blue-600 dark:text-blue-400 shadow-xs"
                   : "app-text-muted hover:app-text-main"
               }`}
             >
@@ -141,7 +141,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
             </button>
           </div>
 
-          <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-slate-800 border app-border text-xs font-semibold">
+          <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-card border app-border text-xs font-semibold">
             {(["24h", "7d", "30d"] as const).map((r) => (
               <button
                 key={r}
@@ -149,7 +149,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
                 onClick={() => setTimeRange(r)}
                 className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                   timeRange === r
-                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
+                    ? "bg-white dark:bg-[#2b2a29] text-blue-600 dark:text-blue-400 shadow-xs"
                     : "app-text-muted hover:app-text-main"
                 }`}
               >
