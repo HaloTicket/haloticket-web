@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import EventHero from "./components/detail/EventHero";
@@ -15,7 +14,7 @@ import { FiGrid } from "react-icons/fi";
 import type { EventDetailData, EventApiData } from "@/types";
 
 export default function EventDetail() {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isStickyVisible, setIsStickyVisible] = useState(false);

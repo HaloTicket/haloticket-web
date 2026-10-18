@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { ticketApi } from "@/services/ticketApi";
 import { eventApi } from "@/services/eventApi";
@@ -40,10 +41,11 @@ import {
 import { formatCurrency } from "@/utils/formatters";
 
 export const EventSeatingAssigner: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId: urlEventId } = useParams<{ eventId: string }>();
   const activeEventId = urlEventId || "e045ea48-2a1b-4914-8d90-3e29ff7cce03";
 
-  const [eventName, setEventName] = useState<string>("Sự kiện");
+  const [eventName, setEventName] = useState<string>(() => t("Sự kiện"));
   const [backendTiers, setBackendTiers] = useState<SeatTier[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [stages, setStages] = useState<StageElement[]>([]);
@@ -101,7 +103,7 @@ export const EventSeatingAssigner: React.FC = () => {
       try {
         const eventRes = await eventApi.getEventById(activeEventId);
         if (isMounted && eventRes) {
-          setEventName(((eventRes as any).title as string) || "Sự kiện");
+          setEventName(((eventRes as any).title as string) || t("Sự kiện"));
         }
 
         // fetch ticket tiers first
@@ -111,7 +113,7 @@ export const EventSeatingAssigner: React.FC = () => {
           const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
           mappedTiers = tiersRes.map((t: any, idx: number) => ({
             id: t.id || `tier_${Date.now()}_${idx}`,
-            name: t.name || "Vé Thường",
+            name: t.name || t("Vé Thường"),
             price: t.price || 0,
             color: t.color || colors[idx % colors.length],
             isFree: t.isFree ?? t.price === 0,
@@ -213,7 +215,7 @@ export const EventSeatingAssigner: React.FC = () => {
               }
               syncedZones[z.id || `zone_${Date.now()}`] = {
                 id: z.id || `zone_${Date.now()}`,
-                name: z.name || 'Khu vực',
+                name: z.name || t('Khu vực'),
                 tierId: z.ticketTypeId || undefined,
                 shape: (z.shapeType || 'rectangle').toString().toLowerCase() as any,
                 color: z.colorCode || z.fillColor || '#3b82f6',
@@ -297,10 +299,10 @@ export const EventSeatingAssigner: React.FC = () => {
     if (targetTier && totalAssignedSeats > tierTotalQty) {
       setConfirmModal({
         isOpen: true,
-        title: 'Cảnh Báo Vượt Sức Chứa Hạng Vé',
+        title: t('Cảnh Báo Vượt Sức Chứa Hạng Vé'),
         message: otherZonesWithTier.length > 0
-          ? `Hạng vé "${targetTier.name}" đang được gán cho nhiều khu vực với tổng cộng ${totalAssignedSeats} ghế, lớn hơn tổng số lượng vé mở bán (${tierTotalQty} vé).\n\nBạn có muốn tiếp tục gán không?`
-          : `Khu vực "${currentZone.name}" có ${currentZoneSeatCount} ghế, lớn hơn tổng số lượng vé mở bán của hạng vé "${targetTier.name}" (${tierTotalQty} vé).\n\nBạn có muốn tiếp tục gán không?`,
+          ? `${t('Hạng vé')} "${targetTier.name}" ${t('đang được gán cho nhiều khu vực với tổng cộng')} ${totalAssignedSeats} ${t('ghế, lớn hơn tổng số lượng vé mở bán')} (${tierTotalQty} ${t('vé')}).\n\n${t('Bạn có muốn tiếp tục gán không?')}`
+          : `${t('Khu vực')} "${currentZone.name}" ${t('có')} ${currentZoneSeatCount} ${t('ghế, lớn hơn tổng số lượng vé mở bán của hạng vé')} "${targetTier.name}" (${tierTotalQty} ${t('vé')}).\n\n${t('Bạn có muốn tiếp tục gán không?')}`,
         type: 'warning',
         onConfirm: () => {
           applyZoneTier(zoneId, tierId);
@@ -346,12 +348,12 @@ export const EventSeatingAssigner: React.FC = () => {
         const pngUrl = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
         downloadLink.href = pngUrl;
-        downloadLink.download = `Sơ_đồ_ghế_${eventName.replace(/\s+/g, '_')}.png`;
+        downloadLink.download = `${t('Sơ_đồ_ghế')}_${eventName.replace(/\s+/g, '_')}.png`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(url);
-        showToast('success', 'Đã xuất ảnh sơ đồ ghế thành công!');
+        showToast('success', t('Đã xuất ảnh sơ đồ ghế thành công!'));
       }
     };
     img.src = url;
@@ -380,7 +382,7 @@ export const EventSeatingAssigner: React.FC = () => {
           const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
           syncedTiers = responseTiers.map((t: any, idx: number) => ({
             id: t.id || `tier_${Date.now()}_${idx}`,
-            name: t.name || "Vé Thường",
+            name: t.name || t("Vé Thường"),
             price: t.price || 0,
             color: t.color || colors[idx % colors.length],
             isFree: t.isFree ?? t.price === 0,
@@ -469,10 +471,10 @@ export const EventSeatingAssigner: React.FC = () => {
         zones: zonesPayload,
       });
 
-      showToast("success", "Đã lưu & đồng bộ gán Hạng vé vào sơ đồ ghế thành công!");
+      showToast("success", t("Đã lưu & đồng bộ gán Hạng vé vào sơ đồ ghế thành công!"));
     } catch (err) {
-      console.error("Lỗi khi lưu gán hạng vé:", err);
-      showToast("error", "Lỗi kết nối CSDL khi lưu gán hạng vé!");
+      console.error(t("Lỗi khi lưu gán hạng vé:"), err);
+      showToast("error", t("Lỗi kết nối CSDL khi lưu gán hạng vé!"));
     } finally {
       setIsSaving(false);
     }
@@ -493,16 +495,16 @@ export const EventSeatingAssigner: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-[10px] font-extrabold tracking-wider uppercase flex items-center gap-1">
-              <FiTag className="w-3 h-3" /> Gán Hạng Vé Sơ Đồ Ghế
+              <FiTag className="w-3 h-3" /> {t("Gán Hạng Vé Sơ Đồ Ghế")}
             </span>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold">
-              Đã gán {assignedZoneCount}/{totalZones} khu vực
+              {t("Đã gán")} {assignedZoneCount}/{totalZones} {t("khu vực")}
             </span>
           </div>
           <h1 className="text-xl font-extrabold app-text-main">{eventName}</h1>
           <p className="text-xs app-text-muted mt-1 flex items-center gap-1">
             <FiLock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>Khung sơ đồ layout đã được khóa. Vui lòng chọn từng khu vực để gán hạng vé & thiết lập giá bán.</span>
+            <span>{t("Khung sơ đồ layout đã được khóa. Vui lòng chọn từng khu vực để gán hạng vé & thiết lập giá bán.")}</span>
           </p>
         </div>
 
@@ -517,7 +519,7 @@ export const EventSeatingAssigner: React.FC = () => {
               }`}
           >
             <FiEye className="w-4 h-4 text-purple-400" />
-            <span>{isAttendeePreviewMode ? "Chế độ Gán Vé" : "Xem Trực Quan Mua Vé"}</span>
+            <span>{isAttendeePreviewMode ? t("Chế độ Gán Vé") : t("Xem Trực Quan Mua Vé")}</span>
           </button>
 
           {/* Export PNG Image Button */}
@@ -525,10 +527,10 @@ export const EventSeatingAssigner: React.FC = () => {
             type="button"
             onClick={handleExportPNG}
             className="px-3.5 py-2 app-bg-subnav app-text-main hover:border-blue-500 border app-border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-            title="Tải ảnh sơ đồ 2D dạng PNG"
+            title={t("Tải ảnh sơ đồ 2D dạng PNG")}
           >
             <FiDownload className="w-4 h-4 text-blue-500" />
-            <span>Xuất ảnh sơ đồ</span>
+            <span>{t("Xuất ảnh sơ đồ")}</span>
           </button>
 
           <button
@@ -537,7 +539,7 @@ export const EventSeatingAssigner: React.FC = () => {
             className="px-4 py-2 app-bg-subnav app-text-main hover:border-indigo-500 border app-border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             <FiPlus className="w-4 h-4 text-indigo-500" />
-            <span>Quản lý hạng vé</span>
+            <span>{t("Quản lý hạng vé")}</span>
           </button>
 
           <button
@@ -547,7 +549,7 @@ export const EventSeatingAssigner: React.FC = () => {
             className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
           >
             <FiSend className="w-4 h-4" />
-            <span>{isSaving ? "Đang lưu..." : "Lưu & Đồng bộ sơ đồ"}</span>
+            <span>{isSaving ? t("Đang lưu...") : t("Lưu & Đồng bộ sơ đồ")}</span>
           </button>
         </div>
       </div>
@@ -561,10 +563,10 @@ export const EventSeatingAssigner: React.FC = () => {
               <div className="flex items-center justify-between border-b app-border pb-3 px-1">
                 <h3 className="text-xs font-extrabold app-text-main flex items-center gap-2">
                   <FiLayers className="w-4 h-4 text-blue-600" />
-                  <span>Xem trực quan sơ đồ (Nhấp vào khu vực để chọn & gán Hạng vé)</span>
+                  <span>{t("Xem trực quan sơ đồ (Nhấp vào khu vực để chọn & gán Hạng vé)")}</span>
                 </h3>
                 <span className="text-[10px] font-bold app-text-muted">
-                  {seats.length} ghế tổng cộng
+                  {seats.length} {t("ghế tổng cộng")}
                 </span>
               </div>
 
@@ -611,20 +613,20 @@ export const EventSeatingAssigner: React.FC = () => {
               <div className="flex items-center justify-between border-b app-border pb-3">
                 <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
                   <FaTicketAlt className="w-4 h-4 text-indigo-500" />
-                  <span>Danh sách Khu vực ({totalZones})</span>
+                  <span>{t("Danh sách Khu vực")} ({totalZones})</span>
                 </h3>
                 <span className="text-[11px] font-semibold text-indigo-500">
-                  {assignedZoneCount}/{totalZones} đã gán
+                  {assignedZoneCount}/{totalZones} {t("đã gán")}
                 </span>
               </div>
 
               <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-300">
                 <p className="font-bold flex items-center gap-1.5 mb-1">
                   <FiInfo className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Hướng dẫn gán hạng vé</span>
+                  <span>{t("Hướng dẫn gán hạng vé")}</span>
                 </p>
                 <p className="text-[11px] leading-relaxed">
-                  Chọn hạng vé phù hợp cho từng khu vực (một hạng vé có thể gán cho nhiều khu vực). Các ghế trong khu vực sẽ tự động kế thừa giá và hạng vé tương ứng.
+                  {t("Chọn hạng vé phù hợp cho từng khu vực (một hạng vé có thể gán cho nhiều khu vực). Các ghế trong khu vực sẽ tự động kế thừa giá và hạng vé tương ứng.")}
                 </p>
               </div>
 
@@ -632,7 +634,7 @@ export const EventSeatingAssigner: React.FC = () => {
               <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
                 {totalZones === 0 ? (
                   <div className="p-6 text-center text-xs app-text-muted">
-                    Chưa có khu vực nào được tạo trên sơ đồ ghế. Vui lòng sang trang "Thiết kế sơ đồ ghế" để vẽ khu vực trước.
+                    {t("Chưa có khu vực nào được tạo trên sơ đồ ghế. Vui lòng sang trang \"Thiết kế sơ đồ ghế\" để vẽ khu vực trước.")}
                   </div>
                 ) : (
                   Object.values(zones).map((zone) => {
@@ -658,20 +660,20 @@ export const EventSeatingAssigner: React.FC = () => {
                             <span className="text-xs font-bold app-text-main">{zone.name}</span>
                           </div>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md app-bg-card border app-border text-slate-600 dark:text-slate-300">
-                            {zoneSeatCount} ghế
+                            {zoneSeatCount} {t("ghế")}
                           </span>
                         </div>
 
                         <div className="space-y-1">
                           <label className="text-[11px] font-bold app-text-muted">
-                            Hạng vé áp dụng:
+                            {t("Hạng vé áp dụng")}:
                           </label>
                           <select
                             value={zone.tierId || ""}
                             onChange={(e) => handleUpdateZoneTier(zone.id, e.target.value)}
                             className="w-full app-bg-card app-text-main text-xs font-bold rounded-lg px-3 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                           >
-                            <option value="">-- Chưa gán hạng vé --</option>
+                            <option value="">-- {t("Chưa gán hạng vé")} --</option>
                             {effectiveTiers.map((tier) => (
                               <option key={tier.id} value={tier.id}>
                                 {tier.name} ({formatCurrency(tier.price)})
@@ -683,14 +685,14 @@ export const EventSeatingAssigner: React.FC = () => {
                         {assignedTier ? (
                           <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800/60">
                             <span className="flex items-center gap-1">
-                              <FiCheckCircle className="w-3.5 h-3.5" /> Giá vé mở bán:
+                              <FiCheckCircle className="w-3.5 h-3.5" /> {t("Giá vé mở bán")}:
                             </span>
                             <span className="font-black text-xs">{formatCurrency(assignedTier.price)}</span>
                           </div>
                         ) : (
                           <div className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-lg border border-amber-200 dark:border-amber-800/60 flex items-center gap-1">
                             <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
-                            <span>Khu vực này chưa có hạng vé</span>
+                            <span>{t("Khu vực này chưa có hạng vé")}</span>
                           </div>
                         )}
                       </div>
@@ -707,10 +709,10 @@ export const EventSeatingAssigner: React.FC = () => {
               <div className="flex items-center justify-between border-b app-border pb-3 px-1">
                 <h3 className="text-xs font-extrabold app-text-main flex items-center gap-2">
                   <FiEye className="w-4 h-4 text-purple-500" />
-                  <span>Xem Trước Trực Quan Khán Giả Mua Vé (Nhấp chọn ghế hoặc chọn khu vực)</span>
+                  <span>{t("Xem Trước Trực Quan Khán Giả Mua Vé (Nhấp chọn ghế hoặc chọn khu vực)")}</span>
                 </h3>
                 <span className="text-[10px] font-bold app-text-muted">
-                  {seats.length} ghế tổng cộng
+                  {seats.length} {t("ghế tổng cộng")}
                 </span>
               </div>
 
@@ -784,7 +786,7 @@ export const EventSeatingAssigner: React.FC = () => {
           <div className="seat-studio-modal max-w-md p-6 space-y-4" onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b app-border pb-3">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-500">Khán giả chọn mua vé theo Zone</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-500">{t("Khán giả chọn mua vé theo Zone")}</span>
                 <h3 className="text-base font-black app-text-main mt-0.5">{selectedZoneModal.name}</h3>
               </div>
               <button type="button" onClick={() => setSelectedZoneModal(null)} className="seat-studio-icon-button"><FiX /></button>
@@ -792,7 +794,7 @@ export const EventSeatingAssigner: React.FC = () => {
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between">
-                <span className="app-text-muted font-bold">Số lượng vé muốn mua:</span>
+                <span className="app-text-muted font-bold">{t("Số lượng vé muốn mua")}:</span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -813,7 +815,7 @@ export const EventSeatingAssigner: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t app-border text-sm font-black">
-                <span className="app-text-main">Tổng giá trị:</span>
+                <span className="app-text-main">{t("Tổng giá trị")}:</span>
                 <span className="text-blue-600 dark:text-blue-400 font-mono">
                   {((selectedZoneModal.price ?? effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.price ?? 0) * zoneTicketQuantity).toLocaleString('vi-VN')}đ
                 </span>
@@ -833,7 +835,7 @@ export const EventSeatingAssigner: React.FC = () => {
                     const newSeats = seatsToAdd.filter((s) => !existingIds.has(s.id));
                     return [...prev, ...newSeats];
                   });
-                  showToast('success', `Đã thêm ${seatsToAdd.length} vé khu vực ${selectedZoneModal.name} vào giỏ!`);
+                  showToast('success', `${t('Đã thêm')} ${seatsToAdd.length} ${t('vé khu vực')} ${selectedZoneModal.name} ${t('vào giỏ!')}`);
                 } else {
                   const pseudoSeat: Seat = {
                     id: `zone-standing-${selectedZoneModal.id}-${Date.now()}`,
@@ -846,13 +848,13 @@ export const EventSeatingAssigner: React.FC = () => {
                     tierId: selectedZoneModal.tierId,
                   };
                   setAttendeeCart((prev) => [...prev, pseudoSeat]);
-                  showToast('success', `Đã thêm ${zoneTicketQuantity} vé tự do khu vực ${selectedZoneModal.name} vào giỏ!`);
+                  showToast('success', `${t('Đã thêm')} ${zoneTicketQuantity} ${t('vé tự do khu vực')} ${selectedZoneModal.name} ${t('vào giỏ!')}`);
                 }
                 setSelectedZoneModal(null);
               }}
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
             >
-              Thêm vào giỏ hàng mô phỏng
+              {t("Thêm vào giỏ hàng mô phỏng")}
             </button>
           </div>
         </div>
@@ -881,7 +883,7 @@ export const EventSeatingAssigner: React.FC = () => {
               const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
               const mapped: SeatTier[] = responseTiers.map((t: any, idx: number) => ({
                 id: t.id || `tier_${Date.now()}_${idx}`,
-                name: t.name || "Vé Thường",
+                name: t.name || t("Vé Thường"),
                 price: t.price || 0,
                 color: t.color || colors[idx % colors.length],
                 isFree: t.isFree ?? t.price === 0,
@@ -891,15 +893,15 @@ export const EventSeatingAssigner: React.FC = () => {
                 description: t.description || "",
               }));
               setBackendTiers(mapped);
-              showToast("success", "Đã lưu và đồng bộ danh sách Hạng vé xuống CSDL!");
+              showToast("success", t("Đã lưu và đồng bộ danh sách Hạng vé xuống CSDL!"));
             } else {
               setBackendTiers(newTiers);
-              showToast("success", "Đã cập nhật danh sách Hạng vé!");
+              showToast("success", t("Đã cập nhật danh sách Hạng vé!"));
             }
           } catch (err) {
-            console.error("Lỗi đồng bộ hạng vé:", err);
+            console.error(t("Lỗi đồng bộ hạng vé:"), err);
             setBackendTiers(newTiers);
-            showToast("error", "Lỗi kết nối CSDL khi đồng bộ hạng vé!");
+            showToast("error", t("Lỗi kết nối CSDL khi đồng bộ hạng vé!"));
           }
         }}
       />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FiCheck, FiLoader, FiX } from "react-icons/fi";
 import { Button } from "@/components/common/Button";
 import { marketplaceApi } from "@/services/marketplaceApi";
@@ -18,6 +19,7 @@ interface ModalProps { ticket: TicketItem; onClose: () => void; onChanged: () =>
 const fieldClass = "min-h-11 w-full rounded-lg border app-border app-bg-card px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -40,7 +42,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       }}>
       <header className="flex shrink-0 items-center justify-between border-b app-border px-5 py-3">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-11 w-11 items-center justify-center rounded-lg app-text-muted hover:bg-slate-500/10"><FiX size={20} /></button>
+        <button type="button" onClick={onClose} aria-label={t("Đóng")} className="flex h-11 w-11 items-center justify-center rounded-lg app-text-muted hover:bg-slate-500/10"><FiX size={20} /></button>
       </header>
       <div className="overflow-y-auto px-5 pb-5 sm:px-6">{children}</div>
     </div>
@@ -62,34 +64,37 @@ function FlowHeader({ ticket, steps, step }: { ticket: TicketItem; steps: string
 }
 
 function SelectedTickets({ tickets }: { tickets: OwnedTicketApiResponse[] }) {
+  const { t } = useTranslation();
   return <div className="overflow-hidden rounded-xl border app-border">
-    <p className="border-b app-border app-bg-page px-4 py-3 text-sm font-semibold">Đã chọn {tickets.length} vé</p>
+    <p className="border-b app-border app-bg-page px-4 py-3 text-sm font-semibold">{t("Đã chọn {{count}} vé", { count: tickets.length })}</p>
     <ul className="divide-y app-border">{tickets.map(ticket => <li key={ticket.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
-      <span className="font-medium">{ticket.ticketTypeName || "Vé"}</span>
-      <span className="app-text-muted">{ticket.seatName || [ticket.row, ticket.seatNumber].filter(Boolean).join(" · ") || `Mã vé ${ticket.id.slice(0, 8).toUpperCase()}`}</span>
+      <span className="font-medium">{ticket.ticketTypeName || t("Vé")}</span>
+      <span className="app-text-muted">{ticket.seatName || [ticket.row, ticket.seatNumber].filter(Boolean).join(" · ") || `${t("Mã vé")} ${ticket.id.slice(0, 8).toUpperCase()}`}</span>
     </li>)}</ul>
   </div>;
 }
 
 function ErrorNotice({ message }: { message: string }) {
+  const { t } = useTranslation();
   if (!message) return null;
   return <div role="alert" className="my-4 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">
-    {message}{message.includes("eKYC") && <Link to={PATHS.EKYC} className="mt-2 block font-semibold underline">Xác minh eKYC ngay</Link>}
+    {message}{message.includes("eKYC") && <Link to={PATHS.EKYC} className="mt-2 block font-semibold underline">{t("Xác minh eKYC ngay")}</Link>}
   </div>;
 }
-function errorMessage(error: unknown) {
+function getErrorMessage(error: unknown, t: (k: string) => string) {
   const data = (error as { response?: { data?: unknown } })?.response?.data;
   const code = JSON.stringify(data || (error instanceof Error ? error.message : ""));
-  if (code.includes("EKYC_REQUIRED")) return "Tài khoản của bạn cần hoàn tất xác minh danh tính (eKYC) trước khi đăng bán lại vé.";
-  if (code.includes("PRICE_OUT_OF_RANGE")) return "Giá bán không nằm trong khoảng cho phép của tất cả vé đã chọn.";
-  if (code.includes("POLICY_CHANGED")) return "Chính sách vừa thay đổi. Quay lại để kiểm tra điều kiện vé.";
-  if (code.includes("TICKET_NOT_ELIGIBLE")) return "Một vé đã chọn không còn đủ điều kiện chuyển nhượng. Vui lòng tải lại danh sách.";
-  if (code.includes("GIFT_DISABLED")) return "Ban tổ chức chưa mở tính năng tặng vé cho sự kiện này.";
-  if (code.includes("GIFT_LIMIT_REACHED")) return "Một vé đã đạt giới hạn số lần tặng của sự kiện. Vui lòng chọn vé khác.";
-  return "Không thể hoàn tất thao tác. Vui lòng kiểm tra trạng thái vé và thử lại.";
+  if (code.includes("EKYC_REQUIRED")) return t("Tài khoản của bạn cần hoàn tất xác minh danh tính (eKYC) trước khi đăng bán lại vé.");
+  if (code.includes("PRICE_OUT_OF_RANGE")) return t("Giá bán không nằm trong khoảng cho phép của tất cả vé đã chọn.");
+  if (code.includes("POLICY_CHANGED")) return t("Chính sách vừa thay đổi. Quay lại để kiểm tra điều kiện vé.");
+  if (code.includes("TICKET_NOT_ELIGIBLE")) return t("Một vé đã chọn không còn đủ điều kiện chuyển nhượng. Vui lòng tải lại danh sách.");
+  if (code.includes("GIFT_DISABLED")) return t("Ban tổ chức chưa mở tính năng tặng vé cho sự kiện này.");
+  if (code.includes("GIFT_LIMIT_REACHED")) return t("Một vé đã đạt giới hạn số lần tặng của sự kiện. Vui lòng chọn vé khác.");
+  return t("Không thể hoàn tất thao tác. Vui lòng kiểm tra trạng thái vé và thử lại.");
 }
 
 function SagaNotice({ sagaId, gift, count, onChanged }: { sagaId: string; gift?: boolean; count: number; onChanged: () => void }) {
+  const { t } = useTranslation();
   const { saga, error } = useMarketplaceSaga(sagaId, { stopOnWaitingRecipient: gift });
   const refreshed = useRef(false);
   const finished = Boolean(saga && ["COMPLETED", "WAITING_RECIPIENT", "FAILED", "COMPENSATED"].includes(saga.state));
@@ -97,19 +102,20 @@ function SagaNotice({ sagaId, gift, count, onChanged }: { sagaId: string; gift?:
   const success = saga?.state === "COMPLETED" || saga?.state === "WAITING_RECIPIENT";
   return <div role="status" className="space-y-3 rounded-xl border app-border p-5 text-sm">
     <div className="flex items-center gap-2 font-semibold">{success ? <FiCheck /> : !finished ? <FiLoader className="animate-spin" /> : null}
-      {success ? (gift ? `Đã tạo lời mời tặng ${count} vé` : `Đã xử lý đăng bán ${count} vé`) : finished ? "Không thể hoàn tất chuyển nhượng" : "Đang xử lý các vé đã chọn…"}</div>
-    <p className="app-text-muted">{success ? (gift ? "Người nhận có thể mở lời mời trong tài khoản hoặc email để nhận toàn bộ vé. Vé đang chờ sẽ được khóa check-in." : "Kiểm tra trạng thái tin đăng tại Vé của tôi. Vé đang bán được khóa check-in.") : finished ? "Hệ thống sẽ đối soát và mở khóa các vé nếu cần. Kiểm tra lại Vé của tôi." : "Bạn có thể đóng cửa sổ. Trạng thái sẽ được cập nhật từ hệ thống."}</p>
-    {Boolean(error) && <p className="app-text-muted">Chưa nhận được cập nhật. Hệ thống đang kiểm tra lại, chưa xác nhận thao tác thất bại.</p>}
+      {success ? (gift ? t("Đã tạo lời mời tặng {{count}} vé", { count }) : t("Đã xử lý đăng bán {{count}} vé", { count })) : finished ? t("Không thể hoàn tất chuyển nhượng") : t("Đang xử lý các vé đã chọn…")}</div>
+    <p className="app-text-muted">{success ? (gift ? t("Người nhận có thể mở lời mời trong tài khoản hoặc email để nhận toàn bộ vé. Vé đang chờ sẽ được khóa check-in.") : t("Kiểm tra trạng thái tin đăng tại Vé của tôi. Vé đang bán được khóa check-in.")) : finished ? t("Hệ thống sẽ đối soát và mở khóa các vé nếu cần. Kiểm tra lại Vé của tôi.") : t("Bạn có thể đóng cửa sổ. Trạng thái sẽ được cập nhật từ hệ thống.")}</p>
+    {Boolean(error) && <p className="app-text-muted">{t("Chưa nhận được cập nhật. Hệ thống đang kiểm tra lại, chưa xác nhận thao tác thất bại.")}</p>}
   </div>;
 }
 
 function SelectionContent({ selection }: { selection: ReturnType<typeof useTransferTickets> }) {
-  if (selection.loading) return <p role="status" className="py-8 text-center text-sm app-text-muted">Đang tải vé trong đơn hàng…</p>;
-  if (selection.error) return <><ErrorNotice message={selection.error} /><Button variant="outline" onClick={selection.retry}>Thử lại</Button></>;
+  const { t } = useTranslation();
+  if (selection.loading) return <p role="status" className="py-8 text-center text-sm app-text-muted">{t("Đang tải vé trong đơn hàng…")}</p>;
+  if (selection.error) return <><ErrorNotice message={selection.error} /><Button variant="outline" onClick={selection.retry}>{t("Thử lại")}</Button></>;
   return <TransferTicketSelection tickets={selection.tickets} selectedIds={selection.selectedIds} onChange={selection.setSelectedIds} />;
 }
-
 export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
+  const { t } = useTranslation();
   const selection = useTransferTickets(ticket.id);
   const [step, setStep] = useState(1);
   const [noRetail, setNoRetail] = useState(false);
@@ -144,15 +150,15 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
       const ineligible = results.find(result => !result.eligible);
       if (ineligible) {
         setError(ineligible.reasonCode === "RESALE_POLICY_NOT_CONFIGURED" || ineligible.reasonCode === "RESALE_DISABLED"
-          ? "Ban tổ chức chưa mở bán lại cho sự kiện này." : "Một vé đã chọn không đủ điều kiện bán lại hoặc đã hết thời gian đăng bán.");
+          ? t("Ban tổ chức chưa mở bán lại cho sự kiện này.") : t("Một vé đã chọn không đủ điều kiện bán lại hoặc đã hết thời gian đăng bán."));
         return;
       }
       const min = Math.max(...results.map(result => result.minPrice ?? 0));
       const max = Math.min(...results.map(result => result.maxPrice ?? 0));
-      if (min > max) { setError("Các vé có khoảng giá khác nhau. Vui lòng chọn cùng hạng vé hoặc đăng bán thành các nhóm riêng."); return; }
+      if (min > max) { setError(t("Các vé có khoảng giá khác nhau. Vui lòng chọn cùng hạng vé hoặc đăng bán thành các nhóm riêng.")); return; }
       setPolicies(results); setPrice(String(min)); setStep(2); setAccepted(false);
       requestKey.current = crypto.randomUUID();
-    } catch (cause) { setError(errorMessage(cause)); }
+    } catch (cause) { setError(getErrorMessage(cause, t)); }
     finally { setBusy(false); }
   };
   const submit = async () => {
@@ -162,106 +168,107 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
       const result = await marketplaceApi.createResaleListing({ ticketIds: selection.selectedIds, price: Number(price), allowRetail,
         policyVersion: policies[0]?.policyVersion ?? undefined, termsVersion: policies[0]?.termsVersion ?? undefined }, requestKey.current);
       setSagaId(result.sagaId);
-    } catch (cause) { setError(errorMessage(cause)); }
+    } catch (cause) { setError(getErrorMessage(cause, t)); }
     finally { setBusy(false); }
   };
-  return <ModalShell title="Đăng bán lại vé" onClose={onClose}>
-    <FlowHeader ticket={ticket} steps={["Chọn vé", "Thiết lập giá", "Xác nhận"]} step={step} />
+  return <ModalShell title={t("Đăng bán lại vé")} onClose={onClose}>
+    <FlowHeader ticket={ticket} steps={[t("Chọn vé"), t("Thiết lập giá"), t("Xác nhận")]} step={step} />
     {sagaId ? <SagaNotice sagaId={sagaId} count={count} onChanged={onChanged} /> : <>
       {step === 1 ? <div className="space-y-5">
         <SelectionContent selection={selection} />
         {count > 0 && <div className="border-t app-border pt-4">
-          <h3 className="mb-2 text-sm font-semibold">Hình thức bán lại</h3>
+          <h3 className="mb-2 text-sm font-semibold">{t("Hình thức bán lại")}</h3>
           <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 text-sm">
-            <span>Không bán lẻ</span>
+            <span>{t("Không bán lẻ")}</span>
             <span className="relative shrink-0">
-              <input type="checkbox" role="switch" aria-label="Không bán lẻ" checked={!allowRetail} disabled={count <= 1}
+              <input type="checkbox" role="switch" aria-label={t("Không bán lẻ")} checked={!allowRetail} disabled={count <= 1}
                 onChange={event => setNoRetail(event.target.checked)} className="peer sr-only" />
               <span aria-hidden="true" className="block h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2 peer-disabled:opacity-40" />
               <span aria-hidden="true" className="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
             </span>
           </label>
-          <p className="mt-1 text-xs leading-5 app-text-muted">{count === 1 ? "Bạn đã chọn 1 vé, áp dụng bán lẻ." : noRetail ? `Người mua phải mua đủ ${count} vé trong một đơn hàng.` : "Người mua có thể chọn một hoặc nhiều vé trong nhóm này."}</p>
+          <p className="mt-1 text-xs leading-5 app-text-muted">{count === 1 ? t("Bạn đã chọn 1 vé, áp dụng bán lẻ.") : noRetail ? t("Người mua phải mua đủ {{count}} vé trong một đơn hàng.", { count }) : t("Người mua có thể chọn một hoặc nhiều vé trong nhóm này.")}</p>
         </div>}
       </div> : step === 2 ? <div className="space-y-5">
         <SelectedTickets tickets={selection.selectedTickets} />
         <div className="space-y-2 text-xs app-text-muted">{policies.map((policy, index) => <p key={policy.ticketId}>
-          {selection.selectedTickets[index]?.ticketTypeName} · Giá gốc {formatCurrency(policy.originalPrice ?? 0)}.
-          {` Khoảng giá theo Ban tổ chức: ${formatCurrency(policy.minPrice ?? 0)} – ${formatCurrency(policy.maxPrice ?? 0)}`}
-          {policy.originalPrice ? ` (${Number((((policy.minPrice ?? 0) / policy.originalPrice) * 100).toFixed(2))}%–${Number((((policy.maxPrice ?? 0) / policy.originalPrice) * 100).toFixed(2))}% giá gốc).` : ". Vé miễn phí chỉ được đăng ở giá cho phép."}
+          {selection.selectedTickets[index]?.ticketTypeName} · {t("Giá gốc")} {formatCurrency(policy.originalPrice ?? 0)}.
+          {` ${t("Khoảng giá theo Ban tổ chức:")} ${formatCurrency(policy.minPrice ?? 0)} – ${formatCurrency(policy.maxPrice ?? 0)}`}
+          {policy.originalPrice ? ` (${Number((((policy.minPrice ?? 0) / policy.originalPrice) * 100).toFixed(2))}%–${Number((((policy.maxPrice ?? 0) / policy.originalPrice) * 100).toFixed(2))}% ${t("giá gốc")}).` : ` ${t(". Vé miễn phí chỉ được đăng ở giá cho phép.")}`}
         </p>)}</div>
-        <label className="block text-sm font-semibold">Giá bán mỗi vé
+        <label className="block text-sm font-semibold">{t("Giá bán mỗi vé")}
           <input 
-            aria-label="Giá bán mỗi vé" 
+            aria-label={t("Giá bán mỗi vé")} 
             className={`${fieldClass} mt-2`} 
             value={price} 
             inputMode="numeric" 
-            placeholder={`Nhập từ ${minPrice.toLocaleString('vi-VN')}đ - ${maxPrice.toLocaleString('vi-VN')}đ`}
+            placeholder={t("Nhập từ {{min}}đ - {{max}}đ", { min: minPrice.toLocaleString('vi-VN'), max: maxPrice.toLocaleString('vi-VN') })}
             onChange={event => { setPrice(event.target.value.replace(/\D/g, "")); requestKey.current = crypto.randomUUID(); }} 
           />
         </label>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="app-text-muted">Khoảng giá cho phép: {formatCurrency(minPrice)} – {formatCurrency(maxPrice)} / vé</span>
+          <span className="app-text-muted">{t("Khoảng giá cho phép:")} {formatCurrency(minPrice)} – {formatCurrency(maxPrice)} / {t("vé")}</span>
         </div>
         {price !== "" && numPrice > maxPrice && (
           <p className="text-xs text-rose-500 font-semibold">
-            Giá bán vượt giới hạn của sự kiện: tối đa {formatCurrency(maxPrice)} mỗi vé.
+            {t("Giá bán vượt giới hạn của sự kiện: tối đa {{max}} mỗi vé.", { max: formatCurrency(maxPrice) })}
           </p>
         )}
-        {policies[0]?.closesAt && <p className="text-xs app-text-muted">Nhận đăng bán đến {new Date(policies[0].closesAt).toLocaleString("vi-VN")}.</p>}
+        {policies[0]?.closesAt && <p className="text-xs app-text-muted">{t("Nhận đăng bán đến {{time}}.", { time: new Date(policies[0].closesAt).toLocaleString("vi-VN") })}</p>}
         {priceValid && (
           <div className="rounded-xl border app-border bg-slate-50/50 dark:bg-slate-900/30 p-4 space-y-2 text-sm">
             <div className="flex justify-between text-xs app-text-muted">
-              <span>Tổng giá niêm yết ({count} vé)</span>
+              <span>{t("Tổng giá niêm yết ({{count}} vé)", { count })}</span>
               <span className="font-semibold">{formatCurrency(totalPrice)}</span>
             </div>
             <div className="flex justify-between text-xs text-rose-600 dark:text-rose-400 font-medium">
-              <span>Phí dịch vụ sàn ({sellerFeePercent}% khấu trừ người bán)</span>
+              <span>{t("Phí dịch vụ sàn ({{percent}}% khấu trừ người bán)", { percent: sellerFeePercent })}</span>
               <span>-{formatCurrency(sellerFeeAmount)}</span>
             </div>
             <div className="border-t app-border pt-2 flex justify-between font-bold">
-              <span>Số tiền thực nhận khi bán thành công</span>
+              <span>{t("Số tiền thực nhận khi bán thành công")}</span>
               <span className="text-blue-600 dark:text-blue-400 font-black text-base">{formatCurrency(netSellerReceives)}</span>
             </div>
             <p className="text-[11px] text-slate-500 pt-1 leading-relaxed">
-              Tiền bán vé được ghi nhận sau khi chuyển vé thành công và chờ đối soát trước khi thanh toán cho bạn.
+              {t("Tiền bán vé được ghi nhận sau khi chuyển vé thành công và chờ đối soát trước khi thanh toán cho bạn.")}
             </p>
           </div>
         )}
       </div> : <div className="space-y-4">
         <SelectedTickets tickets={selection.selectedTickets} />
         <div className="rounded-xl border app-border p-4 bg-slate-50/40 dark:bg-slate-900/20 space-y-2 text-sm">
-          <div className="flex justify-between"><span className="app-text-muted">Hình thức bán</span><span className="font-medium">{allowRetail ? "Bán lẻ" : "Không bán lẻ"}</span></div>
-          <div className="flex justify-between"><span className="app-text-muted">Giá mỗi vé</span><span>{formatCurrency(numPrice)}</span></div>
-          <div className="flex justify-between"><span className="app-text-muted">Tổng giá niêm yết ({count} vé)</span><span className="font-semibold">{formatCurrency(totalPrice)}</span></div>
+          <div className="flex justify-between"><span className="app-text-muted">{t("Hình thức bán")}</span><span className="font-medium">{allowRetail ? t("Bán lẻ") : t("Không bán lẻ")}</span></div>
+          <div className="flex justify-between"><span className="app-text-muted">{t("Giá mỗi vé")}</span><span>{formatCurrency(numPrice)}</span></div>
+          <div className="flex justify-between"><span className="app-text-muted">{t("Tổng giá niêm yết ({{count}} vé)", { count })}</span><span className="font-semibold">{formatCurrency(totalPrice)}</span></div>
           <div className="flex justify-between text-xs text-rose-600 dark:text-rose-400">
-            <span>Phí sàn bán lại ({sellerFeePercent}%)</span>
+            <span>{t("Phí sàn bán lại ({{percent}}%)", { percent: sellerFeePercent })}</span>
             <span>-{formatCurrency(sellerFeeAmount)}</span>
           </div>
           <div className="border-t app-border pt-2 flex justify-between font-bold">
-            <span>Số tiền thực nhận</span>
+            <span>{t("Số tiền thực nhận")}</span>
             <span className="text-base text-blue-600 dark:text-blue-400 font-black">{formatCurrency(netSellerReceives)}</span>
           </div>
         </div>
         <div className="rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 p-3 text-xs leading-relaxed text-blue-900 dark:text-blue-200">
-          <strong>Chuyển giao an toàn:</strong> Vé đang bán được khóa check-in. Sau khi thanh toán và chuyển vé thành công, khoản phải trả cho bạn sẽ chờ đối soát trước khi chuyển tiền.
+          <strong>{t("Chuyển giao an toàn:")}</strong> {t("Vé đang bán được khóa check-in. Sau khi thanh toán và chuyển vé thành công, khoản phải trả cho bạn sẽ chờ đối soát trước khi chuyển tiền.")}
         </div>
         <label className="flex min-h-11 cursor-pointer items-start gap-3 border-t app-border pt-4 text-sm">
           <input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" />
-          <span>Tôi đồng ý điều khoản bán lại và hiểu rằng {count} vé đã chọn sẽ bị khóa check-in trong thời gian đăng bán.</span>
+          <span>{t("Tôi đồng ý điều khoản bán lại và hiểu rằng {{count}} vé đã chọn sẽ bị khóa check-in trong thời gian đăng bán.", { count })}</span>
         </label>
       </div>}
       <ErrorNotice message={error} />
     </>}
     <footer className="sticky bottom-0 mt-5 flex justify-end gap-3 border-t app-border app-bg-card py-4">
-      <Button variant="secondary" className="min-h-11" onClick={() => { if (step > 1 && !sagaId) { setStep(step - 1); setError(""); } else onClose(); }} disabled={busy}>{sagaId ? "Đóng" : step > 1 ? "Quay lại" : "Hủy"}</Button>
+      <Button variant="secondary" className="min-h-11" onClick={() => { if (step > 1 && !sagaId) { setStep(step - 1); setError(""); } else onClose(); }} disabled={busy}>{sagaId ? t("Đóng") : step > 1 ? t("Quay lại") : t("Hủy")}</Button>
       {!sagaId && <Button className="min-h-11" disabled={busy || selection.loading || !count || Boolean(selection.error) || (step === 2 && !priceValid) || (step === 3 && !accepted)}
-        onClick={step === 1 ? check : step === 2 ? () => setStep(3) : submit}>{busy ? "Đang xử lý…" : step === 3 ? "Xác nhận đăng bán" : "Tiếp tục"}</Button>}
+        onClick={step === 1 ? check : step === 2 ? () => setStep(3) : submit}>{busy ? t("Đang xử lý…") : step === 3 ? t("Xác nhận đăng bán") : t("Tiếp tục")}</Button>}
     </footer>
   </ModalShell>;
 }
 
 export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
+  const { t } = useTranslation();
   const selection = useTransferTickets(ticket.id);
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
@@ -278,9 +285,9 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
     setBusy(true); setError("");
     try {
       const found = await userApi.findGiftRecipient(email.trim());
-      if (found.userId === getCachedUserProfile()?.keycloakId) { setError("Bạn không thể tặng vé cho chính mình."); setRecipient(undefined); return; }
+      if (found.userId === getCachedUserProfile()?.keycloakId) { setError(t("Bạn không thể tặng vé cho chính mình.")); setRecipient(undefined); return; }
       setRecipient(found);
-    } catch { setRecipient(undefined); setError("Không tìm thấy tài khoản HaloTicket với email này. Vui lòng kiểm tra lại."); }
+    } catch { setRecipient(undefined); setError(t("Không tìm thấy tài khoản HaloTicket với email này. Vui lòng kiểm tra lại.")); }
     finally { setBusy(false); }
   };
   const submit = async () => {
@@ -289,32 +296,32 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
     try {
       const result = await marketplaceApi.createGift({ ticketIds: selection.selectedIds, recipientEmail: recipient.email, message: message.trim() || undefined, acceptedTerms: true }, requestKey.current);
       setSagaId(result.sagaId);
-    } catch (cause) { setError(errorMessage(cause)); }
+    } catch (cause) { setError(getErrorMessage(cause, t)); }
     finally { setBusy(false); }
   };
-  return <ModalShell title="Tặng vé" onClose={onClose}>
-    <FlowHeader ticket={ticket} steps={["Chọn vé", "Người nhận", "Xác nhận"]} step={step} />
+  return <ModalShell title={t("Tặng vé")} onClose={onClose}>
+    <FlowHeader ticket={ticket} steps={[t("Chọn vé"), t("Người nhận"), t("Xác nhận")]} step={step} />
     {sagaId ? <SagaNotice sagaId={sagaId} gift count={selection.selectedIds.length} onChanged={onChanged} /> : <>
       {step === 1 ? <SelectionContent selection={selection} /> : step === 2 ? <div className="space-y-4">
-        <p className="text-sm app-text-muted">Tặng {selection.selectedIds.length} vé cho một tài khoản HaloTicket đã đăng ký.</p>
-        <label className="block text-sm font-semibold" htmlFor="gift-email">Email người nhận</label>
+        <p className="text-sm app-text-muted">{t("Tặng {{count}} vé cho một tài khoản HaloTicket đã đăng ký.", { count: selection.selectedIds.length })}</p>
+        <label className="block text-sm font-semibold" htmlFor="gift-email">{t("Email người nhận")}</label>
         <div className="flex gap-2"><input id="gift-email" type="email" disabled={busy} value={email} onChange={event => { setEmail(event.target.value); setRecipient(undefined); }} className={fieldClass} />
-          <Button variant="outline" disabled={!emailValid || busy} onClick={findRecipient}>{busy ? "Đang tìm…" : "Tìm"}</Button></div>
+          <Button variant="outline" disabled={!emailValid || busy} onClick={findRecipient}>{busy ? t("Đang tìm…") : t("Tìm")}</Button></div>
         {recipient && <div className="rounded-xl border app-border p-4 text-sm"><p className="font-semibold">{recipient.fullName}</p><p className="mt-1 break-all app-text-muted">{recipient.email}</p></div>}
-        <label className="block text-sm font-semibold">Lời nhắn <span className="font-normal app-text-muted">(không bắt buộc)</span>
+        <label className="block text-sm font-semibold">{t("Lời nhắn")} <span className="font-normal app-text-muted">({t("không bắt buộc")})</span>
           <textarea value={message} onChange={event => setMessage(event.target.value)} maxLength={200} rows={3} className={`${fieldClass} mt-2 resize-none`} /></label>
       </div> : <div className="space-y-4">
-        <div className="border-b app-border pb-4 text-sm"><p className="app-text-muted">Người nhận</p><p className="mt-1 font-semibold">{recipient?.fullName}</p><p className="break-all">{recipient?.email}</p>{message && <p className="mt-2 app-text-muted">{message}</p>}</div>
+        <div className="border-b app-border pb-4 text-sm"><p className="app-text-muted">{t("Người nhận")}</p><p className="mt-1 font-semibold">{recipient?.fullName}</p><p className="break-all">{recipient?.email}</p>{message && <p className="mt-2 app-text-muted">{message}</p>}</div>
         <SelectedTickets tickets={selection.selectedTickets} />
-        <p className="text-xs leading-6 app-text-muted">Các vé đã chọn sẽ bị khóa trong thời gian chờ. Khi người nhận chấp nhận lời mời, toàn bộ vé được chuyển sang tài khoản người nhận cùng mã QR mới. Thời hạn nhận vé theo chính sách của sự kiện; hết hạn, hệ thống sẽ xử lý mở khóa vé.</p>
-        <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" /><span>Tôi đã kiểm tra người nhận, các vé đã chọn và đồng ý quy định tặng vé.</span></label>
+        <p className="text-xs leading-6 app-text-muted">{t("Các vé đã chọn sẽ bị khóa trong thời gian chờ. Khi người nhận chấp nhận lời mời, toàn bộ vé được chuyển sang tài khoản người nhận cùng mã QR mới. Thời hạn nhận vé theo chính sách của sự kiện; hết hạn, hệ thống sẽ xử lý mở khóa vé.")}</p>
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" /><span>{t("Tôi đã kiểm tra người nhận, các vé đã chọn và đồng ý quy định tặng vé.")}</span></label>
       </div>}
       <ErrorNotice message={error} />
     </>}
     <footer className="sticky bottom-0 mt-5 flex justify-end gap-3 border-t app-border app-bg-card py-4">
-      <Button variant="secondary" className="min-h-11" disabled={busy} onClick={() => { if (step > 1 && !sagaId) { setStep(step - 1); setError(""); } else onClose(); }}>{sagaId ? "Đóng" : step > 1 ? "Quay lại" : "Hủy"}</Button>
+      <Button variant="secondary" className="min-h-11" disabled={busy} onClick={() => { if (step > 1 && !sagaId) { setStep(step - 1); setError(""); } else onClose(); }}>{sagaId ? t("Đóng") : step > 1 ? t("Quay lại") : t("Hủy")}</Button>
       {!sagaId && <Button className="min-h-11" disabled={busy || selection.loading || Boolean(selection.error) || !selection.selectedIds.length || (step === 2 && !recipient) || (step === 3 && !accepted)}
-        onClick={step === 3 ? submit : () => { setStep(step + 1); setError(""); setAccepted(false); requestKey.current = crypto.randomUUID(); }}>{busy ? "Đang xử lý…" : step === 3 ? "Xác nhận tặng vé" : "Tiếp tục"}</Button>}
+        onClick={step === 3 ? submit : () => { setStep(step + 1); setError(""); setAccepted(false); requestKey.current = crypto.randomUUID(); }}>{busy ? t("Đang xử lý…") : step === 3 ? t("Xác nhận tặng vé") : t("Tiếp tục")}</Button>}
     </footer>
   </ModalShell>;
 }

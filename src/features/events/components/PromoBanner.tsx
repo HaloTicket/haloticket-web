@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React from "react";
 
 interface PromoBannerProps {
@@ -23,7 +22,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
   buttonText,
   buttonUrl
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const bannerConfigs = {
     vib: {
       bg: "bg-slate-900 dark:bg-slate-900/90",

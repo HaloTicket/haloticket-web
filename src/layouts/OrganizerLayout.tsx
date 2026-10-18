@@ -273,8 +273,8 @@ export const OrganizerLayout: React.FC = () => {
               onMarkAllAsRead={markAllAsRead}
               onNotificationClick={handleNotificationClick}
               viewAllLink="/organizer/my-events"
-              viewAllText="Xem danh sách Sự kiện →"
-              titleText="Thông báo Ban tổ chức"
+              viewAllText={translate("Xem danh sách Sự kiện →")}
+              titleText={translate("Thông báo Ban tổ chức")}
             />
 
             {/* User Profile Account Dropdown (Synchronized with MainLayout Header) */}
@@ -379,7 +379,7 @@ export const OrganizerLayout: React.FC = () => {
                         className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-xs font-bold transition-colors"
                       >
                         <LuBuilding2 className="w-4 h-4 text-purple-600 shrink-0" />
-                        <span>Trang Quản trị Admin</span>
+                        <span>{translate("Trang Quản trị Admin")}</span>
                       </Link>
                     )}
 
@@ -417,7 +417,7 @@ export const OrganizerLayout: React.FC = () => {
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText="Nhấn để xem chi tiết →"
+        actionText={translate("Nhấn để xem chi tiết →")}
         accentColor="blue"
       />
     </div>

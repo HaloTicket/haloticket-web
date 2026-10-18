@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { ticketApi } from '@/services/ticketApi';
 import { venueApi } from '@/services/venueApi';
@@ -106,6 +107,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   initialMap,
   onSave,
 }) => {
+  const { t } = useTranslation();
   const { eventId: urlEventId } = useParams<{ eventId: string }>();
   const activeEventId = urlEventId || 'e045ea48-2a1b-4914-8d90-3e29ff7cce03';
 
@@ -171,7 +173,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const [copied, setCopied] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Đã tự động lưu nháp');
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>(() => t('Đã tự động lưu nháp'));
   const [layoutStatus, setLayoutStatus] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [confirmModal, setConfirmModal] = useState<{
@@ -191,7 +193,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     latestRef.current = previousSnapshotBeforePreset;
     pushHistory(previousSnapshotBeforePreset);
     setPreviousSnapshotBeforePreset(null);
-    showToast('info', 'Đã khôi phục lại phiên bản sơ đồ trước khi áp dụng mẫu.');
+    showToast('info', t('Đã khôi phục lại phiên bản sơ đồ trước khi áp dụng mẫu.'));
   };
 
   const showToast = (type: 'success' | 'error' | 'warning' | 'info', text: string) => {
@@ -251,11 +253,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             const preset1 = PRESET_TEMPLATES[idx % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[0];
             venueTemplates.push({
               id: `venue_${v.id}_concert`,
-              name: `${v.name} - Sơ đồ Concert & Âm Nhạc`,
+              name: `${v.name} - ${t('Sơ đồ Concert & Âm Nhạc')}`,
               address: v.address,
               city: v.city,
               capacity: v.capacity || preset1.capacity || 5000,
-              description: `Địa điểm công cộng: ${v.name} (${v.address || ''}, ${v.city || ''}). Sơ đồ bố cục biểu diễn Concert Sân khấu chính.`,
+              description: `${t('Địa điểm công cộng')}: ${v.name} (${v.address || ''}, ${v.city || ''}). ${t('Sơ đồ bố cục biểu diễn Concert Sân khấu chính.')}`,
               source: 'system',
               stages: safeClone(preset1.stages || []),
               structures: safeClone(preset1.structures || []),
@@ -269,11 +271,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             if (preset2) {
               venueTemplates.push({
                 id: `venue_${v.id}_sports`,
-                name: `${v.name} - Sơ đồ Thể Thao & Khán Đài`,
+                name: `${v.name} - ${t('Sơ đồ Thể Thao & Khán Đài')}`,
                 address: v.address,
                 city: v.city,
                 capacity: v.capacity ? Math.round(v.capacity * 0.9) : 4500,
-                description: `Địa điểm công cộng: ${v.name} (${v.address || ''}, ${v.city || ''}). Sơ đồ bố cục Giải đấu thể thao & Khán đài.`,
+                description: `${t('Địa điểm công cộng')}: ${v.name} (${v.address || ''}, ${v.city || ''}). ${t('Sơ đồ bố cục Giải đấu thể thao & Khán đài.')}`,
                 source: 'system',
                 stages: safeClone(preset2.stages || []),
                 structures: safeClone(preset2.structures || []),
@@ -288,11 +290,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             if (preset3) {
               venueTemplates.push({
                 id: `venue_${v.id}_arena360`,
-                name: `${v.name} - Sơ đồ Sân Khấu Tròn 360°`,
+                name: `${v.name} - ${t('Sơ đồ Sân Khấu Tròn 360°')}`,
                 address: v.address,
                 city: v.city,
                 capacity: v.capacity ? Math.round(v.capacity * 1.1) : 6000,
-                description: `Địa điểm công cộng: ${v.name} (${v.address || ''}, ${v.city || ''}). Sơ đồ bố cục Sân khấu trung tâm 360 độ góc nhìn đa chiều.`,
+                description: `${t('Địa điểm công cộng')}: ${v.name} (${v.address || ''}, ${v.city || ''}). ${t('Sơ đồ bố cục Sân khấu trung tâm 360 độ góc nhìn đa chiều.')}`,
                 source: 'system',
                 stages: safeClone(preset3.stages || []),
                 structures: safeClone(preset3.structures || []),
@@ -376,7 +378,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               }
               zonesMap[z.id || `zone_${Date.now()}`] = {
                 id: z.id || `zone_${Date.now()}`,
-                name: z.name || 'Khu vực',
+                name: z.name || t('Khu vực'),
                 tierId: z.ticketTypeId || undefined,
                 shape: (z.shapeType || 'rectangle').toString().toLowerCase() as any,
                 color: z.colorCode || z.fillColor || '#3b82f6',
@@ -408,7 +410,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   useEffect(() => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
 
-    setAutoSaveStatus('Đang tự động lưu nháp...');
+    setAutoSaveStatus(t('Đang tự động lưu nháp...'));
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
         const payload = buildSeatMapDocument({
@@ -459,9 +461,9 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         });
 
         const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        setAutoSaveStatus(`Đã tự động lưu nháp lúc ${timeStr}`);
+        setAutoSaveStatus(`${t('Đã tự động lưu nháp lúc')} ${timeStr}`);
       } catch {
-        setAutoSaveStatus('Lỗi tự động lưu nháp');
+        setAutoSaveStatus(t('Lỗi tự động lưu nháp'));
       }
     }, 2000);
 
@@ -504,7 +506,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         const pngUrl = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
         downloadLink.href = pngUrl;
-        downloadLink.download = `Sơ_đồ_ghế_${eventName.replace(/\s+/g, '_')}.png`;
+        downloadLink.download = `${t('Sơ_đồ_ghế')}_${eventName.replace(/\s+/g, '_')}.png`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
@@ -605,7 +607,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert('Hãy tạo/chọn khu vực trước khi tạo ghế.');
+    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
     const zone = zones[targetZoneId];
     const startX = lastClickedPos ? lastClickedPos.x : (zone.x || 120) + 32;
     const startY = lastClickedPos ? lastClickedPos.y : (zone.y || 180) + 70;
@@ -663,7 +665,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert('Hãy tạo/chọn khu vực trước khi tạo ghế.');
+    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
     const zone = zones[targetZoneId];
     const startX = lastClickedPos ? lastClickedPos.x : (zone.x || 100) + 34;
     const startY = lastClickedPos ? lastClickedPos.y : (zone.y || 180) + 68;
@@ -723,7 +725,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert('Hãy tạo/chọn khu vực trước khi tạo ghế.');
+    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
     const zone = zones[targetZoneId];
     const centerX = lastClickedPos ? lastClickedPos.x : (zone.x || 0) + (zone.width || 600) / 2;
     const centerY = lastClickedPos ? lastClickedPos.y : (zone.y || 0) + 20;
@@ -757,11 +759,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   const handleAddTable = (zoneIdVal?: string, seatsPerTableVal?: number, radiusVal?: number) => {
     const targetZoneId = (zoneIdVal && zones[zoneIdVal]) ? zoneIdVal : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert('Hãy tạo/chọn khu vực trước khi tạo bàn.');
+    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo bàn.'));
     const seatsPerTable = seatsPerTableVal || 8;
     const radius = radiusVal || 50;
     const zone = zones[targetZoneId];
-    const existingTables = new Set(seats.filter((seat) => seat.row.startsWith('Bàn ')).map((seat) => seat.row));
+    const tablePrefix = `${t('Bàn')} `;
+    const existingTables = new Set(seats.filter((seat) => seat.row.startsWith(tablePrefix) || seat.row.startsWith('Bàn ')).map((seat) => seat.row));
     const tableNumber = existingTables.size + 1;
     const centerX = lastClickedPos ? lastClickedPos.x : (zone.x || 0) + (zone.width || 500) / 2;
     const centerY = lastClickedPos ? lastClickedPos.y : (zone.y || 0) + (zone.height || 300) / 2;
@@ -772,7 +775,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       const angle = (i * 2 * Math.PI) / seatsPerTable;
       newSeats.push({
         id: `seat_${baseId}_table_${i}`,
-        row: `Bàn ${tableNumber}`,
+        row: `${t('Bàn')} ${tableNumber}`,
         number: i + 1,
         col: i + 1,
         x: Math.round(centerX + Math.cos(angle) * radius),
@@ -861,7 +864,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   ) => {
     const id = `zone_${Date.now()}`;
     const index = Object.keys(zones).length;
-    let name = `Khu Vực Ghế ${index + 1}`;
+    let name = `${t('Khu Vực Ghế')} ${index + 1}`;
     let tierId: string | undefined = undefined;
     let price: number | undefined = priceVal;
     let color = colorVal || ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'][index % 5];
@@ -1062,8 +1065,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       if (seatCount > 0) {
         setConfirmModal({
           isOpen: true,
-          title: 'Xác Nhận Xóa Khu Vực',
-          message: `Khu vực này đang chứa ${seatCount} ghế. Xóa khu vực sẽ xóa luôn các ghế đó. Tiếp tục?`,
+          title: t('Xác Nhận Xóa Khu Vực'),
+          message: `${t('Khu vực này đang chứa')} ${seatCount} ${t('ghế. Xóa khu vực sẽ xóa luôn các ghế đó. Tiếp tục?')}`,
           type: 'danger',
           onConfirm: () => {
             const filteredSeats = seats.filter((seat) => seat.zoneId !== selectedZoneId);
@@ -1244,14 +1247,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setSelectedTemplateId(template.id);
     setAttendeeCart([]);
     setIsTemplateModalOpen(false);
-    showToast('success', `Đã áp dụng mẫu "${template.name}". Bạn có thể bấm "Khôi phục bản trước" nếu muốn hoàn tác.`);
+    showToast('success', `${t('Đã áp dụng mẫu')} "${template.name}". ${t('Bạn có thể bấm "Khôi phục bản trước" nếu muốn hoàn tác.')}`);
   };
 
   const handleClearCanvas = () => {
     setConfirmModal({
       isOpen: true,
-      title: 'Xóa Canvas',
-      message: 'Bạn có chắc chắn muốn xóa toàn bộ ghế, khu vực, sân khấu và tiện ích trên canvas không?',
+      title: t('Xóa Canvas'),
+      message: t('Bạn có chắc chắn muốn xóa toàn bộ ghế, khu vực, sân khấu và tiện ích trên canvas không?'),
       type: 'danger',
       onConfirm: () => {
         const snapshot: StudioSnapshot = {
@@ -1266,7 +1269,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         pushHistory(snapshot);
         setAttendeeCart([]);
         setConfirmModal(null);
-        showToast('info', 'Đã xóa toàn bộ nội dung canvas.');
+        showToast('info', t('Đã xóa toàn bộ nội dung canvas.'));
       },
     });
   };
@@ -1309,9 +1312,9 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       latestRef.current = snapshot;
       pushHistory(snapshot);
       setIsJSONModalOpen(false);
-      showToast('success', 'Đã nạp bản đồ từ JSON thành công.');
+      showToast('success', t('Đã nạp bản đồ từ JSON thành công.'));
     } catch {
-      showToast('error', 'JSON không đúng định dạng Seat Map v2.0.');
+      showToast('error', t('JSON không đúng định dạng Seat Map v2.0.'));
     }
   };
 
@@ -1319,16 +1322,16 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     let syncedTiers = effectiveTiers;
     if (effectiveTiers && effectiveTiers.length > 0) {
       try {
-        const requests = effectiveTiers.map((t) => ({
-          id: t.id.startsWith("tier_") ? undefined : t.id,
+        const requests = effectiveTiers.map((tier) => ({
+          id: tier.id.startsWith("tier_") ? undefined : tier.id,
           eventId: activeEventId,
-          name: t.name,
-          price: t.price,
-          isFree: t.price === 0,
-          totalQuantity: t.totalQuantity ?? 500,
+          name: tier.name,
+          price: tier.price,
+          isFree: tier.price === 0,
+          totalQuantity: tier.totalQuantity ?? 500,
           minPerOrder: 1,
           maxPerOrder: 10,
-          description: t.description || `Hạng vé ${t.name}`,
+          description: tier.description || `${t('Hạng vé')} ${tier.name}`,
         }));
         const res = await ticketApi.syncTicketTypesForEvent(activeEventId, requests);
         if (res && res.length > 0) {
@@ -1421,11 +1424,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       setLayoutStatus('DRAFT');
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2500);
-      setAutoSaveStatus('Đã lưu bản nháp vào CSDL!');
-      showToast('info', 'Đã lưu bản nháp sơ đồ ghế (DRAFT) thành công!');
+      setAutoSaveStatus(t('Đã lưu bản nháp vào CSDL!'));
+      showToast('info', t('Đã lưu bản nháp sơ đồ ghế (DRAFT) thành công!'));
     } catch (err) {
       console.error('Error saving seat layout draft:', err);
-      showToast('error', 'Đã xảy ra lỗi khi kết nối tới backend để lưu bản nháp!');
+      showToast('error', t('Đã xảy ra lỗi khi kết nối tới backend để lưu bản nháp!'));
     } finally {
       setIsSaving(false);
     }
@@ -1435,7 +1438,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const handlePublishOfficial = async () => {
     const unassignedZones = Object.values(zones).filter((zone) => !zone.tierId);
     if (unassignedZones.length > 0) {
-      showToast('warning', `Có ${unassignedZones.length} khu vực chưa gán Hạng vé! Vui lòng kiểm tra lại.`);
+      showToast('warning', `${t('Có')} ${unassignedZones.length} ${t('khu vực chưa gán Hạng vé! Vui lòng kiểm tra lại.')}`);
     }
 
     try {
@@ -1466,11 +1469,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       setLayoutStatus('PUBLISHED');
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2500);
-      setAutoSaveStatus('Đã xuất bản sơ đồ chính thức!');
-      showToast('success', 'ĐÃ LƯU CHÍNH THỨC & XUẤT BẢN (PUBLISHED) SƠ ĐỒ GHẾ THÀNH CÔNG!');
+      setAutoSaveStatus(t('Đã xuất bản sơ đồ chính thức!'));
+      showToast('success', t('ĐÃ LƯU CHÍNH THỨC & XUẤT BẢN (PUBLISHED) SƠ ĐỒ GHẾ THÀNH CÔNG!'));
     } catch (err) {
       console.error('Error publishing seat layout:', err);
-      showToast('error', 'Đã xảy ra lỗi khi xuất bản sơ đồ ghế lên CSDL!');
+      showToast('error', t('Đã xảy ra lỗi khi xuất bản sơ đồ ghế lên CSDL!'));
     } finally {
       setIsSaving(false);
     }
@@ -1521,44 +1524,44 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               type="button"
               onClick={handleRevertToPreviousVersion}
               className="seat-studio-secondary-button border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 font-bold flex items-center gap-1.5"
-              title="Khôi phục lại sơ đồ trước khi áp dụng mẫu địa điểm"
+              title={t("Khôi phục lại sơ đồ trước khi áp dụng mẫu địa điểm")}
             >
               <FiRefreshCw className="w-3.5 h-3.5" />
-              <span>Khôi phục bản trước</span>
+              <span>{t("Khôi phục bản trước")}</span>
             </button>
           )}
-          <button type="button" onClick={() => setIsTemplateModalOpen(true)} className="seat-studio-secondary-button"><FiLayers className="w-4 h-4" />Mẫu địa điểm <span className="seat-studio-badge ml-1">{templates.length}</span></button>
-          <button type="button" onClick={() => setIsTierModalOpen(true)} className="seat-studio-secondary-button"><FiTag className="w-4 h-4" />Hạng vé <span className="seat-studio-badge ml-1">{assignedZoneCount}/{Object.keys(zones).length}</span></button>
-          <button type="button" onClick={handleExportImage} className="seat-studio-secondary-button border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10" title="Xuất file ảnh PNG sơ đồ sự kiện"><FiCamera className="w-4 h-4" />Xuất ảnh sơ đồ</button>
+          <button type="button" onClick={() => setIsTemplateModalOpen(true)} className="seat-studio-secondary-button"><FiLayers className="w-4 h-4" />{t("Mẫu địa điểm")} <span className="seat-studio-badge ml-1">{templates.length}</span></button>
+          <button type="button" onClick={() => setIsTierModalOpen(true)} className="seat-studio-secondary-button"><FiTag className="w-4 h-4" />{t("Hạng vé")} <span className="seat-studio-badge ml-1">{assignedZoneCount}/{Object.keys(zones).length}</span></button>
+          <button type="button" onClick={handleExportImage} className="seat-studio-secondary-button border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10" title={t("Xuất file ảnh PNG sơ đồ sự kiện")}><FiCamera className="w-4 h-4" />{t("Xuất ảnh sơ đồ")}</button>
 
           <button type="button" onClick={handleOpenJSONModal} className="seat-studio-icon-button" title="Import/Export JSON"><FiDownload /></button>
-          <button type="button" onClick={handleClearCanvas} className="seat-studio-icon-button text-rose-500" title="Xóa canvas"><FiTrash2 /></button>
+          <button type="button" onClick={handleClearCanvas} className="seat-studio-icon-button text-rose-500" title={t("Xóa canvas")}><FiTrash2 /></button>
           
           <button
             type="button"
             onClick={handleSaveDraft}
             disabled={isSaving}
             className="seat-studio-secondary-button border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
-            title="Lưu tạm sơ đồ dưới dạng Bản nháp"
+            title={t("Lưu tạm sơ đồ dưới dạng Bản nháp")}
           >
             <FiSave className="w-4 h-4" />
-            <span>{isSaving ? 'Đang lưu...' : 'Lưu nháp'}</span>
+            <span>{isSaving ? t('Đang lưu...') : t('Lưu nháp')}</span>
           </button>
           <button
             type="button"
             onClick={handlePublishOfficial}
             disabled={isSaving}
             className="seat-studio-primary-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md"
-            title="Xuất bản chính thức sơ đồ ghế cho khán giả mua vé"
+            title={t("Xuất bản chính thức sơ đồ ghế cho khán giả mua vé")}
           >
             <FiSend className="w-4 h-4" />
-            <span>{isSaving ? 'Đang lưu...' : 'Lưu chính thức'}</span>
+            <span>{isSaving ? t('Đang lưu...') : t('Lưu chính thức')}</span>
           </button>
         </div>
       </div>
 
       {saveSuccess && (
-        <div className="seat-studio-save-toast"><FiCheckCircle className="w-4 h-4" />Đã lưu Seat Map thành công.</div>
+        <div className="seat-studio-save-toast"><FiCheckCircle className="w-4 h-4" />{t("Đã lưu Seat Map thành công.")}</div>
       )}
 
       <SeatMapStats seats={seats} tiers={effectiveTiers} zones={zones} stages={stages} structures={structures} compact />
@@ -1689,7 +1692,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             <div className="h-14 px-5 border-b app-border flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-black app-text-main">Import / Export Seat Map JSON v2.0</h3>
-                <p className="text-[10px] app-text-muted">Import không ghi đè danh sách giá vé của sự kiện hiện tại.</p>
+                <p className="text-[10px] app-text-muted">{t("Import không ghi đè danh sách giá vé của sự kiện hiện tại.")}</p>
               </div>
               <button type="button" onClick={() => setIsJSONModalOpen(false)} className="seat-studio-icon-button"><FiX /></button>
             </div>
@@ -1705,9 +1708,9 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
                   }}
                   className="seat-studio-secondary-button"
                 >
-                  {copied ? <FiCheck /> : <FiCopy />} {copied ? 'Đã sao chép' : 'Sao chép JSON'}
+                  {copied ? <FiCheck /> : <FiCopy />} {copied ? t('Đã sao chép') : t('Sao chép JSON')}
                 </button>
-                <button type="button" onClick={handleImportJSON} className="seat-studio-primary-button"><FiUpload />Nạp JSON vào Studio</button>
+                <button type="button" onClick={handleImportJSON} className="seat-studio-primary-button"><FiUpload />{t("Nạp JSON vào Studio")}</button>
               </div>
             </div>
           </div>
@@ -1720,7 +1723,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           <div className="seat-studio-modal max-w-md p-6 space-y-4" onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b app-border pb-3">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500">Khán giả chọn mua vé theo Zone</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500">{t("Khán giả chọn mua vé theo Zone")}</span>
                 <h3 className="text-base font-black app-text-main mt-0.5">{selectedZoneModal.name}</h3>
               </div>
               <button type="button" onClick={() => setSelectedZoneModal(null)} className="seat-studio-icon-button"><FiX /></button>
@@ -1728,28 +1731,28 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
             <div className="p-4 rounded-xl app-bg-main border app-border space-y-2 font-mono">
               <div className="flex items-center justify-between text-xs">
-                <span className="app-text-muted">Hạng vé đính kèm:</span>
+                <span className="app-text-muted">{t("Hạng vé đính kèm")}:</span>
                 <span className="font-bold text-blue-500">
-                  {effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.name || 'Vé Tiêu Chuẩn'}
+                  {effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.name || t('Vé Tiêu Chuẩn')}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="app-text-muted">Đơn giá:</span>
+                <span className="app-text-muted">{t("Đơn giá")}:</span>
                 <span className="font-bold text-emerald-500">
                   {(selectedZoneModal.price ?? effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.price ?? 0).toLocaleString('vi-VN')} đ
                 </span>
               </div>
               {selectedZoneModal.capacity && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="app-text-muted">Sức chứa tối đa:</span>
-                  <span className="font-bold app-text-main">{selectedZoneModal.capacity} vé</span>
+                  <span className="app-text-muted">{t("Sức chứa tối đa")}:</span>
+                  <span className="font-bold app-text-main">{selectedZoneModal.capacity} {t("vé")}</span>
                 </div>
               )}
             </div>
 
             {/* Quantity Counter */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold app-text-muted uppercase">Chọn Số Lượng Vé</label>
+              <label className="block text-xs font-bold app-text-muted uppercase">{t("Chọn Số Lượng Vé")}</label>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1773,7 +1776,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
             {/* Total Calculation */}
             <div className="flex items-center justify-between pt-2 border-t app-border">
-              <span className="text-xs font-bold app-text-muted">Tổng tiền tạm tính:</span>
+              <span className="text-xs font-bold app-text-muted">{t("Tổng tiền tạm tính")}:</span>
               <span className="font-mono text-lg font-black text-emerald-500">
                 {((selectedZoneModal.price ?? effectiveTiers.find((t) => t.id === selectedZoneModal.tierId)?.price ?? 0) * zoneTicketQuantity).toLocaleString('vi-VN')} đ
               </span>
@@ -1800,7 +1803,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               }}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Thêm {zoneTicketQuantity} Vé Vào Giỏ Hàng</span>
+              <span>{t("Thêm")} {zoneTicketQuantity} {t("Vé Vào Giỏ Hàng")}</span>
             </button>
           </div>
         </div>

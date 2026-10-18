@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import {
   FiSearch,
@@ -15,6 +16,7 @@ import * as XLSX from "xlsx";
 import OrderDetailsModal from "./components/OrderDetailsModal";
 
 export const EventOrderList: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -71,19 +73,19 @@ export const EventOrderList: React.FC = () => {
   const handleExportExcel = async () => {
     if (!eventId) return;
     try {
-      showToastMsg("Đang chuẩn bị dữ liệu xuất...");
+      showToastMsg(t("Đang chuẩn bị dữ liệu xuất..."));
       // fetch all for export or just use current page. Let's fetch all (up to 1000) for export
       const res = await eventApi.getEventBookings(eventId, searchQuery, showtimeId, 0, 1000);
       const allOrders = res.content || [];
       
       const exportData = allOrders.map((o: any) => ({
-        "Mã Đơn": o.bookingCode,
-        "Thời Gian Mua": new Date(o.createdAt).toLocaleString("vi-VN"),
-        "Người Mua": o.customerName,
+        [t("Mã Đơn")]: o.bookingCode,
+        [t("Thời Gian Mua")]: new Date(o.createdAt).toLocaleString("vi-VN"),
+        [t("Người Mua")]: o.customerName,
         "Email": o.customerEmail,
-        "Tổng Tiền (VNĐ)": o.totalAmount,
-        "Số Lượng Vé": o.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
-        "Trạng Thái": o.status
+        [t("Tổng Tiền (VNĐ)")]: o.totalAmount,
+        [t("Số Lượng Vé")]: o.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
+        [t("Trạng Thái")]: o.status
       }));
       
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -91,10 +93,10 @@ export const EventOrderList: React.FC = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachDonHang");
       
       XLSX.writeFile(workbook, `DonHang_${eventId}_${new Date().getTime()}.xlsx`);
-      showToastMsg("Xuất Excel thành công!");
+      showToastMsg(t("Xuất Excel thành công!"));
     } catch (err) {
       console.error(err);
-      showToastMsg("Lỗi khi xuất dữ liệu!");
+      showToastMsg(t("Lỗi khi xuất dữ liệu!"));
     }
   };
 
@@ -117,7 +119,7 @@ export const EventOrderList: React.FC = () => {
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b app-border pb-3">
           <p className="text-xs app-text-muted">
-            Quản lý chi tiết đơn hàng đã mua vé, tìm kiếm người xem và gửi thông báo email đến khán giả.
+            {t("Quản lý chi tiết đơn hàng đã mua vé, tìm kiếm người xem và gửi thông báo email đến khán giả.")}
           </p>
 
           {/* Action Buttons */}
@@ -128,7 +130,7 @@ export const EventOrderList: React.FC = () => {
               className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
             >
               <FiDownload className="w-3.5 h-3.5" />
-              <span>Xuất báo cáo</span>
+              <span>{t("Xuất báo cáo")}</span>
             </button>
 
             <button
@@ -137,7 +139,7 @@ export const EventOrderList: React.FC = () => {
               className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
             >
               <FiMail className="w-3.5 h-3.5" />
-              <span>Gửi email</span>
+              <span>{t("Gửi email")}</span>
             </button>
           </div>
         </div>
@@ -155,7 +157,7 @@ export const EventOrderList: React.FC = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSearch();
                 }}
-                placeholder="Tìm mã đơn, tên, email người mua..."
+                placeholder={t("Tìm mã đơn, tên, email người mua...")}
                 className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
               />
             </div>
@@ -164,7 +166,7 @@ export const EventOrderList: React.FC = () => {
               onClick={handleSearch}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0"
             >
-              Tìm kiếm
+              {t("Tìm kiếm")}
             </button>
           </div>
 
@@ -176,7 +178,7 @@ export const EventOrderList: React.FC = () => {
               >
                 <span className="truncate">
                   {showtimeId === "" 
-                    ? "Tất cả suất diễn" 
+                    ? t("Tất cả suất diễn") 
                     : (eventDetails?.showtimes?.find((s: any) => s.id === showtimeId)?.name || 
                        new Date(eventDetails?.showtimes?.find((s: any) => s.id === showtimeId)?.startTime).toLocaleString("vi-VN", {
                          day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
@@ -198,7 +200,7 @@ export const EventOrderList: React.FC = () => {
                         setIsShowtimeDropdownOpen(false);
                       }}
                     >
-                      Tất cả suất diễn
+                      {t("Tất cả suất diễn")}
                     </div>
                     {eventDetails?.showtimes?.map((st: any, idx: number) => {
                       const displayStr = new Date(st.startTime).toLocaleString("vi-VN", {
@@ -214,7 +216,7 @@ export const EventOrderList: React.FC = () => {
                             setIsShowtimeDropdownOpen(false);
                           }}
                         >
-                          Suất {idx + 1}: {st.name || displayStr}
+                          {t("Suất")} {idx + 1}: {st.name || displayStr}
                         </div>
                       );
                     })}
@@ -232,26 +234,26 @@ export const EventOrderList: React.FC = () => {
           <table className="w-full text-left text-xs table-fixed min-w-[950px] border-collapse">
             <thead>
               <tr className="border-b app-border app-text-muted font-bold text-[11px] uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="py-3.5 px-4 w-[15%] rounded-l-xl">Mã đơn hàng</th>
-                <th className="py-3.5 px-4 w-[18%]">Thời gian mua</th>
-                <th className="py-3.5 px-4 w-[20%]">Người mua</th>
-                <th className="py-3.5 px-4 w-[15%]">Giá trị đơn</th>
-                <th className="py-3.5 px-4 w-[14%]">Thanh toán</th>
-                <th className="py-3.5 px-4 w-[18%] text-center rounded-r-xl">Trạng thái</th>
+                <th className="py-3.5 px-4 w-[15%] rounded-l-xl">{t("Mã đơn hàng")}</th>
+                <th className="py-3.5 px-4 w-[18%]">{t("Thời gian mua")}</th>
+                <th className="py-3.5 px-4 w-[20%]">{t("Người mua")}</th>
+                <th className="py-3.5 px-4 w-[15%]">{t("Giá trị đơn")}</th>
+                <th className="py-3.5 px-4 w-[14%]">{t("Thanh toán")}</th>
+                <th className="py-3.5 px-4 w-[18%] text-center rounded-r-xl">{t("Trạng thái")}</th>
               </tr>
             </thead>
             <tbody className="text-xs app-text-main">
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center app-text-muted">
-                    <p className="font-bold">Đang tải...</p>
+                    <p className="font-bold">{t("Đang tải...")}</p>
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center app-text-muted">
                     <FiInbox className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-50" />
-                    <p className="font-bold">Chưa có đơn hàng nào.</p>
+                    <p className="font-bold">{t("Chưa có đơn hàng nào.")}</p>
                   </td>
                 </tr>
               ) : (
@@ -268,7 +270,7 @@ export const EventOrderList: React.FC = () => {
                       {new Date(ord.createdAt).toLocaleString("vi-VN")}
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="font-bold app-text-main">{ord.customerName || "Khách vô danh"}</div>
+                      <div className="font-bold app-text-main">{ord.customerName || t("Khách vô danh")}</div>
                       <div className="text-[10px] app-text-muted">{ord.customerEmail || "-"}</div>
                     </td>
                     <td className="py-3.5 px-4 font-black app-text-main">
@@ -287,7 +289,7 @@ export const EventOrderList: React.FC = () => {
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
                           : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400"
                       }`}>
-                        {ord.status === "PAID" ? "Thành công" : ord.status === "PENDING" ? "Chờ thanh toán" : "Đã hủy"}
+                        {ord.status === "PAID" ? t("Thành công") : ord.status === "PENDING" ? t("Chờ thanh toán") : t("Đã hủy")}
                       </span>
                     </td>
                   </tr>
@@ -317,7 +319,7 @@ export const EventOrderList: React.FC = () => {
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
                 <FiMail className="w-4 h-4 text-blue-600" />
-                <span>Gửi Email Khán Giả Mua Vé</span>
+                <span>{t("Gửi Email Khán Giả Mua Vé")}</span>
               </h3>
               <button
                 type="button"
@@ -330,19 +332,19 @@ export const EventOrderList: React.FC = () => {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="font-bold app-text-main block mb-1">Tiêu đề Email</label>
+                <label className="font-bold app-text-main block mb-1">{t("Tiêu đề Email")}</label>
                 <input
                   type="text"
-                  placeholder="Thông báo về sự kiện..."
+                  placeholder={t("Thông báo về sự kiện...")}
                   className="w-full px-3 py-2 app-bg-subnav app-text-main border app-border rounded-xl focus:outline-none font-medium"
                 />
               </div>
 
               <div>
-                <label className="font-bold app-text-main block mb-1">Nội dung Email</label>
+                <label className="font-bold app-text-main block mb-1">{t("Nội dung Email")}</label>
                 <textarea
                   rows={4}
-                  placeholder="Nhập nội dung cần thông báo..."
+                  placeholder={t("Nhập nội dung cần thông báo...")}
                   className="w-full px-3 py-2 app-bg-subnav app-text-main border app-border rounded-xl focus:outline-none font-medium"
                 />
               </div>
@@ -354,17 +356,17 @@ export const EventOrderList: React.FC = () => {
                 onClick={() => setShowEmailModal(false)}
                 className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border cursor-pointer"
               >
-                Hủy
+                {t("Hủy")}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setShowEmailModal(false);
-                  showToastMsg("Đã gửi email thông báo thành công đến tất cả người mua vé!");
+                  showToastMsg(t("Đã gửi email thông báo thành công đến tất cả người mua vé!"));
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
               >
-                Gửi ngay
+                {t("Gửi ngay")}
               </button>
             </div>
           </div>

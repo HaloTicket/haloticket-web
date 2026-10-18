@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { HeroCarousel } from "./components/HeroCarousel";
 import { FeaturedStars } from "./components/FeaturedStars";
@@ -20,7 +19,7 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [allEvents, setAllEvents] = useState<EventApiData[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [sections, setSections] = useState<EventSection[]>([]);

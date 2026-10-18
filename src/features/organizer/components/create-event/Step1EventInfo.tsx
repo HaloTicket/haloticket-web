@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   FiUploadCloud,
@@ -109,6 +110,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   onSaveDraft,
   onNext
 }) => {
+  const { t } = useTranslation();
   const posterInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -205,9 +207,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             const isHoldingBooking = !isPast && !isCancelled;
 
             const bookingItem = {
-              eventName: ev.title || "Sự kiện",
-              organizer: (ev.organizer as { name?: string })?.name || (ev.author as string) || "Ban Tổ Chức",
-              date: String(ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : "Đã đặt chỗ")),
+              eventName: ev.title || t("Sự kiện"),
+              organizer: (ev.organizer as { name?: string })?.name || (ev.author as string) || t("Ban Tổ Chức"),
+              date: String(ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : t("Đã đặt chỗ"))),
               timeSlot: ev.startTime
                 ? `${new Date(ev.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${ev.endTime ? new Date(ev.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "23:00"
                 }`
@@ -394,7 +396,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     if (!file) return;
 
     if (file.size > 20 * 1024 * 1024) {
-      showToast("Dung lượng video không được vượt quá 20MB. Vui lòng chọn video ngắn/nhỏ hơn.", "error");
+      showToast(t("Dung lượng video không được vượt quá 20MB. Vui lòng chọn video ngắn/nhỏ hơn."), "error");
       e.target.value = "";
       return;
     }
@@ -407,7 +409,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       const res = await mediaApi.uploadVideo(file, "events");
       if (res && res.imageUrl) {
         setMediaSource(res.imageUrl);
-        showToast("Tải video lên thành công!", "success");
+        showToast(t("Tải video lên thành công!"), "success");
       }
     } catch (err) {
       console.warn("Upload video in modal failed, using blob preview", err);
@@ -529,11 +531,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
   const handleGenerateDescription = async () => {
     if (!title) {
-      showToast("Vui lòng nhập tên sự kiện trước khi sử dụng tính năng sinh nội dung AI.", "error");
+      showToast(t("Vui lòng nhập tên sự kiện trước khi sử dụng tính năng sinh nội dung AI."), "error");
       return;
     }
     if (!aiBulletPoints.trim()) {
-      showToast("Vui lòng nhập một số ý chính (bullet points) về sự kiện.", "error");
+      showToast(t("Vui lòng nhập một số ý chính (bullet points) về sự kiện."), "error");
       return;
     }
 
@@ -544,7 +546,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       if (res && res.description) {
         let fullDesc = res.description;
         if (res.terms_and_conditions) {
-          fullDesc += "\n\nĐiều khoản & Quy định:\n" + res.terms_and_conditions;
+          fullDesc += "\n\n" + t("Điều khoản & Quy định:") + "\n" + res.terms_and_conditions;
         }
         // Strictly remove all markdown headers (#, ##, ###), bold/italic (***, **, *)
         fullDesc = fullDesc
@@ -554,11 +556,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         setDescription(fullDesc);
         setShowAIGenerateModal(false);
         setAiBulletPoints("");
-        showToast("Tạo nội dung tự động thành công!", "success");
+        showToast(t("Tạo nội dung tự động thành công!"), "success");
       }
     } catch (err) {
       console.error("Lỗi khi sinh nội dung:", err);
-      showToast("Có lỗi xảy ra khi sinh nội dung. Vui lòng thử lại.", "error");
+      showToast(t("Có lỗi xảy ra khi sinh nội dung. Vui lòng thử lại."), "error");
     } finally {
       setIsGenerating(false);
     }
@@ -579,15 +581,15 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         <div className="flex items-center justify-between border-b app-border pb-4">
           <h3 className="text-lg font-extrabold app-text-main flex items-center gap-2">
             <span className="text-blue-600 dark:text-blue-400 font-black">*</span>
-            <span>Upload hình ảnh sự kiện</span>
+            <span>{t("Upload hình ảnh sự kiện")}</span>
           </h3>
           <div className="flex items-center gap-3">
             {isUploadingImage && (
               <span className="text-xs font-bold text-blue-600 dark:text-blue-400 animate-pulse flex items-center gap-1">
-                <FiUploadCloud className="w-4 h-4 animate-bounce" /> Đang tải lên S3...
+                <FiUploadCloud className="w-4 h-4 animate-bounce" /> {t("Đang tải lên S3...")}
               </span>
             )}
-            <span className="text-xs app-text-muted">Định dạng JPG, PNG (Tối đa 5MB)</span>
+            <span className="text-xs app-text-muted">{t("Định dạng JPG, PNG (Tối đa 5MB)")}</span>
           </div>
         </div>
 
@@ -595,7 +597,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           {/* Poster 3:4 Upload Box */}
           <div className="md:col-span-5 flex flex-col space-y-2">
             <label className="text-xs font-bold app-text-main">
-              Ảnh sự kiện dọc (Khuyên dùng: 720 x 958 px)
+              {t("Ảnh sự kiện dọc (Khuyên dùng: 720 x 958 px)")}
             </label>
             <input
               type="file"
@@ -621,7 +623,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-md hover:bg-blue-700"
                     >
                       <FiUploadCloud className="w-3.5 h-3.5" />
-                      <span>Đổi ảnh</span>
+                      <span>{t("Đổi ảnh")}</span>
                     </button>
                     <button
                       type="button"
@@ -632,7 +634,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-md hover:bg-rose-700"
                     >
                       <FiTrash2 className="w-3.5 h-3.5" />
-                      <span>Xóa</span>
+                      <span>{t("Xóa")}</span>
                     </button>
                   </div>
                 </div>
@@ -642,9 +644,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     <FiUploadCloud className="w-6 h-6" />
                   </div>
                   <span className="text-xs font-extrabold app-text-main mb-1">
-                    Thêm ảnh poster sự kiện
+                    {t("Thêm ảnh poster sự kiện")}
                   </span>
-                  <span className="text-[11px] app-text-muted">Kéo thả hoặc bấm để chọn ảnh</span>
+                  <span className="text-[11px] app-text-muted">{t("Kéo thả hoặc bấm để chọn ảnh")}</span>
                 </>
               )}
             </div>
@@ -653,7 +655,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           {/* Banner 16:9 Upload Box */}
           <div className="md:col-span-7 flex flex-col space-y-2">
             <label className="text-xs font-bold app-text-main">
-              Ảnh nền / Banner ngang (Khuyên dùng: 1280 x 720 px)
+              {t("Ảnh nền / Banner ngang (Khuyên dùng: 1280 x 720 px)")}
             </label>
             <input
               type="file"
@@ -679,7 +681,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-md hover:bg-blue-700"
                     >
                       <FiUploadCloud className="w-3.5 h-3.5" />
-                      <span>Đổi ảnh</span>
+                      <span>{t("Đổi ảnh")}</span>
                     </button>
                     <button
                       type="button"
@@ -690,7 +692,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-md hover:bg-rose-700"
                     >
                       <FiTrash2 className="w-3.5 h-3.5" />
-                      <span>Xóa</span>
+                      <span>{t("Xóa")}</span>
                     </button>
                   </div>
                 </div>
@@ -700,9 +702,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     <FiUploadCloud className="w-6 h-6" />
                   </div>
                   <span className="text-xs font-extrabold app-text-main mb-1">
-                    Thêm ảnh nền Banner ngang
+                    {t("Thêm ảnh nền Banner ngang")}
                   </span>
-                  <span className="text-[11px] app-text-muted">Hiển thị ở trang chi tiết & carousel chính</span>
+                  <span className="text-[11px] app-text-muted">{t("Hiển thị ở trang chi tiết & carousel chính")}</span>
                 </>
               )}
             </div>
@@ -713,14 +715,14 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       {/* General Info Form Section */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4">
-          Thông tin chung sự kiện
+          {t("Thông tin chung sự kiện")}
         </h3>
 
         {/* Event Title */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold app-text-main">
-              <span className="text-rose-500 font-bold">*</span> Tên sự kiện
+              <span className="text-rose-500 font-bold">*</span> {t("Tên sự kiện")}
             </label>
             <span className="text-[11px] app-text-muted">{title.length} / 100</span>
           </div>
@@ -729,7 +731,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             maxLength={100}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Nhập tên sự kiện nổi bật..."
+            placeholder={t("Nhập tên sự kiện nổi bật...")}
             className={`w-full app-bg-subnav app-text-main placeholder-zinc-400 text-sm rounded-xl px-4 py-3 border ${errors.title ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
               } focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium`}
           />
@@ -744,7 +746,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         {/* Category Dropdown */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold app-text-main">
-            <span className="text-rose-500 font-bold">*</span> Thể loại sự kiện
+            <span className="text-rose-500 font-bold">*</span> {t("Thể loại sự kiện")}
           </label>
           <select
             value={category}
@@ -752,11 +754,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.category ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
               } focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold cursor-pointer`}
           >
-            <option value="" disabled>-- Chọn thể loại --</option>
+            <option value="" disabled>{t("-- Chọn thể loại --")}</option>
             {categoriesList.filter(c => c.active && c.status !== "INACTIVE").map(cat => (
               <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}
-            <option value="Khác">Khác</option>
+            <option value="Khác">{t("Khác")}</option>
           </select>
           {errors.category && (
             <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1">
@@ -769,7 +771,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         {/* Event Location */}
         <div className="space-y-4 pt-2">
           <label className="text-xs font-bold app-text-main block">
-            <span className="text-rose-500 font-bold">*</span> Hình thức tổ chức địa điểm
+            <span className="text-rose-500 font-bold">*</span> {t("Hình thức tổ chức địa điểm")}
           </label>
 
           {/* Offline / Online Selector */}
@@ -783,7 +785,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 }`}
             >
               <FiMapPin className="w-4 h-4" />
-              <span>Sự kiện Offline</span>
+              <span>{t("Sự kiện Offline")}</span>
             </button>
             <button
               type="button"
@@ -794,7 +796,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 }`}
             >
               <FiGlobe className="w-4 h-4" />
-              <span>Sự kiện Online (Trực tuyến)</span>
+              <span>{t("Sự kiện Online (Trực tuyến)")}</span>
             </button>
           </div>
 
@@ -813,7 +815,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 >
                   <span className="flex items-center gap-1.5">
                     <FiGlobe className="w-4 h-4" />
-                    <span>Địa điểm công cộng (Cho thuê công khai)</span>
+                    <span>{t("Địa điểm công cộng (Cho thuê công khai)")}</span>
                   </span>
                 </button>
                 <button
@@ -827,7 +829,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 >
                   <span className="flex items-center gap-1.5">
                     <FiLock className="w-4 h-4" />
-                    <span>Địa điểm cá nhân (Địa điểm riêng Ban tổ chức)</span>
+                    <span>{t("Địa điểm cá nhân (Địa điểm riêng Ban tổ chức)")}</span>
                   </span>
                 </button>
               </div>
@@ -838,58 +840,58 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-medium space-y-1">
                     <p className="font-bold flex items-center gap-1.5">
                       <FiLock className="w-4 h-4 text-amber-600" />
-                      <span>Địa điểm cá nhân / Nội bộ ban tổ chức</span>
+                      <span>{t("Địa điểm cá nhân / Nội bộ ban tổ chức")}</span>
                     </p>
                     <p className="text-[11px] leading-relaxed">
-                      Địa điểm này thuộc sở hữu/sử dụng riêng của ban tổ chức, không mở cho bên ngoài thuê.
+                      {t("Địa điểm này thuộc sở hữu/sử dụng riêng của ban tổ chức, không mở cho bên ngoài thuê.")}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="text-xs font-bold app-text-main">
-                        <span className="text-rose-500">*</span> Tên địa điểm cá nhân
+                        <span className="text-rose-500">*</span> {t("Tên địa điểm cá nhân")}
                       </label>
                       <input
                         type="text"
                         value={locationName}
                         onChange={(e) => setLocationName(e.target.value)}
-                        placeholder="VD: Hội trường Halo Studio, Sân riêng BTC..."
+                        placeholder={t("VD: Hội trường Halo Studio, Sân riêng BTC...")}
                         className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold app-text-main">Tỉnh / Thành phố</label>
+                      <label className="text-xs font-bold app-text-main">{t("Tỉnh / Thành phố")}</label>
                       <input
                         type="text"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
-                        placeholder="TP. Hồ Chí Minh / Hà Nội..."
+                        placeholder={t("TP. Hồ Chí Minh / Hà Nội...")}
                         className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold app-text-main">Quận / Phường / Xã</label>
+                      <label className="text-xs font-bold app-text-main">{t("Quận / Phường / Xã")}</label>
                       <input
                         type="text"
                         value={ward}
                         onChange={(e) => setWard(e.target.value)}
-                        placeholder="Phường Bến Nghé / Quận 1..."
+                        placeholder={t("Phường Bến Nghé / Quận 1...")}
                         className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
                       />
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="text-xs font-bold app-text-main">
-                        <span className="text-rose-500">*</span> Địa chỉ chi tiết
+                        <span className="text-rose-500">*</span> {t("Địa chỉ chi tiết")}
                       </label>
                       <input
                         type="text"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Số nhà, tên đường, khu vực..."
+                        placeholder={t("Số nhà, tên đường, khu vực...")}
                         className="w-full app-bg-card app-text-main text-sm rounded-xl px-4 py-3 border app-border focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
                       />
                     </div>
@@ -901,7 +903,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                        <span className="text-rose-500">*</span> Chọn Địa điểm công cộng có sẵn:
+                        <span className="text-rose-500">*</span> {t("Chọn Địa điểm công cộng có sẵn:")}
                       </label>
                       <button
                         type="button"
@@ -909,7 +911,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <FiPlus className="w-3.5 h-3.5" />
-                        <span>Khai báo địa điểm công cộng mới</span>
+                        <span>{t("Khai báo địa điểm công cộng mới")}</span>
                       </button>
                     </div>
 
@@ -926,7 +928,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                             setLocationName(e.target.value);
                             setIsVenueDropdownOpen(true);
                           }}
-                          placeholder="Tìm địa điểm có sẵn (Ví dụ: Mỹ Đình, Hòa Bình, Phú Thọ...)"
+                          placeholder={t("Tìm địa điểm có sẵn (Ví dụ: Mỹ Đình, Hòa Bình, Phú Thọ...)")}
                           className="w-full bg-transparent app-text-main text-sm focus:outline-none placeholder-slate-400 font-medium"
                         />
                         {locationName && (
@@ -948,19 +950,19 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       {isVenueDropdownOpen && (
                         <div className="absolute top-full left-0 right-0 mt-2 z-50 app-bg-card border app-border rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto no-scrollbar space-y-1 animate-in fade-in zoom-in-95">
                           <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider flex items-center justify-between border-b app-border pb-2">
-                            <span>Địa điểm tổ chức có sẵn ({filteredVenues.length})</span>
+                            <span>{t("Địa điểm tổ chức có sẵn")} ({filteredVenues.length})</span>
                             <button
                               type="button"
                               onClick={() => setIsVenueDropdownOpen(false)}
                               className="text-xs text-blue-600 hover:underline cursor-pointer"
                             >
-                              Đóng
+                              {t("Đóng")}
                             </button>
                           </div>
 
                           {filteredVenues.length === 0 ? (
                             <div className="p-4 text-center space-y-2">
-                              <p className="text-xs app-text-muted">Không tìm thấy địa điểm phù hợp</p>
+                              <p className="text-xs app-text-muted">{t("Không tìm thấy địa điểm phù hợp")}</p>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -970,7 +972,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                                 className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 cursor-pointer flex items-center justify-center gap-1 mx-auto"
                               >
                                 <FiPlus className="w-3.5 h-3.5" />
-                                <span>Khai báo địa điểm mới ngay</span>
+                                <span>{t("Khai báo địa điểm mới ngay")}</span>
                               </button>
                             </div>
                           ) : (
@@ -987,21 +989,21 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                                   </span>
                                   {v.verified ? (
                                     <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                                      <FiCheckCircle className="w-3 h-3" /> Đã xác minh
+                                      <FiCheckCircle className="w-3 h-3" /> {t("Đã xác minh")}
                                     </span>
                                   ) : (
                                     <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                                      <FiAlertCircle className="w-3 h-3 text-amber-500" /> Chưa xác minh
+                                      <FiAlertCircle className="w-3 h-3 text-amber-500" /> {t("Chưa xác minh")}
                                     </span>
                                   )}
                                 </div>
                                 <p className="text-[11px] app-text-muted">{v.address}, {v.city}</p>
                                 <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 pt-0.5">
                                   <span className="flex items-center gap-1">
-                                    <FiUsers className="w-3 h-3 text-indigo-500" /> Sức chứa: {v.capacity.toLocaleString()} khán giả
+                                    <FiUsers className="w-3 h-3 text-indigo-500" /> {t("Sức chứa:")} {v.capacity.toLocaleString()} {t("khán giả")}
                                   </span>
                                   <span className="flex items-center gap-1">
-                                    <FiCalendar className="w-3 h-3 text-amber-500" /> {v.eventsHosted} sự kiện đã tổ chức
+                                    <FiCalendar className="w-3 h-3 text-amber-500" /> {v.eventsHosted} {t("sự kiện đã tổ chức")}
                                   </span>
                                 </div>
                               </div>
@@ -1031,11 +1033,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                             </h4>
                             {selectedVenue.verified ? (
                               <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
-                                Đã xác thực
+                                {t("Đã xác thực")}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
-                                Địa điểm do BTC khai báo
+                                {t("Địa điểm do BTC khai báo")}
                               </span>
                             )}
                           </div>
@@ -1047,7 +1049,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         <div className="flex items-center gap-2 text-xs font-semibold">
                           <span className="px-2.5 py-1 rounded-lg app-bg-card border app-border text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                             <FiUsers className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>Sức chứa: {selectedVenue.capacity.toLocaleString()} ghế</span>
+                            <span>{t("Sức chứa:")} {selectedVenue.capacity.toLocaleString()} {t("ghế")}</span>
                           </span>
                         </div>
                       </div>
@@ -1066,17 +1068,17 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                           )}
                           <div>
                             <h5 className="text-xs font-bold app-text-main flex items-center gap-1.5">
-                              <span>Trạng thái Lịch tổ chức tại Địa điểm:</span>
+                              <span>{t("Trạng thái Lịch tổ chức tại Địa điểm:")}</span>
                               {selectedVenue.bookings.length > 0 ? (
-                                <span className="text-amber-600 dark:text-amber-400">Đã có {selectedVenue.bookings.length} sự kiện đăng ký giữ chỗ</span>
+                                <span className="text-amber-600 dark:text-amber-400">{t("Đã có")} {selectedVenue.bookings.length} {t("sự kiện đăng ký giữ chỗ")}</span>
                               ) : (
-                                <span className="text-emerald-600 dark:text-emerald-400">Sẵn sàng (Chưa có lịch trùng)</span>
+                                <span className="text-emerald-600 dark:text-emerald-400">{t("Sẵn sàng (Chưa có lịch trùng)")}</span>
                               )}
                             </h5>
                             <p className="text-[11px] app-text-muted mt-0.5">
                               {selectedVenue.bookings.length > 0
-                                ? "Hệ thống khuyến nghị đối soát lịch để tránh trùng thời gian tổ chức với BTC khác."
-                                : "Địa điểm chưa bị giữ chỗ. Sự kiện của bạn đủ điều kiện duyệt tự động nhanh."}
+                                ? t("Hệ thống khuyến nghị đối soát lịch để tránh trùng thời gian tổ chức với BTC khác.")
+                                : t("Địa điểm chưa bị giữ chỗ. Sự kiện của bạn đủ điều kiện duyệt tự động nhanh.")}
                             </p>
                           </div>
                         </div>
@@ -1088,7 +1090,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                             className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
                           >
                             <FiCalendar className="w-3.5 h-3.5" />
-                            <span>Xem lịch đăng ký</span>
+                            <span>{t("Xem lịch đăng ký")}</span>
                           </button>
                         )}
                       </div>
@@ -1100,11 +1102,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold app-text-main">
-                      <span className="text-rose-500">*</span> Tỉnh/Thành phố
+                      <span className="text-rose-500">*</span> {t("Tỉnh/Thành phố")}
                     </label>
                     {selectedVenue && (
                       <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                        <FiLock className="w-3 h-3" /> Tự động khóa theo địa điểm
+                        <FiLock className="w-3 h-3" /> {t("Tự động khóa theo địa điểm")}
                       </span>
                     )}
                   </div>
@@ -1131,10 +1133,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold app-text-main">Phường/Xã</label>
+                    <label className="text-xs font-bold app-text-main">{t("Phường/Xã")}</label>
                     {selectedVenue && (
                       <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                        <FiLock className="w-3 h-3" /> Đã cố định
+                        <FiLock className="w-3 h-3" /> {t("Đã cố định")}
                       </span>
                     )}
                   </div>
@@ -1143,7 +1145,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     value={ward}
                     onChange={(e) => setWard(e.target.value)}
                     disabled={!!selectedVenue}
-                    placeholder="Nhập Phường/Xã..."
+                    placeholder={t("Nhập Phường/Xã...")}
                     className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border app-border disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -1151,10 +1153,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 <div className="space-y-1 md:col-span-2">
                   <div className="flex justify-between text-xs font-bold app-text-main">
                     <span className="flex items-center gap-1.5">
-                      <span className="text-rose-500">*</span> Số nhà, tên đường
+                      <span className="text-rose-500">*</span> {t("Số nhà, tên đường")}
                       {selectedVenue && (
                         <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 ml-1">
-                          <FiLock className="w-3 h-3" /> Đã cố định theo địa điểm
+                          <FiLock className="w-3 h-3" /> {t("Đã cố định theo địa điểm")}
                         </span>
                       )}
                     </span>
@@ -1166,7 +1168,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     disabled={!!selectedVenue}
-                    placeholder="Ví dụ: 240 Đường 3/2, Phường 12..."
+                    placeholder={t("Ví dụ: 240 Đường 3/2, Phường 12...")}
                     className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.address ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
                       } disabled:opacity-60 disabled:cursor-not-allowed`}
                   />
@@ -1189,7 +1191,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b app-border pb-3">
           <h3 className="text-lg font-extrabold app-text-main">
-            <span className="text-rose-500 font-bold">*</span> Mô tả chi tiết nội dung sự kiện
+            <span className="text-rose-500 font-bold">*</span> {t("Mô tả chi tiết nội dung sự kiện")}
           </h3>
           <div className="flex items-center gap-3">
             <button
@@ -1197,7 +1199,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               onClick={() => setShowAIGenerateModal(true)}
               className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer flex items-center gap-1"
             >
-              <span>Trợ lý AI Soạn thảo</span>
+              <span>{t("Trợ lý AI Soạn thảo")}</span>
             </button>
             <button
               type="button"
@@ -1205,7 +1207,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
             >
               <FiBookmark className="w-3.5 h-3.5" />
-              <span>Tải văn bản mẫu</span>
+              <span>{t("Tải văn bản mẫu")}</span>
             </button>
           </div>
         </div>
@@ -1239,7 +1241,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 applyTextFormat('<span style="color: #ffffff">', '</span>');
               }}
               className={`w-5 h-5 rounded-md bg-white border border-slate-400 hover:scale-110 transition-transform ${selectedColor === "#ffffff" ? "ring-2 ring-blue-500" : ""}`}
-              title="Màu Trắng"
+              title={t("Màu Trắng")}
             />
             <button
               type="button"
@@ -1248,7 +1250,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 applyTextFormat('<span style="color: #22c55e">', '</span>');
               }}
               className={`w-5 h-5 rounded-md bg-emerald-500 hover:scale-110 transition-transform ${selectedColor === "#22c55e" ? "ring-2 ring-blue-500" : ""}`}
-              title="Màu Xanh Lá"
+              title={t("Màu Xanh Lá")}
             />
             <button
               type="button"
@@ -1257,7 +1259,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 applyTextFormat('<span style="color: #ef4444">', '</span>');
               }}
               className={`w-5 h-5 rounded-md bg-rose-500 hover:scale-110 transition-transform ${selectedColor === "#ef4444" ? "ring-2 ring-blue-500" : ""}`}
-              title="Màu Đỏ"
+              title={t("Màu Đỏ")}
             />
             <button
               type="button"
@@ -1266,7 +1268,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 applyTextFormat('<span style="color: #eab308">', '</span>');
               }}
               className={`w-5 h-5 rounded-md bg-amber-400 hover:scale-110 transition-transform ${selectedColor === "#eab308" ? "ring-2 ring-blue-500" : ""}`}
-              title="Màu Vàng"
+              title={t("Màu Vàng")}
             />
           </div>
 
@@ -1276,7 +1278,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat("**", "**")}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-black app-text-main cursor-pointer"
-              title="In đậm (Bold)"
+              title={t("In đậm (Bold)")}
             >
               <FiBold className="w-4 h-4" />
             </button>
@@ -1284,7 +1286,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat("*", "*")}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-black app-text-main cursor-pointer"
-              title="In nghiêng (Italic)"
+              title={t("In nghiêng (Italic)")}
             >
               <FiItalic className="w-4 h-4" />
             </button>
@@ -1292,7 +1294,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat("<u>", "</u>")}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-black app-text-main cursor-pointer"
-              title="Gạch chân (Underline)"
+              title={t("Gạch chân (Underline)")}
             >
               <FiUnderline className="w-4 h-4" />
             </button>
@@ -1304,7 +1306,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat('<div align="left">\n', '\n</div>')}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
-              title="Căn trái"
+              title={t("Căn trái")}
             >
               <FiAlignLeft className="w-4 h-4" />
             </button>
@@ -1312,7 +1314,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat('<div align="center">\n', '\n</div>')}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
-              title="Căn giữa"
+              title={t("Căn giữa")}
             >
               <FiAlignCenter className="w-4 h-4" />
             </button>
@@ -1320,7 +1322,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat('<div align="right">\n', '\n</div>')}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
-              title="Căn phải"
+              title={t("Căn phải")}
             >
               <FiAlignRight className="w-4 h-4" />
             </button>
@@ -1328,7 +1330,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat('<div align="justify">\n', '\n</div>')}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
-              title="Căn đều"
+              title={t("Căn đều")}
             >
               <FiAlignJustify className="w-4 h-4" />
             </button>
@@ -1340,7 +1342,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat("\n• ", "")}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-bold app-text-main cursor-pointer"
-              title="Danh sách dấu đầu dòng"
+              title={t("Danh sách dấu đầu dòng")}
             >
               <FiList className="w-4 h-4" />
             </button>
@@ -1348,7 +1350,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               type="button"
               onClick={() => applyTextFormat("\n1. ", "")}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-extrabold app-text-main cursor-pointer"
-              title="Danh sách có đánh số"
+              title={t("Danh sách có đánh số")}
             >
               <span className="text-xs font-bold font-mono">1.</span>
             </button>
@@ -1439,7 +1441,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold app-text-main flex items-center gap-2">
               <FiImage className="w-4 h-4 text-blue-600" />
-              <span>Bộ sưu tập ảnh sự kiện ({galleryImages.length} ảnh)</span>
+              <span>{t("Bộ sưu tập ảnh sự kiện")} ({galleryImages.length} {t("ảnh")})</span>
             </label>
             <input
               type="file"
@@ -1455,13 +1457,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <FiPlus className="w-3.5 h-3.5" />
-              <span>Thêm ảnh vào Gallery</span>
+              <span>{t("Thêm ảnh vào Gallery")}</span>
             </button>
           </div>
 
           {galleryImages.length === 0 ? (
             <div className="p-4 rounded-xl app-bg-subnav border app-border text-center">
-              <p className="text-xs app-text-muted">Chưa có ảnh gallery nào. Poster, banner hoặc ảnh bạn tải lên sẽ tự động có mặt tại đây để tái sử dụng.</p>
+              <p className="text-xs app-text-muted">{t("Chưa có ảnh gallery nào. Poster, banner hoặc ảnh bạn tải lên sẽ tự động có mặt tại đây để tái sử dụng.")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
@@ -1473,7 +1475,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       type="button"
                       onClick={() => setSelectedGalleryPreview(imgUrl)}
                       className="p-1.5 bg-slate-700/80 text-white rounded-lg hover:bg-slate-600 transition-colors shadow-md text-xs"
-                      title="Xem ảnh lớn"
+                      title={t("Xem ảnh lớn")}
                     >
                       <FiSearch className="w-3.5 h-3.5" />
                     </button>
@@ -1481,10 +1483,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       type="button"
                       onClick={() => {
                         insertAtCursor(buildImageMarkup({ source: imgUrl, alt: `Gallery image ${idx + 1}` }));
-                        showToast("Đã chèn ảnh vào vị trí con trỏ trong mô tả!");
+                        showToast(t("Đã chèn ảnh vào vị trí con trỏ trong mô tả!"));
                       }}
                       className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md text-xs"
-                      title="Chèn ảnh này vào mô tả sự kiện"
+                      title={t("Chèn ảnh này vào mô tả sự kiện")}
                     >
                       <FiPlus className="w-3.5 h-3.5" />
                     </button>
@@ -1496,7 +1498,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         }
                       }}
                       className="p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors shadow-md"
-                      title="Xóa vĩnh viễn khỏi Gallery"
+                      title={t("Xóa vĩnh viễn khỏi Gallery")}
                     >
                       <FiTrash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1532,12 +1534,12 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b app-border pb-4">
           <h3 className="text-lg font-extrabold app-text-main">
-            Thông tin Ban Tổ Chức (BTC)
+            {t("Thông tin Ban Tổ Chức (BTC)")}
           </h3>
           {isOrganizerPreFilled && (
             <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-full border border-blue-200 dark:border-blue-800 flex items-center gap-1.5">
               <FiCheckCircle className="w-3.5 h-3.5" />
-              <span>Đã tự động tải từ hồ sơ Ban tổ chức của bạn</span>
+              <span>{t("Đã tự động tải từ hồ sơ Ban tổ chức của bạn")}</span>
             </span>
           )}
         </div>
@@ -1545,7 +1547,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
           {/* Logo Upload */}
           <div className="md:col-span-4 space-y-2">
-            <label className="text-xs font-bold app-text-main">Logo Ban Tổ Chức (275 x 275 px)</label>
+            <label className="text-xs font-bold app-text-main">{t("Logo Ban Tổ Chức (275 x 275 px)")}</label>
             <input
               type="file"
               ref={logoInputRef}
@@ -1568,7 +1570,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         logoInputRef.current?.click();
                       }}
                       className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
-                      title="Đổi logo"
+                      title={t("Đổi logo")}
                     >
                       <FiUploadCloud className="w-4 h-4" />
                     </button>
@@ -1579,7 +1581,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         setOrganizerLogo(null);
                       }}
                       className="p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 shadow-sm"
-                      title="Xóa logo"
+                      title={t("Xóa logo")}
                     >
                       <FiTrash2 className="w-4 h-4" />
                     </button>
@@ -1588,7 +1590,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               ) : (
                 <>
                   <FiUploadCloud className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
-                  <span className="text-[11px] font-bold app-text-main">Thêm logo BTC</span>
+                  <span className="text-[11px] font-bold app-text-main">{t("Thêm logo BTC")}</span>
                 </>
               )}
             </div>
@@ -1598,7 +1600,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           <div className="md:col-span-8 space-y-4">
             <div className="space-y-1">
               <div className="flex justify-between text-xs font-bold app-text-main">
-                <span><span className="text-rose-500">*</span> Tên Ban Tổ Chức</span>
+                <span><span className="text-rose-500">*</span> {t("Tên Ban Tổ Chức")}</span>
                 <span className="text-[11px] app-text-muted">{organizerName.length} / 80</span>
               </div>
               <input
@@ -1606,7 +1608,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 maxLength={80}
                 value={organizerName}
                 onChange={(e) => setOrganizerName(e.target.value)}
-                placeholder="Nhập tên công ty hoặc thương hiệu BTC..."
+                placeholder={t("Nhập tên công ty hoặc thương hiệu BTC...")}
                 className={`w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-3 border ${errors.organizerName ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
                   }`}
               />
@@ -1620,7 +1622,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
             <div className="space-y-1">
               <div className="flex justify-between text-xs font-bold app-text-main">
-                <span>Thông tin mô tả Ban Tổ Chức</span>
+                <span>{t("Thông tin mô tả Ban Tổ Chức")}</span>
                 <span className="text-[11px] app-text-muted">{organizerInfo.length} / 500</span>
               </div>
               <textarea
@@ -1628,7 +1630,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 maxLength={500}
                 value={organizerInfo}
                 onChange={(e) => setOrganizerInfo(e.target.value)}
-                placeholder="Giới thiệu uy tín & kinh nghiệm của Ban tổ chức..."
+                placeholder={t("Giới thiệu uy tín & kinh nghiệm của Ban tổ chức...")}
                 className={`w-full app-bg-subnav app-text-main text-sm rounded-xl p-4 border ${errors.organizerInfo ? "border-rose-500 ring-1 ring-rose-500" : "app-border"
                   }`}
               />
@@ -1650,7 +1652,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
                 <FiPlus className="w-4 h-4 text-blue-600" />
-                <span>Khai báo Địa điểm Tổ chức Mới</span>
+                <span>{t("Khai báo Địa điểm Tổ chức Mới")}</span>
               </h3>
               <button
                 type="button"
@@ -1664,21 +1666,21 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <form onSubmit={handleCreateNewVenue} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-bold app-text-main">
-                  <span className="text-rose-500">*</span> Tên địa điểm mới
+                  <span className="text-rose-500">*</span> {t("Tên địa điểm mới")}
                 </label>
                 <input
                   type="text"
                   required
                   value={newVenueForm.name}
                   onChange={(e) => setNewVenueForm({ ...newVenueForm, name: e.target.value })}
-                  placeholder="Ví dụ: Phim trường CityLand, Sân khấu Outdoor ABC..."
+                  placeholder={t("Ví dụ: Phim trường CityLand, Sân khấu Outdoor ABC...")}
                   className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3.5 py-2.5 border app-border"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold app-text-main">Tỉnh/Thành phố</label>
+                  <label className="text-xs font-bold app-text-main">{t("Tỉnh/Thành phố")}</label>
                   <select
                     value={newVenueForm.city}
                     onChange={(e) => setNewVenueForm({ ...newVenueForm, city: e.target.value })}
@@ -1692,12 +1694,12 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold app-text-main">Phường/Xã</label>
+                  <label className="text-xs font-bold app-text-main">{t("Phường/Xã")}</label>
                   <input
                     type="text"
                     value={newVenueForm.ward}
                     onChange={(e) => setNewVenueForm({ ...newVenueForm, ward: e.target.value })}
-                    placeholder="Phường/Xã..."
+                    placeholder={t("Phường/Xã...")}
                     className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border"
                   />
                 </div>
@@ -1705,20 +1707,20 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
               <div className="space-y-1">
                 <label className="text-xs font-bold app-text-main">
-                  <span className="text-rose-500">*</span> Số nhà, tên đường
+                  <span className="text-rose-500">*</span> {t("Số nhà, tên đường")}
                 </label>
                 <input
                   type="text"
                   required
                   value={newVenueForm.address}
                   onChange={(e) => setNewVenueForm({ ...newVenueForm, address: e.target.value })}
-                  placeholder="Số nhà, tên đường chi tiết..."
+                  placeholder={t("Số nhà, tên đường chi tiết...")}
                   className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3.5 py-2.5 border app-border"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold app-text-main">Sức chứa ước tính (khán giả)</label>
+                <label className="text-xs font-bold app-text-main">{t("Sức chứa ước tính (khán giả)")}</label>
                 <input
                   type="number"
                   min={50}
@@ -1734,13 +1736,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   onClick={() => setShowNewVenueModal(false)}
                   className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border"
                 >
-                  Hủy bỏ
+                  {t("Hủy bỏ")}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
                 >
-                  Lưu & Chọn địa điểm
+                  {t("Lưu & Chọn địa điểm")}
                 </button>
               </div>
             </form>
@@ -1757,7 +1759,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               <div className="space-y-0.5">
                 <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
                   <FiCalendar className="w-4 h-4 text-amber-500" />
-                  <span>Lịch Sự kiện đã giữ chỗ tại địa điểm</span>
+                  <span>{t("Lịch Sự kiện đã giữ chỗ tại địa điểm")}</span>
                 </h3>
                 <p className="text-[11px] app-text-muted">{selectedVenue.name}</p>
               </div>
@@ -1779,7 +1781,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   <div className="flex items-center justify-between font-bold app-text-main">
                     <span>{b.eventName}</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px]">
-                      {b.status === "CONFIRMED" ? "Đã giữ chỗ" : "Đang chờ duyệt"}
+                      {b.status === "CONFIRMED" ? t("Đã giữ chỗ") : t("Đang chờ duyệt")}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-[11px] app-text-muted">
@@ -1800,7 +1802,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 onClick={() => setShowScheduleModal(false)}
                 className="px-5 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-xs"
               >
-                Đã hiểu
+                {t("Đã hiểu")}
               </button>
             </div>
           </div>
@@ -1816,7 +1818,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-base font-bold app-text-main flex items-center gap-2">
                 <FiImage className="w-4 h-4 text-blue-500" />
-                <span>Chèn / Chỉnh sửa hình ảnh (Insert/Edit Image)</span>
+                <span>{t("Chèn / Chỉnh sửa hình ảnh (Insert/Edit Image)")}</span>
               </h3>
               <button
                 type="button"
@@ -1840,7 +1842,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  Thông tin
+                  {t("Thông tin")}
                 </button>
                 <button
                   type="button"
@@ -1851,7 +1853,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  Tải ảnh lên
+                  {t("Tải ảnh lên")}
                 </button>
                 <button
                   type="button"
@@ -1862,7 +1864,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  Từ Gallery ({galleryImages.length})
+                  {t("Từ Gallery")} ({galleryImages.length})
                 </button>
               </div>
 
@@ -1871,7 +1873,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 {imageTab === "general" ? (
                   <>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold app-text-muted block">Đường dẫn hình ảnh (Source URL)</label>
+                      <label className="text-xs font-bold app-text-muted block">{t("Đường dẫn hình ảnh (Source URL)")}</label>
                       <input
                         type="text"
                         value={imageSource}
@@ -1881,18 +1883,18 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold app-text-muted block">Mô tả thay thế (Alt text)</label>
+                      <label className="text-xs font-bold app-text-muted block">{t("Mô tả thay thế (Alt text)")}</label>
                       <input
                         type="text"
                         value={imageAlt}
                         onChange={(e) => setImageAlt(e.target.value)}
-                        placeholder="Mô tả hình ảnh..."
+                        placeholder={t("Mô tả hình ảnh...")}
                         className="w-full app-bg-subnav app-text-main text-xs rounded-xl px-3 py-2 border app-border focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="grid grid-cols-12 gap-3 items-end">
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs font-bold app-text-muted block">Chiều rộng (px)</label>
+                        <label className="text-xs font-bold app-text-muted block">{t("Chiều rộng (px)")}</label>
                         <input
                           type="text"
                           value={imageWidth}
@@ -1902,7 +1904,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         />
                       </div>
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs font-bold app-text-muted block">Chiều cao (px)</label>
+                        <label className="text-xs font-bold app-text-muted block">{t("Chiều cao (px)")}</label>
                         <input
                           type="text"
                           value={imageHeight}
@@ -1917,7 +1919,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                           onClick={() => setImageLockRatio(!imageLockRatio)}
                           className={`w-full py-2 app-bg-subnav border ${imageLockRatio ? "border-blue-500 text-blue-500" : "app-border app-text-muted"
                             } rounded-xl flex items-center justify-center cursor-pointer transition-colors`}
-                          title={imageLockRatio ? "Đang khóa tỉ lệ khung hình" : "Mở khóa tỉ lệ khung hình"}
+                          title={imageLockRatio ? t("Đang khóa tỉ lệ khung hình") : t("Mở khóa tỉ lệ khung hình")}
                         >
                           {imageLockRatio ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
                         </button>
@@ -1940,15 +1942,15 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       onClick={() => modalUploadInputRef.current?.click()}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs active:scale-95 transition-all disabled:opacity-50"
                     >
-                      {isUploadingImage ? "Đang tải lên..." : "Chọn ảnh từ máy tính"}
+                      {isUploadingImage ? t("Đang tải lên...") : t("Chọn ảnh từ máy tính")}
                     </button>
-                    <span className="text-[10px] app-text-muted mt-2">Định dạng JPG, PNG, WebP (Tối đa 5MB)</span>
+                    <span className="text-[10px] app-text-muted mt-2">{t("Định dạng JPG, PNG, WebP (Tối đa 5MB)")}</span>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-52 overflow-y-auto no-scrollbar p-1">
-                    <span className="text-xs font-bold app-text-muted block">Chọn ảnh từ Gallery sự kiện:</span>
+                    <span className="text-xs font-bold app-text-muted block">{t("Chọn ảnh từ Gallery sự kiện:")}</span>
                     {galleryImages.length === 0 ? (
-                      <p className="text-xs app-text-muted italic py-6 text-center">Gallery chưa có ảnh nào. Bạn có thể tải ảnh ở tab "Tải ảnh lên".</p>
+                      <p className="text-xs app-text-muted italic py-6 text-center">{t("Gallery chưa có ảnh nào. Bạn có thể tải ảnh ở tab \"Tải ảnh lên\".")}</p>
                     ) : (
                       <div className="grid grid-cols-3 gap-2.5">
                         {galleryImages.map((url, i) => (
@@ -1984,7 +1986,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 onClick={() => setShowImageModal(false)}
                 className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border cursor-pointer transition-all hover:brightness-95"
               >
-                Hủy
+                {t("Hủy")}
               </button>
               <button
                 type="button"
@@ -1992,7 +1994,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 disabled={!imageSource.trim()}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
               >
-                Chèn hình ảnh
+                {t("Chèn hình ảnh")}
               </button>
             </div>
           </div>
@@ -2008,7 +2010,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-base font-bold app-text-main flex items-center gap-2">
                 <FiVideo className="w-4 h-4 text-blue-500" />
-                <span>Chèn / Chỉnh sửa Media Video</span>
+                <span>{t("Chèn / Chỉnh sửa Media Video")}</span>
               </h3>
               <button
                 type="button"
@@ -2032,7 +2034,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  Thông tin video
+                  {t("Thông tin video")}
                 </button>
                 <button
                   type="button"
@@ -2043,7 +2045,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       : "app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  Nâng cao & Poster
+                  {t("Nâng cao & Poster")}
                 </button>
               </div>
 
@@ -2053,7 +2055,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   <>
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold app-text-muted block">Đường dẫn Video (URL)</label>
+                        <label className="text-xs font-bold app-text-muted block">{t("Đường dẫn Video (URL)")}</label>
                         <input
                           type="file"
                           ref={modalVideoInputRef}
@@ -2068,7 +2070,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                           className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
                         >
                           <FiUploadCloud className="w-3.5 h-3.5" />
-                          <span>Tải video (&le; 20MB)</span>
+                          <span>{t("Tải video (≤ 20MB)")}</span>
                         </button>
                       </div>
                       <input
@@ -2081,7 +2083,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     </div>
                     <div className="grid grid-cols-12 gap-3 items-end">
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs font-bold app-text-muted block">Chiều rộng (px)</label>
+                        <label className="text-xs font-bold app-text-muted block">{t("Chiều rộng (px)")}</label>
                         <input
                           type="text"
                           value={mediaWidth}
@@ -2091,7 +2093,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         />
                       </div>
                       <div className="col-span-5 space-y-1">
-                        <label className="text-xs font-bold app-text-muted block">Chiều cao (px)</label>
+                        <label className="text-xs font-bold app-text-muted block">{t("Chiều cao (px)")}</label>
                         <input
                           type="text"
                           value={mediaHeight}
@@ -2106,7 +2108,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                           onClick={() => setMediaLockRatio(!mediaLockRatio)}
                           className={`w-full py-2 app-bg-subnav border ${mediaLockRatio ? "border-blue-500 text-blue-500" : "app-border app-text-muted"
                             } rounded-xl flex items-center justify-center cursor-pointer transition-colors`}
-                          title={mediaLockRatio ? "Đang khóa tỉ lệ 16:9" : "Mở khóa tỉ lệ"}
+                          title={mediaLockRatio ? t("Đang khóa tỉ lệ 16:9") : t("Mở khóa tỉ lệ")}
                         >
                           {mediaLockRatio ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
                         </button>
@@ -2116,7 +2118,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 ) : (
                   <>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold app-text-muted block">Nguồn video thay thế (Alternative source URL)</label>
+                      <label className="text-xs font-bold app-text-muted block">{t("Nguồn video thay thế (Alternative source URL)")}</label>
                       <input
                         type="text"
                         value={mediaAltSource}
@@ -2126,7 +2128,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold app-text-muted block">Ảnh bìa video (Poster Image URL)</label>
+                      <label className="text-xs font-bold app-text-muted block">{t("Ảnh bìa video (Poster Image URL)")}</label>
                       <input
                         type="text"
                         value={mediaPoster}
@@ -2147,7 +2149,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 onClick={() => setShowMediaModal(false)}
                 className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border cursor-pointer transition-all hover:brightness-95"
               >
-                Hủy
+                {t("Hủy")}
               </button>
               <button
                 type="button"
@@ -2155,7 +2157,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 disabled={!mediaSource.trim()}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
               >
-                Chèn Media
+                {t("Chèn Media")}
               </button>
             </div>
           </div>
@@ -2169,7 +2171,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
               <h3 className="text-lg font-black text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                Trợ lý AI Sinh Nội dung
+                {t("Trợ lý AI Sinh Nội dung")}
               </h3>
               <button
                 type="button"
@@ -2182,17 +2184,17 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <div className="p-5 space-y-4">
               <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800/50">
                 <p className="text-xs text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
-                  Trợ lý AI sẽ tự động phân tích <strong className="font-bold">Tên Sự Kiện</strong> và các <strong className="font-bold">Ý chính</strong> để tạo ra <strong className="font-bold">Mô tả sự kiện chuẩn SEO</strong> chuyên nghiệp.
+                  {t("Trợ lý AI sẽ tự động phân tích")} <strong className="font-bold">{t("Tên Sự Kiện")}</strong> {t("và các")} <strong className="font-bold">{t("Ý chính")}</strong> {t("để tạo ra")} <strong className="font-bold">{t("Mô tả sự kiện chuẩn SEO")}</strong> {t("chuyên nghiệp.")}
                 </p>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">
-                  Nhập các ý chính (Bullet points):
+                  {t("Nhập các ý chính (Bullet points):")}
                 </label>
                 <textarea
                   value={aiBulletPoints}
                   onChange={(e) => setAiBulletPoints(e.target.value)}
-                  placeholder="Ví dụ:&#10;- Sự kiện âm nhạc nhẹ nhàng&#10;- Dành cho sinh viên&#10;- Cấm mang đồ ăn bên ngoài&#10;- Quà tặng kèm áo thun"
+                  placeholder={t("Ví dụ:\n- Sự kiện âm nhạc nhẹ nhàng\n- Dành cho sinh viên\n- Cấm mang đồ ăn bên ngoài\n- Quà tặng kèm áo thun")}
                   className="w-full h-32 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-800 dark:text-zinc-200 text-sm rounded-xl px-4 py-3 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium resize-none"
                 />
               </div>
@@ -2203,7 +2205,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 onClick={() => setShowAIGenerateModal(false)}
                 className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
-                Hủy
+                {t("Hủy")}
               </button>
               <button
                 type="button"
@@ -2214,12 +2216,12 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 {isGenerating ? (
                   <>
                     <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                    <span>Đang sinh...</span>
+                    <span>{t("Đang sinh...")}</span>
                   </>
                 ) : (
                   <>
                     <FiCheckCircle className="w-4 h-4" />
-                    <span>Bắt đầu Sinh Nội dung</span>
+                    <span>{t("Bắt đầu Sinh Nội dung")}</span>
                   </>
                 )}
               </button>
@@ -2238,7 +2240,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             className="px-6 py-3 app-bg-subnav app-text-main font-bold text-sm rounded-xl border app-border hover:border-blue-500 flex items-center gap-2 cursor-pointer transition-all"
           >
             <FiBookmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>Lưu bản nháp</span>
+            <span>{t("Lưu bản nháp")}</span>
           </button>
         )}
         <button
@@ -2246,7 +2248,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           onClick={onNext}
           className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95 ml-auto"
         >
-          <span>Tiếp tục: Thời gian & Loại vé</span>
+          <span>{t("Tiếp tục: Thời gian & Loại vé")}</span>
           <FiChevronRight className="w-4 h-4" />
         </button>
       </div>

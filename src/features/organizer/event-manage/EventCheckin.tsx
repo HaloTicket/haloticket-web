@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import {
   FiCheckCircle,
@@ -9,6 +10,7 @@ import { TablePagination } from "@/components/common/TablePagination";
 import { eventApi } from "@/services/eventApi";
 
 export const EventCheckin: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -31,14 +33,14 @@ export const EventCheckin: React.FC = () => {
     if (!searchQuery) return;
     try {
       await eventApi.checkinTicket(eventId!, searchQuery);
-      setToast(`Đã Check-in thành công mã vé "${searchQuery}"!`);
+      setToast(`${t("Đã Check-in thành công mã vé")} "${searchQuery}"!`);
       setTimeout(() => setToast(null), 3000);
       setSearchQuery("");
       // refresh checkins
       const data = await eventApi.getEventCheckins(eventId!);
       setCheckins(data);
     } catch (e) {
-      setToast("Vé không hợp lệ hoặc đã được sử dụng!");
+      setToast(t("Vé không hợp lệ hoặc đã được sử dụng!"));
       setTimeout(() => setToast(null), 3000);
     }
   };
@@ -65,13 +67,13 @@ export const EventCheckin: React.FC = () => {
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b app-border pb-3">
           <p className="text-xs app-text-muted">
-            Quản lý danh sách khán giả đã xác thực mã QR vào cổng.
+            {t("Quản lý danh sách khán giả đã xác thực mã QR vào cổng.")}
           </p>
 
           <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 px-3 py-1.5 rounded-xl shrink-0">
             <FiCheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-              Đã Check-in: <strong>{checkins.length}</strong> / {totalSold} vé
+              {t("Đã Check-in")}: <strong>{checkins.length}</strong> / {totalSold} {t("vé")}
             </span>
           </div>
         </div>
@@ -86,7 +88,7 @@ export const EventCheckin: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Nhập mã hash vé để Check-in thủ công hoặc tìm kiếm..."
+              placeholder={t("Nhập mã hash vé để Check-in thủ công hoặc tìm kiếm...")}
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
             />
           </div>
@@ -95,7 +97,7 @@ export const EventCheckin: React.FC = () => {
             onClick={handleManualCheckin}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0"
           >
-            Check-in thủ công
+            {t("Check-in thủ công")}
           </button>
         </div>
       </div>
@@ -105,11 +107,11 @@ export const EventCheckin: React.FC = () => {
           <table className="w-full text-left text-xs table-fixed min-w-[950px] border-collapse">
             <thead>
               <tr className="border-b app-border app-text-muted font-bold text-[11px] uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="py-3 px-4 w-[25%] rounded-l-xl">Mã vé (Hash)</th>
-                <th className="py-3 px-4 w-[25%]">Hạng vé</th>
-                <th className="py-3 px-4 w-[15%]">Vị trí ghế</th>
-                <th className="py-3 px-4 w-[20%]">Giờ Check-in</th>
-                <th className="py-3 px-4 w-[15%] text-right rounded-r-xl">Trạng thái</th>
+                <th className="py-3 px-4 w-[25%] rounded-l-xl">{t("Mã vé (Hash)")}</th>
+                <th className="py-3 px-4 w-[25%]">{t("Hạng vé")}</th>
+                <th className="py-3 px-4 w-[15%]">{t("Vị trí ghế")}</th>
+                <th className="py-3 px-4 w-[20%]">{t("Giờ Check-in")}</th>
+                <th className="py-3 px-4 w-[15%] text-right rounded-r-xl">{t("Trạng thái")}</th>
               </tr>
             </thead>
             <tbody className="text-xs app-text-main">
@@ -124,7 +126,7 @@ export const EventCheckin: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-medium app-text-muted">
-                    {c.seatName || "Không có"}
+                    {c.seatName || t("Không có")}
                   </td>
                   <td className="py-3.5 px-4 font-medium app-text-muted">
                     <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
@@ -135,7 +137,7 @@ export const EventCheckin: React.FC = () => {
                   <td className="py-3.5 px-4 text-right rounded-r-xl">
                     <span className="px-3 py-1.5 rounded-xl font-bold text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 inline-flex items-center gap-1.5">
                       <FiCheckCircle className="w-3.5 h-3.5" />
-                      Đã Check-in
+                      {t("Đã Check-in")}
                     </span>
                   </td>
                 </tr>
@@ -143,7 +145,7 @@ export const EventCheckin: React.FC = () => {
               {paginatedCheckins.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-8 text-center app-text-muted italic">
-                    Chưa có lượt check-in nào phù hợp.
+                    {t("Chưa có lượt check-in nào phù hợp.")}
                   </td>
                 </tr>
               )}

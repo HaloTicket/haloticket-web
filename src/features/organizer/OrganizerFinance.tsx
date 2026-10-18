@@ -20,6 +20,7 @@ interface ChatMessage {
 }
 
 export const OrganizerFinance: React.FC = () => {
+  const { t } = useTranslation();
   const { t: translate } = useTranslation();
   const [payouts, setPayouts] = useState<PayoutResponse[]>([]);
   
@@ -69,18 +70,18 @@ export const OrganizerFinance: React.FC = () => {
 
   const handleRequestPayout = async () => {
     if (!selectedEventId || !selectedEvent) {
-      toast.error("Vui lòng chọn sự kiện!");
+      toast.error(t("Vui lòng chọn sự kiện!"));
       return;
     }
     setIsSubmittingPayout(true);
     try {
       await payoutApi.requestPayout(selectedEvent.eventId, selectedEvent.totalRevenue, selectedEvent.platformFeeRate);
-      toast.success("Yêu cầu rút tiền thành công, đang chờ Admin duyệt!");
+      toast.success(t("Yêu cầu rút tiền thành công, đang chờ Admin duyệt!"));
       fetchPayouts();
       setShowPayoutModal(false);
       setSelectedEventId("");
     } catch (err) {
-      toast.error("Có lỗi xảy ra khi gửi yêu cầu.");
+      toast.error(t("Có lỗi xảy ra khi gửi yêu cầu."));
     } finally {
       setIsSubmittingPayout(false);
     }
@@ -92,7 +93,7 @@ export const OrganizerFinance: React.FC = () => {
     {
       id: "1",
       sender: "ai",
-      text: "Xin chào! Tôi là Trợ lý AI Dữ liệu. Bạn có thể hỏi tôi bất kỳ thông tin nào về doanh thu, tình hình bán vé hoặc người tham gia của các sự kiện."
+      text: t("Xin chào! Tôi là Trợ lý AI Dữ liệu. Bạn có thể hỏi tôi bất kỳ thông tin nào về doanh thu, tình hình bán vé hoặc người tham gia của các sự kiện.")
     }
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -116,7 +117,7 @@ export const OrganizerFinance: React.FC = () => {
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: "ai",
-        text: res.reply || "Tôi không thể xử lý dữ liệu lúc này.",
+        text: res.reply || t("Tôi không thể xử lý dữ liệu lúc này."),
         data: res.data,
         sqlQuery: res.generated_sql
       };
@@ -126,7 +127,7 @@ export const OrganizerFinance: React.FC = () => {
       setChatMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         sender: "ai",
-        text: "Có lỗi xảy ra khi kết nối tới Hệ thống Phân tích AI."
+        text: t("Có lỗi xảy ra khi kết nối tới Hệ thống Phân tích AI.")
       }]);
     } finally {
       setIsTyping(false);
@@ -199,11 +200,11 @@ export const OrganizerFinance: React.FC = () => {
                       <td className="px-5 py-4">
                         {p.status === "PENDING" ? (
                           <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold rounded-md text-[11px]">
-                            Chờ duyệt
+                            {t("Chờ duyệt")}
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-md text-[11px]">
-                            Đã thanh toán
+                            {t("Đã thanh toán")}
                           </span>
                         )}
                       </td>
@@ -238,7 +239,7 @@ export const OrganizerFinance: React.FC = () => {
         >
           <FiMessageSquare className="w-6 h-6" />
           <span className="absolute right-full mr-4 bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Trợ lý AI Dữ liệu
+            {t("Trợ lý AI Dữ liệu")}
           </span>
         </button>
       )}
@@ -307,7 +308,7 @@ export const OrganizerFinance: React.FC = () => {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSendMessage()}
-                placeholder="VD: Tổng doanh thu tháng này?"
+                placeholder={t("VD: Tổng doanh thu tháng này?")}
                 className="flex-1 bg-transparent px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none placeholder-zinc-400"
               />
               <button
@@ -331,7 +332,7 @@ export const OrganizerFinance: React.FC = () => {
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-xl app-text-main flex items-center gap-2">
                   <FiDollarSign className="w-6 h-6 app-text-brand" />
-                  Chọn sự kiện rút tiền
+                  {t("Chọn sự kiện rút tiền")}
                 </h3>
                 <button onClick={() => setShowPayoutModal(false)} className="md:hidden p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors">
                   <FiX className="w-5 h-5 app-text-muted" />
@@ -340,12 +341,12 @@ export const OrganizerFinance: React.FC = () => {
 
               <div className="space-y-4">
                 <label className="block text-sm font-bold app-text-main">
-                  Sự kiện đã kết thúc & có doanh thu
+                  {t("Sự kiện đã kết thúc & có doanh thu")}
                 </label>
                 
                 {eligibleEvents.length === 0 ? (
                   <div className="p-6 text-center app-bg-card border app-border rounded-xl">
-                    <p className="app-text-muted text-sm font-medium">Không có sự kiện nào đủ điều kiện rút tiền lúc này.</p>
+                    <p className="app-text-muted text-sm font-medium">{t("Không có sự kiện nào đủ điều kiện rút tiền lúc này.")}</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
@@ -376,7 +377,7 @@ export const OrganizerFinance: React.FC = () => {
             <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center mb-6 hidden md:flex">
-                  <h3 className="font-bold text-xl app-text-main">Chi tiết giao dịch</h3>
+                  <h3 className="font-bold text-xl app-text-main">{t("Chi tiết giao dịch")}</h3>
                   <button onClick={() => setShowPayoutModal(false)} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors">
                     <FiX className="w-5 h-5 app-text-muted" />
                   </button>
@@ -386,17 +387,17 @@ export const OrganizerFinance: React.FC = () => {
                   <div className="space-y-6">
                     <div className="p-5 app-bg-subnav rounded-2xl border app-border space-y-4">
                       <div className="flex justify-between items-center pb-4 border-b app-border">
-                        <span className="app-text-muted font-medium text-sm">Tổng doanh thu vé</span>
+                        <span className="app-text-muted font-medium text-sm">{t("Tổng doanh thu vé")}</span>
                         <span className="font-bold app-text-main">{selectedEvent.totalRevenue.toLocaleString()} VND</span>
                       </div>
                       <div className="flex justify-between items-center pb-4 border-b app-border">
-                        <span className="app-text-muted font-medium text-sm">Phí nền tảng ({selectedEvent.platformFeeRate * 100}%)</span>
+                        <span className="app-text-muted font-medium text-sm">{t("Phí nền tảng")} ({selectedEvent.platformFeeRate * 100}%)</span>
                         <span className="font-bold text-red-500">
                           - {(selectedEvent.totalRevenue * selectedEvent.platformFeeRate).toLocaleString()} VND
                         </span>
                       </div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className="app-text-main font-bold">Số tiền nhận được</span>
+                        <span className="app-text-main font-bold">{t("Số tiền nhận được")}</span>
                         <span className="font-black text-xl text-emerald-600 dark:text-emerald-400">
                           {selectedEvent.netAmount.toLocaleString()} VND
                         </span>
@@ -405,15 +406,15 @@ export const OrganizerFinance: React.FC = () => {
                     
                     <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
                       <p className="text-sm text-blue-700 dark:text-blue-300 font-medium leading-relaxed">
-                        <strong className="block mb-1">Lưu ý:</strong>
-                        Mức phí nền tảng được áp dụng dựa trên thỏa thuận dịch vụ. Số tiền sẽ được chuyển vào tài khoản ngân hàng bạn đã đăng ký trong vòng 3-5 ngày làm việc sau khi yêu cầu được duyệt.
+                        <strong className="block mb-1">{t("Lưu ý")}:</strong>
+                        {t("Mức phí nền tảng được áp dụng dựa trên thỏa thuận dịch vụ. Số tiền sẽ được chuyển vào tài khoản ngân hàng bạn đã đăng ký trong vòng 3-5 ngày làm việc sau khi yêu cầu được duyệt.")}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-50 py-10">
                     <FiFileText className="w-16 h-16 app-text-muted mb-4" />
-                    <p className="app-text-muted font-medium">Vui lòng chọn sự kiện bên trái<br/>để xem chi tiết đối soát.</p>
+                    <p className="app-text-muted font-medium">{t("Vui lòng chọn sự kiện bên trái")}<br/>{t("để xem chi tiết đối soát.")}</p>
                   </div>
                 )}
               </div>
@@ -423,7 +424,7 @@ export const OrganizerFinance: React.FC = () => {
                   onClick={() => setShowPayoutModal(false)}
                   className="px-6 py-2.5 text-sm font-bold app-text-main hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors"
                 >
-                  Hủy
+                  {t("Hủy")}
                 </button>
                 <button 
                   onClick={handleRequestPayout}
@@ -431,8 +432,8 @@ export const OrganizerFinance: React.FC = () => {
                   className="px-6 py-2.5 gradient-btn rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed min-w-[140px] font-bold text-sm"
                 >
                   {payouts.some(p => p.eventId === selectedEventId) 
-                    ? "Đã gửi yêu cầu" 
-                    : (isSubmittingPayout ? "Đang gửi..." : "Gửi yêu cầu")}
+                    ? t("Đã gửi yêu cầu") 
+                    : (isSubmittingPayout ? t("Đang gửi...") : t("Gửi yêu cầu"))}
                 </button>
               </div>
             </div>

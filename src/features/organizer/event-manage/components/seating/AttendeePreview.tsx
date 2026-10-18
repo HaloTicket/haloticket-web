@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FiShoppingCart, FiTag, FiTrash2, FiCreditCard, FiCheckCircle, FiShield, FiInfo } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import type { Seat, AttendeePreviewProps } from '@/types/seating';
 
 // high-end buyer simulation attendee cart preview component
@@ -10,6 +11,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
   onRemoveCartSeat,
   onClearCart,
 }) => {
+  const { t } = useTranslation();
   const [isSuccess, setIsSuccess] = useState(false);
 
   // get ticket tier for seat
@@ -37,7 +39,6 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
   return (
     <aside className="p-5 rounded-2xl app-bg-card border app-border flex flex-col justify-between w-full shadow-lg space-y-4 animate-in fade-in duration-200">
       {/* Header */}
-      {/* Header */}
       <div className="flex items-center justify-between pb-3.5 border-b app-border">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-xs">
@@ -45,13 +46,13 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-black app-text-main uppercase tracking-wider">
-              Khán Giả Mô Phỏng Mua Vé
+              {t("Khán Giả Mô Phỏng Mua Vé")}
             </h3>
-            <p className="text-[10px] app-text-muted mt-0.5">Trải nghiệm đặt vé trực quan như giao diện khán giả</p>
+            <p className="text-[10px] app-text-muted mt-0.5">{t("Trải nghiệm đặt vé trực quan như giao diện khán giả")}</p>
           </div>
         </div>
         <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[11px] font-extrabold font-mono border border-blue-500/20">
-          {cart.length} vé đã chọn
+          {cart.length} {t("vé đã chọn")}
         </span>
       </div>
 
@@ -59,17 +60,17 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
       {tiers && tiers.length > 0 && (
         <div className="space-y-1.5 pt-1">
           <span className="text-[10px] font-extrabold app-text-muted uppercase tracking-wider block">
-            Bảng Giá Các Hạng Vé Sự Kiện:
+            {t("Bảng Giá Các Hạng Vé Sự Kiện:")}
           </span>
           <div className="flex flex-wrap gap-1.5">
-            {tiers.map((t) => (
+            {tiers.map((tr) => (
               <span
-                key={t.id}
+                key={tr.id}
                 className="px-2.5 py-1 rounded-lg app-bg-main border app-border text-[10px] font-bold flex items-center gap-1.5 shadow-2xs"
               >
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color || '#3b82f6' }} />
-                <span className="app-text-main">{t.name}:</span>
-                <span className="font-mono text-blue-600 dark:text-blue-400">{t.price.toLocaleString('vi-VN')}đ</span>
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tr.color || '#3b82f6' }} />
+                <span className="app-text-main">{tr.name}:</span>
+                <span className="font-mono text-blue-600 dark:text-blue-400">{tr.price.toLocaleString('vi-VN')}đ</span>
               </span>
             ))}
           </div>
@@ -97,12 +98,12 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
                   <div>
                     <div className="flex items-center gap-1.5 text-xs font-extrabold app-text-main">
                       <FiTag className="w-3.5 h-3.5 text-blue-500" />
-                      <span>{seat.number ? `Ghế ${seat.row}-${seat.number}` : `Vé ${seat.row}`}</span>
+                      <span>{seat.number ? `${t("Ghế")} ${seat.row}-${seat.number}` : `${t("Vé")} ${seat.row}`}</span>
                       {zone && <span className="text-[10px] font-bold app-text-muted">({zone.name})</span>}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[11px] font-bold app-text-muted">
-                        {tier?.name || 'Vé Thường'}
+                        {tier?.name || t('Vé Thường')}
                       </span>
                       <span className="text-xs font-mono font-black text-blue-600 dark:text-blue-400">
                         {price.toLocaleString('vi-VN')} đ
@@ -115,7 +116,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
                   type="button"
                   onClick={() => onRemoveCartSeat(seat.id)}
                   className="p-1.5 rounded-lg app-bg-card border app-border app-text-muted hover:text-rose-500 hover:border-rose-500/30 transition-colors cursor-pointer"
-                  title="Xóa vé này khỏi giỏ"
+                  title={t("Xóa vé này khỏi giỏ")}
                 >
                   <FiTrash2 className="w-3.5 h-3.5" />
                 </button>
@@ -125,9 +126,9 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
         ) : (
           <div className="p-6 rounded-2xl app-bg-main border border-dashed app-border text-center space-y-2 flex flex-col items-center justify-center my-auto">
             <FiInfo className="w-7 h-7 text-blue-500 opacity-60" />
-            <p className="text-xs app-text-muted font-extrabold">Giỏ hàng mô phỏng đang trống.</p>
+            <p className="text-xs app-text-muted font-extrabold">{t("Giỏ hàng mô phỏng đang trống.")}</p>
             <p className="text-[11px] app-text-muted opacity-80 leading-relaxed">
-              Nhấp trực tiếp vào bất kỳ chiếc ghế nào trên sơ đồ 2D để trải nghiệm quá trình chọn mua vé trực tuyến của khán giả.
+              {t("Nhấp trực tiếp vào bất kỳ chiếc ghế nào trên sơ đồ 2D để trải nghiệm quá trình chọn mua vé trực tuyến của khán giả.")}
             </p>
           </div>
         )}
@@ -137,7 +138,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
       <div className="pt-3 border-t app-border space-y-3">
         <div className="flex items-center justify-between text-xs font-bold">
           <span className="app-text-muted uppercase flex items-center gap-1.5">
-            <FiShield className="w-3.5 h-3.5 text-blue-400" /> Tổng Tiền Vé:
+            <FiShield className="w-3.5 h-3.5 text-blue-400" /> {t("Tổng Tiền Vé:")}
           </span>
           <span className="font-mono text-lg font-black text-blue-600 dark:text-blue-400">
             {totalPrice.toLocaleString('vi-VN')} đ
@@ -147,7 +148,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
         {isSuccess ? (
           <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/40 text-blue-600 dark:text-blue-300 text-xs font-bold text-center flex items-center justify-center gap-2 animate-in fade-in">
             <FiCheckCircle className="w-4 h-4 text-blue-500" />
-            <span>Mô phỏng thanh toán thành công ({cart.length} vé)!</span>
+            <span>{t("Mô phỏng thanh toán thành công ({{count}} vé)!", { count: cart.length })}</span>
           </div>
         ) : (
           <button
@@ -157,10 +158,11 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
             className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-40 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <FiCreditCard className="w-4 h-4" />
-            <span>Tiến Hành Đặt Vé Mô Phỏng ({cart.length})</span>
+            <span>{t("Tiến Hành Đặt Vé Mô Phỏng")} ({cart.length})</span>
           </button>
         )}
       </div>
     </aside>
   );
 };
+export default AttendeePreview;

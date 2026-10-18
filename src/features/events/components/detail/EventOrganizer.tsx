@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React from "react";
 import { FiUsers } from "react-icons/fi";
 import type { EventDetailData } from "@/types";
@@ -10,7 +9,7 @@ interface EventOrganizerProps {
 }
 
 export const EventOrganizer: React.FC<EventOrganizerProps> = ({ organizer, event }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
 
   const name =
     organizer?.name ||

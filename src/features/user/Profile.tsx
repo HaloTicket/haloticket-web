@@ -63,7 +63,7 @@ export default function Profile() {
     ekycApi.getStatus().then((result) => {
       if (active) setEkycStatus(result);
     }).catch(() => {
-      if (active) setEkycError("Không thể tải trạng thái xác minh. Mở trang xác minh để thử lại.");
+      if (active) setEkycError(translate("Không thể tải trạng thái xác minh. Mở trang xác minh để thử lại."));
     });
     return () => {
       active = false;
@@ -950,7 +950,7 @@ export default function Profile() {
                           {translate("Họ và tên")}
                         </span>
                         <p className="text-base font-bold uppercase text-white">
-                          {ekycStatus.legalName || "Chưa có dữ liệu"}
+                          {ekycStatus.legalName || translate("Chưa có dữ liệu")}
                         </p>
                       </div>
 
@@ -959,7 +959,7 @@ export default function Profile() {
                           {translate("Số CCCD (đã che)")}
                         </span>
                         <p className="text-base font-mono font-bold text-blue-400">
-                          {ekycStatus.documentNumber || "Chưa có dữ liệu"}
+                          {ekycStatus.documentNumber || translate("Chưa có dữ liệu")}
                         </p>
                       </div>
                     </div>
@@ -973,7 +973,7 @@ export default function Profile() {
                         {translate("Ngày xác thực:")}{" "}
                         {ekycStatus.verifiedAt
                           ? new Date(ekycStatus.verifiedAt).toLocaleDateString("vi-VN")
-                          : "Chưa có dữ liệu"}
+                          : translate("Chưa có dữ liệu")}
                       </span>
                     </div>
                   </div>

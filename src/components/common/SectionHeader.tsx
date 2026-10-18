@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React from "react";
 import { Link } from "react-router-dom";
 import { FiChevronRight } from "react-icons/fi";
@@ -23,7 +22,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   onTabChange,
   className = ""
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   return (
     <div className={`flex flex-col md:flex-row md:items-center justify-between mb-5 gap-3 ${className}`}>
       {/* Title & Tabs Group */}

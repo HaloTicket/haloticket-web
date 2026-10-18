@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiMap } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import type { MiniMapProps } from '@/types/seating';
 
 const MAP_WIDTH = 180;
@@ -19,6 +20,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
     zoomLevel,
     onNavigate,
 }) => {
+    const { t } = useTranslation();
     const scale = Math.min(MAP_WIDTH / Math.max(canvasWidth, 1), MAP_HEIGHT / Math.max(canvasHeight, 1));
     const scaledContentW = canvasWidth * scale;
     const scaledContentH = canvasHeight * scale;
@@ -45,7 +47,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
             <div
                 onClick={handleClick}
                 className="relative w-full h-full app-bg-main cursor-crosshair"
-                title="Nhấp để di chuyển nhanh đến vị trí trên sơ đồ"
+                title={t("Nhấp để di chuyển nhanh đến vị trí trên sơ đồ")}
             >
                 <div
                     className="absolute top-0 left-0"

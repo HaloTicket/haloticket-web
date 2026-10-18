@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FiClock, FiCheck, FiShield, FiTag, FiAlertCircle, FiArrowLeft } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import type { BookingOrderData } from "@/types";
@@ -16,6 +17,7 @@ import { ToastContainer, type ToastMessage } from "@/features/organizer/event-ma
 import type { VietQrPayloadResponse } from "@/types";
 
 export default function Checkout() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
@@ -40,10 +42,10 @@ export default function Checkout() {
     }
     return {
       eventId: eventIdParam || "event-1",
-      eventTitle: "Sự kiện HaloTicket",
+      eventTitle: t("Sự kiện HaloTicket"),
       eventTime: "19:00, 20/12/2026",
-      eventLocation: "Địa điểm sự kiện HaloTicket",
-      ticketTypeName: "Vé tiêu chuẩn",
+      eventLocation: t("Địa điểm sự kiện HaloTicket"),
+      ticketTypeName: t("Vé tiêu chuẩn"),
       quantity: 1,
       price: 0,
       totalAmount: 0,
@@ -254,29 +256,29 @@ export default function Checkout() {
 
     const matchedVoucher = vouchers.find(v => v.code === code && (v.status === "ACTIVE" || v.isActive === true));
     if (!matchedVoucher) {
-      setVoucherError("Mã khuyến mãi không hợp lệ hoặc đã hết hạn.");
-      showToast("error", "Mã khuyến mãi không hợp lệ.");
+      setVoucherError(t("Mã khuyến mãi không hợp lệ hoặc đã hết hạn."));
+      showToast("error", t("Mã khuyến mãi không hợp lệ."));
       return;
     }
 
     // check date validity
     const now = new Date().getTime();
     if (matchedVoucher.startDate && new Date(matchedVoucher.startDate).getTime() > now) {
-      setVoucherError("Mã khuyến mãi chưa có hiệu lực.");
-      showToast("error", "Mã khuyến mãi chưa có hiệu lực.");
+      setVoucherError(t("Mã khuyến mãi chưa có hiệu lực."));
+      showToast("error", t("Mã khuyến mãi chưa có hiệu lực."));
       return;
     }
     if (matchedVoucher.endDate && new Date(matchedVoucher.endDate).getTime() < now) {
-      setVoucherError("Mã khuyến mãi đã hết hạn.");
-      showToast("error", "Mã khuyến mãi đã hết hạn.");
+      setVoucherError(t("Mã khuyến mãi đã hết hạn."));
+      showToast("error", t("Mã khuyến mãi đã hết hạn."));
       return;
     }
 
     // check showtime applicability
     if (matchedVoucher.applyScope === "SPECIFIC_SHOWTIMES") {
       if (!activeShowtimeId || !matchedVoucher.applicableShowtimes?.includes(activeShowtimeId)) {
-        setVoucherError("Mã khuyến mãi không áp dụng cho suất diễn này.");
-        showToast("error", "Mã khuyến mãi không áp dụng cho suất diễn này.");
+        setVoucherError(t("Mã khuyến mãi không áp dụng cho suất diễn này."));
+        showToast("error", t("Mã khuyến mãi không áp dụng cho suất diễn này."));
         return;
       }
     }
@@ -294,7 +296,7 @@ export default function Checkout() {
     setDiscountAmount(discount);
     setAppliedVoucher(matchedVoucher);
     setVoucherError("");
-    showToast("success", `Đã áp dụng mã giảm ${formatCurrency(discount)}!`);
+    showToast("success", t("Đã áp dụng mã giảm {{discount}}!", { discount: formatCurrency(discount) }));
   };
 
   const handleRemoveVoucher = () => {
@@ -302,7 +304,7 @@ export default function Checkout() {
     setDiscountAmount(0);
     setVoucherInput("");
     setVoucherError("");
-    showToast("info", "Đã hủy áp dụng mã giảm giá.");
+    showToast("info", t("Đã hủy áp dụng mã giảm giá."));
   };
 
   // payment state (step 2)
@@ -313,15 +315,15 @@ export default function Checkout() {
   // validate step 1 and proceed to payment
   const handleProceedToPayment = () => {
     if (!fullName.trim()) {
-      setFormError("Vui lòng nhập Họ & Tên của bạn.");
+      setFormError(t("Vui lòng nhập Họ & Tên của bạn."));
       return;
     }
     if (!phoneOrCccd.trim()) {
-      setFormError("Vui lòng nhập Số điện thoại hoặc CCCD.");
+      setFormError(t("Vui lòng nhập Số điện thoại hoặc CCCD."));
       return;
     }
     if (!email.trim()) {
-      setFormError("Vui lòng nhập Email nhận vé chính xác.");
+      setFormError(t("Vui lòng nhập Email nhận vé chính xác."));
       return;
     }
 
@@ -331,7 +333,7 @@ export default function Checkout() {
         if (q.isRequired) {
           const val = answers[q.id];
           if (val === undefined || val === null || (typeof val === "string" && !val.trim()) || val === false) {
-            setFormError(`Vui lòng trả lời câu hỏi bắt buộc: "${q.title}"`);
+            setFormError(t('Vui lòng trả lời câu hỏi bắt buộc: "{{title}}"', { title: q.title }));
             return;
           }
         }
@@ -339,7 +341,7 @@ export default function Checkout() {
     }
 
     if (!agreedTerms1) {
-      setFormError("Bạn cần tích đồng ý với điều khoản vận hành sự kiện để tiếp tục.");
+      setFormError(t("Bạn cần tích đồng ý với điều khoản vận hành sự kiện để tiếp tục."));
       return;
     }
 
@@ -351,7 +353,7 @@ export default function Checkout() {
   // click payment button -> validate terms & open recipient info modal
   const handleOpenPaymentModal = () => {
     if (!agreedTerms2) {
-      showToast("warning", "Vui lòng đọc kỹ và đồng ý với điều khoản dịch vụ trước khi tiếp tục.");
+      showToast("warning", t("Vui lòng đọc kỹ và đồng ý với điều khoản dịch vụ trước khi tiếp tục."));
       return;
     }
     setIsRecipientModalOpen(true);
@@ -404,7 +406,7 @@ export default function Checkout() {
         for (let i = 0; i < cartItem.quantity; i++) {
           const seatId = (order.seatIds && order.seatIds.length > globalTicketIdx) ? order.seatIds[globalTicketIdx] : (cartItem.zoneId || "TICKET");
           let seatLabel = order.seatNames?.[seatId];
-          let zoneNameStr = cartItem.zoneName || cartItem.tierName || "Vé Sự kiện";
+          let zoneNameStr = cartItem.zoneName || cartItem.tierName || t("Vé Sự kiện");
           
           let displayTicketName = zoneNameStr;
 
@@ -414,14 +416,14 @@ export default function Checkout() {
                if (match) {
                  const rowName = String.fromCharCode(65 + parseInt(match[1], 10));
                  const colName = parseInt(match[2], 10) + 1;
-                 seatLabel = `Hàng ${rowName} - Ghế ${colName}`;
+                 seatLabel = `${t("Hàng")} ${rowName} - ${t("Ghế")} ${colName}`;
                } else {
                  seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
                }
              }
-             displayTicketName = `Hạng vé ${zoneNameStr}: ${seatLabel}`;
+             displayTicketName = `${t("Hạng vé")} ${zoneNameStr}: ${seatLabel}`;
           } else {
-             displayTicketName = `Hạng vé ${zoneNameStr}`;
+             displayTicketName = `${t("Hạng vé")} ${zoneNameStr}`;
           }
 
           newTickets.push({
@@ -531,7 +533,7 @@ export default function Checkout() {
       console.error("Payment error:", err);
       setIsRecipientModalOpen(false);
       const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message 
-        || "Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.";
+        || t("Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.");
       showToast("error", errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -562,14 +564,14 @@ export default function Checkout() {
                 className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer mr-1 border border-white/10"
               >
                 <FiArrowLeft className="w-3.5 h-3.5" />
-                <span>Quay lại sự kiện</span>
+                <span>{t("Quay lại sự kiện")}</span>
               </button>
               <span className="px-3.5 py-1 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-wider shadow-sm">
                 {step === 1
                   ? hasCustomQuestions
-                    ? "BƯỚC 2: ĐIỀN THÔNG TIN"
-                    : "BƯỚC 2: XÁC NHẬN THÔNG TIN"
-                  : "BƯỚC 3: THANH TOÁN"}
+                    ? t("BƯỚC 2: ĐIỀN THÔNG TIN")
+                    : t("BƯỚC 2: XÁC NHẬN THÔNG TIN")
+                  : t("BƯỚC 3: THANH TOÁN")}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight drop-shadow-md leading-tight">
@@ -591,7 +593,7 @@ export default function Checkout() {
           <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl p-4 border border-rose-500/40 shadow-2xl flex flex-col items-center justify-center min-w-[210px] shrink-0">
             <span className="text-xs font-black text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <FiClock className="w-4 h-4 animate-pulse text-rose-400" />
-              <span>HOÀN TẤT ĐẶT VÉ TRONG</span>
+              <span>{t("HOÀN TẤT ĐẶT VÉ TRONG")}</span>
             </span>
             <div className="flex items-center gap-2 font-mono">
               <span className="w-13 h-11 rounded-xl bg-rose-600 text-white text-2xl font-black flex items-center justify-center shadow-lg tracking-tighter">
@@ -615,7 +617,7 @@ export default function Checkout() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-base md:text-lg font-black app-text-main uppercase tracking-wider flex items-center gap-2">
-                  <span>{hasCustomQuestions ? "BẢNG CÂU HỎI THÔNG TIN VÉ" : "THÔNG TIN KHÁCH HÀNG NHẬN VÉ"}</span>
+                  <span>{hasCustomQuestions ? t("BẢNG CÂU HỎI THÔNG TIN VÉ") : t("THÔNG TIN KHÁCH HÀNG NHẬN VÉ")}</span>
                 </h2>
                 <button
                   type="button"
@@ -623,7 +625,7 @@ export default function Checkout() {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition cursor-pointer"
                 >
                   <FiArrowLeft />
-                  <span>Chọn lại vé</span>
+                  <span>{t("Chọn lại vé")}</span>
                 </button>
               </div>
 
@@ -638,19 +640,19 @@ export default function Checkout() {
                 {/* Basic Buyer Information */}
                 <div className="space-y-4 pb-6 border-b app-border">
                   <h3 className="text-xs font-black uppercase tracking-wider text-blue-500">
-                    Thông tin người đại diện đặt vé
+                    {t("Thông tin người đại diện đặt vé")}
                   </h3>
 
                   {/* Full Name */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-extrabold app-text-main">
-                      Họ & Tên <span className="text-rose-500">*</span>
+                      {t("Họ & Tên")} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Điền họ và tên của bạn"
+                      placeholder={t("Điền họ và tên của bạn")}
                       className="w-full px-4 py-3 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -658,13 +660,13 @@ export default function Checkout() {
                   {/* Phone / CCCD */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-extrabold app-text-main">
-                      Số điện thoại / CCCD <span className="text-rose-500">*</span>
+                      {t("Số điện thoại / CCCD")} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={phoneOrCccd}
                       onChange={(e) => setPhoneOrCccd(e.target.value)}
-                      placeholder="Điền số điện thoại hoặc số CCCD"
+                      placeholder={t("Điền số điện thoại hoặc số CCCD")}
                       className="w-full px-4 py-3 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -672,13 +674,13 @@ export default function Checkout() {
                   {/* Email */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-extrabold app-text-main">
-                      Email nhận vé điện tử <span className="text-rose-500">*</span>
+                      {t("Email nhận vé điện tử")} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Dùng để nhận vé điện tử QR Code"
+                      placeholder={t("Dùng để nhận vé điện tử QR Code")}
                       className="w-full px-4 py-3 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -688,7 +690,7 @@ export default function Checkout() {
                 {hasCustomQuestions && (
                   <div className="space-y-5 pt-2">
                     <h3 className="text-xs font-black uppercase tracking-wider text-blue-500">
-                      Bảng câu hỏi từ Ban Tổ Chức sự kiện
+                      {t("Bảng câu hỏi từ Ban Tổ Chức sự kiện")}
                     </h3>
 
                     {customQuestions.map((q, idx) => (
@@ -698,7 +700,7 @@ export default function Checkout() {
                           {q.isRequired ? (
                             <span className="text-rose-500 font-black ml-1">*</span>
                           ) : (
-                            <span className="text-[10px] app-text-sub font-normal ml-1">(Không bắt buộc)</span>
+                            <span className="text-[10px] app-text-sub font-normal ml-1">({t("Không bắt buộc")})</span>
                           )}
                         </label>
 
@@ -713,7 +715,7 @@ export default function Checkout() {
                             onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                             className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
                           >
-                            <option value="">-- Chọn câu trả lời --</option>
+                            <option value="">{t("-- Chọn câu trả lời --")}</option>
                             {Array.isArray(q.options) ? (
                               q.options.map((opt: string, oIdx: number) => (
                                 <option key={oIdx} value={opt}>
@@ -722,8 +724,8 @@ export default function Checkout() {
                               ))
                             ) : (
                               <>
-                                <option value="Đồng ý">Đồng ý</option>
-                                <option value="Khác">Khác</option>
+                                <option value="Đồng ý">{t("Đồng ý")}</option>
+                                <option value="Khác">{t("Khác")}</option>
                               </>
                             )}
                           </select>
@@ -735,14 +737,14 @@ export default function Checkout() {
                               onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.checked }))}
                               className="w-4 h-4 rounded border-slate-700 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-xs font-bold app-text-main">Xác nhận đồng ý</span>
+                            <span className="text-xs font-bold app-text-main">{t("Xác nhận đồng ý")}</span>
                           </label>
                         ) : (
                           <input
                             type="text"
                             value={typeof answers[q.id] === "string" ? (answers[q.id] as string) : ""}
                             onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                            placeholder="Nhập câu trả lời của bạn..."
+                            placeholder={t("Nhập câu trả lời của bạn...")}
                             className="w-full px-4 py-2.5 rounded-xl app-bg-card border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
                           />
                         )}
@@ -754,7 +756,7 @@ export default function Checkout() {
                 {/* Mandatory Terms Checkbox */}
                 <div className="pt-4 border-t app-border space-y-3">
                   <label className="block text-xs font-bold app-text-sub leading-relaxed">
-                    Tôi đồng ý HaloTicket & Ban Tổ Chức sử dụng thông tin đặt vé cho mục đích vận hành sự kiện. <span className="text-rose-500">*</span>
+                    {t("Tôi đồng ý HaloTicket & Ban Tổ Chức sử dụng thông tin đặt vé cho mục đích vận hành sự kiện.")} <span className="text-rose-500">*</span>
                   </label>
 
                   <div
@@ -768,7 +770,7 @@ export default function Checkout() {
                     >
                       {agreedTerms1 && <FiCheck className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
-                    <span className="text-xs font-bold app-text-main">Tôi đồng ý</span>
+                    <span className="text-xs font-bold app-text-main">{t("Tôi đồng ý")}</span>
                   </div>
                 </div>
 
@@ -777,7 +779,7 @@ export default function Checkout() {
                   onClick={handleProceedToPayment}
                   className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <span>Tiếp tục thanh toán</span>
+                  <span>{t("Tiếp tục thanh toán")}</span>
                   <span>»</span>
                 </button>
               </div>
@@ -788,35 +790,35 @@ export default function Checkout() {
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-base md:text-lg font-black app-text-main uppercase tracking-wider">
-                CHỌN PHƯƠNG THỨC THANH TOÁN
+                {t("CHỌN PHƯƠNG THỨC THANH TOÁN")}
               </h2>
 
               {/* Delivery Info & Custom Questions Banner */}
               <div className="app-bg-card border app-border rounded-2xl p-6 space-y-4 shadow-sm">
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">Thông tin người nhận</h3>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">{t("Thông tin người nhận")}</h3>
                   <div className="space-y-1">
                     <p className="text-xs font-bold app-text-main">
-                      Họ tên: <span className="text-blue-600 dark:text-blue-400">{fullName}</span>
+                      {t("Họ tên:")} <span className="text-blue-600 dark:text-blue-400">{fullName}</span>
                     </p>
                     <p className="text-xs font-bold app-text-main">
-                      SĐT / CCCD: <span className="text-blue-600 dark:text-blue-400">{phoneOrCccd}</span>
+                      {t("SĐT / CCCD:")} <span className="text-blue-600 dark:text-blue-400">{phoneOrCccd}</span>
                     </p>
                     <p className="text-xs font-bold app-text-main">
-                      Email nhận vé: <span className="text-blue-600 dark:text-blue-400">{email}</span>
+                      {t("Email nhận vé:")} <span className="text-blue-600 dark:text-blue-400">{email}</span>
                     </p>
                   </div>
                 </div>
 
                 {hasCustomQuestions && (
                   <div className="pt-4 border-t app-border">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">Thông tin khảo sát bổ sung</h3>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">{t("Thông tin khảo sát bổ sung")}</h3>
                     <div className="space-y-3">
                       {customQuestions.map((q, idx) => (
                         <div key={q.id || idx} className="text-xs">
                           <span className="font-bold app-text-main block mb-1">{idx + 1}. {q.title}</span>
                           <span className="font-extrabold text-blue-600 dark:text-blue-400 pl-3 block">
-                            {q.type === 'checkbox' ? (answers[q.id] ? "Đồng ý" : "Không") : (answers[q.id] ? String(answers[q.id]) : "---")}
+                            {q.type === 'checkbox' ? (answers[q.id] ? t("Đồng ý") : t("Không")) : (answers[q.id] ? String(answers[q.id]) : "---")}
                           </span>
                         </div>
                       ))}
@@ -829,12 +831,12 @@ export default function Checkout() {
               <div className="app-bg-card border app-border rounded-2xl p-6 space-y-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Mã khuyến mãi / Voucher</h3>
-                    <p className="text-[11px] app-text-sub">Nhập mã ưu đãi giảm giá (Thử: HALO50, HALO100, HALO10)</p>
+                    <h3 className="text-xs font-black uppercase tracking-wider app-text-main">{t("Mã khuyến mãi / Voucher")}</h3>
+                    <p className="text-[11px] app-text-sub">{t("Nhập mã ưu đãi giảm giá (Thử: HALO50, HALO100, HALO10)")}</p>
                   </div>
                   {appliedVoucher && (
                     <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-black">
-                      Đã giảm {formatCurrency(discountAmount)}
+                      {t("Đã giảm")} {formatCurrency(discountAmount)}
                     </span>
                   )}
                 </div>
@@ -842,14 +844,14 @@ export default function Checkout() {
                 {appliedVoucher ? (
                   <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30">
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                      Mã đã áp dụng: <strong>{appliedVoucher.code}</strong> (-{formatCurrency(discountAmount)})
+                      {t("Mã đã áp dụng:")} <strong>{appliedVoucher.code}</strong> (-{formatCurrency(discountAmount)})
                     </span>
                     <button
                       type="button"
                       onClick={handleRemoveVoucher}
                       className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
                     >
-                      Hủy dùng
+                      {t("Hủy dùng")}
                     </button>
                   </div>
                 ) : (
@@ -861,7 +863,7 @@ export default function Checkout() {
                         setVoucherInput(e.target.value);
                         setVoucherError("");
                       }}
-                      placeholder="Nhập mã voucher (VD: HALO50)"
+                      placeholder={t("Nhập mã voucher (VD: HALO50)")}
                       className="flex-1 px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500 uppercase font-mono"
                     />
                     <button
@@ -870,7 +872,7 @@ export default function Checkout() {
                       className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <FiTag className="w-3.5 h-3.5" />
-                      <span>Áp dụng</span>
+                      <span>{t("Áp dụng")}</span>
                     </button>
                   </div>
                 )}
@@ -882,7 +884,7 @@ export default function Checkout() {
 
               {/* Payment Methods Options */}
               <div className="app-bg-card border app-border rounded-2xl p-6 space-y-4 shadow-sm">
-                <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Phương thức thanh toán</h3>
+                <h3 className="text-xs font-black uppercase tracking-wider app-text-main">{t("Phương thức thanh toán")}</h3>
 
                 <div className="space-y-3">
                   {/* 1. VNPAY */}
@@ -906,9 +908,9 @@ export default function Checkout() {
                     </span>
                     <div className="min-w-0">
                       <span className="text-xs md:text-sm font-extrabold app-text-main block">
-                        Cổng VNPAY (Thẻ ATM nội địa / Mã QR Ngân hàng / Internet Banking)
+                        {t("Cổng VNPAY (Thẻ ATM nội địa / Mã QR Ngân hàng / Internet Banking)")}
                       </span>
-                      <span className="text-[11px] app-text-sub block">Hỗ trợ tất cả ngân hàng tại Việt Nam</span>
+                      <span className="text-[11px] app-text-sub block">{t("Hỗ trợ tất cả ngân hàng tại Việt Nam")}</span>
                     </div>
                   </label>
 
@@ -933,9 +935,9 @@ export default function Checkout() {
                     </span>
                     <div className="min-w-0">
                       <span className="text-xs md:text-sm font-extrabold app-text-main block">
-                        SePay - Chuyển khoản VietQR Nhanh 24/7
+                        {t("SePay - Chuyển khoản VietQR Nhanh 24/7")}
                       </span>
-                      <span className="text-[11px] app-text-sub block">Quét QR chuyển khoản ngân hàng tự động duyệt tức thì</span>
+                      <span className="text-[11px] app-text-sub block">{t("Quét QR chuyển khoản ngân hàng tự động duyệt tức thì")}</span>
                     </div>
                   </label>
 
@@ -959,8 +961,8 @@ export default function Checkout() {
                       Zalo
                     </span>
                     <div className="min-w-0">
-                      <span className="text-xs md:text-sm font-extrabold app-text-main block">Ví ZaloPay</span>
-                      <span className="text-[11px] app-text-sub block">Thanh toán qua ứng dụng ZaloPay hoặc mã QR</span>
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví ZaloPay")}</span>
+                      <span className="text-[11px] app-text-sub block">{t("Thanh toán qua ứng dụng ZaloPay hoặc mã QR")}</span>
                     </div>
                   </label>
 
@@ -984,8 +986,8 @@ export default function Checkout() {
                       Shopee
                     </span>
                     <div className="min-w-0">
-                      <span className="text-xs md:text-sm font-extrabold app-text-main block">Ví ShopeePay</span>
-                      <span className="text-[11px] app-text-sub block">Thanh toán nhanh chóng qua Ví ShopeePay</span>
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví ShopeePay")}</span>
+                      <span className="text-[11px] app-text-sub block">{t("Thanh toán nhanh chóng qua Ví ShopeePay")}</span>
                     </div>
                   </label>
 
@@ -1009,8 +1011,8 @@ export default function Checkout() {
                       MoMo
                     </span>
                     <div className="min-w-0">
-                      <span className="text-xs md:text-sm font-extrabold app-text-main block">Ví điện tử MoMo</span>
-                      <span className="text-[11px] app-text-sub block">Quét mã QR bằng ứng dụng MoMo</span>
+                      <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví điện tử MoMo")}</span>
+                      <span className="text-[11px] app-text-sub block">{t("Quét mã QR bằng ứng dụng MoMo")}</span>
                     </div>
                   </label>
                 </div>
@@ -1023,14 +1025,14 @@ export default function Checkout() {
         <div className="lg:col-span-4 space-y-6">
           <div className="app-bg-card app-text-main rounded-3xl p-6 border app-border shadow-xl space-y-5 sticky top-24">
             <div className="flex items-center justify-between border-b app-border pb-3">
-              <h3 className="text-xs font-black uppercase tracking-wider app-text-main">Thông tin đặt vé</h3>
+              <h3 className="text-xs font-black uppercase tracking-wider app-text-main">{t("Thông tin đặt vé")}</h3>
               {step === 1 ? (
                 <button
                   type="button"
                   onClick={() => setShowCancelConfirmModal(true)}
                   className="text-xs font-bold text-blue-500 hover:underline cursor-pointer"
                 >
-                  Chọn lại vé
+                  {t("Chọn lại vé")}
                 </button>
               ) : (
                 <button
@@ -1038,7 +1040,7 @@ export default function Checkout() {
                   onClick={() => setStep(1)}
                   className="text-xs font-bold text-blue-500 hover:underline cursor-pointer"
                 >
-                  Sửa thông tin
+                  {t("Sửa thông tin")}
                 </button>
               )}
             </div>
@@ -1077,7 +1079,7 @@ export default function Checkout() {
 
             {/* Subtotal */}
             <div className="pt-3 border-t app-border flex items-center justify-between text-xs font-mono">
-              <span className="font-bold app-text-sub">Tạm tính:</span>
+              <span className="font-bold app-text-sub">{t("Tạm tính:")}</span>
               <span className="font-extrabold text-blue-600 dark:text-blue-400">{formatCurrency(subtotalAmount)}</span>
             </div>
 
@@ -1085,11 +1087,11 @@ export default function Checkout() {
             {step === 2 && (
               <div className="pt-3 border-t app-border space-y-3">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="app-text-sub">Giảm giá:</span>
+                  <span className="app-text-sub">{t("Giảm giá:")}</span>
                   <span className="text-rose-500 font-bold">-{formatCurrency(discountAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm font-mono pt-2 border-t app-border">
-                  <span className="font-extrabold app-text-main">Tổng tiền:</span>
+                  <span className="font-extrabold app-text-main">{t("Tổng tiền:")}</span>
                   <span className="font-black text-blue-600 dark:text-blue-400 text-base">
                     {formatCurrency(finalTotal)}
                   </span>
@@ -1104,7 +1106,7 @@ export default function Checkout() {
                     className="accent-blue-600 w-4 h-4 mt-0.5"
                   />
                   <label htmlFor="terms2" className="text-[10px] app-text-sub leading-tight cursor-pointer select-none">
-                    Bằng việc nhấn Thanh toán, bạn đồng ý với <span className="text-blue-500 underline">Điều khoản dịch vụ HaloTicket</span>.
+                    {t("Bằng việc nhấn Thanh toán, bạn đồng ý với")} <span className="text-blue-500 underline">{t("Điều khoản dịch vụ HaloTicket")}</span>.
                   </label>
                 </div>
 
@@ -1114,7 +1116,7 @@ export default function Checkout() {
                   disabled={isSubmitting}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  <span>{isSubmitting ? "Đang xử lý..." : `Thanh toán (${formatCurrency(finalTotal)})`}</span>
+                  <span>{isSubmitting ? t("Đang xử lý...") : `${t("Thanh toán")} (${formatCurrency(finalTotal)})`}</span>
                   <span>»</span>
                 </button>
               </div>
@@ -1158,7 +1160,7 @@ export default function Checkout() {
           }
           localStorage.removeItem("haloticket_pending_order");
           setIsVietQrModalOpen(false);
-          showToast("error", "Đã hết thời gian thanh toán (15 phút). Đơn hàng đã tự động hủy.");
+          showToast("error", t("Đã hết thời gian thanh toán (15 phút). Đơn hàng đã tự động hủy."));
           navigate(`/events/${activeEventId}`);
         }}
       />
@@ -1189,9 +1191,9 @@ export default function Checkout() {
           setIsTimeoutModalOpen(false);
           navigate(`/events/${activeEventId}`);
         }}
-        title="Hết thời gian giữ vé!"
-        message="Đã hết thời gian giữ vé. Vui lòng đặt lại vé mới."
-        buttonText="Đặt vé mới"
+        title={t("Hết thời gian giữ vé!")}
+        message={t("Đã hết thời gian giữ vé. Vui lòng đặt lại vé mới.")}
+        buttonText={t("Đặt vé mới")}
       />
     </div>
   );

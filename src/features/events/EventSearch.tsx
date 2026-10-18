@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FiCalendar, FiFilter, FiClock } from "react-icons/fi";
@@ -9,7 +8,7 @@ import DateFilterModal from "./components/DateFilterModal";
 import AdvancedFilterModal from "./components/AdvancedFilterModal";
 
 export default function EventSearch() {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const cityParam = searchParams.get("city") || "";

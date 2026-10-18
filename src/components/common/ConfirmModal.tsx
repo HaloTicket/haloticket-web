@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { FiAlertTriangle, FiInfo, FiAlertCircle, FiCheckCircle, FiX, FiCheck, FiLoader } from 'react-icons/fi';
 
 export type ConfirmModalType = 'danger' | 'warning' | 'info' | 'success' | 'primary';
@@ -30,8 +31,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   children,
   type = 'warning',
-  confirmText = 'Đồng ý',
-  cancelText = 'Hủy bỏ',
+  confirmText,
+  cancelText,
   confirmButtonVariant,
   cancelButtonVariant,
   icon,
@@ -43,7 +44,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
+
+  const resolvedConfirmText = confirmText ?? t('Đồng ý');
+  const resolvedCancelText = cancelText === null ? null : (cancelText ?? t('Hủy bỏ'));
 
   const defaultIcons: Record<ConfirmModalType, React.ReactNode> = {
     danger: <FiAlertTriangle className="w-5 h-5" />,
@@ -126,14 +131,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
         {/* Modal Footer */}
         <div className="px-6 py-4 bg-slate-500/5 border-t app-border flex items-center justify-end gap-3">
-          {cancelText && (
+          {resolvedCancelText && (
             <button
               type="button"
               onClick={onCancel}
               disabled={isLoading}
               className={`px-5 py-2.5 rounded-xl ${activeCancelBtn} disabled:opacity-50 text-sm font-extrabold`}
             >
-              {cancelText}
+              {resolvedCancelText}
             </button>
           )}
           <button
@@ -147,7 +152,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             ) : (
               <FiCheck className="w-4 h-4" />
             )}
-            <span>{confirmText}</span>
+            <span>{resolvedConfirmText}</span>
           </button>
         </div>
       </div>

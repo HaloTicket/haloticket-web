@@ -195,9 +195,9 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
     // contextual tier fallback (NEVER "Vé tham gia" or raw UUID)
     if (unitPrice > 0) {
-      return `Hạng vé ${unitPrice.toLocaleString("vi-VN")} đ`;
+      return `${t("Hạng vé")} ${unitPrice.toLocaleString("vi-VN")} đ`;
     }
-    return "Hạng vé tiêu chuẩn";
+    return t("Hạng vé tiêu chuẩn");
   };
 
   if (!isOpen || !order) return null;

@@ -18,7 +18,7 @@ interface LoginProps {
 }
 
 export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
-  useTranslation();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const isSessionExpired = searchParams.get("session_expired") === "true";
   const [email, setEmail] = useState("");
@@ -33,7 +33,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
     try {
       await onSubmit({ email: email.trim(), password });
     } catch (submitError) {
-      setError(getAuthErrorMessage(submitError, "Không thể đăng nhập. Vui lòng thử lại."));
+      setError(getAuthErrorMessage(submitError, t("Không thể đăng nhập. Vui lòng thử lại.")));
     } finally {
       setIsSubmitting(false);
     }
@@ -42,14 +42,14 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   return (
     <section className="auth-panel auth-panel--login">
       <div className="auth-heading">
-        <h1 className="auth-title">{translate("Đăng nhập")}</h1>
-        <p className="auth-subtitle">{translate("Chào mừng bạn quay trở lại!")}</p>
+        <h1 className="auth-title">{t("Đăng nhập")}</h1>
+        <p className="auth-subtitle">{t("Chào mừng bạn quay trở lại!")}</p>
       </div>
 
       {isSessionExpired && (
         <div className="mb-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-2">
           <FiAlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-          <span>Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.</span>
+          <span>{t("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.")}</span>
         </div>
       )}
 

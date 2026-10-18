@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { adminConfigApi } from "@/services/adminConfigApi";
 
@@ -18,7 +17,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
   currentLocation = "Toàn quốc",
   currentCategory = "Tất cả"
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [selectedLocation, setSelectedLocation] = useState<string>(currentLocation);
   const [isFree, setIsFree] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>(currentCategory);

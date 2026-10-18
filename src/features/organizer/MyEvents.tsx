@@ -164,10 +164,10 @@ export const MyEvents: React.FC = () => {
   const myEventsOnly = eventsList.filter(isMyEvent);
 
   const tabs: Array<{ id: MyEventTab; label: string; count: number }> = [
-    { id: "upcoming", label: "Sắp tới", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "upcoming").length },
-    { id: "past", label: "Đã qua", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "past").length },
-    { id: "pending", label: "Chờ duyệt", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "pending").length },
-    { id: "draft", label: "Nháp", count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "draft").length }
+    { id: "upcoming", label: translate("Sắp tới"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "upcoming").length },
+    { id: "past", label: translate("Đã qua"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "past").length },
+    { id: "pending", label: translate("Chờ duyệt"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "pending").length },
+    { id: "draft", label: translate("Nháp"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "draft").length }
   ];
 
   const filteredEvents = myEventsOnly.filter((ev) => {
@@ -287,7 +287,7 @@ export const MyEvents: React.FC = () => {
           <div className="space-y-4">
             {paginatedEvents.map((ev, idx) => {
               const eventImg = ev.bannerUrl || ev.thumbnailUrl || ev.posterImage || ev.image || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80";
-              const eventDate = ev.date || ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleString(getLocale(), { dateStyle: "full", timeStyle: "short" }) : "Sắp diễn ra");
+              const eventDate = ev.date || ev.datesSummary || (ev.startTime ? new Date(ev.startTime).toLocaleString(getLocale(), { dateStyle: "full", timeStyle: "short" }) : translate("Sắp diễn ra"));
               const locationParts = [ev.locationName, ev.address, ev.ward, ev.city].filter(Boolean);
               const eventLocation = locationParts.length > 0 ? locationParts.join(", ") : (ev.location || translate("Sự kiện trực tuyến"));
 
@@ -315,7 +315,7 @@ export const MyEvents: React.FC = () => {
                             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all shrink-0"
                           >
                             <FiGrid className="w-3.5 h-3.5" />
-                            Quản trị sự kiện
+                            {translate("Quản trị sự kiện")}
                           </Link>
                         )}
                       </div>

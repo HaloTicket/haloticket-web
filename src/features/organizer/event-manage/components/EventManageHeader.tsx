@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/hooks/useTheme";
@@ -39,6 +40,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   eventData,
   onOpenSidebar
 }) => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
@@ -129,15 +131,15 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   // dynamic header title based on current tab route path
   const getHeaderTitle = () => {
     const p = location.pathname;
-    if (p.endsWith("/overview")) return "Phân tích & Báo cáo sự kiện";
-    if (p.endsWith("/orders")) return "Danh sách đơn hàng";
-    if (p.endsWith("/checkin")) return "Check-in soát vé";
-    if (p.endsWith("/members")) return "Thành viên Ban tổ chức";
-    if (p.endsWith("/vouchers")) return "Mã giảm giá (Voucher)";
-    if (p.endsWith("/seating")) return "Sơ đồ ghế & Khán phòng";
-    if (p.endsWith("/transfers")) return "Chuyển nhượng vé";
-    if (p.endsWith("/edit")) return "Chỉnh sửa thông tin sự kiện";
-    return eventData?.title || "Quản trị sự kiện";
+    if (p.endsWith("/overview")) return t("Phân tích & Báo cáo sự kiện");
+    if (p.endsWith("/orders")) return t("Danh sách đơn hàng");
+    if (p.endsWith("/checkin")) return t("Check-in soát vé");
+    if (p.endsWith("/members")) return t("Thành viên Ban tổ chức");
+    if (p.endsWith("/vouchers")) return t("Mã giảm giá (Voucher)");
+    if (p.endsWith("/seating")) return t("Sơ đồ ghế & Khán phòng");
+    if (p.endsWith("/transfers")) return t("Chuyển nhượng vé");
+    if (p.endsWith("/edit")) return t("Chỉnh sửa thông tin sự kiện");
+    return eventData?.title || t("Quản trị sự kiện");
   };
 
   return (
@@ -146,7 +148,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText="Nhấn để xem chi tiết →"
+        actionText={t("Nhấn để xem chi tiết →")}
         accentColor="blue"
       />
 
@@ -166,7 +168,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             </h1>
             {eventData?.title && (
               <p className="text-[11px] app-text-muted font-medium line-clamp-1">
-                Sự kiện: <span className="font-bold text-blue-600 dark:text-blue-400">{eventData.title}</span>
+                {t("Sự kiện:")} <span className="font-bold text-blue-600 dark:text-blue-400">{eventData.title}</span>
               </p>
             )}
           </div>
@@ -182,7 +184,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 hover:bg-blue-100 transition-all"
             >
               <FiExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Xem trên Web</span>
+              <span className="hidden sm:inline">{t("Xem trên Web")}</span>
             </Link>
           )}
 
@@ -191,7 +193,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             type="button"
             onClick={toggleTheme}
             className="p-2 rounded-xl app-bg-card app-text-main border app-border hover:opacity-80 transition-all cursor-pointer"
-            title={isDark ? "Chuyển sang Chế độ Sáng" : "Chuyển sang Chế độ Tối"}
+            title={isDark ? t("Chuyển sang Chế độ Sáng") : t("Chuyển sang Chế độ Tối")}
           >
             {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
           </button>
@@ -203,8 +205,8 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             onMarkAllAsRead={markAllAsRead}
             onNotificationClick={handleNotificationClick}
             viewAllLink="/organizer/my-events"
-            viewAllText="Xem danh sách Sự kiện →"
-            titleText="Thông báo Ban tổ chức"
+            viewAllText={t("Xem danh sách Sự kiện →")}
+            titleText={t("Thông báo Ban tổ chức")}
           />
 
           {/* User Profile Account Dropdown */}
@@ -221,7 +223,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                   {userInitial}
                 </span>
                 <span className="hidden sm:inline">
-                  {userProfile?.fullName || "Tài khoản"}
+                  {userProfile?.fullName || t("Tài khoản")}
                 </span>
                 <FiChevronDown
                   className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${
@@ -241,7 +243,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
               >
                 <div className="app-bg-card border app-border rounded-2xl p-2 shadow-2xl space-y-1 app-text-main animate-in zoom-in-95">
                   <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                    Cá nhân
+                    {t("Cá nhân")}
                   </div>
 
                   <Link
@@ -250,7 +252,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuTicket className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Vé của tôi</span>
+                    <span>{t("Vé của tôi")}</span>
                   </Link>
 
                   <Link
@@ -259,7 +261,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuUser className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>Thông tin cá nhân</span>
+                    <span>{t("Thông tin cá nhân")}</span>
                   </Link>
 
                   <Link
@@ -268,13 +270,13 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors w-full text-left cursor-pointer"
                   >
                     <LuGem className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>Thẻ thành viên</span>
+                    <span>{t("Thẻ thành viên")}</span>
                   </Link>
 
                   <div className="my-1 border-t app-border" />
 
                   <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider">
-                    Ban Tổ Chức
+                    {t("Ban Tổ Chức")}
                   </div>
 
                   <Link
@@ -283,7 +285,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuCalendarDays className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>Quản lý sự kiện</span>
+                    <span>{t("Quản lý sự kiện")}</span>
                   </Link>
 
                   <Link
@@ -292,7 +294,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span>Doanh thu & Đối soát</span>
+                    <span>{t("Doanh thu & Đối soát")}</span>
                   </Link>
 
                   <Link
@@ -301,7 +303,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                   >
                     <LuBuilding2 className="w-4 h-4 text-purple-500 shrink-0" />
-                    <span>Hồ sơ Ban tổ chức</span>
+                    <span>{t("Hồ sơ Ban tổ chức")}</span>
                   </Link>
 
                   {isAdmin && (
@@ -311,7 +313,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-xs font-bold transition-colors"
                     >
                       <LuBuilding2 className="w-4 h-4 text-purple-600 shrink-0" />
-                      <span>Trang Quản trị Admin</span>
+                      <span>{t("Trang Quản trị Admin")}</span>
                     </Link>
                   )}
 
@@ -323,7 +325,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                     className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 text-xs font-medium transition-colors w-full text-left cursor-pointer"
                   >
                     <LuLogOut className="w-4 h-4 shrink-0" />
-                    <span>Đăng xuất</span>
+                    <span>{t("Đăng xuất")}</span>
                   </button>
                 </div>
               </div>
@@ -333,7 +335,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
               to={PATHS.LOGIN}
               className="text-xs font-bold text-blue-600 hover:underline px-2 py-1"
             >
-              Đăng nhập
+              {t("Đăng nhập")}
             </Link>
           )}
         </div>

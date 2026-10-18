@@ -345,7 +345,7 @@ export function TicketViewer({ ticket, onClose, onResale, onGift }: TicketViewer
             type="button"
             onClick={onClose}
             className="absolute right-3.5 top-3.5 rounded-full bg-slate-950/70 p-2 text-white hover:bg-slate-950 transition cursor-pointer z-10"
-            aria-label="Đóng"
+            aria-label={t("Đóng")}
           >
             <FiX className="h-5 w-5" />
           </button>
@@ -575,6 +575,7 @@ interface MyTicketsProps {
 }
 
 function GiftInvitations() {
+  const { t } = useTranslation();
   const [invitations, setInvitations] = useState<Awaited<ReturnType<typeof marketplaceApi.getMyGiftInvitations>>>([]);
 
   useEffect(() => {
@@ -593,12 +594,12 @@ function GiftInvitations() {
   if (!invitations.length) return null;
 
   return (
-    <section className="space-y-3" aria-label="Lời mời nhận vé">
+    <section className="space-y-3" aria-label={t("Lời mời nhận vé")}>
       {invitations.map((item) => {
         const expireDate = new Date(item.expiresAt);
         const timeStr = !isNaN(expireDate.getTime())
           ? expireDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) +
-            " ngày " +
+            ` ${t("ngày")} ` +
             expireDate.toLocaleDateString("vi-VN")
           : item.expiresAt;
 
@@ -615,19 +616,19 @@ function GiftInvitations() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-200">
-                      Lời mời nhận vé
+                      {t("Lời mời nhận vé")}
                     </span>
                     {item.senderName && (
                       <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        từ {item.senderName}
+                        {t("từ {{name}}", { name: item.senderName })}
                       </span>
                     )}
                   </div>
                   <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                    {item.ticketTypeName ? `Vé sự kiện: ${item.ticketTypeName}` : "Bạn có lời mời nhận vé"}
+                    {item.ticketTypeName ? t("Vé sự kiện: {{name}}", { name: item.ticketTypeName }) : t("Bạn có lời mời nhận vé")}
                   </h2>
                   <p className="mt-0.5 text-xs text-amber-800/90 dark:text-amber-300/80">
-                    Hoàn tất nhận vé trước <span className="font-semibold">{timeStr}</span>
+                    {t("Hoàn tất nhận vé trước")} <span className="font-semibold">{timeStr}</span>
                   </p>
                 </div>
               </div>
@@ -636,7 +637,7 @@ function GiftInvitations() {
                 to={`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(item.sagaId)}`}
                 className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
               >
-                Nhận vé ngay →
+                {t("Nhận vé ngay →")}
               </Link>
             </div>
           </div>

@@ -74,7 +74,7 @@ export function FaceCaptureStep({
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Trình duyệt không hỗ trợ truy cập camera.");
+        throw new Error(t("Trình duyệt không hỗ trợ truy cập camera."));
       }
 
       let stream: MediaStream;
@@ -108,19 +108,19 @@ export function FaceCaptureStep({
       const error = err as { name?: string; message?: string };
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         setCameraError(
-          "Quyền truy cập Camera bị từ chối. Vui lòng cho phép trên trình duyệt hoặc quét mã QR để mở trên điện thoại."
+          t("Quyền truy cập Camera bị từ chối. Vui lòng cho phép trên trình duyệt hoặc quét mã QR để mở trên điện thoại.")
         );
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
         setCameraError(
-          "Không tìm thấy thiết bị Camera trên máy tính. Bạn có thể sử dụng điện thoại bằng cách quét mã QR."
+          t("Không tìm thấy thiết bị Camera trên máy tính. Bạn có thể sử dụng điện thoại bằng cách quét mã QR.")
         );
       } else {
         setCameraError(
-          error.message || "Không thể khởi động Camera. Vui lòng kiểm tra lại thiết bị hoặc dùng điện thoại."
+          error.message ? t(error.message) : t("Không thể khởi động Camera. Vui lòng kiểm tra lại thiết bị hoặc dùng điện thoại.")
         );
       }
     }
-  }, [stopCamera]);
+  }, [stopCamera, t]);
 
   // When component unmounts or becomes inactive, stop any active camera stream
   useEffect(() => {
@@ -238,7 +238,7 @@ export function FaceCaptureStep({
             <div className="relative w-56 h-72 sm:w-64 sm:h-80 rounded-xl overflow-hidden border-2 border-emerald-500 bg-slate-950 flex items-center justify-center shadow-md">
               <img
                 src={previewUrl}
-                alt="Ảnh khuôn mặt đã chụp"
+                alt={t("Ảnh khuôn mặt đã chụp")}
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-2.5 right-2.5 bg-emerald-600 text-white rounded-full p-1 shadow-sm">

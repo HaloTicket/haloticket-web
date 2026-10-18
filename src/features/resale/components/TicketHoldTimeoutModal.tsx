@@ -1,4 +1,5 @@
 import { FiBell } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 export interface TicketHoldTimeoutModalProps {
   open: boolean;
@@ -11,11 +12,16 @@ export interface TicketHoldTimeoutModalProps {
 export const TicketHoldTimeoutModal = ({
   open,
   onReset,
-  title = "Hết thời gian giữ vé!",
-  message = "Đã hết thời gian giữ vé. Vui lòng đặt lại vé mới.",
-  buttonText = "Đặt vé mới",
+  title,
+  message,
+  buttonText,
 }: TicketHoldTimeoutModalProps) => {
+  const { t } = useTranslation();
   if (!open) return null;
+
+  const displayTitle = title ?? t("Hết thời gian giữ vé!");
+  const displayMessage = message ?? t("Đã hết thời gian giữ vé. Vui lòng đặt lại vé mới.");
+  const displayButtonText = buttonText ?? t("Đặt vé mới");
 
   return (
     <div
@@ -29,7 +35,7 @@ export const TicketHoldTimeoutModal = ({
           id="ticket-timeout-title"
           className="text-xl font-bold text-slate-900 dark:text-white"
         >
-          {title}
+          {displayTitle}
         </h3>
 
         <div className="my-2 flex justify-center" aria-hidden="true">
@@ -39,7 +45,7 @@ export const TicketHoldTimeoutModal = ({
         </div>
 
         <p className="mx-auto max-w-[260px] text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300">
-          {message}
+          {displayMessage}
         </p>
 
         <button
@@ -47,7 +53,7 @@ export const TicketHoldTimeoutModal = ({
           onClick={onReset}
           className="mt-4 w-full cursor-pointer rounded-full bg-blue-500 py-3.5 px-6 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-600 active:scale-[0.99]"
         >
-          {buttonText}
+          {displayButtonText}
         </button>
       </div>
     </div>

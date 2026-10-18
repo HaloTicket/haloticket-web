@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { PATHS } from "@/routes/paths";
 import { FiShield, FiArrowRight, FiX } from "react-icons/fi";
 
@@ -9,6 +10,7 @@ interface EkycRequiredModalProps {
 }
 
 export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -17,6 +19,7 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label={t("Đóng")}
           className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         >
           <FiX className="w-5 h-5" />
@@ -28,9 +31,9 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
             <FiShield className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-lg font-bold app-text-main">Yêu cầu xác thực danh tính (eKYC)</h3>
+            <h3 className="text-lg font-bold app-text-main">{t("Yêu cầu xác thực danh tính (eKYC)")}</h3>
             <p className="text-xs app-text-muted mt-1 leading-relaxed">
-              Để bảo vệ quyền lợi ban tổ chức và người mua vé, bạn cần xác thực CCCD trước khi tạo sự kiện mới.
+              {t("Để bảo vệ quyền lợi ban tổ chức và người mua vé, bạn cần xác thực CCCD trước khi tạo sự kiện mới.")}
             </p>
           </div>
         </div>
@@ -39,15 +42,15 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border app-border space-y-2 text-xs">
           <div className="flex items-center gap-2.5 app-text-main font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-            <span>Mở khóa quyền phát hành & tạo sự kiện</span>
+            <span>{t("Mở khóa quyền phát hành & tạo sự kiện")}</span>
           </div>
           <div className="flex items-center gap-2.5 app-text-main font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-            <span>Thiết lập tài khoản nhận doanh thu bán vé chính chủ</span>
+            <span>{t("Thiết lập tài khoản nhận doanh thu bán vé chính chủ")}</span>
           </div>
           <div className="flex items-center gap-2.5 app-text-main font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-            <span>Tăng độ tin cậy và huy hiệu Ban tổ chức uy tín</span>
+            <span>{t("Tăng độ tin cậy và huy hiệu Ban tổ chức uy tín")}</span>
           </div>
         </div>
 
@@ -57,13 +60,13 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
             onClick={onClose}
             className="px-4 py-2.5 rounded-xl border app-border text-xs font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            Quay lại
+            {t("Quay lại")}
           </button>
           <Link
             to={`${PATHS.PROFILE}?tab=ekyc`}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer"
           >
-            <span>Xác thực eKYC ngay</span>
+            <span>{t("Xác thực eKYC ngay")}</span>
             <FiArrowRight className="w-4 h-4" />
           </Link>
         </div>

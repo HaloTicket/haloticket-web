@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { FiArrowUp } from "react-icons/fi";
 
 export const ScrollToTop: React.FC = () => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {

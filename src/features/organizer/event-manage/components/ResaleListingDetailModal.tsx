@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FiAlertCircle, FiTrash2 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { AdminModal } from "@/components/admin/AdminModal";
 import type { OrganizerListingItem } from "@/types/eventTransfer";
 import { TransferDetailRow as Row, TransferRecordSummary, TransferStatus, transferDate, transferMoney, type TransferEventInfo } from "./TransferRecordDetails";
@@ -11,6 +12,7 @@ interface ResaleListingDetailModalProps extends TransferEventInfo {
   onModerate?: (listingId: string, action: "APPROVE" | "REJECT", reason?: string) => Promise<void> | void;
 }
 export function ResaleListingDetailModal({ isOpen, onClose, listing, eventTitle, eventThumbnail, serviceFeePercent, maxPricePercent, onDelist, onModerate, isModerationMode }: ResaleListingDetailModalProps) {
+  const { t } = useTranslation();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -31,39 +33,40 @@ export function ResaleListingDetailModal({ isOpen, onClose, listing, eventTitle,
       if (moderate) await onModerate!(listing.listingId, decision, reason.trim());
       else if (onDelist) await onDelist(listing.listingId);
       onClose();
-    } catch (cause) { setError((cause as { response?: { data?: { message?: string } } })?.response?.data?.message || "Chưa gửi được yêu cầu. Vui lòng thử lại."); }
+    } catch (cause) { setError((cause as { response?: { data?: { message?: string } } })?.response?.data?.message || t("Chưa gửi được yêu cầu. Vui lòng thử lại.")); }
     finally { setBusy(false); }
   };
-  return <AdminModal title={moderate ? "Duyệt tin đăng bán lại" : "Chi tiết tin đăng bán lại"} onClose={onClose} pending={busy} maxWidth="lg">
+  return <AdminModal title={moderate ? t("Duyệt tin đăng bán lại") : t("Chi tiết tin đăng bán lại")} onClose={onClose} pending={busy} maxWidth="lg">
     <div className="transfer-detail">
       <TransferRecordSummary eventTitle={eventTitle} eventThumbnail={eventThumbnail} type={listing.ticketTypeName} quantity={listing.quantity} ticketIds={listing.ticketIds} />
       <dl>
-        <Row label="Mã tin đăng"><strong>{listing.refCode}</strong></Row>
-        <Row label="Giá gốc">{transferMoney(original)}</Row>
-        <Row label="Giá đăng bán"><strong className="app-text-brand">{transferMoney(listing.price)}{percentage != null ? " (" + percentage + "%)" : ""}</strong></Row>
-        {ceiling != null && <Row label="Giá trần cho phép">{transferMoney(ceiling)}{over && <span className="transfer-status transfer-status-danger">Vượt giá trần</span>}</Row>}
-        <Row label="Phí dịch vụ (cho người bán)">{feePercent + "% (" + transferMoney(fee) + ")"}</Row>
-        <Row label="Số tiền nhận được (ước tính / vé)"><strong>{transferMoney(listing.price - fee)}</strong></Row>
-        {listing.seatCode && <Row label="Khu vực / Ghế">{listing.seatCode}</Row>}
-        <Row label="Người đăng">{listing.sellerEmailMasked}</Row>
-        <Row label="Thời gian đăng">{transferDate(listing.createdAt)}</Row>
-        <Row label="Trạng thái"><TransferStatus status={listing.status} /></Row>
-        {listing.moderationReason && <Row label="Lý do duyệt / từ chối">{listing.moderationReason}</Row>}
+        <Row label={t("Mã tin đăng")}><strong>{listing.refCode}</strong></Row>
+        <Row label={t("Giá gốc")}>{transferMoney(original)}</Row>
+        <Row label={t("Giá đăng bán")}><strong className="app-text-brand">{transferMoney(listing.price)}{percentage != null ? " (" + percentage + "%)" : ""}</strong></Row>
+        {ceiling != null && <Row label={t("Giá trần cho phép")}>{transferMoney(ceiling)}{over && <span className="transfer-status transfer-status-danger">{t("Vượt giá trần")}</span>}</Row>}
+        <Row label={t("Phí dịch vụ (cho người bán)")}>{feePercent + "% (" + transferMoney(fee) + ")"}</Row>
+        <Row label={t("Số tiền nhận được (ước tính / vé)")}><strong>{transferMoney(listing.price - fee)}</strong></Row>
+        {listing.seatCode && <Row label={t("Khu vực / Ghế")}>{listing.seatCode}</Row>}
+        <Row label={t("Người đăng")}>{listing.sellerEmailMasked}</Row>
+        <Row label={t("Thời gian đăng")}>{transferDate(listing.createdAt)}</Row>
+        <Row label={t("Trạng thái")}><TransferStatus status={listing.status} /></Row>
+        {listing.moderationReason && <Row label={t("Lý do duyệt / từ chối")}>{listing.moderationReason}</Row>}
       </dl>
-      {moderate && <fieldset className="transfer-moderation"><legend>Hành động</legend>
-        <label><input type="radio" checked={decision === "APPROVE"} onChange={() => setDecision("APPROVE")} />Phê duyệt</label>
-        <label><input type="radio" checked={decision === "REJECT"} onChange={() => setDecision("REJECT")} />Từ chối</label>
-        {decision === "REJECT" && <textarea aria-label="Lý do từ chối" placeholder="Nhập lý do từ chối (bắt buộc)" value={reason} onChange={e => setReason(e.target.value)} />}
+      {moderate && <fieldset className="transfer-moderation"><legend>{t("Hành động")}</legend>
+        <label><input type="radio" checked={decision === "APPROVE"} onChange={() => setDecision("APPROVE")} />{t("Phê duyệt")}</label>
+        <label><input type="radio" checked={decision === "REJECT"} onChange={() => setDecision("REJECT")} />{t("Từ chối")}</label>
+        {decision === "REJECT" && <textarea aria-label={t("Lý do từ chối")} placeholder={t("Nhập lý do từ chối (bắt buộc)")} value={reason} onChange={e => setReason(e.target.value)} />}
       </fieldset>}
-      {confirm && <div className="transfer-confirm"><strong>Gỡ tin đăng {listing.refCode}?</strong><p>Tin đăng sẽ dừng bán và hệ thống xử lý mở khóa vé cho người bán.</p>
-        <div className="flex gap-2"><button type="button" className="transfer-button" disabled={busy} onClick={() => setConfirm(false)}>Hủy</button><button type="button" className="transfer-button transfer-button-danger" disabled={busy} onClick={submit}>{busy ? "Đang xử lý…" : "Xác nhận gỡ"}</button></div>
+      {confirm && <div className="transfer-confirm"><strong>{t("Gỡ tin đăng {{code}}?", { code: listing.refCode })}</strong><p>{t("Tin đăng sẽ dừng bán và hệ thống xử lý mở khóa vé cho người bán.")}</p>
+        <div className="flex gap-2"><button type="button" className="transfer-button" disabled={busy} onClick={() => setConfirm(false)}>{t("Hủy")}</button><button type="button" className="transfer-button transfer-button-danger" disabled={busy} onClick={submit}>{busy ? t("Đang xử lý…") : t("Xác nhận gỡ")}</button></div>
       </div>}
       {error && <p role="alert" className="transfer-error"><FiAlertCircle />{error}</p>}
       <footer className="transfer-detail-footer">
-        {!moderate && onDelist && ["ACTIVE", "PAUSED_BY_EVENT"].includes(listing.status) && <button type="button" className="transfer-button transfer-button-danger" disabled={busy} onClick={() => setConfirm(true)}><FiTrash2 />Gỡ tin đăng</button>}
-        <button type="button" className="transfer-button ml-auto" disabled={busy} onClick={onClose}>{moderate ? "Hủy" : "Đóng"}</button>
-        {moderate && <button type="button" className="transfer-button transfer-button-primary" disabled={busy || (decision === "REJECT" && !reason.trim())} onClick={submit}>{busy ? "Đang xử lý…" : "Xác nhận"}</button>}
+        {!moderate && onDelist && ["ACTIVE", "PAUSED_BY_EVENT"].includes(listing.status) && <button type="button" className="transfer-button transfer-button-danger" disabled={busy} onClick={() => setConfirm(true)}><FiTrash2 />{t("Gỡ tin đăng")}</button>}
+        <button type="button" className="transfer-button ml-auto" disabled={busy} onClick={onClose}>{moderate ? t("Hủy") : t("Đóng")}</button>
+        {moderate && <button type="button" className="transfer-button transfer-button-primary" disabled={busy || (decision === "REJECT" && !reason.trim())} onClick={submit}>{busy ? t("Đang xử lý…") : t("Xác nhận")}</button>}
       </footer>
     </div>
   </AdminModal>;
 }
+export default ResaleListingDetailModal;

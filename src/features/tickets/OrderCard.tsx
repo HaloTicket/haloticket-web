@@ -30,13 +30,15 @@ export interface OrderCardProps {
   onGift?: (ticket: TicketItem) => void;
 }
 
-function parseOrderDate(value?: string) {
+function parseOrderDate(value?: string, t?: (k: string, opt?: Record<string, unknown>) => string) {
   const date = value ? new Date(value) : null;
+  const defaultMonth = t ? t("THÁNG {{m}}", { m: "09" }) : "THÁNG 09";
   if (!date || Number.isNaN(date.getTime())) {
-    return { day: "30", month: "THÁNG 09", year: "2026" };
+    return { day: "30", month: defaultMonth, year: "2026" };
   }
   const day = new Intl.DateTimeFormat("vi-VN", { day: "2-digit" }).format(date);
-  const month = `THÁNG ${new Intl.DateTimeFormat("vi-VN", { month: "2-digit" }).format(date)}`;
+  const m = new Intl.DateTimeFormat("vi-VN", { month: "2-digit" }).format(date);
+  const month = t ? t("THÁNG {{m}}", { m }) : `THÁNG ${m}`;
   const year = String(date.getFullYear());
   return { day, month, year };
 }
@@ -53,7 +55,7 @@ export function OrderCard({
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const date = parseOrderDate(order.eventStartsAt);
+  const date = parseOrderDate(order.eventStartsAt, t);
   const orderUrl = PATHS.ORDER_DETAIL(order.bookingCode);
   const seats = order.tickets.map((tk) => tk.seatName).filter(Boolean).join(", ");
   const firstTicket = order.tickets[0];

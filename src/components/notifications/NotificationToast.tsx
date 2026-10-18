@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { toast as sonnerToast } from "sonner";
 import type { NotificationItem } from "@/types";
 import { claimNotificationToast } from "@/utils/notificationToastSession";
@@ -34,10 +35,12 @@ export function NotificationToast({
   toast,
   onToastClick,
   onClose,
-  actionText = "Xem chi tiết",
+  actionText,
   accentColor = "blue",
   enabled = true,
 }: NotificationToastProps) {
+  const { t } = useTranslation();
+  const effectiveActionText = actionText || t("Xem chi tiết");
   const handlers = useRef({ onToastClick, onClose });
   const currentToastId = useRef<string | null>(null);
   useEffect(() => { handlers.current = { onToastClick, onClose }; }, [onToastClick, onClose]);
@@ -68,7 +71,7 @@ export function NotificationToast({
           }}
           className="mt-3 w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm active:scale-[0.98] cursor-pointer"
         >
-          {actionText}
+          {effectiveActionText}
         </button>
       </div>
     ), {
@@ -77,7 +80,7 @@ export function NotificationToast({
       onDismiss: closeCurrent,
       onAutoClose: closeCurrent,
     });
-  }, [toast, actionText, accentColor, enabled]);
+  }, [toast, effectiveActionText, accentColor, enabled]);
 
   return null;
 }

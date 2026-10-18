@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useMemo, useState } from "react";
 import { FiCalendar, FiMapPin, FiShare2, FiArrowLeft } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
@@ -15,7 +14,7 @@ interface EventHeroProps {
 }
 
 export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, isResaleTag = false }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const navigate = useNavigate();
   const [imageLoaded, setImageLoaded] = useState(false);
 

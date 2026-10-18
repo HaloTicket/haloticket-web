@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiTrendingUp, FiClock, FiCalendar, FiMapPin, FiChevronRight, FiTrash2 } from "react-icons/fi";
@@ -22,7 +21,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   onClose,
   onSelectKeyword
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [activeTab, setActiveTab] = useState<"category" | "city">("category");
   const [history, setHistory] = useState<string[]>(() => getSearchHistory());
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);

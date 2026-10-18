@@ -198,7 +198,7 @@ export const CreateEvent: React.FC = () => {
 
             newShowtimes.push({
               id: Date.now().toString() + Math.random().toString(),
-              name: `Suất ${dayCount}: Ngày ${displayStr}`,
+              name: `${translate("Suất")} ${dayCount}: ${translate("Ngày")} ${displayStr}`,
               startTime: stStr,
               endTime: etStr,
               saleStartTime: "",
@@ -213,7 +213,7 @@ export const CreateEvent: React.FC = () => {
           
           newShowtimes.push({
             id: Date.now().toString(),
-            name: "Suất 1",
+            name: translate("Suất 1"),
             startTime: startStr,
             endTime: endStr,
             saleStartTime: "",
@@ -522,7 +522,7 @@ export const CreateEvent: React.FC = () => {
     setCurrentStep(1);
     setAutoSaveStatus(null);
     setLastSavedAt(null);
-    setDraftSavedToast("Đã xóa nháp và làm mới trang tạo sự kiện.");
+    setDraftSavedToast(translate("Đã xóa nháp và làm mới trang tạo sự kiện."));
     setTimeout(() => setDraftSavedToast(null), 3000);
   };
 
@@ -732,8 +732,8 @@ export const CreateEvent: React.FC = () => {
       setLastSavedAt(timeStr);
       setDraftSavedToast(
         eventStatus === "PENDING"
-          ? "Đã lưu cập nhật sự kiện chờ duyệt (PENDING) thành công!"
-          : "Đã lưu bản nháp sự kiện (DRAFT) vào Database thành công!"
+          ? translate("Đã lưu cập nhật sự kiện chờ duyệt (PENDING) thành công!")
+          : translate("Đã lưu bản nháp sự kiện (DRAFT) vào Database thành công!")
       );
       setTimeout(() => setDraftSavedToast(null), 4000);
     } catch (err) {
@@ -746,29 +746,29 @@ export const CreateEvent: React.FC = () => {
   // dynamic step titles
   const stepTitles = enableCustomQuestions
     ? [
-      "1. Thông tin sự kiện",
-      "2. Thời gian & Loại vé",
-      "3. Cài đặt",
-      "4. Thông tin đăng ký",
-      "5. Thông tin thanh toán"
+      translate("1. Thông tin sự kiện"),
+      translate("2. Thời gian & Loại vé"),
+      translate("3. Cài đặt"),
+      translate("4. Thông tin đăng ký"),
+      translate("5. Thông tin thanh toán")
     ]
     : [
-      "1. Thông tin sự kiện",
-      "2. Thời gian & Loại vé",
-      "3. Cài đặt",
-      "4. Thông tin thanh toán"
+      translate("1. Thông tin sự kiện"),
+      translate("2. Thời gian & Loại vé"),
+      translate("3. Cài đặt"),
+      translate("4. Thông tin thanh toán")
     ];
 
   // step validations
   const handleStep1Next = () => {
     const errs: Step1Errors = {};
-    if (!title.trim()) errs.title = "Vui lòng nhập tên sự kiện!";
+    if (!title.trim()) errs.title = translate("Vui lòng nhập tên sự kiện!");
     if (locationType === "offline") {
-      if (!locationName.trim()) errs.locationName = "Vui lòng nhập tên địa điểm tổ chức!";
-      if (!address.trim()) errs.address = "Vui lòng nhập địa điểm (số nhà, tên đường)!";
+      if (!locationName.trim()) errs.locationName = translate("Vui lòng nhập tên địa điểm tổ chức!");
+      if (!address.trim()) errs.address = translate("Vui lòng nhập địa điểm (số nhà, tên đường)!");
     }
-    if (!description.trim()) errs.description = "Vui lòng nhập mô tả chi tiết sự kiện!";
-    if (!organizerName.trim()) errs.organizerName = "Vui lòng nhập tên ban tổ chức!";
+    if (!description.trim()) errs.description = translate("Vui lòng nhập mô tả chi tiết sự kiện!");
+    if (!organizerName.trim()) errs.organizerName = translate("Vui lòng nhập tên ban tổ chức!");
 
     setStep1Errors(errs);
     if (Object.keys(errs).length === 0) {
@@ -779,13 +779,13 @@ export const CreateEvent: React.FC = () => {
 
   const handleStep2Next = () => {
     const errs: Step2Errors = {};
-    if (!startDate) errs.startDate = "Vui lòng chọn thời gian bắt đầu sự kiện!";
-    if (!endDate) errs.endDate = "Vui lòng chọn thời gian kết thúc sự kiện!";
+    if (!startDate) errs.startDate = translate("Vui lòng chọn thời gian bắt đầu sự kiện!");
+    if (!endDate) errs.endDate = translate("Vui lòng chọn thời gian kết thúc sự kiện!");
     if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-      errs.endDate = "Thời gian kết thúc sự kiện phải diễn ra sau thời gian bắt đầu!";
+      errs.endDate = translate("Thời gian kết thúc sự kiện phải diễn ra sau thời gian bắt đầu!");
     }
     if (tickets.length === 0) {
-      errs.tickets = "Vui lòng tạo ít nhất một hạng vé!";
+      errs.tickets = translate("Vui lòng tạo ít nhất một hạng vé!");
     }
 
 
@@ -824,8 +824,8 @@ export const CreateEvent: React.FC = () => {
   const handleAddQuestion = () => {
     const newQ: CustomQuestionItem = {
       id: `q_${Date.now()}`,
-      title: "Câu hỏi dạng văn bản mới",
-      description: "Nhập mô tả cho câu hỏi này",
+      title: translate("Câu hỏi dạng văn bản mới"),
+      description: translate("Nhập mô tả cho câu hỏi này"),
       type: "text",
       isRequired: false
     };
@@ -840,9 +840,9 @@ export const CreateEvent: React.FC = () => {
   // final submit event request
   const handleSubmitApprovalRequest = async () => {
     const errs: Step5Errors = {};
-    if (!accountHolder.trim()) errs.accountHolder = "Vui lòng nhập tên chủ tài khoản!";
-    if (!accountNumber.trim()) errs.accountNumber = "Vui lòng nhập số tài khoản ngân hàng!";
-    if (!bankName.trim()) errs.bankName = "Vui lòng chọn ngân hàng!";
+    if (!accountHolder.trim()) errs.accountHolder = translate("Vui lòng nhập tên chủ tài khoản!");
+    if (!accountNumber.trim()) errs.accountNumber = translate("Vui lòng nhập số tài khoản ngân hàng!");
+    if (!bankName.trim()) errs.bankName = translate("Vui lòng chọn ngân hàng!");
 
     setStep5Errors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -946,17 +946,17 @@ export const CreateEvent: React.FC = () => {
             {autoSaveStatus === "saving" ? (
               <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-extrabold">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                <span>Đang tự động lưu bản nháp...</span>
+                <span>{translate("Đang tự động lưu bản nháp...")}</span>
               </span>
             ) : lastSavedAt ? (
               <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-extrabold">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>Đã tự động lưu nháp DRAFT lúc {lastSavedAt}</span>
+                <span>{translate("Đã tự động lưu nháp DRAFT lúc")} {lastSavedAt}</span>
               </span>
             ) : (
               <span className="flex items-center gap-2 app-text-muted">
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span>Tự động lưu nháp (Auto-Save ON)</span>
+                <span>{translate("Tự động lưu nháp (Auto-Save ON)")}</span>
               </span>
             )}
           </div>
@@ -967,7 +967,7 @@ export const CreateEvent: React.FC = () => {
               onClick={handleClearDraft}
               className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
             >
-              Xóa nháp & Làm mới từ đầu
+              {translate("Xóa nháp & Làm mới từ đầu")}
             </button>
           )}
         </div>

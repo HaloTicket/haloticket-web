@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { FiX, FiCheck } from 'react-icons/fi';
 
 export interface RecipientInfoData {
@@ -56,6 +57,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
   initialData,
   isLoading = false,
 }) => {
+  const { t } = useTranslation();
   const [recipientName, setRecipientName] = useState(initialData?.fullName || '');
   const [countryCode, setCountryCode] = useState('+84');
   const [phone, setPhone] = useState(initialData?.phone || '');
@@ -96,7 +98,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
       <div className="w-full max-w-xl app-bg-card border app-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b app-border bg-slate-500/5">
-          <h3 className="text-base font-black app-text-main">Cập nhật thông tin nhận vé</h3>
+          <h3 className="text-base font-black app-text-main">{t("Cập nhật thông tin nhận vé")}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -112,14 +114,14 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
           {/* Tên người nhận */}
           <div className="space-y-1.5">
             <label className="block text-xs font-extrabold app-text-main">
-              Tên người nhận <span className="text-rose-500">*</span>
+              {t("Tên người nhận")} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="Điền tên người nhận vé"
+              placeholder={t("Điền tên người nhận vé")}
               className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -127,7 +129,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
           {/* Số điện thoại */}
           <div className="space-y-1.5">
             <label className="block text-xs font-extrabold app-text-main">
-              Số điện thoại <span className="text-rose-500">*</span>
+              {t("Số điện thoại")} <span className="text-rose-500">*</span>
             </label>
             <div className="flex items-center gap-2">
               <select
@@ -146,7 +148,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Nhập số điện thoại"
+                placeholder={t("Nhập số điện thoại")}
                 className="flex-1 px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -155,7 +157,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
           {/* Email */}
           <div className="space-y-1.5">
             <label className="block text-xs font-extrabold app-text-main">
-              Email <span className="text-rose-500">*</span>
+              {t("Email")} <span className="text-rose-500">*</span>
             </label>
             <input
               type="email"
@@ -170,12 +172,12 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
           {/* Shipping Address Section */}
           <div className="pt-3 border-t app-border space-y-3">
             <span className="block text-[11px] font-bold app-text-muted italic">
-              Địa chỉ nhận hàng (vui lòng cập nhật khi mua vé cứng)
+              {t("Địa chỉ nhận hàng (vui lòng cập nhật khi mua vé cứng)")}
             </span>
 
             {/* Tỉnh / Thành Phố */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-extrabold app-text-main">Tỉnh/Thành Phố</label>
+              <label className="block text-xs font-extrabold app-text-main">{t("Tỉnh/Thành Phố")}</label>
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
@@ -191,7 +193,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
 
             {/* Phường / Xã */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-extrabold app-text-main">Phường/Xã</label>
+              <label className="block text-xs font-extrabold app-text-main">{t("Phường/Xã")}</label>
               <select
                 value={ward}
                 onChange={(e) => setWard(e.target.value)}
@@ -207,12 +209,12 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
 
             {/* Địa chỉ */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-extrabold app-text-main">Địa chỉ</label>
+              <label className="block text-xs font-extrabold app-text-main">{t("Địa chỉ")}</label>
               <input
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Nhập địa chỉ nhà, số đường..."
+                placeholder={t("Nhập địa chỉ nhà, số đường...")}
                 className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -221,7 +223,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
           {/* Lưu ý */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-extrabold app-text-main">Lưu ý</label>
+              <label className="block text-xs font-extrabold app-text-main">{t("Lưu ý")}</label>
               <span className="text-[10px] app-text-muted font-mono">{note.length} / 50</span>
             </div>
             <input
@@ -229,7 +231,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
               maxLength={50}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Ghi chú thêm (tối đa 50 ký tự)"
+              placeholder={t("Ghi chú thêm (tối đa 50 ký tự)")}
               className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs font-bold focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -242,7 +244,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
               disabled={isLoading}
               className="px-5 py-2.5 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
             >
-              Huỷ bỏ
+              {t("Huỷ bỏ")}
             </button>
             <button
               type="submit"
@@ -250,11 +252,11 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-blue-600/20 cursor-pointer disabled:opacity-60"
             >
               {isLoading ? (
-                <span>Đang kết nối VNPay...</span>
+                <span>{t("Đang kết nối VNPay...")}</span>
               ) : (
                 <>
                   <FiCheck className="w-4 h-4" />
-                  <span>Xác nhận</span>
+                  <span>{t("Xác nhận")}</span>
                 </>
               )}
             </button>

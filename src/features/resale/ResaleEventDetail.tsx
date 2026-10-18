@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FiCalendar, FiCheck, FiChevronDown, FiFilter, FiMapPin } from "react-icons/fi";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import NotificationModal from "@/components/common/NotificationModal";
 import { PATHS } from "@/routes/paths";
@@ -16,14 +17,15 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const formatEventDate = (val?: unknown) => {
-  if (!val) return "Đang cập nhật";
+const formatEventDate = (val: unknown, locale: string, fallback: string) => {
+  if (!val) return fallback;
   const d = new Date(String(val));
   if (isNaN(d.getTime())) return String(val);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day} tháng ${month}, ${year}`;
+  return new Intl.DateTimeFormat(locale.startsWith("vi") ? "vi-VN" : "en-US", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(d);
 };
 
 const formatEventTime = (val?: unknown) => {
@@ -55,6 +57,7 @@ const getListingCode = (listing: TicketListing & { ticketCode?: string | null })
 };
 
 export const ResaleEventDetail = () => {
+  const { t, i18n } = useTranslation();
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Record<string, unknown> | null>(null);
@@ -101,12 +104,12 @@ export const ResaleEventDetail = () => {
         setEvent(eventData);
         setListings(page.content);
       })
-      .catch(() => active && setError("Không thể tải danh sách vé bán lại."))
+      .catch(() => active && setError(t("Không thể tải danh sách vé bán lại.")))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [eventId]);
+  }, [eventId, t]);
 
   const sorted = useMemo(() => {
     let list = [...listings];
@@ -136,16 +139,16 @@ export const ResaleEventDetail = () => {
     navigate(target);
   };
 
-  const eventTitle = String(event?.title ?? "Sự kiện");
-  const venueName = String(event?.venueName ?? event?.locationName ?? "Địa điểm đang cập nhật");
+  const eventTitle = String(event?.title ?? t("Sự kiện"));
+  const venueName = String(event?.venueName ?? event?.locationName ?? t("Địa điểm đang cập nhật"));
   const address = String(event?.address ?? event?.location ?? "");
   const posterImage = String(event?.posterImage ?? event?.thumbnailUrl ?? event?.bannerUrl ?? "");
   const startTime = event?.startTime ? String(event.startTime) : undefined;
   const endTime = event?.endTime ? String(event.endTime) : undefined;
 
   const showtimeString = startTime
-    ? `${formatEventTime(startTime)}${endTime ? ` - ${formatEventTime(endTime)}` : ""}, ${formatEventDate(startTime)}`
-    : "Đang cập nhật thời gian";
+    ? `${formatEventTime(startTime)}${endTime ? ` - ${formatEventTime(endTime)}` : ""}, ${formatEventDate(startTime, i18n.language, t("Đang cập nhật"))}`
+    : t("Đang cập nhật thời gian");
 
   return (
     <>
@@ -154,11 +157,11 @@ export const ResaleEventDetail = () => {
           {/* Breadcrumb */}
           <nav className="mb-5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <Link to="/" className="hover:text-blue-600 transition-colors">
-              Trang chủ
+              {t("Trang chủ")}
             </Link>
             <span>/</span>
             <Link to="/resale-ticket" className="hover:text-blue-600 transition-colors">
-              Vé bán lại
+              {t("Vé bán lại")}
             </Link>
             <span>/</span>
             <span className="max-w-xs truncate font-medium text-slate-700 dark:text-slate-200">
@@ -168,7 +171,7 @@ export const ResaleEventDetail = () => {
 
           {/* Ticket-stub Top Event Banner (Ảnh 2) */}
           <section
-            aria-label="Thông tin sự kiện vé bán lại"
+            aria-label={t("Thông tin sự kiện vé bán lại")}
             className="relative mb-8 overflow-hidden rounded-2xl md:rounded-3xl border app-border bg-slate-900 text-white shadow-xl"
           >
             <div className="relative grid grid-cols-1 md:grid-cols-10 min-h-[280px] md:h-[390px] lg:h-[430px] xl:h-[450px] md:min-h-0">
@@ -176,7 +179,7 @@ export const ResaleEventDetail = () => {
               <div className="flex flex-col justify-between p-6 sm:p-7 lg:p-8 xl:p-9 md:col-span-4 z-10">
                 <div>
                   <span className="inline-flex items-center rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold tracking-wide text-white shadow-sm">
-                    Bán lại vé
+                    {t("Bán lại vé")}
                   </span>
                   <h1 className="mt-3.5 text-xl sm:text-2xl lg:text-3xl font-black leading-snug text-white line-clamp-3">
                     {eventTitle}
@@ -236,7 +239,7 @@ export const ResaleEventDetail = () => {
           <div className="mb-6 flex flex-col gap-4 rounded-2xl border app-border app-bg-card p-4 sm:px-6 sm:py-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                Danh sách vé bán lại
+                {t("Danh sách vé bán lại")}
               </h2>
             </div>
 
@@ -245,14 +248,14 @@ export const ResaleEventDetail = () => {
               <div className="relative" ref={sectionMenuRef}>
                 <button
                   type="button"
-                  aria-label="Lọc theo suất diễn"
+                  aria-label={t("Lọc theo suất diễn")}
                   onClick={() => {
                     setShowSectionMenu((prev) => !prev);
                     setShowFilterMenu(false);
                   }}
-                  className="flex items-center gap-2 rounded-full bg-slate-200/90 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300 dark:bg-[#515158] dark:text-white dark:hover:bg-[#606068] transition-colors shadow-xs"
+                  className="flex items-center gap-2 rounded-full bg-slate-200/90 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300 dark:bg-[#515158] dark:text-white dark:hover:bg-[#606068] transition-colors shadow-xs cursor-pointer"
                 >
-                  <span>{selectedSection === "ALL" ? "Tất cả suất diễn" : selectedSection}</span>
+                  <span>{selectedSection === "ALL" ? t("Tất cả suất diễn") : selectedSection}</span>
                   <FiChevronDown
                     className={`text-xs transition-transform duration-200 ${showSectionMenu ? "rotate-180" : ""}`}
                   />
@@ -266,13 +269,13 @@ export const ResaleEventDetail = () => {
                         setSelectedSection("ALL");
                         setShowSectionMenu(false);
                       }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors ${
+                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors cursor-pointer ${
                         selectedSection === "ALL"
                           ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                           : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-zinc-800"
                       }`}
                     >
-                      <span>Tất cả suất diễn</span>
+                      <span>{t("Tất cả suất diễn")}</span>
                       {selectedSection === "ALL" && <FiCheck className="text-sm shrink-0" />}
                     </button>
                     {uniqueSections.map((sec) => (
@@ -283,7 +286,7 @@ export const ResaleEventDetail = () => {
                           setSelectedSection(sec);
                           setShowSectionMenu(false);
                         }}
-                        className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors ${
+                        className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors cursor-pointer ${
                           selectedSection === sec
                             ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                             : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-zinc-800"
@@ -301,15 +304,15 @@ export const ResaleEventDetail = () => {
               <div className="relative" ref={filterMenuRef}>
                 <button
                   type="button"
-                  aria-label="Bộ lọc sắp xếp"
+                  aria-label={t("Bộ lọc sắp xếp")}
                   onClick={() => {
                     setShowFilterMenu((prev) => !prev);
                     setShowSectionMenu(false);
                   }}
-                  className="flex items-center gap-2 rounded-full bg-slate-200/90 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300 dark:bg-[#515158] dark:text-white dark:hover:bg-[#606068] transition-colors shadow-xs"
+                  className="flex items-center gap-2 rounded-full bg-slate-200/90 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300 dark:bg-[#515158] dark:text-white dark:hover:bg-[#606068] transition-colors shadow-xs cursor-pointer"
                 >
                   <FiFilter className="text-sm shrink-0" />
-                  <span>Bộ lọc</span>
+                  <span>{t("Bộ lọc")}</span>
                   <FiChevronDown
                     className={`text-xs transition-transform duration-200 ${showFilterMenu ? "rotate-180" : ""}`}
                   />
@@ -318,7 +321,7 @@ export const ResaleEventDetail = () => {
                 {showFilterMenu && (
                   <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border app-border app-bg-card p-1.5 shadow-xl z-30">
                     <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Sắp xếp theo giá
+                      {t("Sắp xếp theo giá")}
                     </div>
                     <button
                       type="button"
@@ -326,13 +329,13 @@ export const ResaleEventDetail = () => {
                         setSort("price-asc");
                         setShowFilterMenu(false);
                       }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors ${
+                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors cursor-pointer ${
                         sort === "price-asc"
                           ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                           : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-zinc-800"
                       }`}
                     >
-                      <span>Giá thấp trước</span>
+                      <span>{t("Giá thấp trước")}</span>
                       {sort === "price-asc" && <FiCheck className="text-sm shrink-0" />}
                     </button>
                     <button
@@ -341,13 +344,13 @@ export const ResaleEventDetail = () => {
                         setSort("price-desc");
                         setShowFilterMenu(false);
                       }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors ${
+                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors cursor-pointer ${
                         sort === "price-desc"
                           ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                           : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-zinc-800"
                       }`}
                     >
-                      <span>Giá cao trước</span>
+                      <span>{t("Giá cao trước")}</span>
                       {sort === "price-desc" && <FiCheck className="text-sm shrink-0" />}
                     </button>
                   </div>
@@ -359,7 +362,7 @@ export const ResaleEventDetail = () => {
           {loading && (
             <div className="rounded-2xl border app-border bg-white p-12 text-center text-sm app-text-muted dark:bg-zinc-900">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-              <p className="mt-3 text-sm">Đang tải danh sách vé bán lại…</p>
+              <p className="mt-3 text-sm">{t("Đang tải danh sách vé bán lại…")}</p>
             </div>
           )}
 
@@ -375,27 +378,27 @@ export const ResaleEventDetail = () => {
           {!loading && !error && sorted.length === 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center dark:border-zinc-800 dark:bg-zinc-900">
               <p className="text-base font-bold text-slate-900 dark:text-white">
-                Sự kiện hiện chưa có vé bán lại.
+                {t("Sự kiện hiện chưa có vé bán lại.")}
               </p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Vui lòng quay lại sau hoặc theo dõi cập nhật từ ban tổ chức.
+                {t("Vui lòng quay lại sau hoặc theo dõi cập nhật từ ban tổ chức.")}
               </p>
             </div>
           )}
 
           {/* Ticket Items Grid - Shape & Layout like Ảnh 2, Clickable Entire Ticket */}
           <section
-            aria-label="Danh sách các vé bán lại"
+            aria-label={t("Danh sách các vé bán lại")}
             className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           >
             {sorted.map((listing) => {
               const owner = listing.ownedByCurrentUser === true;
               const quantity = listing.quantity || 1;
               const retail = quantity <= 1 || listing.allowRetail !== false;
-              const tier = listing.ticketTypeName || listing.section || "Tiêu chuẩn";
+              const tier = listing.ticketTypeName || listing.section || t("Tiêu chuẩn");
               const tierColor = getTierColor(tier);
               const listingCode = getListingCode(listing);
-              const eventDateString = formatEventDate(event?.startTime);
+              const eventDateString = formatEventDate(event?.startTime, i18n.language, t("Đang cập nhật"));
               const eventTimeString = formatEventTime(event?.startTime);
 
               return (
@@ -410,12 +413,12 @@ export const ResaleEventDetail = () => {
                       <div className="flex items-center gap-2">
                         <span className={`h-2.5 w-2.5 rounded-full ${tierColor.dot}`} />
                         <span className="text-sm font-black uppercase tracking-wider app-text-main">
-                          {tier} · {quantity} vé
+                          {t("{{tier}} · {{count}} vé", { tier, count: quantity })}
                         </span>
                       </div>
                       {owner && (
                         <span className="rounded-full border border-blue-500/40 bg-blue-900/40 px-2 py-0.5 text-[11px] font-semibold text-blue-300">
-                          Vé của bạn
+                          {t("Vé của bạn")}
                         </span>
                       )}
                     </div>
@@ -440,7 +443,7 @@ export const ResaleEventDetail = () => {
                           retail ? "bg-blue-600" : "bg-indigo-600"
                         }`}
                       >
-                        {retail ? "Bán lẻ" : "Không bán lẻ"}
+                        {retail ? t("Bán lẻ") : t("Không bán lẻ")}
                       </span>
                       <span className="font-mono text-xs font-bold app-text-muted tracking-wider">
                         {listingCode}
@@ -450,12 +453,12 @@ export const ResaleEventDetail = () => {
                     {/* Ticket Details Rows (Image 2 style) */}
                     <div className="mt-4 space-y-2 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="app-text-muted">Số lượng:</span>
+                        <span className="app-text-muted">{t("Số lượng:")}</span>
                         <span className="font-bold app-text-main">{quantity}</span>
                       </div>
 
                       <div className="flex items-start justify-between">
-                        <span className="app-text-muted mt-0.5">Suất diễn:</span>
+                        <span className="app-text-muted mt-0.5">{t("Suất diễn:")}</span>
                         <div className="text-right">
                           <p className="font-bold app-text-main">{eventTimeString}</p>
                           <p className="text-[11px] app-text-muted">{eventDateString}</p>
@@ -463,9 +466,9 @@ export const ResaleEventDetail = () => {
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="app-text-muted">Khu vực:</span>
+                        <span className="app-text-muted">{t("Khu vực:")}</span>
                         <span className="font-bold app-text-main truncate max-w-[120px]">
-                          Khu vực: {listing.section || tier}
+                          {t("Khu vực: {{section}}", { section: listing.section || tier })}
                         </span>
                       </div>
                     </div>
@@ -474,7 +477,7 @@ export const ResaleEventDetail = () => {
                   {/* Price Row (Bottom) */}
                   <div className="mt-5 flex items-center justify-between border-t app-border pt-3">
                     <div>
-                      <span className="text-xs app-text-muted block">Giá bán mỗi vé:</span>
+                      <span className="text-xs app-text-muted block">{t("Giá bán mỗi vé:")}</span>
                       <span className="text-base sm:text-lg font-black text-blue-600 dark:text-blue-400 tracking-tight">
                         {money(listing.price)}
                       </span>
@@ -487,7 +490,7 @@ export const ResaleEventDetail = () => {
                       }}
                       className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 shadow-xs transition-colors cursor-pointer"
                     >
-                      Mua vé
+                      {t("Mua vé")}
                     </button>
                   </div>
                 </article>
@@ -499,19 +502,19 @@ export const ResaleEventDetail = () => {
 
       <NotificationModal
         open={Boolean(loginPrompt)}
-        title="Đăng nhập để mua vé"
-        message="Bạn có thể xem toàn bộ vé bán lại mà không cần đăng nhập. Hãy đăng nhập để giữ vé và tiếp tục thanh toán."
+        title={t("Đăng nhập để mua vé")}
+        message={t("Bạn có thể xem toàn bộ vé bán lại mà không cần đăng nhập. Hãy đăng nhập để giữ vé và tiếp tục thanh toán.")}
         variant="info"
         onClose={() => setLoginPrompt(null)}
         actions={[
           {
-            label: "Đăng nhập",
+            label: t("Đăng nhập"),
             variant: "primary",
             onClick: () => {
               if (loginPrompt) navigate(PATHS.LOGIN, { state: { from: loginPrompt } });
             },
           },
-          { label: "Ở lại trang", variant: "secondary", onClick: () => setLoginPrompt(null) },
+          { label: t("Ở lại trang"), variant: "secondary", onClick: () => setLoginPrompt(null) },
         ]}
       />
     </>

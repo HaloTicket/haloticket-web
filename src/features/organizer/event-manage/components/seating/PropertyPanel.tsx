@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FiSliders,
   FiTag,
@@ -40,6 +41,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onUpdateZoneProps,
   onDeleteSelected,
 }) => {
+  const { t } = useTranslation();
+
   // collapse state declaration
   const [internalIsCollapsed, setInternalIsCollapsed] = useState<boolean>(false);
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
@@ -70,7 +73,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <FiChevronLeft className="w-4 h-4" />
           </button>
           <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-            Mở rộng bảng Thuộc tính
+            {t("Mở rộng bảng Thuộc tính")}
           </span>
         </div>
 
@@ -82,7 +85,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <FiSliders className="w-4 h-4" />
           </div>
           <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-            Thuộc tính phần tử
+            {t("Thuộc tính phần tử")}
           </span>
         </div>
       </aside>
@@ -96,7 +99,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="flex items-center gap-2 truncate">
           <FiSliders className="text-blue-600 w-4 h-4 flex-shrink-0" />
           <h2 className="font-extrabold text-xs app-text-main uppercase tracking-wider truncate">
-            THUỘC TÍNH PHẦN TỬ
+            {t("THUỘC TÍNH PHẦN TỬ")}
           </h2>
         </div>
 
@@ -106,7 +109,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               type="button"
               onClick={onDeleteSelected}
               className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-              title="Nhấn Delete trên bàn phím để xóa"
+              title={t("Nhấn Delete trên bàn phím để xóa")}
             >
               <FiTrash2 className="w-3.5 h-3.5" />
               <span className="text-[10px] font-mono">Del</span>
@@ -117,7 +120,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             type="button"
             onClick={handleToggle}
             className="p-1.5 rounded-lg app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors cursor-pointer"
-            title="Thu gọn bảng thuộc tính"
+            title={t("Thu gọn bảng thuộc tính")}
           >
             <FiChevronRight className="w-4 h-4" />
           </button>
@@ -131,17 +134,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <div className="flex items-center justify-between">
               <span className="font-extrabold app-text-main uppercase text-[11px] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
-                Ghế đang chọn ({selectedSeats.length})
+                {t("Ghế đang chọn")} ({selectedSeats.length})
               </span>
               <span className="font-mono text-[10px] text-blue-500 font-bold">
-                {selectedSeats.length === 1 ? selectedSeats[0].id : 'Nhiều ghế'}
+                {selectedSeats.length === 1 ? selectedSeats[0].id : t('Nhiều ghế')}
               </span>
             </div>
 
             {selectedSeats.length === 1 && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Tên Hàng</label>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Tên Hàng")}</label>
                   <input
                     type="text"
                     value={selectedSeats[0].row}
@@ -150,7 +153,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Số Ghế</label>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Số Ghế")}</label>
                   <input
                     type="number"
                     value={selectedSeats[0].number}
@@ -163,7 +166,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* SEAT STATUS SELECTOR (Ghế BTC, Xe lăn, Bảo trì, Có sẵn) */}
             <div className="space-y-1.5 pt-2 border-t app-border">
-              <label className="block text-[11px] font-bold app-text-muted uppercase">Trạng Thái Ghế</label>
+              <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Trạng Thái Ghế")}</label>
               <div className="grid grid-cols-2 gap-1.5 text-[11px]">
                 <button
                   type="button"
@@ -174,7 +177,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiCheck className="w-3.5 h-3.5" />
-                  <span>Có sẵn</span>
+                  <span>{t("Có sẵn")}</span>
                 </button>
 
                 <button
@@ -186,7 +189,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiLock className="w-3.5 h-3.5" />
-                  <span>Ghế BTC</span>
+                  <span>{t("Ghế BTC")}</span>
                 </button>
 
                 <button
@@ -198,7 +201,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiDisc className="w-3.5 h-3.5" />
-                  <span>Xe lăn</span>
+                  <span>{t("Xe lăn")}</span>
                 </button>
 
                 <button
@@ -210,14 +213,14 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiTool className="w-3.5 h-3.5" />
-                  <span>Bảo trì</span>
+                  <span>{t("Bảo trì")}</span>
                 </button>
               </div>
             </div>
 
             {/* SEAT SHAPE SELECTION */}
             <div className="space-y-1.5 pt-2 border-t app-border">
-              <label className="block text-[11px] font-bold app-text-muted uppercase">Hình Dáng Ghế</label>
+              <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Hình Dáng Ghế")}</label>
               <div className="grid grid-cols-3 gap-1 text-[11px]">
                 <button
                   type="button"
@@ -228,7 +231,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiCircle className="w-3.5 h-3.5" />
-                  <span>Tròn</span>
+                  <span>{t("Tròn")}</span>
                 </button>
 
                 <button
@@ -240,7 +243,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiSquare className="w-3.5 h-3.5" />
-                  <span>Vuông</span>
+                  <span>{t("Vuông")}</span>
                 </button>
 
                 <button
@@ -252,7 +255,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }`}
                 >
                   <FiDisc className="w-3.5 h-3.5" />
-                  <span>Bo góc</span>
+                  <span>{t("Bo góc")}</span>
                 </button>
               </div>
             </div>
@@ -262,7 +265,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-extrabold app-text-main uppercase flex items-center gap-1.5">
                   <FiRotateCw className="text-blue-500" />
-                  Góc xoay ghế
+                  {t("Góc xoay ghế")}
                 </label>
                 <span className="font-mono font-bold text-blue-500 text-xs">{selectedSeats[0]?.rotation || 0}°</span>
               </div>
@@ -295,7 +298,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {selectedSeats.length === 1 && (
               <div className="grid grid-cols-2 gap-2 pt-2 border-t app-border">
                 <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Tọa độ X (px)</label>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Tọa độ X (px)")}</label>
                   <input
                     type="number"
                     value={Math.round(selectedSeats[0].x)}
@@ -304,7 +307,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Tọa độ Y (px)</label>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Tọa độ Y (px)")}</label>
                   <input
                     type="number"
                     value={Math.round(selectedSeats[0].y)}
@@ -318,14 +321,14 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {/* CUSTOM SEAT COLOR */}
             <div className="space-y-1.5 pt-2 border-t app-border">
               <div className="flex items-center justify-between">
-                <label className="block text-[11px] font-bold app-text-muted uppercase">Màu Tùy Chỉnh Ghế</label>
+                <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Màu Tùy Chỉnh Ghế")}</label>
                 {selectedSeats[0]?.color && (
                   <button
                     type="button"
                     onClick={() => onUpdateSeatProps({ color: undefined })}
                     className="text-[10px] text-blue-500 hover:underline cursor-pointer"
                   >
-                    Mặc định màu Zone
+                    {t("Mặc định màu Zone")}
                   </button>
                 )}
               </div>
@@ -344,7 +347,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* CHANGE ZONE CONTAINER */}
             <div className="space-y-1 pt-2 border-t app-border">
-              <label className="block text-[11px] font-bold app-text-muted uppercase">Đổi Khu Vực (Zone)</label>
+              <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Đổi Khu Vực (Zone)")}</label>
               <select
                 value={selectedSeats[0]?.zoneId || ''}
                 onChange={(e) => onUpdateSeatProps({ zoneId: e.target.value })}
@@ -366,13 +369,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <div className="flex items-center justify-between">
               <span className="font-extrabold app-text-main uppercase text-[11px] flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedZone.color }} />
-                Khối Khu Vực: {selectedZone.name}
+                {t("Khối Khu Vực")}: {selectedZone.name}
               </span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Tên Khu Vực</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Tên Khu Vực")}</label>
                 <input
                   type="text"
                   value={selectedZone.name}
@@ -382,20 +385,20 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Text/Tiêu Đề Hiển Thị Giữa Khối</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Text/Tiêu Đề Hiển Thị Giữa Khối")}</label>
                 <input
                   type="text"
                   value={selectedZone.centerText || ''}
                   onChange={(e) => onUpdateZoneProps(selectedZone.id, { centerText: e.target.value })}
                   className="w-full px-3 py-1.5 rounded-lg app-bg-card border app-border font-bold text-xs"
-                  placeholder="Mặc định lấy tên Zone (Ví dụ: KHU VIP A)"
+                  placeholder={t("Mặc định lấy tên Zone (Ví dụ: KHU VIP A)")}
                 />
               </div>
 
               {/* Independent Zone Color Selector */}
               <div className="pt-2 border-t app-border space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-bold app-text-muted uppercase">Màu Khối Zone (Độc Lập)</label>
+                  <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Màu Khối Zone (Độc Lập)")}</label>
                   <input
                     type="color"
                     value={selectedZone.color || '#3b82f6'}
@@ -407,7 +410,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       })
                     }
                     className="w-6 h-6 rounded-md border-0 cursor-pointer p-0 bg-transparent"
-                    title="Tùy chỉnh màu tự do"
+                    title={t("Tùy chỉnh màu tự do")}
                   />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -434,27 +437,27 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
               {/* Capacity for Standalone Zone */}
               <div className="pt-2 border-t app-border">
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Sức Chứa Khối Zone (Khán giả/Vé)</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Sức Chứa Khối Zone (Khán giả/Vé)")}</label>
                 <input
                   type="number"
                   min={1}
                   value={selectedZone.capacity || 100}
                   onChange={(e) => onUpdateZoneProps(selectedZone.id, { capacity: Number(e.target.value) })}
                   className="w-full px-3 py-1.5 rounded-lg app-bg-card border app-border font-bold text-xs"
-                  placeholder="Ví dụ: 500 người"
+                  placeholder={t("Ví dụ: 500 người")}
                 />
               </div>
 
               {/* Zone Shape Selection */}
               <div className="pt-2 border-t app-border space-y-1.5">
-                <label className="block text-[11px] font-bold app-text-muted uppercase">Hình Thù Khối Zone</label>
+                <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Hình Thù Khối Zone")}</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
-                    { id: 'rectangle', label: 'Chữ Nhật' },
-                    { id: 'rounded', label: 'Bo Góc' },
-                    { id: 'ellipse', label: 'H.Tròn/Oval' },
-                    { id: 'trapezoid', label: 'Hình Thang' },
-                    { id: 'fan', label: 'Hình Quạt' },
+                    { id: 'rectangle', label: t('Chữ Nhật') },
+                    { id: 'rounded', label: t('Bo Góc') },
+                    { id: 'ellipse', label: t('H.Tròn/Oval') },
+                    { id: 'trapezoid', label: t('Hình Thang') },
+                    { id: 'fan', label: t('Hình Quạt') },
                   ].map((s) => (
                     <button
                       key={s.id}
@@ -475,7 +478,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <div className="space-y-1.5 pt-2 border-t app-border">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-extrabold app-text-main uppercase flex items-center gap-1.5">
-                    Độ cong / Bo góc Zone
+                    {t("Độ cong / Bo góc Zone")}
                   </label>
                   <span className="font-mono font-bold text-cyan-500 text-xs">{selectedZone.curvature ?? 16}px</span>
                 </div>
@@ -492,7 +495,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               {/* Dimensions */}
               <div className="grid grid-cols-2 gap-2 pt-1 border-t app-border">
                 <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Chiều rộng (px)</label>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Chiều rộng (px)")}</label>
                   <input
                     type="number"
                     value={selectedZone.width || 400}
@@ -501,7 +504,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold app-text-muted mb-1">Chiều cao (px)</label>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Chiều cao (px)")}</label>
                   <input
                     type="number"
                     value={selectedZone.height || 200}
@@ -516,7 +519,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-extrabold app-text-main uppercase flex items-center gap-1.5">
                     <FiRotateCw className="text-cyan-500" />
-                    Góc xoay Zone & Ghế
+                    {t("Góc xoay Zone & Ghế")}
                   </label>
                   <span className="font-mono font-bold text-cyan-500 text-xs">{selectedZone.rotation || 0}°</span>
                 </div>
@@ -547,7 +550,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
               {/* Border style */}
               <div className="pt-2 border-t app-border">
-                <label className="block text-[11px] font-bold app-text-muted mb-1 uppercase">Đường Viền Zone</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1 uppercase">{t("Đường Viền Zone")}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -557,7 +560,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       : 'app-bg-card border-app-border app-text-muted'
                       }`}
                   >
-                    Nét Đứt (Dashed)
+                    {t("Nét Đứt (Dashed)")}
                   </button>
                   <button
                     type="button"
@@ -567,7 +570,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       : 'app-bg-card border-app-border app-text-muted'
                       }`}
                   >
-                    Nét Liền (Solid)
+                    {t("Nét Liền (Solid)")}
                   </button>
                 </div>
               </div>
@@ -576,7 +579,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <div className="space-y-1.5 pt-2 border-t app-border">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-extrabold app-text-main uppercase flex items-center gap-1.5">
-                    Độ Nổi Màu Nền Zone (Fill Opacity)
+                    {t("Độ Nổi Màu Nền Zone (Fill Opacity)")}
                   </label>
                   <span className="font-mono font-bold text-cyan-500 text-xs">
                     {Math.round((selectedZone.fillOpacity ?? 0.25) * 100)}%
@@ -595,7 +598,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
               {/* Color Palette Selection */}
               <div className="space-y-1.5 pt-2 border-t app-border">
-                <label className="block text-[11px] font-bold app-text-muted uppercase">Màu Sắc Khu Vực (Chủ Đạo)</label>
+                <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Màu Sắc Khu Vực (Chủ Đạo)")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PALETTE_COLORS.map((c) => (
                     <button
@@ -617,11 +620,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="p-4 rounded-xl app-bg-main border border-indigo-500/30 space-y-3 shadow-xs">
             <span className="font-extrabold app-text-main uppercase text-[11px] flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-              Sân Khấu: {selectedStage.label}
+              {t("Sân Khấu")}: {selectedStage.label}
             </span>
 
             <div>
-              <label className="block text-[11px] font-bold app-text-muted mb-1">Tên Sân Khấu</label>
+              <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Tên Sân Khấu")}</label>
               <input
                 type="text"
                 value={selectedStage.label}
@@ -632,7 +635,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             <div className="grid grid-cols-2 gap-2 pt-1 border-t app-border">
               <div>
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Chiều rộng (px)</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Chiều rộng (px)")}</label>
                 <input
                   type="number"
                   value={selectedStage.width}
@@ -641,7 +644,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Chiều cao (px)</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Chiều cao (px)")}</label>
                 <input
                   type="number"
                   value={selectedStage.height}
@@ -653,7 +656,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             <div className="space-y-1.5 pt-2 border-t app-border">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold app-text-muted uppercase">Góc Xoay Sân Khấu</label>
+                <label className="text-[11px] font-bold app-text-muted uppercase">{t("Góc Xoay Sân Khấu")}</label>
                 <span className="font-mono font-bold text-indigo-500">{selectedStage.rotation || 0}°</span>
               </div>
               <input
@@ -673,11 +676,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="p-4 rounded-xl app-bg-main border border-rose-500/30 space-y-3 shadow-xs">
             <span className="font-extrabold app-text-main uppercase text-[11px] flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-              Kết Cấu / Lối Đi: {selectedStructure.label}
+              {t("Kết Cấu / Lối Đi")}: {selectedStructure.label}
             </span>
 
             <div>
-              <label className="block text-[11px] font-bold app-text-muted mb-1">Tên Lối Đi</label>
+              <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Tên Lối Đi")}</label>
               <input
                 type="text"
                 value={selectedStructure.label}
@@ -688,7 +691,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             <div className="grid grid-cols-2 gap-2 pt-1 border-t app-border">
               <div>
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Chiều rộng (px)</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Chiều rộng (px)")}</label>
                 <input
                   type="number"
                   value={selectedStructure.width}
@@ -697,7 +700,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold app-text-muted mb-1">Chiều cao (px)</label>
+                <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Chiều cao (px)")}</label>
                 <input
                   type="number"
                   value={selectedStructure.height}
@@ -713,30 +716,30 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         {!selectedSeats.length && !selectedStage && !selectedStructure && !selectedZone && (
           <div className="space-y-1.5">
             <h3 className="font-extrabold text-[11px] app-text-muted uppercase tracking-wider">
-              THỐNG KÊ TRẠNG THÁI GHẾ ({seats.length})
+              {t("THỐNG KÊ TRẠNG THÁI GHẾ")} ({seats.length})
             </h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 rounded-xl app-bg-main border app-border flex items-center justify-between">
                 <span className="text-[11px] font-bold app-text-main flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> Có sẵn
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> {t("Có sẵn")}
                 </span>
                 <span className="font-mono font-bold text-emerald-500">{availableCount}</span>
               </div>
               <div className="p-2.5 rounded-xl app-bg-main border app-border flex items-center justify-between">
                 <span className="text-[11px] font-bold app-text-main flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Ghế BTC
+                  <span className="w-2 h-2 rounded-full bg-amber-500" /> {t("Ghế BTC")}
                 </span>
                 <span className="font-mono font-bold text-amber-500">{btcCount}</span>
               </div>
               <div className="p-2.5 rounded-xl app-bg-main border app-border flex items-center justify-between">
                 <span className="text-[11px] font-bold app-text-main flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-cyan-500" /> Xe lăn
+                  <span className="w-2 h-2 rounded-full bg-cyan-500" /> {t("Xe lăn")}
                 </span>
                 <span className="font-mono font-bold text-cyan-500">{accessibleCount}</span>
               </div>
               <div className="p-2.5 rounded-xl app-bg-main border app-border flex items-center justify-between">
                 <span className="text-[11px] font-bold app-text-main flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" /> Bảo trì
+                  <span className="w-2 h-2 rounded-full bg-rose-500" /> {t("Bảo trì")}
                 </span>
                 <span className="font-mono font-bold text-rose-500">{maintenanceCount}</span>
               </div>
@@ -749,7 +752,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-[11px] app-text-main uppercase tracking-wider flex items-center gap-1.5">
               <FiTag className="text-cyan-500" />
-              <span>DANH SÁCH KHU VỰC ({Object.keys(zones).length})</span>
+              <span>{t("DANH SÁCH KHU VỰC")} ({Object.keys(zones).length})</span>
             </h3>
           </div>
 
@@ -776,10 +779,10 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="px-2 py-0.5 rounded-md app-bg-card border app-border text-[10px] font-bold text-slate-400">
-                      Khối Zone
+                      {t("Khối Zone")}
                     </span>
                     <span className="app-text-muted font-bold">
-                      {seatCountInZone} ghế
+                      {seatCountInZone} {t("ghế")}
                     </span>
                   </div>
                 </div>

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { eventApi } from "@/services/eventApi";
 import { FiClock, FiCalendar, FiActivity, FiTag, FiPauseCircle, FiPlayCircle } from "react-icons/fi";
 import { formatDatetimeLocal } from "@/utils/formatters";
 
 export const EventShowtimes: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   
   const [eventData, setEventData] = useState<any>(null);
@@ -56,24 +58,24 @@ export const EventShowtimes: React.FC = () => {
       };
       
       await eventApi.updateEvent(eventId, updatePayload);
-      alert(action === 'STOP' ? "Đã ngừng bán vé cho suất diễn này" : "Đã mở bán lại vé cho suất diễn này");
+      alert(action === 'STOP' ? t("Đã ngừng bán vé cho suất diễn này") : t("Đã mở bán lại vé cho suất diễn này"));
       fetchEvent();
     } catch (error) {
-      alert("Lỗi khi cập nhật trạng thái suất diễn");
+      alert(t("Lỗi khi cập nhật trạng thái suất diễn"));
     } finally {
       setIsUpdating(null);
     }
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center app-text-muted text-sm font-bold">Đang tải dữ liệu...</div>;
+    return <div className="p-8 text-center app-text-muted text-sm font-bold">{t("Đang tải dữ liệu...")}</div>;
   }
 
   if (!eventData || !eventData.showtimes || eventData.showtimes.length === 0) {
     return (
       <div className="p-8 text-center border app-border rounded-2xl app-bg-card">
         <FiClock className="w-10 h-10 app-text-muted mx-auto mb-3" />
-        <p className="text-sm font-bold app-text-main">Sự kiện này không có suất diễn nào.</p>
+        <p className="text-sm font-bold app-text-main">{t("Sự kiện này không có suất diễn nào.")}</p>
       </div>
     );
   }
@@ -84,10 +86,10 @@ export const EventShowtimes: React.FC = () => {
         <div>
           <h2 className="text-lg font-black app-text-main flex items-center gap-2">
             <FiActivity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <span>Quản lý Suất diễn &amp; Hạng vé</span>
+            <span>{t("Quản lý Suất diễn & Hạng vé")}</span>
           </h2>
           <p className="text-xs app-text-muted font-medium mt-1">
-            Theo dõi trạng thái, số lượng vé còn lại của từng suất diễn.
+            {t("Theo dõi trạng thái, số lượng vé còn lại của từng suất diễn.")}
           </p>
         </div>
       </div>
@@ -121,17 +123,17 @@ export const EventShowtimes: React.FC = () => {
           let canResume = false;
           
           if (!hasAvailableTickets && stTickets.length > 0) {
-             statusLabel = "HẾT VÉ";
+             statusLabel = t("HẾT VÉ");
              statusClass = "bg-slate-100 text-slate-500 border-slate-300 dark:bg-zinc-800 dark:text-slate-400 dark:border-zinc-700";
           } else if (saleEnd && now > saleEnd) {
-             statusLabel = "NGƯNG BÁN ONLINE";
+             statusLabel = t("NGƯNG BÁN ONLINE");
              statusClass = "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/50";
              canResume = true;
           } else if (saleStart && now < saleStart) {
-             statusLabel = "SẮP MỞ BÁN";
+             statusLabel = t("SẮP MỞ BÁN");
              statusClass = "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50";
           } else {
-             statusLabel = "ĐANG BÁN VÉ";
+             statusLabel = t("ĐANG BÁN VÉ");
              statusClass = "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50";
              canStop = true;
           }
@@ -163,7 +165,7 @@ export const EventShowtimes: React.FC = () => {
                       className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <FiPauseCircle className="w-4 h-4" />
-                      <span>Ngừng bán</span>
+                      <span>{t("Ngừng bán")}</span>
                     </button>
                   )}
                   {canResume && (
@@ -173,7 +175,7 @@ export const EventShowtimes: React.FC = () => {
                       className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <FiPlayCircle className="w-4 h-4" />
-                      <span>Mở bán lại</span>
+                      <span>{t("Mở bán lại")}</span>
                     </button>
                   )}
                 </div>
@@ -182,21 +184,21 @@ export const EventShowtimes: React.FC = () => {
               <div className="p-4 md:p-5">
                 <h4 className="text-xs font-extrabold app-text-main uppercase tracking-wider mb-3 flex items-center gap-2">
                   <FiTag className="w-4 h-4 text-purple-500" />
-                  Danh sách hạng vé
+                  {t("Danh sách hạng vé")}
                 </h4>
                 
                 {stTickets.length === 0 ? (
-                  <p className="text-xs font-medium app-text-muted italic">Chưa có hạng vé nào cho suất diễn này.</p>
+                  <p className="text-xs font-medium app-text-muted italic">{t("Chưa có hạng vé nào cho suất diễn này.")}</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead>
                         <tr className="border-b app-border text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800/50">
-                          <th className="px-4 py-3 font-extrabold rounded-tl-xl">Tên hạng vé</th>
-                          <th className="px-4 py-3 font-extrabold">Giá vé</th>
-                          <th className="px-4 py-3 font-extrabold text-right">Tổng vé phát hành</th>
-                          <th className="px-4 py-3 font-extrabold text-right">Đã bán</th>
-                          <th className="px-4 py-3 font-extrabold text-right rounded-tr-xl">Còn lại</th>
+                          <th className="px-4 py-3 font-extrabold rounded-tl-xl">{t("Tên hạng vé")}</th>
+                          <th className="px-4 py-3 font-extrabold">{t("Giá vé")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right">{t("Tổng vé phát hành")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right">{t("Đã bán")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right rounded-tr-xl">{t("Còn lại")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y app-divide">
@@ -212,12 +214,12 @@ export const EventShowtimes: React.FC = () => {
                                 {t.name}
                                 {isSoldOut && (
                                   <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-slate-400">
-                                    Hết vé
+                                    {t("Hết vé")}
                                   </span>
                                 )}
                               </td>
                               <td className="px-4 py-3 font-medium app-text-muted">
-                                {t.isFree ? "Miễn phí" : `${t.price?.toLocaleString("vi-VN")} đ`}
+                                {t.isFree ? t("Miễn phí") : `${t.price?.toLocaleString("vi-VN")} đ`}
                               </td>
                               <td className="px-4 py-3 text-right font-medium app-text-muted">
                                 {initial}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FiArrowLeft, FiCheck, FiClock, FiGift, FiUser, FiX } from "react-icons/fi";
 
 import { eventApi } from "@/services/eventApi";
@@ -10,6 +11,7 @@ import { PATHS } from "@/routes/paths";
 type Invitation = Awaited<ReturnType<typeof marketplaceApi.getGiftInvitation>>;
 
 export default function GiftInvitation() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const sagaId = params.get("sagaId") || "";
   const token = params.get("token") || "";
@@ -32,14 +34,14 @@ export default function GiftInvitation() {
       setState(result.state);
       if (result.eventId) {
         const event = await eventApi.getEventById(result.eventId).catch(() => null);
-        setEventTitle(String(event?.title || "Sự kiện HaloTicket"));
+        setEventTitle(String(event?.title || t("Sự kiện HaloTicket")));
         setEventPoster(String(event?.posterImage || ""));
         setEventLocation(String(event?.locationName || ""));
         if (event?.startTime) setEventTime(new Date(String(event.startTime)).toLocaleString("vi-VN"));
       }
       setLoading(false);
-    }).catch(() => { setError("Lời mời không hợp lệ, đã hết hạn hoặc không thuộc tài khoản của bạn."); setLoading(false); });
-  }, [sagaId, token]);
+    }).catch(() => { setError(t("Lời mời không hợp lệ, đã hết hạn hoặc không thuộc tài khoản của bạn.")); setLoading(false); });
+  }, [sagaId, token, t]);
 
   useEffect(() => {
     if (state !== "WAITING_TRANSFER") return;
@@ -56,14 +58,14 @@ export default function GiftInvitation() {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
             <FiGift className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           </div>
-          <h1 className="text-xl font-bold">Nhận vé được tặng</h1>
-          <p className="mt-2 text-sm app-text-muted">Đăng nhập bằng email nhận lời mời để xem và nhận vé.</p>
+          <h1 className="text-xl font-bold">{t("Nhận vé được tặng")}</h1>
+          <p className="mt-2 text-sm app-text-muted">{t("Đăng nhập bằng email nhận lời mời để xem và nhận vé.")}</p>
           <Link
             onClick={() => sessionStorage.setItem("haloticket_gift_return", window.location.pathname + window.location.search)}
             to={PATHS.LOGIN}
             className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700 transition"
           >
-            Đăng nhập
+            {t("Đăng nhập")}
           </Link>
         </div>
       </main>
@@ -80,9 +82,9 @@ export default function GiftInvitation() {
     } catch (cause) {
       const response = (cause as { response?: { data?: unknown } })?.response?.data;
       const code = JSON.stringify(response ?? (cause instanceof Error ? cause.message : ""));
-      setError(code.includes("EKYC_REQUIRED") ? "Bạn cần hoàn tất eKYC trước khi nhận vé của sự kiện này."
-        : code.includes("EKYC_SERVICE_UNAVAILABLE") ? "Chưa thể kiểm tra eKYC. Lời mời vẫn được giữ nguyên, vui lòng thử lại."
-        : "Không thể nhận vé. Vui lòng kiểm tra lại lời mời hoặc thử lại.");
+      setError(code.includes("EKYC_REQUIRED") ? t("Bạn cần hoàn tất eKYC trước khi nhận vé của sự kiện này.")
+        : code.includes("EKYC_SERVICE_UNAVAILABLE") ? t("Chưa thể kiểm tra eKYC. Lời mời vẫn được giữ nguyên, vui lòng thử lại.")
+        : t("Không thể nhận vé. Vui lòng kiểm tra lại lời mời hoặc thử lại."));
     }
     finally { setBusy(false); }
   };
@@ -97,25 +99,25 @@ export default function GiftInvitation() {
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
             <FiCheck className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">Nhận vé thành công!</h1>
+          <h1 className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{t("Nhận vé thành công!")}</h1>
           <p className="mt-3 text-sm app-text-muted">
-            Bạn đã nhận được vé từ <strong className="app-text-main">{invitation?.senderName || "người tặng"}</strong>.
+            {t("Bạn đã nhận được vé từ")} <strong className="app-text-main">{invitation?.senderName || t("người tặng")}</strong>.
           </p>
           <div className="mt-5 rounded-xl border app-border p-4 text-left">
             <p className="text-sm font-semibold app-text-main">{eventTitle}</p>
             {eventTime && <p className="mt-1 text-xs app-text-muted">{eventTime}</p>}
             <div className="mt-3 flex items-center gap-2 text-xs">
               <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                {invitation?.ticketTypeName || "Vé"}
+                {invitation?.ticketTypeName || t("Vé")}
               </span>
-              {seatLabel && <span className="app-text-muted">Ghế {seatLabel}</span>}
+              {seatLabel && <span className="app-text-muted">{t("Ghế")} {seatLabel}</span>}
             </div>
           </div>
           <Link
             className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700 transition"
             to={PATHS.MY_TICKETS}
           >
-            Xem vé của tôi
+            {t("Xem vé của tôi")}
           </Link>
         </div>
       </main>
@@ -130,12 +132,12 @@ export default function GiftInvitation() {
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
             <FiX className="h-10 w-10 text-rose-600 dark:text-rose-400" />
           </div>
-          <h1 className="text-xl font-bold text-rose-700 dark:text-rose-300">Không thể chuyển vé</h1>
+          <h1 className="text-xl font-bold text-rose-700 dark:text-rose-300">{t("Không thể chuyển vé")}</h1>
           <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">
-            Giao dịch tặng vé không thành công. Vé đã được trả lại cho người tặng.
+            {t("Giao dịch tặng vé không thành công. Vé đã được trả lại cho người tặng.")}
           </p>
           <Link className="mt-6 inline-flex min-h-11 items-center rounded-xl border app-border px-6 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition" to={PATHS.MY_TICKETS}>
-            Về vé của tôi
+            {t("Về vé của tôi")}
           </Link>
         </div>
       </main>
@@ -147,11 +149,11 @@ export default function GiftInvitation() {
       <div className="mx-auto max-w-2xl px-4 py-6 md:py-10">
         {/* Breadcrumb */}
         <nav className="mb-5 flex items-center gap-2 text-xs app-text-muted">
-          <Link to={PATHS.HOME} className="hover:underline">Trang chủ</Link>
+          <Link to={PATHS.HOME} className="hover:underline">{t("Trang chủ")}</Link>
           <span>/</span>
-          <Link to={PATHS.MY_TICKETS} className="hover:underline">Vé của tôi</Link>
+          <Link to={PATHS.MY_TICKETS} className="hover:underline">{t("Vé của tôi")}</Link>
           <span>/</span>
-          <span className="app-text-main font-medium">Nhận vé</span>
+          <span className="app-text-main font-medium">{t("Nhận vé")}</span>
         </nav>
 
         {/* Page title with back button */}
@@ -160,22 +162,22 @@ export default function GiftInvitation() {
             <FiArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold">Lời mời tặng vé</h1>
-            <p className="text-xs app-text-muted">Kiểm tra thông tin trước khi nhận vé</p>
+            <h1 className="text-xl font-bold">{t("Lời mời tặng vé")}</h1>
+            <p className="text-xs app-text-muted">{t("Kiểm tra thông tin trước khi nhận vé")}</p>
           </div>
         </div>
 
         {error && (
           <div role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/20 dark:text-rose-300">
             <FiX className="mt-0.5 h-4 w-4 shrink-0" />
-            <div><p>{error}</p>{error.includes("hoàn tất eKYC") && <Link to={PATHS.EKYC + "?returnUrl=" + encodeURIComponent(PATHS.GIFT_ACCEPT + "?" + params.toString())} className="mt-2 inline-block font-semibold underline">Xác minh eKYC để nhận vé</Link>}</div>
+            <div><p>{error}</p>{error.includes("hoàn tất eKYC") && <Link to={PATHS.EKYC + "?returnUrl=" + encodeURIComponent(PATHS.GIFT_ACCEPT + "?" + params.toString())} className="mt-2 inline-block font-semibold underline">{t("Xác minh eKYC để nhận vé")}</Link>}</div>
           </div>
         )}
 
         {loading ? (
           <div className="rounded-2xl border app-border app-bg-card p-12 text-center">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-            <p className="mt-3 text-sm app-text-muted">Đang tải lời mời…</p>
+            <p className="mt-3 text-sm app-text-muted">{t("Đang tải lời mời…")}</p>
           </div>
         ) : invitation ? (
           <div className="space-y-5">
@@ -193,7 +195,7 @@ export default function GiftInvitation() {
               )}
               {!eventPoster && (
                 <div className="p-5 pb-3">
-                  <h2 className="text-lg font-bold">{eventTitle || "Đang tải sự kiện…"}</h2>
+                  <h2 className="text-lg font-bold">{eventTitle || t("Đang tải sự kiện…")}</h2>
                   {eventTime && <p className="mt-1 text-xs app-text-muted">{eventTime}</p>}
                 </div>
               )}
@@ -204,13 +206,13 @@ export default function GiftInvitation() {
 
             {/* ── Sender Card ── */}
             <div className="rounded-xl border app-border app-bg-card p-4 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider app-text-muted mb-3">Người tặng</p>
+              <p className="text-xs font-semibold uppercase tracking-wider app-text-muted mb-3">{t("Người tặng")}</p>
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
                   <FiUser className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">{invitation.senderName || "Người dùng HaloTicket"}</p>
+                  <p className="text-sm font-semibold">{invitation.senderName || t("Người dùng HaloTicket")}</p>
                   {invitation.message && (
                     <p className="mt-0.5 text-xs app-text-muted italic">"{invitation.message}"</p>
                   )}
@@ -220,29 +222,29 @@ export default function GiftInvitation() {
 
             {/* ── Ticket Details Card ── */}
             <div className="rounded-xl border app-border app-bg-card p-4 sm:p-5">
-              <p className="text-sm font-semibold app-text-muted mb-3">Vé được tặng · {invitation.quantity || 1} vé</p>
+              <p className="text-sm font-semibold app-text-muted mb-3">{t("Vé được tặng · {{count}} vé", { count: invitation.quantity || 1 })}</p>
               {invitation.tickets?.length ? <ul className="divide-y app-border rounded-lg border app-border">
                 {invitation.tickets.map(ticket => <li key={ticket.ticketId} className="flex flex-wrap justify-between gap-2 p-3 text-sm">
-                  <span className="font-semibold">{ticket.ticketTypeName || "Vé"}</span>
-                  <span className="app-text-muted">{ticket.section} · {[ticket.row, ticket.seat].filter(Boolean).join(" · ") || "Vé tự do"}</span>
+                  <span className="font-semibold">{ticket.ticketTypeName || t("Vé")}</span>
+                  <span className="app-text-muted">{ticket.section} · {[ticket.row, ticket.seat].filter(Boolean).join(" · ") || t("Vé tự do")}</span>
                 </li>)}
               </ul> :
               <div className="rounded-lg border app-border p-3 bg-slate-50 dark:bg-slate-800/40">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                    {invitation.ticketTypeName || "Vé"}
+                    {invitation.ticketTypeName || t("Vé")}
                   </span>
-                  {invitation.section && <span className="text-xs app-text-muted">Khu vực: {invitation.section}</span>}
+                  {invitation.section && <span className="text-xs app-text-muted">{t("Khu vực:")} {invitation.section}</span>}
                 </div>
                 {seatLabel && (
-                  <p className="mt-2 text-sm font-semibold">Ghế {seatLabel}</p>
+                  <p className="mt-2 text-sm font-semibold">{t("Ghế")} {seatLabel}</p>
                 )}
               </div>}
 
               <dl className="mt-4 grid grid-cols-[110px_1fr] gap-y-2.5 text-xs">
-                <dt className="app-text-muted">Suất diễn</dt><dd>{eventTime || "Đang cập nhật"}</dd>
-                <dt className="app-text-muted">Địa điểm</dt><dd>{eventLocation || "Đang cập nhật"}</dd>
-                <dt className="app-text-muted">Hết hạn nhận</dt>
+                <dt className="app-text-muted">{t("Suất diễn")}</dt><dd>{eventTime || t("Đang cập nhật")}</dd>
+                <dt className="app-text-muted">{t("Địa điểm")}</dt><dd>{eventLocation || t("Đang cập nhật")}</dd>
+                <dt className="app-text-muted">{t("Hết hạn nhận")}</dt>
                 <dd className="flex items-center gap-1.5">
                   <FiClock className="h-3 w-3 text-amber-500" />
                   {invitation.expiresAt ? new Date(invitation.expiresAt).toLocaleString("vi-VN") : "—"}
@@ -254,11 +256,11 @@ export default function GiftInvitation() {
             {state === "WAITING_RECIPIENT" && (
               <div className="rounded-xl border app-border app-bg-card p-4 sm:p-5 space-y-4">
                 <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-200">
-                  <p className="font-semibold mb-1">Lưu ý quan trọng</p>
+                  <p className="font-semibold mb-1">{t("Lưu ý quan trọng")}</p>
                   <ul className="space-y-1 list-disc list-inside">
-                    <li>Sau khi xác nhận, vé sẽ được chuyển vào tài khoản của bạn.</li>
-                    <li>Vé gốc và mã QR của người tặng sẽ bị vô hiệu hóa.</li>
-                    <li>Giao dịch này không thể hoàn tác.</li>
+                    <li>{t("Sau khi xác nhận, vé sẽ được chuyển vào tài khoản của bạn.")}</li>
+                    <li>{t("Vé gốc và mã QR của người tặng sẽ bị vô hiệu hóa.")}</li>
+                    <li>{t("Giao dịch này không thể hoàn tác.")}</li>
                   </ul>
                 </div>
 
@@ -269,7 +271,7 @@ export default function GiftInvitation() {
                     onChange={(event) => setAccepted(event.target.checked)}
                     className="mt-0.5 h-4 w-4 accent-blue-600"
                   />
-                  <span>Tôi đã kiểm tra thông tin vé và đồng ý nhận vé.</span>
+                  <span>{t("Tôi đã kiểm tra thông tin vé và đồng ý nhận vé.")}</span>
                 </label>
 
                 <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
@@ -277,7 +279,7 @@ export default function GiftInvitation() {
                     to={PATHS.MY_TICKETS}
                     className="flex min-h-11 items-center justify-center rounded-xl border app-border px-5 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition"
                   >
-                    Từ chối
+                    {t("Từ chối")}
                   </Link>
                   <button
                     type="button"
@@ -286,7 +288,7 @@ export default function GiftInvitation() {
                     className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
                   >
                     <FiGift className="h-4 w-4" />
-                    {busy ? "Đang xác nhận…" : "Chấp nhận vé"}
+                    {busy ? t("Đang xác nhận…") : t("Chấp nhận vé")}
                   </button>
                 </div>
               </div>
@@ -295,8 +297,8 @@ export default function GiftInvitation() {
             {state === "WAITING_TRANSFER" && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800/40 dark:bg-blue-950/20 p-5 text-center">
                 <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-                <p className="mt-3 text-sm font-semibold text-blue-700 dark:text-blue-300">Đang chuyển vé và tạo mã QR mới…</p>
-                <p className="mt-1 text-xs app-text-muted">Vui lòng chờ trong giây lát</p>
+                <p className="mt-3 text-sm font-semibold text-blue-700 dark:text-blue-300">{t("Đang chuyển vé và tạo mã QR mới…")}</p>
+                <p className="mt-1 text-xs app-text-muted">{t("Vui lòng chờ trong giây lát")}</p>
               </div>
             )}
           </div>
@@ -307,12 +309,12 @@ export default function GiftInvitation() {
       {showConfirmModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
           <div className="w-full max-w-sm rounded-2xl border app-border app-bg-card p-6 shadow-xl animate-in zoom-in-95 duration-200" role="dialog" aria-modal="true">
-            <h3 className="text-base font-bold">Chấp nhận lời mời?</h3>
+            <h3 className="text-base font-bold">{t("Chấp nhận lời mời?")}</h3>
             <p className="mt-2 text-sm app-text-muted">
-              Bạn sắp nhận vé từ <strong className="app-text-main">{invitation?.senderName || "người tặng"}</strong>.
+              {t("Bạn sắp nhận vé từ")} <strong className="app-text-main">{invitation?.senderName || t("người tặng")}</strong>.
             </p>
             <p className="mt-2 text-xs app-text-muted">
-              Sau khi xác nhận, vé sẽ được chuyển vào tài khoản của bạn và không thể hoàn tác giao dịch này.
+              {t("Sau khi xác nhận, vé sẽ được chuyển vào tài khoản của bạn và không thể hoàn tác giao dịch này.")}
             </p>
             <div className="mt-5 flex justify-end gap-2.5">
               <button
@@ -320,7 +322,7 @@ export default function GiftInvitation() {
                 onClick={() => setShowConfirmModal(false)}
                 className="rounded-xl border app-border px-4 py-2 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition"
               >
-                Hủy
+                {t("Hủy")}
               </button>
               <button
                 type="button"
@@ -328,7 +330,7 @@ export default function GiftInvitation() {
                 disabled={busy}
                 className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition"
               >
-                {busy ? "Đang xử lý…" : "Chấp nhận vé"}
+                {busy ? t("Đang xử lý…") : t("Chấp nhận vé")}
               </button>
             </div>
           </div>

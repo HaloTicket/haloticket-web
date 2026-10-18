@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FiCheckCircle, FiHome } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import { formatCurrency } from "@/utils/formatters";
@@ -17,6 +18,7 @@ interface SuccessTicketInfo extends Partial<OwnedTicketApiResponse> {
 }
 
 export default function BookingSuccess() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [lastTicket, setLastTicket] = useState<SuccessTicketInfo | null>(() => {
     try {
@@ -86,28 +88,28 @@ export default function BookingSuccess() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-black app-text-brand tracking-tight">Đặt vé thành công!</h1>
+          <h1 className="text-2xl font-black app-text-brand tracking-tight">{t("Đặt vé thành công!")}</h1>
           <p className="text-xs app-text-sub">
-            Cảm ơn bạn đã mua vé trên HaloTicket. Vé điện tử đã được phát hành và lưu vào tài khoản của bạn.
+            {t("Cảm ơn bạn đã mua vé trên HaloTicket. Vé điện tử đã được phát hành và lưu vào tài khoản của bạn.")}
           </p>
         </div>
 
         {lastTicket && (
           <div className="p-5 rounded-2xl app-bg-page border app-border text-left space-y-3 font-mono text-xs">
             <div className="flex items-center justify-between border-b app-border pb-2">
-              <span className="app-text-sub">Mã đơn hàng:</span>
+              <span className="app-text-sub">{t("Mã đơn hàng:")}</span>
               <span className="font-bold app-text-brand">{lastTicket.bookingId || lastTicket.id}</span>
             </div>
             <div className="space-y-1">
-              <span className="app-text-sub block text-[11px]">Sự kiện:</span>
+              <span className="app-text-sub block text-[11px]">{t("Sự kiện:")}</span>
               <span className="font-extrabold app-text-main text-sm block leading-snug">{lastTicket.eventTitle}</span>
             </div>
             <div className="flex items-center justify-between pt-1">
-              <span className="app-text-sub">Loại vé:</span>
+              <span className="app-text-sub">{t("Loại vé:")}</span>
               <span className="font-bold app-text-main text-right break-words max-w-[65%]">{lastTicket.ticketTypeName} (x{lastTicket.quantity})</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="app-text-sub">Tổng thanh toán:</span>
+              <span className="app-text-sub">{t("Tổng thanh toán:")}</span>
               <span className="font-black app-text-brand text-sm">{formatCurrency(lastTicket.totalAmount || 0)}</span>
             </div>
           </div>
@@ -120,7 +122,7 @@ export default function BookingSuccess() {
             className="flex-1 py-3.5 rounded-xl gradient-btn text-white font-extrabold text-xs shadow-md hover:scale-105 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <FaTicketAlt className="w-4 h-4" />
-            <span>Xem &quot;Vé của tôi&quot;</span>
+            <span>{t("Xem \"Vé của tôi\"")}</span>
           </button>
           <button
             type="button"
@@ -128,7 +130,7 @@ export default function BookingSuccess() {
             className="flex-1 py-3.5 rounded-xl app-bg-card hover:app-bg-page app-text-main font-extrabold text-xs border app-border hover:border-brand-primary transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <FiHome className="w-4 h-4" />
-            <span>Trang chủ</span>
+            <span>{t("Trang chủ")}</span>
           </button>
         </div>
       </div>

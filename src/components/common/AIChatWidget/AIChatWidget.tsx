@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageCircle, X, Send, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { aiApi } from '../../../services/aiApi';
 import type { AiChatMessage } from '../../../types/ai';
 import AIChatMessage from './AIChatMessage';
 
 const AIChatWidget: React.FC = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<AiChatMessage[]>(() => {
@@ -13,7 +15,7 @@ const AIChatWidget: React.FC = () => {
       try {
         const parsed = JSON.parse(saved);
         return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -21,7 +23,7 @@ const AIChatWidget: React.FC = () => {
       {
         id: '1',
         sender: 'ai',
-        text: 'Xin chào! Mình là trợ lý AI thông minh của HaloTicket. Mình có thể giúp bạn tìm ghế VIP hoặc giải đáp bất kỳ thắc mắc nào!',
+        text: t('Xin chào! Mình là trợ lý AI thông minh của HaloTicket. Mình có thể giúp bạn tìm ghế VIP hoặc giải đáp bất kỳ thắc mắc nào!'),
         timestamp: new Date()
       }
     ];
@@ -77,7 +79,7 @@ const AIChatWidget: React.FC = () => {
       const errorMessage: AiChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: 'Xin lỗi, tôi đang gặp sự cố kết nối tới Server AI. Vui lòng thử lại sau nhé!',
+        text: t('Xin lỗi, tôi đang gặp sự cố kết nối tới Server AI. Vui lòng thử lại sau nhé!'),
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -114,10 +116,10 @@ const AIChatWidget: React.FC = () => {
               <p className="text-xs text-white/80 mt-0.5">Gemini Flash Agent</p>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setIsExpanded(!isExpanded)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors">
+              <button onClick={() => setIsExpanded(!isExpanded)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer" title={isExpanded ? t("Thu nhỏ") : t("Phóng to")}>
                 {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
-              <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors">
+              <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer" title={t("Đóng")}>
                 <X size={20} />
               </button>
             </div>
@@ -125,13 +127,17 @@ const AIChatWidget: React.FC = () => {
 
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto bg-gray-50/50 dark:bg-[#18181b]">
-            {messages.map((msg) => (
-              <AIChatMessage key={msg.id} message={msg} onSendMessage={sendMessage} />
+            {messages.map((msg, index) => (
+              <AIChatMessage 
+                key={msg.id} 
+                message={index === 0 && msg.id === '1' ? { ...msg, text: t('Xin chào! Mình là trợ lý AI thông minh của HaloTicket. Mình có thể giúp bạn tìm ghế VIP hoặc giải đáp bất kỳ thắc mắc nào!') } : msg} 
+                onSendMessage={sendMessage} 
+              />
             ))}
             {isLoading && (
               <div className="flex items-center text-text-muted gap-2 ml-2 mb-4">
                 <Loader2 size={16} className="animate-spin text-brand-primary" />
-                <span className="text-sm italic">AI đang phân tích...</span>
+                <span className="text-sm italic">{t("AI đang phân tích...")}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -149,7 +155,7 @@ const AIChatWidget: React.FC = () => {
                     handleSendMessage();
                   }
                 }}
-                placeholder="Ví dụ: Tìm tôi 2 ghế VVIP..."
+                placeholder={t("Ví dụ: Tìm tôi 2 ghế VVIP...")}
                 className="flex-1 bg-transparent border-none focus:outline-none resize-none max-h-32 text-sm py-1.5 px-2 text-text-main dark:text-white"
                 rows={1}
                 disabled={isLoading}
@@ -157,7 +163,8 @@ const AIChatWidget: React.FC = () => {
               <button
                 onClick={handleSendMessage}
                 disabled={!inputText.trim() || isLoading}
-                className="p-2 gradient-btn text-white rounded-lg disabled:opacity-50 disabled:grayscale hover:brightness-110 transition-all shadow-sm"
+                className="p-2 gradient-btn text-white rounded-lg disabled:opacity-50 disabled:grayscale hover:brightness-110 transition-all shadow-sm cursor-pointer"
+                title={t("Gửi tin nhắn")}
               >
                 <Send size={18} />
               </button>
@@ -171,8 +178,9 @@ const AIChatWidget: React.FC = () => {
         <div className="fixed bottom-24 right-8 z-50">
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`w-12 h-12 rounded-full ${isOpen ? 'bg-gray-500' : 'gradient-btn hover:scale-110'} text-white flex items-center justify-center shadow-xl transition-all duration-300 relative group`}
-            aria-label="Chat với AI"
+            className={`w-12 h-12 rounded-full ${isOpen ? 'bg-gray-500' : 'gradient-btn hover:scale-110'} text-white flex items-center justify-center shadow-xl transition-all duration-300 relative group cursor-pointer`}
+            aria-label={t("Chat với AI")}
+            title={t("Chat với AI")}
           >
             {!isOpen && (
               <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">

@@ -7,6 +7,7 @@ import {
   FiLayers,
   FiShield,
 } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
 import type {
   ToolBarProps,
 } from '@/types/seating';
@@ -22,6 +23,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   onDuplicateSelected,
   onSelectAll,
 }) => {
+  const { t } = useTranslation();
   // Zone Generator modal visibility state
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
 
@@ -35,7 +37,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
             <FiGrid className="w-4 h-4" />
           </div>
           <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-            Thao Tác & Công Cụ
+            {t("Thao Tác & Công Cụ")}
           </span>
         </div>
 
@@ -53,7 +55,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
               <FiCheckSquare className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Tạo Khu Vực (Zone)
+              {t("Tạo Khu Vực (Zone)")}
             </span>
           </div>
         </div>
@@ -65,26 +67,26 @@ export const ToolBar: React.FC<ToolBarProps> = ({
           <div className="relative group w-full flex justify-center">
             <button
               type="button"
-              onClick={() => onAddStage('SÂN KHẤU CHÍNH')}
+              onClick={() => onAddStage(t('SÂN KHẤU CHÍNH'))}
               className="w-9 h-9 rounded-xl app-bg-main hover:app-bg-hover border app-border hover:border-indigo-500/50 text-indigo-500 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
             >
               <FiLayers className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Sân khấu chính
+              {t("Sân khấu chính")}
             </span>
           </div>
 
           <div className="relative group w-full flex justify-center">
             <button
               type="button"
-              onClick={() => onAddStructure('exit', 'LỐI THOÁT HIỂM')}
+              onClick={() => onAddStructure('exit', t('LỐI THOÁT HIỂM'))}
               className="w-9 h-9 rounded-xl app-bg-main hover:app-bg-hover border app-border hover:border-rose-500/50 text-rose-500 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
             >
               <FiShield className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Lối thoát hiểm
+              {t("Lối thoát hiểm")}
             </span>
           </div>
         </div>
@@ -102,7 +104,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
               <FiCheckSquare className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Chọn tất cả ghế
+              {t("Chọn tất cả ghế")}
             </span>
           </div>
 
@@ -116,7 +118,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
               <FiCopy className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Nhân bản phần tử chọn
+              {t("Nhân bản phần tử chọn")}
             </span>
           </div>
 
@@ -129,7 +131,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
               <FiTrash2 className="w-4 h-4" />
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Xóa phần tử chọn
+              {t("Xóa phần tử chọn")}
             </span>
           </div>
         </div>
@@ -148,4 +150,3 @@ export const ToolBar: React.FC<ToolBarProps> = ({
     </>
   );
 };
-

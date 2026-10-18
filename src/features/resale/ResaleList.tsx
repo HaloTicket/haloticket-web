@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiCalendar, FiSearch } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
@@ -15,11 +16,6 @@ type ResaleEvent = ResaleEventSummary & {
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
-
-const formatDate = (value?: string) =>
-  value
-    ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "long", timeStyle: "short" }).format(new Date(value))
-    : "Thời gian đang cập nhật";
 
 function SkeletonCard() {
   return (
@@ -39,11 +35,17 @@ function SkeletonCard() {
 }
 
 export const ResaleList = () => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [events, setEvents] = useState<ResaleEvent[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const formatDate = (value?: string) =>
+    value
+      ? new Intl.DateTimeFormat(i18n.language.startsWith("vi") ? "vi-VN" : "en-US", { dateStyle: "long", timeStyle: "short" }).format(new Date(value))
+      : t("Thời gian đang cập nhật");
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -57,7 +59,7 @@ export const ResaleList = () => {
             const event = await eventApi.getEventById(summary.eventId);
             return {
               ...summary,
-              title: String(event?.title ?? "Sự kiện"),
+              title: String(event?.title ?? t("Sự kiện")),
               startTime: event?.startTime ? String(event.startTime) : undefined,
               locationName: event?.locationName ? String(event.locationName) : undefined,
               posterImage: event?.posterImage ? String(event.posterImage) : undefined,
@@ -66,7 +68,7 @@ export const ResaleList = () => {
         );
         if (active) setEvents(resolved);
       } catch {
-        if (active) setError("Không thể tải vé bán lại. Vui lòng thử lại sau.");
+        if (active) setError(t("Không thể tải vé bán lại. Vui lòng thử lại sau."));
       } finally {
         if (active) setLoading(false);
       }
@@ -76,7 +78,7 @@ export const ResaleList = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   const visibleEvents = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("vi");
@@ -93,31 +95,31 @@ export const ResaleList = () => {
           <span className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">HaloTicket Marketplace</p>
         </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight app-text-main sm:text-3xl">Vé bán lại</h1>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight app-text-main sm:text-3xl">{t("Vé bán lại")}</h1>
         <p className="mt-1 text-xs sm:text-sm app-text-muted">
-          Vé được xác thực và bảo đảm bởi HaloTicket. Mã vé cũ bị vô hiệu hóa ngay khi giao dịch thành công.
+          {t("Vé được xác thực và bảo đảm bởi HaloTicket. Mã vé cũ bị vô hiệu hóa ngay khi giao dịch thành công.")}
         </p>
       </header>
 
       {/* Search & Filter Bar */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="relative block w-full sm:max-w-md">
-          <span className="sr-only">Tìm sự kiện</span>
+          <span className="sr-only">{t("Tìm sự kiện")}</span>
           <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm theo tên sự kiện"
+            placeholder={t("Tìm theo tên sự kiện")}
             className="w-full rounded-xl border app-border app-bg-card py-2.5 pl-10 pr-4 text-xs sm:text-sm app-text-main outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
           />
         </label>
         {!loading && !error && (
-          <p className="text-xs font-medium app-text-muted">{events.length} sự kiện có vé bán lại</p>
+          <p className="text-xs font-medium app-text-muted">{t("{{count}} sự kiện có vé bán lại", { count: events.length })}</p>
         )}
       </div>
 
       {loading && (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label="Đang tải">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label={t("Đang tải")}>
           {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
         </section>
       )}
@@ -131,34 +133,34 @@ export const ResaleList = () => {
       {!loading && !error && visibleEvents.length === 0 && (
         <div className="rounded-2xl border app-border app-bg-card p-12 text-center">
           <p className="text-base sm:text-lg font-bold app-text-main">
-            {query ? "Không tìm thấy sự kiện phù hợp" : "Hiện chưa có vé bán lại."}
+            {query ? t("Không tìm thấy sự kiện phù hợp") : t("Hiện chưa có vé bán lại.")}
           </p>
           <p className="mt-1.5 text-xs sm:text-sm app-text-muted">
             {query
-              ? `Không có sự kiện nào khớp với "${query}".`
-              : "Khi có người đăng bán, sự kiện và vé sẽ hiển thị tại đây."}
+              ? t('Không có sự kiện nào khớp với "{{query}}".', { query })
+              : t("Khi có người đăng bán, sự kiện và vé sẽ hiển thị tại đây.")}
           </p>
           {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="mt-4 rounded-lg border app-border px-4 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10"
+              className="mt-4 rounded-lg border app-border px-4 py-2 text-xs font-semibold app-text-main hover:bg-slate-500/10 cursor-pointer"
             >
-              Xóa bộ lọc
+              {t("Xóa bộ lọc")}
             </button>
           ) : (
             <a
               href="/events"
               className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Khám phá sự kiện →
+              {t("Khám phá sự kiện →")}
             </a>
           )}
         </div>
       )}
 
       {/* Ticketbox-style 4-column Event Grid */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label="Danh sách sự kiện có vé bán lại">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label={t("Danh sách sự kiện có vé bán lại")}>
         {visibleEvents.map((event) => {
           const isUpcoming = event.startTime ? new Date(event.startTime) > new Date() : true;
           return (
@@ -166,7 +168,7 @@ export const ResaleList = () => {
               key={event.eventId}
               type="button"
               onClick={() => navigate(`/resale-ticket/${event.eventId}`)}
-              className="group flex flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl"
+              className="group flex flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl cursor-pointer"
             >
               {/* Poster with status badge */}
               <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-slate-900">
@@ -187,7 +189,7 @@ export const ResaleList = () => {
                     isUpcoming ? "bg-amber-500" : "bg-slate-600"
                   }`}
                 >
-                  {isUpcoming ? "SẮP DIỄN RA" : "ĐÃ DIỄN RA"}
+                  {isUpcoming ? t("SẮP DIỄN RA") : t("ĐÃ DIỄN RA")}
                 </span>
               </div>
 
@@ -201,8 +203,8 @@ export const ResaleList = () => {
                   <span>{formatDate(event.startTime)}</span>
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-500 dark:text-slate-400">{event.activeListings} vé đang bán</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">Từ {formatCurrency(event.minPrice)}</span>
+                  <span className="font-medium text-slate-500 dark:text-slate-400">{t("{{count}} vé đang bán", { count: event.activeListings })}</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{t("Từ {{price}}", { price: formatCurrency(event.minPrice) })}</span>
                 </div>
               </div>
             </button>

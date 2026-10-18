@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import {
   FiSearch,
@@ -24,6 +25,7 @@ import type { VoucherItem, VoucherCreateData } from "@/types";
 import ReactMarkdown from 'react-markdown';
 
 export const EventVouchers: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
 
   const [vouchers, setVouchers] = useState<VoucherItem[]>([]);
@@ -69,10 +71,10 @@ export const EventVouchers: React.FC = () => {
     setStrategyMessage(null);
     try {
       const res = await aiApi.getVoucherStrategy(eventId);
-      setStrategyMessage(res.strategy || "Hệ thống chưa đủ dữ liệu để phân tích.");
+      setStrategyMessage(res.strategy || t("Hệ thống chưa đủ dữ liệu để phân tích."));
     } catch (err) {
       console.error(err);
-      showToast("Có lỗi khi phân tích chiến lược", "error");
+      showToast(t("Có lỗi khi phân tích chiến lược"), "error");
     } finally {
       setIsAnalyzing(false);
     }
@@ -107,14 +109,14 @@ export const EventVouchers: React.FC = () => {
             });
             return {
               id: st.id,
-              label: `Suất ${idx + 1}: ${st.name || displayStr}`
+              label: `${t("Suất")} ${idx + 1}: ${st.name || displayStr}`
             };
           });
           setShowtimeOptions(options);
         }
     } catch (err) {
       console.error("Failed to load vouchers from backend:", err);
-      showToast("Không thể tải danh sách voucher từ hệ thống", "error");
+      showToast(t("Không thể tải danh sách voucher từ hệ thống"), "error");
     } finally {
       setIsLoading(false);
     }
@@ -136,17 +138,17 @@ export const EventVouchers: React.FC = () => {
   const handleCopyCode = (id: string, code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
-    showToast(`Đã sao chép mã voucher "${code}" vào bộ nhớ tạm!`, "success");
+    showToast(`${t("Đã sao chép mã voucher")} "${code}" ${t("vào bộ nhớ tạm!")}`, "success");
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   // trigger status toggle confirm modal
   const promptToggleStatus = (voucher: VoucherItem) => {
-    const nextStatusText = voucher.isActive ? "TẮT" : "BẬT";
+    const nextStatusText = voucher.isActive ? t("TẮT") : t("BẬT");
     setConfirmState({
       isOpen: true,
-      title: `Xác nhận ${nextStatusText.toLowerCase()} mã voucher`,
-      message: `Bạn có chắc chắn muốn ${nextStatusText} trạng thái hoạt động của mã voucher "${voucher.code}" (${voucher.title}) không?`,
+      title: `${t("Xác nhận")} ${nextStatusText.toLowerCase()} ${t("mã voucher")}`,
+      message: `${t("Bạn có chắc chắn muốn")} ${nextStatusText} ${t("trạng thái hoạt động của mã voucher")} "${voucher.code}" (${voucher.title}) ${t("không?")}`,
       type: voucher.isActive ? "warning" : "primary",
       action: async () => {
         try {
@@ -160,10 +162,10 @@ export const EventVouchers: React.FC = () => {
               prev.map((v) => (v.id === voucher.id ? { ...v, isActive: !v.isActive } : v))
             );
           }
-          showToast(`Đã ${nextStatusText.toLowerCase()} hoạt động mã voucher thành công!`, "success");
+          showToast(`${t("Đã")} ${nextStatusText.toLowerCase()} ${t("hoạt động mã voucher thành công!")}`, "success");
         } catch (err) {
           console.error("Failed to toggle status:", err);
-          showToast("Thay đổi trạng thái thất bại", "error");
+          showToast(t("Thay đổi trạng thái thất bại"), "error");
         }
       },
     });
@@ -173,17 +175,17 @@ export const EventVouchers: React.FC = () => {
   const promptDeleteVoucher = (voucher: VoucherItem) => {
     setConfirmState({
       isOpen: true,
-      title: "Xác nhận xóa voucher",
-      message: `Bạn có chắc chắn muốn xóa mã voucher "${voucher.code}" (${voucher.title}) không? Hành động này không thể hoàn tác.`,
+      title: t("Xác nhận xóa voucher"),
+      message: `${t("Bạn có chắc chắn muốn xóa mã voucher")} "${voucher.code}" (${voucher.title}) ${t("không? Hành động này không thể hoàn tác.")}`,
       type: "danger",
       action: async () => {
         try {
           await voucherApi.deleteVoucher(voucher.id);
           setVouchers((prev) => prev.filter((v) => v.id !== voucher.id));
-          showToast("Đã xóa voucher thành công!", "success");
+          showToast(t("Đã xóa voucher thành công!"), "success");
         } catch (err) {
           console.error("Failed to delete voucher:", err);
-          showToast("Xóa voucher thất bại", "error");
+          showToast(t("Xóa voucher thất bại"), "error");
         }
       },
     });
@@ -198,8 +200,8 @@ export const EventVouchers: React.FC = () => {
         setVouchers((prev) => [...created, ...prev]);
         showToast(
           created.length > 1
-            ? `Đã tạo thành công ${created.length} mã voucher hàng loạt!`
-            : `Đã tạo mã voucher "${created[0].code}" thành công!`,
+            ? `${t("Đã tạo thành công")} ${created.length} ${t("mã voucher hàng loạt!")}`
+            : `${t("Đã tạo mã voucher")} "${created[0].code}" ${t("thành công!")}`,
           "success"
         );
       } else {
@@ -207,7 +209,7 @@ export const EventVouchers: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to create voucher:", err);
-      showToast("Tạo voucher thất bại. Mã có thể đã tồn tại!", "error");
+      showToast(t("Tạo voucher thất bại. Mã có thể đã tồn tại!"), "error");
     }
   };
 
@@ -217,11 +219,11 @@ export const EventVouchers: React.FC = () => {
       const updated = await voucherApi.updateVoucher(voucherId, data);
       if (updated) {
         setVouchers((prev) => prev.map((v) => (v.id === voucherId ? updated : v)));
-        showToast(`Cập nhật mã voucher "${updated.code}" thành công!`, "success");
+        showToast(`${t("Cập nhật mã voucher")} "${updated.code}" ${t("thành công!")}`, "success");
       }
     } catch (err) {
       console.error("Failed to update voucher:", err);
-      showToast("Cập nhật voucher thất bại", "error");
+      showToast(t("Cập nhật voucher thất bại"), "error");
     }
   };
 
@@ -249,10 +251,10 @@ export const EventVouchers: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <h3 className="text-sm font-black text-blue-700 dark:text-blue-400 flex items-center gap-2">
-              Trợ lý AI Phân tích Chiến lược Voucher
+              {t("Trợ lý AI Phân tích Chiến lược Voucher")}
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
-              Dựa vào tốc độ bán vé (sale velocity) và hành vi người dùng trong 7 ngày qua, AI sẽ đề xuất chiến lược phát hành voucher (tên, mã, % giảm giá, số lượng) để kích cầu, tối đa hóa doanh thu.
+              {t("Dựa vào tốc độ bán vé (sale velocity) và hành vi người dùng trong 7 ngày qua, AI sẽ đề xuất chiến lược phát hành voucher (tên, mã, % giảm giá, số lượng) để kích cầu, tối đa hóa doanh thu.")}
             </p>
             {strategyMessage && (
               <div className="mt-3 p-4 bg-white dark:bg-zinc-900 border border-blue-100 dark:border-blue-800/50 rounded-xl">
@@ -270,7 +272,7 @@ export const EventVouchers: React.FC = () => {
                     }}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
                   >
-                    Tạo Voucher ngay
+                    {t("Tạo Voucher ngay")}
                   </button>
                 </div>
               </div>
@@ -285,12 +287,12 @@ export const EventVouchers: React.FC = () => {
             {isAnalyzing ? (
               <>
                 <FiRefreshCw className="w-4 h-4 animate-spin" />
-                <span>Đang phân tích dữ liệu...</span>
+                <span>{t("Đang phân tích dữ liệu...")}</span>
               </>
             ) : (
               <>
                 <FiActivity className="w-4 h-4" />
-                <span>Phân tích Tốc độ bán vé</span>
+                <span>{t("Phân tích Tốc độ bán vé")}</span>
               </>
             )}
           </button>
@@ -311,7 +313,7 @@ export const EventVouchers: React.FC = () => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Tìm kiếm theo tên chương trình và mã voucher"
+                placeholder={t("Tìm kiếm theo tên chương trình và mã voucher")}
                 className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
               />
             </div>
@@ -320,12 +322,12 @@ export const EventVouchers: React.FC = () => {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
             >
               <FiSearch className="w-3.5 h-3.5" />
-              <span>Tìm kiếm</span>
+              <span>{t("Tìm kiếm")}</span>
             </button>
           </div>
 
           <div className="px-3 py-2 rounded-xl app-bg-card border app-border text-xs font-extrabold app-text-main flex items-center gap-1.5 shrink-0 shadow-xs">
-            <span>{vouchers.length} mã</span>
+            <span>{vouchers.length} {t("mã")}</span>
             <FiInfo className="w-3.5 h-3.5 app-text-muted" />
           </div>
         </div>
@@ -336,7 +338,7 @@ export const EventVouchers: React.FC = () => {
             type="button"
             onClick={loadVouchersAndShowtimes}
             className="p-2.5 rounded-xl app-bg-card border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title="Làm mới danh sách"
+            title={t("Làm mới danh sách")}
           >
             <FiRefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-500" : ""}`} />
           </button>
@@ -349,7 +351,7 @@ export const EventVouchers: React.FC = () => {
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
             <FiPlus className="w-4 h-4 stroke-[3]" />
-            <span>Tạo voucher</span>
+            <span>{t("Tạo voucher")}</span>
           </button>
         </div>
       </div>
@@ -359,19 +361,19 @@ export const EventVouchers: React.FC = () => {
         {isLoading ? (
           <div className="p-12 text-center space-y-3">
             <FiRefreshCw className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
-            <p className="text-xs font-bold app-text-muted">Đang tải danh sách voucher từ CSDL...</p>
+            <p className="text-xs font-bold app-text-muted">{t("Đang tải danh sách voucher từ CSDL...")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b app-border bg-slate-50/50 dark:bg-slate-900/50 text-[11px] font-bold app-text-muted uppercase tracking-wider">
-                  <th className="py-3.5 px-6 rounded-l-xl">Tên chương trình khuyến mãi</th>
-                  <th className="py-3.5 px-4">Mã voucher</th>
-                  <th className="py-3.5 px-4 text-center">Mức giảm</th>
-                  <th className="py-3.5 px-6 text-center">Thời gian áp dụng</th>
-                  <th className="py-3.5 px-4 text-center">Trạng thái hoạt động</th>
-                  <th className="py-3.5 px-6 text-right rounded-r-xl">Hành động</th>
+                  <th className="py-3.5 px-6 rounded-l-xl">{t("Tên chương trình khuyến mãi")}</th>
+                  <th className="py-3.5 px-4">{t("Mã voucher")}</th>
+                  <th className="py-3.5 px-4 text-center">{t("Mức giảm")}</th>
+                  <th className="py-3.5 px-6 text-center">{t("Thời gian áp dụng")}</th>
+                  <th className="py-3.5 px-4 text-center">{t("Trạng thái hoạt động")}</th>
+                  <th className="py-3.5 px-6 text-right rounded-r-xl">{t("Hành động")}</th>
                 </tr>
               </thead>
               <tbody className="text-xs app-text-main">
@@ -409,7 +411,7 @@ export const EventVouchers: React.FC = () => {
                               : "bg-slate-500/10 text-slate-400 border-slate-500/20"
                           }`}
                         >
-                          {v.isActive ? "Đang diễn ra" : "Tắt hoạt động"}
+                          {v.isActive ? t("Đang diễn ra") : t("Tắt hoạt động")}
                         </span>
                         <div className="text-[11px] app-text-muted font-medium">
                           {v.startDate || "N/A"} - {v.endDate || "N/A"}
@@ -439,7 +441,7 @@ export const EventVouchers: React.FC = () => {
                             type="button"
                             onClick={() => handleCopyCode(v.id, v.code)}
                             className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
-                            title="Sao chép mã voucher"
+                            title={t("Sao chép mã voucher")}
                           >
                             {copiedId === v.id ? <FiCheck className="w-3.5 h-3.5 text-blue-600" /> : <FiCopy className="w-3.5 h-3.5" />}
                           </button>
@@ -451,7 +453,7 @@ export const EventVouchers: React.FC = () => {
                               setIsCreateModalOpen(true);
                             }}
                             className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
-                            title="Chỉnh sửa voucher"
+                            title={t("Chỉnh sửa voucher")}
                           >
                             <FiEdit3 className="w-3.5 h-3.5" />
                           </button>
@@ -460,7 +462,7 @@ export const EventVouchers: React.FC = () => {
                             type="button"
                             onClick={() => promptDeleteVoucher(v)}
                             className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors cursor-pointer"
-                            title="Xóa voucher"
+                            title={t("Xóa voucher")}
                           >
                             <FiTrash2 className="w-3.5 h-3.5" />
                           </button>
@@ -477,7 +479,7 @@ export const EventVouchers: React.FC = () => {
         {!isLoading && filteredVouchers.length === 0 && (
           <div className="p-12 text-center">
             <FiTag className="w-10 h-10 app-text-muted mx-auto mb-2 opacity-40" />
-            <p className="text-xs font-bold app-text-muted">Chưa có mã voucher nào được tạo</p>
+            <p className="text-xs font-bold app-text-muted">{t("Chưa có mã voucher nào được tạo")}</p>
           </div>
         )}
 
@@ -512,8 +514,8 @@ export const EventVouchers: React.FC = () => {
         title={confirmState.title}
         message={confirmState.message}
         type={confirmState.type}
-        confirmText="Xác nhận"
-        cancelText="Hủy"
+        confirmText={t("Xác nhận")}
+        cancelText={t("Hủy")}
         onConfirm={async () => {
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
           await confirmState.action();

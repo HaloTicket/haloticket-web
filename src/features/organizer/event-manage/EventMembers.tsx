@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useOutletContext, useParams } from "react-router-dom";
 import {
   FiUsers,
@@ -21,6 +22,7 @@ import type { MemberItem } from "@/types";
 import { eventApi } from "@/services/eventApi";
 
 export const EventMembers: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const { myRole } = useOutletContext<{ myRole: string | null }>();
   const [members, setMembers] = useState<MemberItem[]>([]);
@@ -55,7 +57,7 @@ export const EventMembers: React.FC = () => {
       const data = await eventApi.getEventMembers(eventId);
       setMembers(data);
     } catch (err) {
-      console.error("Không thể tải danh sách thành viên", err);
+      console.error(t("Không thể tải danh sách thành viên"), err);
     }
   };
 
@@ -78,16 +80,16 @@ export const EventMembers: React.FC = () => {
     if (!eventId) return;
     setConfirmModal({
       isOpen: true,
-      title: "Xóa thành viên",
-      message: "Bạn có chắc chắn muốn xóa thành viên này khỏi Ban tổ chức?",
+      title: t("Xóa thành viên"),
+      message: t("Bạn có chắc chắn muốn xóa thành viên này khỏi Ban tổ chức?"),
       type: "danger",
       onConfirm: async () => {
         try {
           await eventApi.removeEventMember(eventId, id);
-          showToast("success", "Xóa thành viên thành công");
+          showToast("success", t("Xóa thành viên thành công"));
           setMembers(members.filter((m) => m.id !== id));
         } catch (err) {
-          showToast("error", "Lỗi khi xóa thành viên");
+          showToast("error", t("Lỗi khi xóa thành viên"));
         }
         setConfirmModal(null);
       }
@@ -98,18 +100,18 @@ export const EventMembers: React.FC = () => {
     if (!eventId) return;
     setConfirmModal({
       isOpen: true,
-      title: "Nhượng quyền Chủ sự kiện",
-      message: "Bạn có chắc chắn muốn nhượng quyền Chủ sự kiện cho người này? Hành động này không thể hoàn tác, bạn sẽ trở thành Quản trị viên.",
+      title: t("Nhượng quyền Chủ sự kiện"),
+      message: t("Bạn có chắc chắn muốn nhượng quyền Chủ sự kiện cho người này? Hành động này không thể hoàn tác, bạn sẽ trở thành Quản trị viên."),
       type: "warning",
       onConfirm: async () => {
         try {
           await eventApi.transferOwner(eventId, id);
-          showToast("success", "Nhượng quyền thành công. Đang chuyển hướng...");
+          showToast("success", t("Nhượng quyền thành công. Đang chuyển hướng..."));
           setTimeout(() => {
             window.location.href = "/organizer/dashboard/events";
           }, 1500);
         } catch (err: any) {
-          showToast("error", err?.response?.data?.message || "Lỗi khi nhượng quyền");
+          showToast("error", err?.response?.data?.message || t("Lỗi khi nhượng quyền"));
         }
         setConfirmModal(null);
       }
@@ -120,10 +122,10 @@ export const EventMembers: React.FC = () => {
     if (!eventId) return;
     try {
       const res = await eventApi.inviteEventMember(eventId, newMember.email, newMember.role);
-      showToast("success", "Đã mời thành viên tham gia!");
+      showToast("success", t("Đã mời thành viên tham gia!"));
       setMembers([res, ...members]);
     } catch (err: any) {
-      showToast("error", err?.response?.data?.message || "Lỗi khi mời thành viên");
+      showToast("error", err?.response?.data?.message || t("Lỗi khi mời thành viên"));
     }
   };
 
@@ -132,9 +134,9 @@ export const EventMembers: React.FC = () => {
     try {
       await eventApi.changeEventMemberRole(eventId, id, newRole);
       setMembers(members.map(m => m.id === id ? { ...m, role: newRole as any } : m));
-      showToast("success", "Đã cập nhật vai trò!");
+      showToast("success", t("Đã cập nhật vai trò!"));
     } catch (err: any) {
-      showToast("error", err?.response?.data?.message || "Lỗi khi đổi vai trò");
+      showToast("error", err?.response?.data?.message || t("Lỗi khi đổi vai trò"));
     }
   };
 
@@ -143,25 +145,25 @@ export const EventMembers: React.FC = () => {
       case "OWNER":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-            <FiShield className="w-3 h-3" /> Chủ sự kiện
+            <FiShield className="w-3 h-3" /> {t("Chủ sự kiện")}
           </span>
         );
       case "ADMIN":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <FiKey className="w-3 h-3" /> Quản trị viên
+            <FiKey className="w-3 h-3" /> {t("Quản trị viên")}
           </span>
         );
       case "MANAGER":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <FiUsers className="w-3 h-3" /> Quản lý
+            <FiUsers className="w-3 h-3" /> {t("Quản lý")}
           </span>
         );
       case "CHECKIN_STAFF":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-            <FiCheck className="w-3 h-3" /> Nhân viên Check-in
+            <FiCheck className="w-3 h-3" /> {t("Nhân viên Check-in")}
           </span>
         );
     }
@@ -184,7 +186,7 @@ export const EventMembers: React.FC = () => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Tìm kiếm thành viên theo tên hoặc email"
+              placeholder={t("Tìm kiếm thành viên theo tên hoặc email")}
               className="w-full bg-transparent app-text-main text-xs focus:outline-none placeholder-zinc-400 font-medium"
             />
           </div>
@@ -192,7 +194,7 @@ export const EventMembers: React.FC = () => {
             type="button"
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0"
           >
-            Tìm kiếm
+            {t("Tìm kiếm")}
           </button>
         </div>
 
@@ -200,11 +202,11 @@ export const EventMembers: React.FC = () => {
           {/* Filter Pills */}
           <div className="inline-flex p-1 app-bg-card border app-border rounded-xl shadow-xs overflow-x-auto no-scrollbar">
             {[
-              { id: "ALL", label: `Tất cả (${members.length})` },
-              { id: "OWNER", label: "Chủ sự kiện" },
-              { id: "ADMIN", label: "Admin" },
-              { id: "MANAGER", label: "Quản lý" },
-              { id: "CHECKIN_STAFF", label: "Check-in" },
+              { id: "ALL", label: `${t("Tất cả")} (${members.length})` },
+              { id: "OWNER", label: t("Chủ sự kiện") },
+              { id: "ADMIN", label: t("Admin") },
+              { id: "MANAGER", label: t("Quản lý") },
+              { id: "CHECKIN_STAFF", label: t("Check-in") },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -232,7 +234,7 @@ export const EventMembers: React.FC = () => {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
             >
               <FiUserPlus className="w-4 h-4" />
-              <span>Thêm thành viên</span>
+              <span>{t("Thêm thành viên")}</span>
             </button>
           )}
         </div>
@@ -244,11 +246,11 @@ export const EventMembers: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b app-border bg-slate-50/50 dark:bg-slate-900/50 text-[11px] font-bold app-text-muted uppercase tracking-wider">
-                <th className="py-3.5 px-6 rounded-l-xl">Tên thành viên</th>
-                <th className="py-3.5 px-6">Vai trò</th>
-                <th className="py-3.5 px-6">Email hệ thống</th>
-                <th className="py-3.5 px-6 text-center">Trạng thái</th>
-                {canEdit && <th className="py-3.5 px-6 text-right rounded-r-xl">Hành động</th>}
+                <th className="py-3.5 px-6 rounded-l-xl">{t("Tên thành viên")}</th>
+                <th className="py-3.5 px-6">{t("Vai trò")}</th>
+                <th className="py-3.5 px-6">{t("Email hệ thống")}</th>
+                <th className="py-3.5 px-6 text-center">{t("Trạng thái")}</th>
+                {canEdit && <th className="py-3.5 px-6 text-right rounded-r-xl">{t("Hành động")}</th>}
               </tr>
             </thead>
             <tbody className="text-xs app-text-main">
@@ -275,7 +277,7 @@ export const EventMembers: React.FC = () => {
                       </div>
                       <div>
                         <span className="app-text-main font-extrabold text-xs block">{m.name}</span>
-                        <span className="text-[10px] app-text-muted font-normal">Tham gia: {m.addedAt ? new Date(m.addedAt).toLocaleDateString() : ''}</span>
+                        <span className="text-[10px] app-text-muted font-normal">{t("Tham gia")}: {m.addedAt ? new Date(m.addedAt).toLocaleDateString() : ''}</span>
                       </div>
                     </div>
                   </td>
@@ -288,7 +290,7 @@ export const EventMembers: React.FC = () => {
                           onClick={() => setOpenDropdownId(openDropdownId === m.id ? null : m.id)}
                         >
                           <span>
-                            {m.role === "ADMIN" ? "Quản trị viên" : m.role === "MANAGER" ? "Quản lý" : "Nhân viên Check-in"}
+                            {m.role === "ADMIN" ? t("Quản trị viên") : m.role === "MANAGER" ? t("Quản lý") : t("Nhân viên Check-in")}
                           </span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${openDropdownId === m.id ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
@@ -302,20 +304,20 @@ export const EventMembers: React.FC = () => {
                                   className={`px-3 py-2 text-xs cursor-pointer transition-colors ${m.role === 'ADMIN' ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
                                   onClick={() => { handleRoleChange(m.id, 'ADMIN'); setOpenDropdownId(null); }}
                                 >
-                                  Quản trị viên
+                                  {t("Quản trị viên")}
                                 </div>
                               )}
                               <div
                                 className={`px-3 py-2 text-xs cursor-pointer transition-colors ${m.role === 'MANAGER' ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
                                 onClick={() => { handleRoleChange(m.id, 'MANAGER'); setOpenDropdownId(null); }}
                               >
-                                Quản lý
+                                {t("Quản lý")}
                               </div>
                               <div
                                 className={`px-3 py-2 text-xs cursor-pointer transition-colors ${m.role === 'CHECKIN_STAFF' ? 'bg-blue-500/10 text-blue-500 font-bold' : 'app-text-main hover:bg-slate-500/10'}`}
                                 onClick={() => { handleRoleChange(m.id, 'CHECKIN_STAFF'); setOpenDropdownId(null); }}
                               >
-                                Nhân viên Check-in
+                                {t("Nhân viên Check-in")}
                               </div>
                             </div>
                           </>
@@ -326,10 +328,10 @@ export const EventMembers: React.FC = () => {
                     )}
                     {openDropdownId !== m.id && (
                       <div className="absolute left-6 top-12 hidden group-hover:block z-30 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-lg">
-                        {m.role === "OWNER" && "Chủ sự kiện: Toàn quyền quản lý, có thể xóa sự kiện và nhượng quyền."}
-                        {m.role === "ADMIN" && "Quản trị viên: Có thể sửa sự kiện, quản lý vé và xem danh sách người tham gia."}
-                        {m.role === "MANAGER" && "Quản lý: Có quyền Check-in vé và xem danh sách đăng ký."}
-                        {m.role === "CHECKIN_STAFF" && "Nhân viên Check-in: Chỉ có quyền quét mã vạch soát vé."}
+                        {m.role === "OWNER" && t("Chủ sự kiện: Toàn quyền quản lý, có thể xóa sự kiện và nhượng quyền.")}
+                        {m.role === "ADMIN" && t("Quản trị viên: Có thể sửa sự kiện, quản lý vé và xem danh sách người tham gia.")}
+                        {m.role === "MANAGER" && t("Quản lý: Có quyền Check-in vé và xem danh sách đăng ký.")}
+                        {m.role === "CHECKIN_STAFF" && t("Nhân viên Check-in: Chỉ có quyền quét mã vạch soát vé.")}
                       </div>
                     )}
                   </td>
@@ -346,7 +348,7 @@ export const EventMembers: React.FC = () => {
                           : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
                       }`}
                     >
-                      {m.status === "ACTIVE" ? "Đã kích hoạt" : "Chờ chấp nhận"}
+                      {m.status === "ACTIVE" ? t("Đã kích hoạt") : t("Chờ chấp nhận")}
                     </span>
                   </td>
 
@@ -356,7 +358,7 @@ export const EventMembers: React.FC = () => {
                         type="button"
                         onClick={() => setSelectedMember(m)}
                         className="p-2 app-text-muted hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer inline-flex"
-                        title="Xem chi tiết"
+                        title={t("Xem chi tiết")}
                       >
                         <FiEye className="w-4 h-4" />
                       </button>
@@ -366,7 +368,7 @@ export const EventMembers: React.FC = () => {
                           type="button"
                           onClick={() => handleTransferOwner(m.id)}
                           className="p-2 app-text-muted hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer inline-flex"
-                          title="Nhượng quyền Chủ sự kiện"
+                          title={t("Nhượng quyền Chủ sự kiện")}
                         >
                           <FiRepeat className="w-4 h-4" />
                         </button>
@@ -377,7 +379,7 @@ export const EventMembers: React.FC = () => {
                           type="button"
                           onClick={() => handleDeleteMember(m.id)}
                           className="p-2 app-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer inline-flex"
-                          title="Xóa khỏi sự kiện"
+                          title={t("Xóa khỏi sự kiện")}
                         >
                           <FiTrash2 className="w-4 h-4" />
                         </button>
@@ -393,7 +395,7 @@ export const EventMembers: React.FC = () => {
         {filteredMembers.length === 0 ? (
           <div className="p-12 text-center">
             <FiUsers className="w-10 h-10 app-text-muted mx-auto mb-2 opacity-40" />
-            <p className="text-xs font-bold app-text-muted">Không tìm thấy thành viên nào</p>
+            <p className="text-xs font-bold app-text-muted">{t("Không tìm thấy thành viên nào")}</p>
           </div>
         ) : (
           <TablePagination
@@ -419,7 +421,7 @@ export const EventMembers: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="app-bg-card border app-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b app-border flex items-center justify-between app-bg-subnav">
-              <h3 className="font-bold app-text-main">Chi tiết thành viên</h3>
+              <h3 className="font-bold app-text-main">{t("Chi tiết thành viên")}</h3>
               <button 
                 onClick={() => setSelectedMember(null)}
                 className="p-1 rounded-lg app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors"
@@ -448,7 +450,7 @@ export const EventMembers: React.FC = () => {
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
-                <span className="app-text-muted font-bold col-span-1">Tên</span>
+                <span className="app-text-muted font-bold col-span-1">{t("Tên")}</span>
                 <span className="app-text-main col-span-2 font-medium">{selectedMember.name}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
@@ -456,11 +458,11 @@ export const EventMembers: React.FC = () => {
                 <span className="app-text-main col-span-2 font-mono text-xs font-medium">{selectedMember.email}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
-                <span className="app-text-muted font-bold col-span-1">Vai trò</span>
+                <span className="app-text-muted font-bold col-span-1">{t("Vai trò")}</span>
                 <span className="col-span-2">{getRoleBadge(selectedMember.role)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm border-b app-border pb-3">
-                <span className="app-text-muted font-bold col-span-1">Ngày tham gia</span>
+                <span className="app-text-muted font-bold col-span-1">{t("Ngày tham gia")}</span>
                 <span className="app-text-main col-span-2 font-medium">{selectedMember.addedAt ? new Date(selectedMember.addedAt).toLocaleString() : ''}</span>
               </div>
             </div>
@@ -470,7 +472,7 @@ export const EventMembers: React.FC = () => {
                 onClick={() => setSelectedMember(null)}
                 className="px-4 py-2 rounded-xl text-xs font-bold app-text-muted hover:app-text-main app-bg-main border app-border transition-all"
               >
-                Đóng
+                {t("Đóng")}
               </button>
             </div>
           </div>

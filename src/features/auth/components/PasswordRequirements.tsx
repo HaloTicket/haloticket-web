@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import { FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 import { getPasswordRules } from "@/validation/passwordRules";
@@ -14,21 +13,21 @@ const requirements = [
 ] as const;
 
 export function PasswordRequirements({ password }: PasswordRequirementsProps) {
-  useTranslation();
+  const { t } = useTranslation();
   const rules = getPasswordRules(password);
   const isValid = Object.values(rules).every(Boolean);
   return (
-    <section aria-label={translate("Yêu cầu mật khẩu")} className={`rounded-xl border px-3 py-2.5 ${isValid ? "app-border-success app-bg-success-soft" : "app-border-danger app-bg-danger-soft"}`}>
+    <section aria-label={t("Yêu cầu mật khẩu")} className={`rounded-xl border px-3 py-2.5 ${isValid ? "app-border-success app-bg-success-soft" : "app-border-danger app-bg-danger-soft"}`}>
       <p className={`flex items-center gap-1.5 text-sm font-semibold ${isValid ? "app-text-success" : "app-text-danger"}`}>
         {isValid ? <FiCheckCircle aria-hidden="true" /> : <FiXCircle aria-hidden="true" />}
-        {isValid ? translate("Mật khẩu hợp lệ") : translate("Mật khẩu chưa hợp lệ")}
+        {isValid ? t("Mật khẩu hợp lệ") : t("Mật khẩu chưa hợp lệ")}
       </p>
       <ul className="mt-2 grid grid-cols-1 gap-y-1.5 text-xs app-text-main">
         {requirements.map((requirement) => {
           const isMet = rules[requirement.key];
           return <li className="flex items-center gap-1.5" key={requirement.key}>
             {isMet ? <FiCheckCircle aria-hidden="true" className="app-text-success shrink-0" /> : <FiXCircle aria-hidden="true" className="app-text-danger shrink-0" />}
-            <span className={isMet ? "app-text-success" : undefined}>{translate(requirement.label)}</span>
+            <span className={isMet ? "app-text-success" : undefined}>{t(requirement.label)}</span>
           </li>;
         })}
       </ul>

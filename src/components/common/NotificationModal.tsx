@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
   FiAlertCircle,
   FiAlertTriangle,
@@ -53,6 +54,7 @@ export function NotificationModal({
   dismissible = true,
   onClose,
 }: NotificationModalProps) {
+  const { t } = useTranslation();
   const titleId = useId();
   const messageId = useId();
   const firstActionRef = useRef<HTMLButtonElement>(null);
@@ -101,7 +103,7 @@ export function NotificationModal({
           {dismissible && onClose && (
             <button
               type="button"
-              aria-label="Đóng"
+              aria-label={t("Đóng")}
               onClick={onClose}
               className="app-text-muted -mr-1.5 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-zinc-800 dark:hover:text-white cursor-pointer"
             >

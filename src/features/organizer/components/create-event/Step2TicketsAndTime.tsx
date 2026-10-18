@@ -210,7 +210,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
                       type="button"
                       onClick={() => onEditTicket(t)}
                       className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer transition-colors"
-                      title="Chỉnh sửa hạng vé"
+                      title={translate("Chỉnh sửa hạng vé")}
                     >
                       <FiEdit3 className="w-4 h-4" />
                     </button>

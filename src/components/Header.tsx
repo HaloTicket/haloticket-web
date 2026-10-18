@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { t as translate, i18n, setLanguage } from "@/i18n";
+import { i18n, setLanguage } from "@/i18n";
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -37,7 +37,7 @@ import {
 import { FaTicketAlt } from "react-icons/fa";
 
 export const Header: React.FC = () => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -719,6 +719,7 @@ export const Header: React.FC = () => {
 export default Header;
 
 function GiftNotificationBell({ userId }: { userId: string }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationSocket(userId);
   const onClick = (item: NotificationItem) => {
@@ -728,5 +729,5 @@ function GiftNotificationBell({ userId }: { userId: string }) {
       if (sagaId) navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
     }
   };
-  return <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={markAllAsRead} onNotificationClick={onClick} viewAllLink={PATHS.MY_TICKETS} titleText="Thông báo vé" />;
+  return <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={markAllAsRead} onNotificationClick={onClick} viewAllLink={PATHS.MY_TICKETS} titleText={t("Thông báo vé")} />;
 }

@@ -1,6 +1,5 @@
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React from "react";
 import { Link } from "react-router-dom";
 import {
@@ -18,7 +17,7 @@ import {
 } from "react-icons/fa";
 
 export const Footer: React.FC = () => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   return (
     <footer className="app-bg-footer border-t app-border pt-12 pb-8 transition-colors duration-300">
       <div className="container mx-auto px-4 md:px-8">

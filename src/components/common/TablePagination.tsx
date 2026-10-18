@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { CustomSelect } from "./CustomSelect";
 
@@ -19,12 +20,13 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   onPageChange,
   onPageSizeChange,
 }) => {
+  const { t } = useTranslation();
   if (totalItems === 0) return null;
 
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
-  // Generate page numbers array (up to 5 page buttons)
+  // generate page numbers array (up to 5 page buttons)
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
     if (totalPages <= 7) {
@@ -44,13 +46,18 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   return (
     <div className="pt-4 border-t app-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
       <div className="app-text-muted font-medium">
-        Hiển thị <strong className="app-text-main font-black">{startItem} - {endItem}</strong> trong tổng số{" "}
-        <strong className="app-text-main font-black">{totalItems}</strong> mục
+        {t("Hiển thị")}{" "}
+        <strong className="app-text-main font-black">
+          {startItem} - {endItem}
+        </strong>{" "}
+        {t("trong tổng số")}{" "}
+        <strong className="app-text-main font-black">{totalItems}</strong>{" "}
+        {t("mục")}
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         <label className="flex items-center gap-2 app-text-muted">
-          <span>Số dòng:</span>
+          <span>{t("Số dòng:")}</span>
           <div className="w-20">
             <CustomSelect
               options={[
@@ -70,7 +77,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           disabled={currentPage === 1}
           onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
           className="h-11 w-11 sm:h-9 sm:w-9 rounded-xl app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
-          title="Trang trước"
+          title={t("Trang trước")}
         >
           <FiChevronLeft className="w-4 h-4" />
         </button>
@@ -107,7 +114,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           disabled={currentPage === totalPages || totalPages === 0}
           onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
           className="h-11 w-11 sm:h-9 sm:w-9 rounded-xl app-bg-card border app-border flex items-center justify-center text-xs app-text-muted hover:app-text-main disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
-          title="Trang tiếp theo"
+          title={t("Trang tiếp theo")}
         >
           <FiChevronRight className="w-4 h-4" />
         </button>

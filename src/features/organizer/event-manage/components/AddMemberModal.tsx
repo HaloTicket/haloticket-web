@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FiX } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import type { MemberItem } from "@/types";
 
 interface AddMemberModalProps {
@@ -13,6 +14,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   onClose,
   onAdd
 }) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "MANAGER" | "CHECKIN_STAFF">("ADMIN");
 
@@ -39,9 +41,9 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   };
 
   const roles = [
-    { value: "ADMIN", label: "Quản trị viên" },
-    { value: "MANAGER", label: "Quản lý" },
-    { value: "CHECKIN_STAFF", label: "Nhân viên - Checkin" }
+    { value: "ADMIN", label: t("Quản trị viên") },
+    { value: "MANAGER", label: t("Quản lý") },
+    { value: "CHECKIN_STAFF", label: t("Nhân viên - Checkin") }
   ];
 
   return (
@@ -50,7 +52,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
         {/* Modal Header */}
         <div className="p-4 border-b app-border flex items-center justify-between app-bg-subnav rounded-t-2xl">
           <h2 className="text-base font-bold app-text-main flex items-center gap-2">
-            Thêm thành viên
+            {t("Thêm thành viên")}
           </h2>
           <button
             type="button"
@@ -65,7 +67,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold app-text-main mb-1.5">
-              Nhập email *
+              {t("Nhập email *")}
             </label>
             <input
               type="email"
@@ -79,7 +81,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
           <div className="relative">
             <label className="block text-xs font-semibold app-text-main mb-1.5">
-              Thêm vai trò *
+              {t("Thêm vai trò *")}
             </label>
             <div 
               className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs cursor-pointer flex justify-between items-center hover:border-blue-500 transition-colors"
@@ -116,13 +118,13 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-xs font-bold app-text-muted hover:app-text-main app-bg-main border app-border transition-all"
             >
-              Hủy
+              {t("Hủy")}
             </button>
             <button
               type="submit"
               className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all w-full sm:w-auto"
             >
-              Thêm thành viên
+              {t("Thêm thành viên")}
             </button>
           </div>
         </form>

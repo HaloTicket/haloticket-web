@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiMapPin } from "react-icons/fi";
@@ -13,7 +12,7 @@ interface DestinationsSectionProps {
 }
 
 export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ title, limit = 4 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [destinations, setDestinations] = useState<{name: string, count: number, image: string}[]>([]);
 
   useEffect(() => {

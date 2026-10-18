@@ -9,31 +9,31 @@ export const OrganizerTerms: React.FC = () => {
   const termSections = [
     {
       id: 1,
-      title: "1. Danh mục hàng hoá, dịch vụ cấm kinh doanh",
+      title: translate("1. Danh mục hàng hoá, dịch vụ cấm kinh doanh"),
       details: [
-        "Vũ khí quân dụng, trang thiết bị kỹ thuật, khí tài, phương tiện chuyên dùng quân sự, công an; quân trang (bao gồm cả huy hiệu, cấp hiệu, quân hiệu của quân đội, công an), quân dụng cho lực lượng vũ trang.",
-        "Các chất ma túy, chất kích thích nhân tạo bị cấm theo quy định của pháp luật Việt Nam.",
-        "Các sản phẩm văn hóa nguy hại, đồi trụy, phản động, xâm phạm an ninh quốc gia.",
-        "Dịch vụ tổ chức đánh bạc, cá độ trái phép dưới mọi hình thức."
+        translate("Vũ khí quân dụng, trang thiết bị kỹ thuật, khí tài, phương tiện chuyên dùng quân sự, công an; quân trang (bao gồm cả huy hiệu, cấp hiệu, quân hiệu của quân đội, công an), quân dụng cho lực lượng vũ trang."),
+        translate("Các chất ma túy, chất kích thích nhân tạo bị cấm theo quy định của pháp luật Việt Nam."),
+        translate("Các sản phẩm văn hóa nguy hại, đồi trụy, phản động, xâm phạm an ninh quốc gia."),
+        translate("Dịch vụ tổ chức đánh bạc, cá độ trái phép dưới mọi hình thức.")
       ]
     },
     {
       id: 2,
-      title: "2. Danh mục hàng hóa, dịch vụ cấm quảng cáo",
+      title: translate("2. Danh mục hàng hóa, dịch vụ cấm quảng cáo"),
       details: [
-        "Hàng hóa, dịch vụ cấm kinh doanh theo quy định của pháp luật.",
-        "Thuốc lá, rượu có nồng độ cồn từ 15 độ trở lên.",
-        "Sản phẩm sữa thay thế sữa mẹ dùng cho trẻ dưới 24 tháng tuổi, sản phẩm dinh dưỡng bổ sung dùng cho trẻ dưới 06 tháng tuổi.",
-        "Thuốc kê đơn; thuốc không kê đơn nhưng được cơ quan nhà nước có thẩm quyền khuyến cáo hạn chế sử dụng hoặc sử dụng có sự giám sát của bác sĩ."
+        translate("Hàng hóa, dịch vụ cấm kinh doanh theo quy định của pháp luật."),
+        translate("Thuốc lá, rượu có nồng độ cồn từ 15 độ trở lên."),
+        translate("Sản phẩm sữa thay thế sữa mẹ dùng cho trẻ dưới 24 tháng tuổi, sản phẩm dinh dưỡng bổ sung dùng cho trẻ dưới 06 tháng tuổi."),
+        translate("Thuốc kê đơn; thuốc không kê đơn nhưng được cơ quan nhà nước có thẩm quyền khuyến cáo hạn chế sử dụng hoặc sử dụng có sự giám sát của bác sĩ.")
       ]
     },
     {
       id: 3,
-      title: "3. Quy định kiểm duyệt nội dung & hình ảnh",
+      title: translate("3. Quy định kiểm duyệt nội dung & hình ảnh"),
       details: [
-        "Không đính kèm thông tin liên lạc cá nhân của Ban Tổ Chức (Số điện thoại, Email, Link Facebook, Zalo...) trực tiếp lên Banner hoặc mô tả sự kiện. Mọi liên hệ giải đáp vé phải thông qua Hotline HaloTicket 1900.6408.",
-        "Hình ảnh Poster/Banner phải đạt độ phân giải chuẩn, không chứa nhãn hiệu vi phạm bản quyền hoặc hình ảnh phản cảm.",
-        "Sự kiện công khai sẽ được Ban Quản Trị duyệt trong vòng 24 giờ kể từ thời điểm gửi yêu cầu thành công."
+        translate("Không đính kèm thông tin liên lạc cá nhân của Ban Tổ Chức (Số điện thoại, Email, Link Facebook, Zalo...) trực tiếp lên Banner hoặc mô tả sự kiện. Mọi liên hệ giải đáp vé phải thông qua Hotline HaloTicket 1900.6408."),
+        translate("Hình ảnh Poster/Banner phải đạt độ phân giải chuẩn, không chứa nhãn hiệu vi phạm bản quyền hoặc hình ảnh phản cảm."),
+        translate("Sự kiện công khai sẽ được Ban Quản Trị duyệt trong vòng 24 giờ kể từ thời điểm gửi yêu cầu thành công.")
       ]
     }
   ];

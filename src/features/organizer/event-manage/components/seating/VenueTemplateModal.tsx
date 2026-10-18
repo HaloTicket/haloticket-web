@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { FiX, FiCheck, FiMapPin, FiUsers, FiLayers, FiSearch, FiCheckCircle, FiEye, FiChevronDown, FiGlobe } from 'react-icons/fi';
 import type { VenueTemplate, VenueTemplateModalProps } from '@/types/seating';
@@ -15,6 +16,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   venueId,
   venueName,
 }) => {
+  const { t } = useTranslation();
   // search query, city filter, venue location filter, and preview state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
@@ -62,11 +64,12 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
             const parsed = JSON.parse(res.adminTemplate);
             extraTemplates.push({
               id: `admin_tpl_${venueId}`,
-              name: `${res.venueName || venueName || 'Địa điểm'} - Mẫu chuẩn Admin HaloTicket`,
+              name: `${res.venueName || venueName || t('Địa điểm')} - ${t('Mẫu chuẩn Admin HaloTicket')}`, 
+              // city
               city: 'TP. Hồ Chí Minh',
               address: res.venueName || venueName,
               capacity: parsed.zones?.reduce((sum: number, z: any) => sum + (z.capacity || 0), 0) || 5000,
-              description: 'Sơ đồ chuẩn thiết kế bởi Quản trị viên HaloTicket.',
+              description: t('Sơ đồ chuẩn thiết kế bởi Quản trị viên HaloTicket.'),
               source: 'system',
               stages: parsed.stages || [],
               structures: parsed.structures || [],
@@ -92,11 +95,12 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
               const totalCapacity: number = zonesList.reduce((sum: number, z: any) => sum + (Number(z?.capacity) || 0), 0) || 3000;
               extraTemplates.push({
                 id: `org_seatmap_${s.seatLayoutId || s.eventId}`,
-                name: `${res.venueName || venueName} - Bản vẽ: ${s.eventTitle || 'BTC'}`,
+                name: `${res.venueName || venueName} - ${t('Bản vẽ')}: ${s.eventTitle || t('BTC')}`, 
+              // city
                 city: 'TP. Hồ Chí Minh',
                 address: res.venueName || venueName,
                 capacity: totalCapacity,
-                description: `Sơ đồ bố cục thiết kế cho sự kiện "${s.eventTitle || 'Sự kiện'}".`,
+                description: `${t('Sơ đồ bố cục thiết kế cho sự kiện')} "${s.eventTitle || t('Sự kiện')}".`,
                 source: 'community',
                 stages: parsed.stages || [],
                 structures: parsed.structures || [],
@@ -232,10 +236,10 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-extrabold app-text-main">
-                Xem Trước & Chọn Mẫu Địa Điểm Có Sẵn
+                {t('Xem Trước & Chọn Mẫu Địa Điểm Có Sẵn')}
               </h3>
               <p className="text-xs app-text-muted">
-                Xem trước các mẫu sơ đồ 2D của cùng một địa điểm công cộng trước khi áp dụng
+                {t('Xem trước các mẫu sơ đồ 2D của cùng một địa điểm công cộng trước khi áp dụng')}
               </p>
             </div>
           </div>
@@ -257,7 +261,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm mẫu theo tên địa điểm, sự kiện..."
+                placeholder={t("Tìm kiếm mẫu theo tên địa điểm, sự kiện...")}
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl app-bg-main border app-border text-xs font-bold app-text-main focus:outline-none focus:border-blue-500/80 shadow-2xs transition-all"
               />
               <FiSearch className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -277,7 +281,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                   <FiMapPin className="w-4 h-4 text-blue-500 shrink-0" />
                   <span className="truncate font-extrabold">
                     {selectedVenueId === 'ALL'
-                      ? `Tất cả địa điểm (${dbVenues.length})`
+                      ? `${t("Tất cả địa điểm")} (${dbVenues.length})`
                       : selectedVenueId}
                   </span>
                 </div>
@@ -302,7 +306,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                       }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span>Tất cả địa điểm công cộng</span>
+                      <span>{t("Tất cả địa điểm công cộng")}</span>
                     </div>
                     <span className="text-[10px] font-mono opacity-80 font-extrabold px-2 py-0.5 rounded-md bg-black/10">
                       {dbVenues.length}
@@ -359,7 +363,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                             className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-md ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                               }`}
                           >
-                            {templateCount} mẫu sơ đồ
+                            {templateCount} {t("mẫu sơ đồ")}
                           </span>
                           {isSelected && <FiCheck className="w-4 h-4 text-white shrink-0" />}
                         </div>
@@ -381,7 +385,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                   }`}
               >
                 <FiGlobe className="w-3.5 h-3.5" />
-                <span>Tất cả TP</span>
+                <span>{t("Tất cả TP")}</span>
               </button>
               <button
                 type="button"
@@ -425,7 +429,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-extrabold font-mono shrink-0">
-                      {group.templates.length} mẫu sơ đồ
+                      {group.templates.length} {t("mẫu sơ đồ")}
                     </span>
                   </div>
 
@@ -448,7 +452,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                           {isSelected && (
                             <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-xs z-10">
                               <FiCheck className="w-3 h-3" />
-                              Đã áp dụng
+                              {t("Đã áp dụng")}
                             </span>
                           )}
 
@@ -458,7 +462,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                                 <span>{variantTitle}</span>
                                 {isPreviewing && (
                                   <span className="px-2 py-0.2 rounded-md bg-blue-500/20 text-blue-500 text-[9px] font-mono font-bold">
-                                    Đang xem trước
+                                    {t("Đang xem trước")}
                                   </span>
                                 )}
                               </h5>
@@ -470,11 +474,11 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                             <div className="flex items-center gap-3 text-[10px]">
                               <span className="flex items-center gap-1 text-emerald-500 font-bold font-mono">
                                 <FiUsers className="w-3 h-3" />
-                                {(tpl.capacity || 2000).toLocaleString('vi-VN')} chỗ
+                                {(tpl.capacity || 2000).toLocaleString('vi-VN')} {t('chỗ')}
                               </span>
                               <span className="flex items-center gap-1 font-mono">
                                 <FiLayers className="w-3 h-3 text-blue-500" />
-                                {Object.keys(tpl.zones || {}).length || 2} Khối zone
+                                {Object.keys(tpl.zones || {}).length || 2} {t("Khối zone")}
                               </span>
                             </div>
 
@@ -488,7 +492,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                                 className="px-2.5 py-1 rounded-lg app-bg-card border app-border text-[10px] font-bold app-text-main hover:border-blue-500/40 flex items-center gap-1 cursor-pointer"
                               >
                                 <FiEye className="w-3 h-3 text-blue-500" />
-                                <span>Xem trước</span>
+                                <span>{t("Xem trước")}</span>
                               </button>
                               <button
                                 type="button"
@@ -500,7 +504,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                                 className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-extrabold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
                               >
                                 <FiCheckCircle className="w-3 h-3" />
-                                <span>Áp dụng mẫu</span>
+                                <span>{t("Áp dụng mẫu")}</span>
                               </button>
                             </div>
                           </div>
@@ -512,7 +516,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
               ))
             ) : (
               <div className="p-10 text-center space-y-2 app-text-muted">
-                <p className="text-sm font-bold">Không tìm thấy địa điểm mẫu khớp với từ khóa.</p>
+                <p className="text-sm font-bold">{t("Không tìm thấy địa điểm mẫu khớp với từ khóa.")}</p>
               </div>
             )}
           </div>
@@ -524,13 +528,13 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                 <div className="flex items-center justify-between border-b app-border pb-3">
                   <div>
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-500 flex items-center gap-1">
-                      <FiEye className="w-3.5 h-3.5" /> Live Preview Bố Cục
+                      <FiEye className="w-3.5 h-3.5" /> {t("Live Preview Bố Cục")}
                     </span>
                     <h4 className="text-sm font-extrabold app-text-main mt-0.5">{previewTemplate.name}</h4>
                   </div>
                   {previewTemplate.capacity && (
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-mono font-bold">
-                      {previewTemplate.capacity.toLocaleString('vi-VN')} Khán giả
+                      {previewTemplate.capacity.toLocaleString('vi-VN')} {t('Khán giả')}
                     </span>
                   )}
                 </div>
@@ -541,7 +545,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-black text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
                         <FiLayers className="w-3.5 h-3.5" />
-                        Các mẫu sơ đồ khác của địa điểm này ({currentVenueGroupTemplates.length}):
+                        {t("Các mẫu sơ đồ khác của địa điểm này")} ({currentVenueGroupTemplates.length}):
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
@@ -600,7 +604,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                           textAnchor="middle"
                           dominantBaseline="middle"
                         >
-                          {stg.label || 'SÂN KHẤU CHÍNH'}
+                          {stg.label || t('SÂN KHẤU CHÍNH')}
                         </text>
                       </g>
                     ))}
@@ -626,7 +630,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                           textAnchor="middle"
                           dominantBaseline="middle"
                         >
-                          {zone.name || `KHU VỰC ${idx + 1}`}
+                          {zone.name || `${t('KHU VỰC')} ${idx + 1}`}
                         </text>
                       </g>
                     ))}
@@ -649,7 +653,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                 {/* Zone Breakdown Stats */}
                 <div className="space-y-2">
                   <span className="text-[11px] font-extrabold app-text-muted uppercase tracking-wider block">
-                    Danh sách Khối Zone trên Mẫu:
+                    {t("Danh sách Khối Zone trên Mẫu:")}
                   </span>
                   <div className="space-y-1.5 max-h-32 overflow-y-auto">
                     {Object.values(previewTemplate.zones || {}).length > 0 ? (
@@ -663,13 +667,13 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                             <span className="font-bold app-text-main">{z.name}</span>
                           </div>
                           <span className="font-mono text-emerald-500 font-bold text-[11px]">
-                            {z.capacity ? `${z.capacity} chỗ` : 'Ghế vẽ 2D'}
+                            {z.capacity ? `${z.capacity} ${t('chỗ')}` : t('Ghế vẽ 2D')}
                           </span>
                         </div>
                       ))
                     ) : (
                       <div className="p-3 rounded-xl app-bg-card border app-border text-xs app-text-muted">
-                        Bố cục sân khấu tiêu chuẩn sẵn sàng vẽ zone
+                        {t("Bố cục sân khấu tiêu chuẩn sẵn sàng vẽ zone")}
                       </div>
                     )}
                   </div>
@@ -686,13 +690,13 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
                     className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     <FiCheckCircle className="w-4 h-4" />
-                    <span>Xác nhận áp dụng mẫu này</span>
+                    <span>{t("Xác nhận áp dụng mẫu này")}</span>
                   </button>
                 </div>
               </div>
             ) : (
               <div className="h-full flex items-center justify-center app-text-muted text-xs font-bold">
-                Chọn một mẫu bên trái để xem trước sơ đồ
+                {t("Chọn một mẫu bên trái để xem trước sơ đồ")}
               </div>
             )}
           </div>
@@ -705,7 +709,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 text-xs font-bold rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
           >
-            Đóng
+            {t("Đóng")}
           </button>
         </div>
       </div>

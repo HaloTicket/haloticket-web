@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ekycApi } from "@/services/ekycApi";
 import { PATHS } from "@/routes/paths";
 import { FiShield, FiRefreshCw, FiArrowLeft, FiCheck } from "react-icons/fi";
 
 export default function OrganizerEligibilityGate({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<"loading" | "allowed" | "denied" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
 
@@ -33,7 +35,7 @@ export default function OrganizerEligibilityGate({ children }: { children: React
         </div>
         <div>
           <h1 className="text-lg sm:text-xl font-extrabold tracking-tight">
-            Xác minh danh tính trước khi tạo sự kiện
+            {t("Xác minh danh tính trước khi tạo sự kiện")}
           </h1>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800">
             VNPT eKYC
@@ -44,21 +46,21 @@ export default function OrganizerEligibilityGate({ children }: { children: React
       <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border app-border text-xs sm:text-sm app-text-muted leading-relaxed">
         <p role={state === "error" ? "alert" : "status"} className={state === "error" ? "text-rose-600 font-semibold" : ""}>
           {state === "loading"
-            ? "Đang kiểm tra quyền tạo sự kiện…"
+            ? t("Đang kiểm tra quyền tạo sự kiện…")
             : state === "error"
-            ? "Không thể kiểm tra quyền tạo sự kiện. Vui lòng thử lại."
-            : "Hoàn tất xác minh danh tính trước khi tạo sự kiện."}
+            ? t("Không thể kiểm tra quyền tạo sự kiện. Vui lòng thử lại.")
+            : t("Hoàn tất xác minh danh tính trước khi tạo sự kiện.")}
         </p>
       </div>
 
       <div className="space-y-2 text-xs text-slate-500 dark:text-zinc-400 border-t app-border pt-4">
         <div className="flex items-center gap-2">
           <FiCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>Xác minh danh tính trước khi tạo sự kiện.</span>
+          <span>{t("Xác minh danh tính trước khi tạo sự kiện.")}</span>
         </div>
         <div className="flex items-center gap-2">
           <FiCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>Tài khoản thụ hưởng cần được xác minh riêng trước khi nhận tiền giải ngân.</span>
+          <span>{t("Tài khoản thụ hưởng cần được xác minh riêng trước khi nhận tiền giải ngân.")}</span>
         </div>
       </div>
 
@@ -68,7 +70,7 @@ export default function OrganizerEligibilityGate({ children }: { children: React
           to={PATHS.PROFILE}
         >
           <FiArrowLeft className="w-3.5 h-3.5" />
-          <span>Về hồ sơ</span>
+          <span>{t("Về hồ sơ")}</span>
         </Link>
 
         {state === "denied" && (
@@ -76,7 +78,7 @@ export default function OrganizerEligibilityGate({ children }: { children: React
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 min-h-11 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-3 font-bold text-white text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all cursor-pointer"
             to={`${PATHS.EKYC}?returnUrl=${encodeURIComponent(PATHS.CREATE_EVENT)}`}
           >
-            <span>Xác minh ngay</span>
+            <span>{t("Xác minh ngay")}</span>
           </Link>
         )}
 
@@ -90,7 +92,7 @@ export default function OrganizerEligibilityGate({ children }: { children: React
             }}
           >
             <FiRefreshCw className="w-3.5 h-3.5" />
-            <span>Thử lại</span>
+            <span>{t("Thử lại")}</span>
           </button>
         )}
       </div>

@@ -67,7 +67,7 @@ export default function EkycVerification() {
           setCurrentStep(5);
         }
       } else {
-        setError("Không thể tải trạng thái xác minh từ hệ thống đối soát.");
+        setError(t("Không thể tải trạng thái xác minh từ hệ thống đối soát."));
       }
       if (profileRes.status === "fulfilled") {
         setUserProfile(profileRes.value);
@@ -75,7 +75,7 @@ export default function EkycVerification() {
       setLoading(false);
     });
     return () => { active = false; };
-  }, [refresh, params]);
+  }, [refresh, params, t]);
 
   // Clean up object URLs on unmount
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function EkycVerification() {
       setFiles((c) => c.map((old, i) => (i === index ? null : old)));
       setPreviews((c) => c.map((old, i) => (i === index ? null : old)));
       setMetadatas((c) => c.map((old, i) => (i === index ? null : old)));
-      setError("Vui lòng chọn ảnh định dạng JPEG hoặc PNG có dung lượng dưới 10 MB.");
+      setError(t("Vui lòng chọn ảnh định dạng JPEG hoặc PNG có dung lượng dưới 10 MB."));
       return;
     }
     setError("");
@@ -437,9 +437,9 @@ export default function EkycVerification() {
               </div>
               <button
                 type="button"
-                aria-label="Đóng thông báo"
+                aria-label={t("Đóng thông báo")}
                 onClick={() => setSuccessMessage("")}
-                className="shrink-0 text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200 transition-colors"
+                className="shrink-0 text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200 transition-colors cursor-pointer"
               >
                 ✕
               </button>

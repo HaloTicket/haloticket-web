@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 import { FiChevronDown, FiChevronUp, FiInfo } from "react-icons/fi";
 import type { EventDetailData } from "@/types";
@@ -9,7 +8,7 @@ interface EventDescriptionProps {
 }
 
 export const EventDescription: React.FC<EventDescriptionProps> = ({ event }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const rawDescription = event.description || event.descriptionText || translate("Chưa có mô tả.");
   const formattedDescription = React.useMemo(() => {

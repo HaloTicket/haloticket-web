@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import {
   FiX,
@@ -22,7 +23,8 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
   onClose,
   onGenerateZone,
 }) => {
-  const [zoneName, setZoneName] = useState('Khán đài A');
+  const { t } = useTranslation();
+  const [zoneName, setZoneName] = useState(() => t('Khán đài A'));
   const [zoneColor, setZoneColor] = useState('#06b6d4');
   const [borderStyle, setBorderStyle] = useState<'dashed' | 'solid'>('dashed');
   const [layoutType, setLayoutType] = useState<'STANDING' | 'ROW' | 'MATRIX' | 'ARC' | 'GALA'>('MATRIX');
@@ -61,30 +63,30 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
       width = 540;
       height = 220;
       seatTotal = 0;
-      desc = `Khu vực đứng tự do (Sức chứa ${capacity} khán giả)`;
+      desc = `${t('Khu vực đứng tự do')} (${t('Sức chứa')} ${capacity} ${t('khán giả')})`;
     } else if (layoutType === 'ROW') {
       const seatsWidth = rowCountRowMode * 38;
       width = Math.max(380, seatsWidth + 100);
       height = 180;
       seatTotal = rowCountRowMode;
-      desc = `Hàng ghế thẳng (${rowCountRowMode} ghế hàng ${rowLetter})`;
+      desc = `${t('Hàng ghế thẳng')} (${rowCountRowMode} ${t('ghế hàng')} ${rowLetter})`;
     } else if (layoutType === 'MATRIX') {
       const matrixW = matrixCols * 38;
       const matrixH = matrixRows * 38;
       width = Math.max(380, matrixW + 100);
       height = Math.max(180, matrixH + 110);
       seatTotal = matrixRows * matrixCols;
-      desc = `Khối Ma trận Grid (${matrixRows} hàng x ${matrixCols} ghế = ${seatTotal} ghế)`;
+      desc = `${t('Khối Ma trận Grid')} (${matrixRows} ${t('hàng')} x ${matrixCols} ${t('ghế')} = ${seatTotal} ${t('ghế')})`;
     } else if (layoutType === 'ARC') {
       width = Math.max(480, arcRadius * 2 + 100);
       height = Math.max(260, arcRadius + 140);
       seatTotal = arcCount;
-      desc = `Hàng ghế cong vòm hình quạt (${arcCount} ghế, Bán kính ${arcRadius}px)`;
+      desc = `${t('Hàng ghế cong vòm hình quạt')} (${arcCount} ${t('ghế')}, ${t('Bán kính')} ${arcRadius}px)`;
     } else if (layoutType === 'GALA') {
       width = Math.max(420, galaTableCount * 200 + 80);
       height = 280;
       seatTotal = galaTableCount * galaSeatsPerTable;
-      desc = `${galaTableCount} Bàn tròn Gala (${galaSeatsPerTable} ghế/bàn = ${seatTotal} ghế)`;
+      desc = `${galaTableCount} ${t('Bàn tròn Gala')} (${galaSeatsPerTable} ${t('ghế/bàn')} = ${seatTotal} ${t('ghế')})`;
     }
 
     return { width, height, seatTotal, desc };
@@ -129,10 +131,10 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-black app-text-main">
-                Tạo Khối Khu Vực Ghế (Zone Designer)
+                {t('Tạo Khối Khu Vực Ghế (Zone Designer)')}
               </h3>
               <p className="text-xs app-text-muted">
-                Chọn kiểu bố cục ghế và tự động cân chỉnh kích thước Zone vừa vị trí ghế
+                {t('Chọn kiểu bố cục ghế và tự động cân chỉnh kích thước Zone vừa vị trí ghế')}
               </p>
             </div>
           </div>
@@ -151,20 +153,20 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold app-text-muted mb-1">
-                Tên Khu Vực (Zone) <span className="text-rose-500">*</span>
+                {t("Tên Khu Vực (Zone)")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={zoneName}
                 onChange={(e) => setZoneName(e.target.value)}
-                placeholder="VD: Khán đài A1, Khu VIP Tầng 1..."
+                placeholder={t("VD: Khán đài A1, Khu VIP Tầng 1...")}
                 required
                 className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main font-bold text-xs focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold app-text-muted mb-1">Màu Khu Vực & Ghế</label>
+              <label className="block text-xs font-bold app-text-muted mb-1">{t("Màu Khu Vực & Ghế")}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -193,16 +195,16 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
           {/* Layout Type Selection Cards */}
           <div>
             <label className="block text-[11px] font-extrabold app-text-muted mb-2 uppercase tracking-wider">
-              Chọn Kiểu Bố Cục Cho Khu Vực <span className="text-rose-500">*</span>
+              {t("Chọn Kiểu Bố Cục Cho Khu Vực")} <span className="text-rose-500">*</span>
             </label>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {[
-                { id: 'STANDING', title: 'Đứng Tự Do', desc: 'Không ghế', icon: FiUsers },
-                { id: 'ROW', title: 'Hàng Ghế Thẳng', desc: '1 hàng dài', icon: FiPlus },
-                { id: 'MATRIX', title: 'Ma Trận Grid', desc: 'Nhiều hàng ghế', icon: FiGrid },
-                { id: 'ARC', title: 'Ghế Cong', desc: 'Vòm quạt', icon: FiCompass },
-                { id: 'GALA', title: 'Bàn Gala', desc: 'Bàn tròn', icon: FiDisc },
+                { id: 'STANDING', title: t('Đứng Tự Do'), desc: t('Không ghế'), icon: FiUsers },
+                { id: 'ROW', title: t('Hàng Ghế Thẳng'), desc: t('1 hàng dài'), icon: FiPlus },
+                { id: 'MATRIX', title: t('Ma Trận Grid'), desc: t('Nhiều hàng ghế'), icon: FiGrid },
+                { id: 'ARC', title: t('Ghế Cong'), desc: t('Vòm quạt'), icon: FiCompass },
+                { id: 'GALA', title: t('Bàn Gala'), desc: t('Bàn tròn'), icon: FiDisc },
               ].map((item) => {
                 const Icon = item.icon;
                 const isSelected = layoutType === item.id;
@@ -237,7 +239,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             {layoutType === 'STANDING' && (
               <div>
                 <label className="block text-xs font-bold app-text-muted mb-1">
-                  Sức chứa tối đa (Khán giả đứng)
+                  {t("Sức chứa tối đa (Khán giả đứng)")}
                 </label>
                 <input
                   type="number"
@@ -253,7 +255,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             {layoutType === 'ROW' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Ký hiệu hàng ghế (A..Z)</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Ký hiệu hàng ghế (A..Z)")}</label>
                   <input
                     type="text"
                     value={rowLetter}
@@ -263,7 +265,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Số lượng ghế trong hàng</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Số lượng ghế trong hàng")}</label>
                   <input
                     type="number"
                     min={1}
@@ -279,7 +281,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             {layoutType === 'MATRIX' && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Ký hiệu hàng bắt đầu</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Ký hiệu hàng bắt đầu")}</label>
                   <input
                     type="text"
                     value={matrixStartRow}
@@ -289,7 +291,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Số lượng hàng</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Số lượng hàng")}</label>
                   <input
                     type="number"
                     min={1}
@@ -300,7 +302,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Số ghế mỗi hàng</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Số ghế mỗi hàng")}</label>
                   <input
                     type="number"
                     min={1}
@@ -316,7 +318,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             {layoutType === 'ARC' && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Tên hàng cong</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Tên hàng cong")}</label>
                   <input
                     type="text"
                     value={arcRowLetter}
@@ -326,7 +328,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Số ghế trên vòm</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Số ghế trên vòm")}</label>
                   <input
                     type="number"
                     min={2}
@@ -337,7 +339,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Bán kính cong (px)</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Bán kính cong (px)")}</label>
                   <input
                     type="number"
                     min={150}
@@ -354,7 +356,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             {layoutType === 'GALA' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Số lượng bàn tròn</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Số lượng bàn tròn")}</label>
                   <input
                     type="number"
                     min={1}
@@ -365,7 +367,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-muted mb-1">Số ghế quanh mỗi bàn</label>
+                  <label className="block text-xs font-bold app-text-muted mb-1">{t("Số ghế quanh mỗi bàn")}</label>
                   <select
                     value={galaSeatsPerTable}
                     onChange={(e) => setGalaSeatsPerTable(Number(e.target.value))}
@@ -373,7 +375,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   >
                     {[4, 6, 8, 10, 12, 16].map((num) => (
                       <option key={num} value={num}>
-                        {num} Ghế / Bàn
+                        {num} {t("Ghế / Bàn")}
                       </option>
                     ))}
                   </select>
@@ -383,7 +385,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
 
             {/* Kiểu đường viền zone */}
             <div className="pt-2 border-t app-border flex items-center justify-between">
-              <span className="text-[11px] font-bold app-text-muted">Kiểu đường viền Khối Zone:</span>
+              <span className="text-[11px] font-bold app-text-muted">{t("Kiểu đường viền Khối Zone:")}</span>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -392,7 +394,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                     borderStyle === 'dashed' ? 'bg-blue-600 text-white border-blue-500' : 'app-bg-card app-text-muted border-app-border'
                   }`}
                 >
-                  Nét đứt (Dashed)
+                  {t("Nét đứt (Dashed)")}
                 </button>
                 <button
                   type="button"
@@ -401,7 +403,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                     borderStyle === 'solid' ? 'bg-blue-600 text-white border-blue-500' : 'app-bg-card app-text-muted border-app-border'
                   }`}
                 >
-                  Nét liền (Solid)
+                  {t("Nét liền (Solid)")}
                 </button>
               </div>
             </div>
@@ -412,11 +414,11 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 font-extrabold">
                 <FiMaximize2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Kích thước Zone tự động cân chỉnh vừa ghế:</span>
+                <span>{t("Kích thước Zone tự động cân chỉnh vừa ghế:")}</span>
               </span>
               <span className="font-mono text-sm font-black text-blue-600 dark:text-blue-400">{computedWidth}px x {computedHeight}px</span>
             </div>
-            <p className="text-[11px] text-blue-600/90 dark:text-blue-300/90 font-semibold">{layoutDesc} — Tất cả ghế tự động căn giữa và nằm gọn hoàn toàn bên trong ranh giới Zone.</p>
+            <p className="text-[11px] text-blue-600/90 dark:text-blue-300/90 font-semibold">{layoutDesc} — {t("Tất cả ghế tự động căn giữa và nằm gọn hoàn toàn bên trong ranh giới Zone.")}</p>
           </div>
 
           {/* Footer Action Buttons - Identical to TierManagerModal */}
@@ -426,14 +428,14 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
               onClick={onClose}
               className="px-5 py-2.5 rounded-xl app-bg-card border app-border app-text-muted hover:app-text-main text-xs font-bold transition-all cursor-pointer"
             >
-              Hủy
+              {t("Hủy")}
             </button>
             <button
               type="submit"
               className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-extrabold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md cursor-pointer"
             >
               <FiCheck className="w-4 h-4" />
-              <span>Tạo Khu Vực ({seatTotal > 0 ? `${seatTotal} ghế` : 'Không ghế'})</span>
+              <span>{t('Tạo Khu Vực')} ({seatTotal > 0 ? `${seatTotal} ${t('ghế')}` : t('Không ghế')})</span>
             </button>
           </div>
         </form>

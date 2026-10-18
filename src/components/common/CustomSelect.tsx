@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { useFloating, autoUpdate, offset, flip, shift, size } from "@floating-ui/react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 
@@ -23,11 +24,13 @@ export function CustomSelect({
   value,
   onChange,
   options,
-  placeholder = "Chọn...",
+  placeholder,
   className = "",
   icon,
   disabled = false
 }: CustomSelectProps) {
+  const { t } = useTranslation();
+  const displayPlaceholder = placeholder || t("Chọn...");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -74,7 +77,7 @@ export function CustomSelect({
       >
         <span className="flex items-center gap-2 truncate">
           {icon}
-          {selectedOption ? selectedOption.label : placeholder}
+          {selectedOption ? selectedOption.label : displayPlaceholder}
         </span>
         <FiChevronDown
           className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
@@ -101,7 +104,7 @@ export function CustomSelect({
         >
           <div className="max-h-60 w-full overflow-auto rounded-lg border app-border app-bg-card p-1 shadow-xl animate-in fade-in zoom-in-95 duration-150 scrollbar-thin">
             {options.length === 0 ? (
-              <div className="px-3 py-2 text-xs app-text-muted text-center">Trống</div>
+              <div className="px-3 py-2 text-xs app-text-muted text-center">{t("Trống")}</div>
           ) : (
             options.map((option) => {
               const isSelected = option.value === value;

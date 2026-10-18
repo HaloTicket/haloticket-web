@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors, ShowtimeItem } from "@/types/organizer";
 import CreateEventStepper from "@/features/organizer/components/create-event/CreateEventStepper";
 import Step1EventInfo from "@/features/organizer/components/create-event/Step1EventInfo";
@@ -36,6 +37,7 @@ async function ensureS3Url(urlOrData: string | null | undefined, folder: string)
 }
 
 export const EventEditInfo: React.FC = () => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
 
   // active stepper step (1 to 5)
@@ -69,8 +71,8 @@ export const EventEditInfo: React.FC = () => {
 
   // FORM STATE
   // step 1: event info
-  const [title, setTitle] = useState("Sự kiện HaloTicket");
-  const [category, setCategory] = useState("Nhạc sống");
+  const [title, setTitle] = useState(t("Sự kiện HaloTicket"));
+  const [category, setCategory] = useState(t("Nhạc sống"));
   const [locationType, setLocationType] = useState<"offline" | "online">("offline");
   const [locationName, setLocationName] = useState("");
   const [city, setCity] = useState("TP. Hồ Chí Minh");
@@ -157,7 +159,7 @@ export const EventEditInfo: React.FC = () => {
 
             newShowtimes.push({
               id: Date.now().toString() + Math.random().toString(),
-              name: `Suất ${dayCount}: Ngày ${displayStr}`,
+              name: `${t("Suất")} ${dayCount}: ${t("Ngày")} ${displayStr}`,
               startTime: stStr,
               endTime: etStr,
               saleStartTime: "",
@@ -172,7 +174,7 @@ export const EventEditInfo: React.FC = () => {
           
           newShowtimes.push({
             id: Date.now().toString(),
-            name: "Suất 1",
+            name: t("Suất 1"),
             startTime: startStr,
             endTime: endStr,
             saleStartTime: "",
@@ -271,8 +273,8 @@ export const EventEditInfo: React.FC = () => {
         if (!isMounted || !ev) return;
 
         // step 1 fields
-        const loadedTitle = ev.title || "Sự kiện HaloTicket";
-        const loadedCategory = ev.categoryName || ev.category || "Nhạc sống";
+        const loadedTitle = ev.title || t("Sự kiện HaloTicket");
+        const loadedCategory = ev.categoryName || ev.category || t("Nhạc sống");
         const loadedLocType = (ev.locationType as "offline" | "online") || "offline";
         const loadedLocName = ev.locationName || "";
         const loadedCity = ev.city || "TP. Hồ Chí Minh";
@@ -305,7 +307,7 @@ export const EventEditInfo: React.FC = () => {
         if (Array.isArray(ev.showtimes) && ev.showtimes.length > 0) {
           const mappedShowtimes = ev.showtimes.map((st: any) => ({
             id: st.id || Date.now().toString(),
-            name: st.name || "Suất diễn",
+            name: st.name || t("Suất diễn"),
             startTime: st.startTime ? formatDatetimeLocal(st.startTime) : "",
             endTime: st.endTime ? formatDatetimeLocal(st.endTime) : "",
             saleStartTime: st.saleStartTime ? formatDatetimeLocal(st.saleStartTime) : "",
@@ -334,7 +336,7 @@ export const EventEditInfo: React.FC = () => {
           );
           loadedTickets = uniqueRawT.map((tc: any, i: number) => ({
             id: String(tc.id || `tc_${i}_${Date.now()}`),
-            name: tc.name || "Hạng vé",
+            name: tc.name || t("Hạng vé"),
             price: typeof tc.price === "number" ? tc.price : (parseFloat(String(tc.price).replace(/[^0-9]/g, "")) || 0),
             isFree: tc.price === 0 || tc.price === "0" || tc.isFree,
             totalQuantity: tc.totalQuantity ?? tc.quantity ?? 100,
@@ -536,23 +538,23 @@ export const EventEditInfo: React.FC = () => {
   // dynamic step titles based on enableCustomQuestions
   const stepTitles = enableCustomQuestions
     ? [
-        "1. Thông tin sự kiện",
-        "2. Thời gian & Loại vé",
-        "3. Cài đặt",
-        "4. Thông tin đăng ký",
-        "5. Thông tin thanh toán",
+        t("1. Thông tin sự kiện"),
+        t("2. Thời gian & Loại vé"),
+        t("3. Cài đặt"),
+        t("4. Thông tin đăng ký"),
+        t("5. Thông tin thanh toán"),
       ]
     : [
-        "1. Thông tin sự kiện",
-        "2. Thời gian & Loại vé",
-        "3. Cài đặt",
-        "4. Thông tin thanh toán",
+        t("1. Thông tin sự kiện"),
+        t("2. Thời gian & Loại vé"),
+        t("3. Cài đặt"),
+        t("4. Thông tin thanh toán"),
       ];
 
   const handleStep1Next = () => {
     const errs: Step1Errors = {};
-    if (!title.trim()) errs.title = "Vui lòng nhập tên sự kiện";
-    if (!address.trim() && locationType === "offline") errs.address = "Vui lòng nhập địa chỉ chi tiết";
+    if (!title.trim()) errs.title = t("Vui lòng nhập tên sự kiện");
+    if (!address.trim() && locationType === "offline") errs.address = t("Vui lòng nhập địa chỉ chi tiết");
     setStep1Errors(errs);
     if (Object.keys(errs).length > 0) return;
     setCurrentStep(2);
@@ -560,9 +562,9 @@ export const EventEditInfo: React.FC = () => {
 
   const handleStep2Next = () => {
     const errs: Step2Errors = {};
-    if (!startDate) errs.startDate = "Vui lòng chọn thời gian bắt đầu";
-    if (!endDate) errs.endDate = "Vui lòng chọn thời gian kết thúc";
-    if (tickets.length === 0) errs.tickets = "Vui lòng tạo ít nhất 1 loại vé";
+    if (!startDate) errs.startDate = t("Vui lòng chọn thời gian bắt đầu");
+    if (!endDate) errs.endDate = t("Vui lòng chọn thời gian kết thúc");
+    if (tickets.length === 0) errs.tickets = t("Vui lòng tạo ít nhất 1 loại vé");
     setStep2Errors(errs);
     if (Object.keys(errs).length > 0) return;
     setCurrentStep(3);
@@ -590,7 +592,7 @@ export const EventEditInfo: React.FC = () => {
   const handleAddQuestion = () => {
     const newQ: CustomQuestionItem = {
       id: `q-${Date.now()}`,
-      title: "Câu hỏi khảo sát mới",
+      title: t("Câu hỏi khảo sát mới"),
       description: "",
       type: "text",
       isRequired: false,
@@ -607,7 +609,7 @@ export const EventEditInfo: React.FC = () => {
     const currentSnap = getFormSnapshotString();
 
     if (initialSnapshot && currentSnap === initialSnapshot) {
-      showToast("ℹKhông có thông tin nào thay đổi. Hệ thống không lưu dữ liệu.", "info");
+      showToast(t("ℹKhông có thông tin nào thay đổi. Hệ thống không lưu dữ liệu."), "info");
       return;
     }
 
@@ -686,10 +688,10 @@ export const EventEditInfo: React.FC = () => {
       setInitialSnapshot(currentSnap);
 
       // 4. show success toast for organizer
-      showToast("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin.", "success");
+      showToast(t("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin."), "success");
     } catch (err) {
       console.error("Failed to update event details:", err);
-      showToast("Cập nhật thông tin thất bại, vui lòng thử lại.", "error");
+      showToast(t("Cập nhật thông tin thất bại, vui lòng thử lại."), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -737,18 +739,18 @@ export const EventEditInfo: React.FC = () => {
               }`}
             >
               {eventStatus === "PENDING"
-                ? "Chờ duyệt (PENDING)"
+                ? t("Chờ duyệt (PENDING)")
                 : eventStatus === "UPDATE_PENDING"
-                ? "Chờ duyệt cập nhật (UPDATE PENDING)"
+                ? t("Chờ duyệt cập nhật (UPDATE PENDING)")
                 : eventStatus === "APPROVED"
-                ? "Đã duyệt (APPROVED)"
+                ? t("Đã duyệt (APPROVED)")
                 : eventStatus === "REJECTED"
-                ? "Bị từ chối (REJECTED)"
+                ? t("Bị từ chối (REJECTED)")
                 : eventStatus}
             </span>
           </div>
           <p className="text-xs app-text-muted">
-            Chỉnh sửa thông tin chi tiết sự kiện và đồng bộ dữ liệu với hệ thống quản trị
+            {t("Chỉnh sửa thông tin chi tiết sự kiện và đồng bộ dữ liệu với hệ thống quản trị")}
           </p>
         </div>
 
@@ -761,7 +763,7 @@ export const EventEditInfo: React.FC = () => {
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
           >
             <FiRefreshCw className={`w-4 h-4 ${isSubmitting ? "animate-spin" : ""}`} />
-            <span>Cập nhật thông tin</span>
+            <span>{t("Cập nhật thông tin")}</span>
           </button>
         </div>
       </div>
@@ -771,24 +773,24 @@ export const EventEditInfo: React.FC = () => {
         <div className="p-5 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-400 space-y-2.5 animate-in fade-in">
           <div className="flex items-center gap-2 font-extrabold text-sm md:text-base">
             <FiAlertCircle className="w-5 h-5 shrink-0 text-rose-500" />
-            <span>Sự kiện đã bị từ chối phê duyệt!</span>
+            <span>{t("Sự kiện đã bị từ chối phê duyệt!")}</span>
           </div>
           {rejectionReasonText && (
             <p className="text-xs font-semibold">
-              <strong>Lý do chính từ chối:</strong> {rejectionReasonText}
+              <strong>{t("Lý do chính từ chối")}:</strong> {rejectionReasonText}
             </p>
           )}
           {rejectionNotesText && (
             <p className="text-xs">
-              <strong>Ghi chú hướng dẫn từ Admin:</strong> {rejectionNotesText}
+              <strong>{t("Ghi chú hướng dẫn từ Admin")}:</strong> {rejectionNotesText}
             </p>
           )}
           {rejectedFields.length > 0 && (
             <div className="pt-2 border-t border-rose-500/20 text-xs font-bold flex items-center gap-2 flex-wrap">
-              <span>Các mục bị Admin đánh dấu lỗi (cần chỉnh sửa):</span>
+              <span>{t("Các mục bị Admin đánh dấu lỗi (cần chỉnh sửa)")}:</span>
               {rejectedFields.map((f) => (
                 <span key={f} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[11px] uppercase font-mono shadow-xs">
-                  {f === "posterImage" ? "Poster & Banner" : f === "title" ? "Tên & Mô tả" : f === "dates" ? "Thời gian" : f === "tickets" ? "Danh sách Hạng vé" : f === "location" ? "Địa điểm" : "Thanh toán"}
+                  {f === "posterImage" ? t("Poster & Banner") : f === "title" ? t("Tên & Mô tả") : f === "dates" ? t("Thời gian") : f === "tickets" ? t("Danh sách Hạng vé") : f === "location" ? t("Địa điểm") : t("Thanh toán")}
                 </span>
               ))}
             </div>

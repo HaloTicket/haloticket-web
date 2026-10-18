@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { EventApiData } from "@/types";
@@ -23,7 +22,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   limit = 8,
   className = "mb-10"
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);

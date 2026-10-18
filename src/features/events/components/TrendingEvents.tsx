@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaFire } from "react-icons/fa";
@@ -23,7 +22,7 @@ interface TrendingEventsProps {
 }
 
 export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8, events: propEvents }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
   const rankScrollRef = useRef<HTMLDivElement>(null);
   const eventsScrollRef = useRef<HTMLDivElement>(null);

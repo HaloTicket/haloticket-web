@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState, useMemo } from "react";
 import {
   FiCalendar,
@@ -22,7 +21,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
   event,
   onSelectTicket,
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
 
   // ensure showtimes list calculated dynamically from event startTime & endTime
   const showtimes: Showtime[] = useMemo(() => {
@@ -47,14 +46,14 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
     const defaultTickets: TicketTier[] = Array.isArray(rawTickets) && rawTickets.length > 0
       ? rawTickets.map((t: any, tIdx: number) => ({
           id: `t_raw_${tIdx}`,
-          name: t.name || "Vé Thường",
+          name: t.name || translate("Vé Thường"),
           price: typeof t.price === "number" ? `${t.price.toLocaleString("vi-VN")} đ` : String(t.price || "0 đ"),
           priceValue: typeof t.price === "number" ? t.price : (parseFloat(String(t.price).replace(/[^0-9]/g, "")) || 1000000),
           available: t.totalQuantity ? t.totalQuantity > 0 : t.available !== false,
         }))
       : [
           { id: `t_vip`, name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
-          { id: `t_std`, name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
+          { id: `t_std`, name: translate("TIÊU CHUẨN"), price: "1.000.000 đ", priceValue: 1000000, available: true },
         ];
 
     if (event.showtimes && event.showtimes.length > 0) {
@@ -71,7 +70,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
         const dayNum = start.getDate();
         const monthNum = start.getMonth() + 1;
         const yearNum = start.getFullYear();
-        const dateStr = `${dayNum} Tháng ${monthNum < 10 ? "0" + monthNum : monthNum}, ${yearNum}`;
+        const dateStr = `${dayNum} ${translate("Tháng")} ${monthNum < 10 ? "0" + monthNum : monthNum}, ${yearNum}`;
         const fullDateTime = `${timeRangeStr}, ${dateStr}`;
 
         return {
@@ -116,7 +115,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
       const dayNum = curr.getDate();
       const monthNum = curr.getMonth() + 1;
       const yearNum = curr.getFullYear();
-      const dateStr = `${dayNum} Tháng ${monthNum < 10 ? "0" + monthNum : monthNum}, ${yearNum}`;
+      const dateStr = `${dayNum} ${translate("Tháng")} ${monthNum < 10 ? "0" + monthNum : monthNum}, ${yearNum}`;
       const fullDateTime = `${timeRangeStr}, ${dateStr}`;
 
       const tickets: TicketTier[] = defaultTickets;
@@ -142,16 +141,16 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
       : [
         {
           id: "st_default_1",
-          dateStr: "17 Tháng 10, 2026",
+          dateStr: `17 ${translate("Tháng")} 10, 2026`,
           timeStr: "19:00 - 23:59",
-          fullDateTime: "19:00 - 23:59, 17 Tháng 10, 2026",
+          fullDateTime: `19:00 - 23:59, 17 ${translate("Tháng")} 10, 2026`,
           dayNumber: 17,
           monthNumber: 10,
           yearNumber: 2026,
           isOpen: true,
           tickets: [
             { id: "t_vip_1", name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },
-            { id: "t_std_1", name: "TIÊU CHUẨN", price: "1.000.000 đ", priceValue: 1000000, available: true },
+            { id: "t_std_1", name: translate("TIÊU CHUẨN"), price: "1.000.000 đ", priceValue: 1000000, available: true },
           ],
         },
       ];

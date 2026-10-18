@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FiTag, FiCheck, FiCheckCircle } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import type { SeatMapDocument } from "@/types/seating";
 import type { TicketItem } from "@/types/organizer";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
@@ -18,6 +19,7 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
   onAssignTierToZone,
   onSave
 }) => {
+  const { t } = useTranslation();
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(
     Object.keys(seatMapDocument.zones || {})[0] || null
   );
@@ -41,8 +43,8 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
             <FiTag className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-extrabold app-text-main">Bước 2: Gán Loại Vé & Giá Vé Vào Sơ Đồ (Ticket Tier Assigner)</h3>
-            <p className="text-[11px] app-text-muted">Chọn Zone / Khu vực trên sơ đồ để gán hạng vé tương ứng</p>
+            <h3 className="text-sm font-extrabold app-text-main">{t("Bước 2: Gán Loại Vé & Giá Vé Vào Sơ Đồ (Ticket Tier Assigner)")}</h3>
+            <p className="text-[11px] app-text-muted">{t("Chọn Zone / Khu vực trên sơ đồ để gán hạng vé tương ứng")}</p>
           </div>
         </div>
 
@@ -53,7 +55,7 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
             className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer transition-all"
           >
             <FiCheckCircle className="w-4 h-4" />
-            <span>Hoàn tất gán vé sơ đồ</span>
+            <span>{t("Hoàn tất gán vé sơ đồ")}</span>
           </button>
         )}
       </div>
@@ -62,14 +64,14 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
         {/* Left Side Panel: Zones & Ticket Tier Selection */}
         <div className="w-80 border-r app-border p-5 bg-slate-50/50 dark:bg-slate-900/30 overflow-y-auto no-scrollbar space-y-6">
           <div className="space-y-2">
-            <h4 className="text-xs font-extrabold uppercase tracking-wider app-text-muted">1. Danh sách Khu vực (Zones)</h4>
+            <h4 className="text-xs font-extrabold uppercase tracking-wider app-text-muted">{t("1. Danh sách Khu vực (Zones)")}</h4>
             <div className="space-y-2">
               {zonesList.length === 0 ? (
-                <p className="text-xs app-text-muted italic">Chưa có khu vực nào được vẽ ở Bước 1.</p>
+                <p className="text-xs app-text-muted italic">{t("Chưa có khu vực nào được vẽ ở Bước 1.")}</p>
               ) : (
                 zonesList.map((z) => {
                   const isSelected = selectedZoneId === z.id;
-                  const assignedTicket = tickets.find((t) => t.id === z.tierId);
+                  const assignedTicket = tickets.find((tItem) => tItem.id === z.tierId);
                   return (
                     <div
                       key={z.id}
@@ -87,17 +89,17 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
                         </span>
                         {assignedTicket ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
-                            Đã gán
+                            {t("Đã gán")}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
-                            Chưa gán vé
+                            {t("Chưa gán vé")}
                           </span>
                         )}
                       </div>
                       {assignedTicket && (
                         <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 pl-5">
-                          Vé: {assignedTicket.name} — {formatCurrency(assignedTicket.price)}
+                          {t("Vé: {{name}} — {{price}}", { name: assignedTicket.name, price: formatCurrency(assignedTicket.price) })}
                         </p>
                       )}
                     </div>
@@ -110,12 +112,12 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
           {currentSelectedZone && (
             <div className="space-y-3 border-t app-border pt-4">
               <h4 className="text-xs font-extrabold uppercase tracking-wider app-text-muted">
-                2. Chọn Hạng Vé cho <span className="text-blue-600">{currentSelectedZone.name}</span>
+                {t("2. Chọn Hạng Vé cho")} <span className="text-blue-600">{currentSelectedZone.name}</span>
               </h4>
 
               <div className="space-y-2">
                 {tickets.length === 0 ? (
-                  <p className="text-xs text-rose-500 font-bold">Hãy tạo ít nhất một loại vé ở bảng bên trên trước!</p>
+                  <p className="text-xs text-rose-500 font-bold">{t("Hãy tạo ít nhất một loại vé ở bảng bên trên trước!")}</p>
                 ) : (
                   tickets.map((ticket) => {
                     const isMapped = currentSelectedZone.tierId === ticket.id;

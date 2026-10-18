@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiCopy, FiCheck, FiX, FiRefreshCw, FiCheckCircle, FiInfo, FiClock } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import type { VietQrPayloadResponse } from "@/types";
@@ -23,6 +24,7 @@ export default function VietQrModal({
   onTimeout,
   expiresAt,
 }: VietQrModalProps) {
+  const { t } = useTranslation();
   const [copiedAccountNo, setCopiedAccountNo] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -176,9 +178,9 @@ export default function VietQrModal({
             </span>
             <div>
               <h3 className="text-sm md:text-base font-black uppercase tracking-tight app-text-main">
-                Thanh Toán Chuyển Khoản Qua Mã QR
+                {t("Thanh Toán Chuyển Khoản Qua Mã QR")}
               </h3>
-              <p className="text-[11px] app-text-sub">Tự động xuất vé ngay khi nhận được tiền</p>
+              <p className="text-[11px] app-text-sub">{t("Tự động xuất vé ngay khi nhận được tiền")}</p>
             </div>
           </div>
 
@@ -186,7 +188,7 @@ export default function VietQrModal({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 font-mono text-xs font-extrabold shadow-xs">
               <FiClock className="w-4 h-4 animate-pulse text-rose-500" />
-              <span>Hạn giữ vé: {formatTimer(timeLeft)}</span>
+              <span>{t("Hạn giữ vé:")} {formatTimer(timeLeft)}</span>
             </div>
 
             <button
@@ -213,7 +215,7 @@ export default function VietQrModal({
               ) : (
                 <div className="text-center p-4 text-xs text-slate-500 font-bold flex flex-col items-center gap-2">
                   <FiRefreshCw className="w-6 h-6 animate-spin text-blue-600" />
-                  <span>Đang khởi tạo mã VietQR...</span>
+                  <span>{t("Đang khởi tạo mã VietQR...")}</span>
                 </div>
               )}
             </div>
@@ -222,10 +224,10 @@ export default function VietQrModal({
             <div className="w-full p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center space-y-1">
               <p className="text-xs font-black text-blue-500 flex items-center justify-center gap-2">
                 <FiRefreshCw className="w-4 h-4 animate-spin shrink-0" />
-                <span>Đang chờ chuyển khoản...</span>
+                <span>{t("Đang chờ chuyển khoản...")}</span>
               </p>
               <p className="text-[10px] app-text-sub leading-snug">
-                Hệ thống tự động kiểm tra mỗi 3s & hoàn tất tự động ngay khi ngân hàng báo có tiền.
+                {t("Hệ thống tự động kiểm tra mỗi 3s & hoàn tất tự động ngay khi ngân hàng báo có tiền.")}
               </p>
             </div>
           </div>
@@ -234,7 +236,7 @@ export default function VietQrModal({
           <div className="md:col-span-7 space-y-3.5">
             {/* Bank Name */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl app-bg-main border app-border">
-              <span className="app-text-sub text-xs font-semibold">Ngân hàng thụ hưởng:</span>
+              <span className="app-text-sub text-xs font-semibold">{t("Ngân hàng thụ hưởng:")}</span>
               <span className="font-extrabold text-sm text-blue-600 dark:text-blue-400">
                 {vietQrData.bankName || "MBBank"}
               </span>
@@ -242,7 +244,7 @@ export default function VietQrModal({
 
             {/* Account Number */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl app-bg-main border app-border">
-              <span className="app-text-sub text-xs font-semibold">Số tài khoản:</span>
+              <span className="app-text-sub text-xs font-semibold">{t("Số tài khoản:")}</span>
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm font-mono tracking-wide text-blue-600 dark:text-blue-400">
                   {vietQrData.accountNo}
@@ -251,7 +253,7 @@ export default function VietQrModal({
                   type="button"
                   onClick={() => copyToClipboard(vietQrData.accountNo, "account")}
                   className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 cursor-pointer transition-colors"
-                  title="Sao chép số tài khoản"
+                  title={t("Sao chép số tài khoản")}
                 >
                   {copiedAccountNo ? <FiCheck className="w-4 h-4 text-emerald-500" /> : <FiCopy className="w-4 h-4" />}
                 </button>
@@ -260,7 +262,7 @@ export default function VietQrModal({
 
             {/* Account Name */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl app-bg-main border app-border">
-              <span className="app-text-sub text-xs font-semibold">Tên chủ tài khoản:</span>
+              <span className="app-text-sub text-xs font-semibold">{t("Tên chủ tài khoản:")}</span>
               <span className="font-black text-xs md:text-sm app-text-main uppercase">
                 {vietQrData.accountName || "CONG TY TNHH HALOTICKET"}
               </span>
@@ -268,7 +270,7 @@ export default function VietQrModal({
 
             {/* Exact Amount */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-              <span className="app-text-sub text-xs font-semibold">Số tiền thanh toán:</span>
+              <span className="app-text-sub text-xs font-semibold">{t("Số tiền thanh toán:")}</span>
               <span className="font-black text-emerald-500 text-base md:text-lg font-mono">
                 {formatCurrency(vietQrData.amount)}
               </span>
@@ -276,7 +278,7 @@ export default function VietQrModal({
 
             {/* Transfer Content */}
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30">
-              <span className="app-text-sub text-xs font-semibold">Nội dung chuyển khoản:</span>
+              <span className="app-text-sub text-xs font-semibold">{t("Nội dung chuyển khoản:")}</span>
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm font-mono text-blue-600 dark:text-blue-400 tracking-wider">
                   {vietQrData.transferContent}
@@ -285,7 +287,7 @@ export default function VietQrModal({
                   type="button"
                   onClick={() => copyToClipboard(vietQrData.transferContent, "content")}
                   className="p-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 cursor-pointer transition-colors"
-                  title="Sao chép nội dung"
+                  title={t("Sao chép nội dung")}
                 >
                   {copiedContent ? <FiCheck className="w-4 h-4 text-emerald-500" /> : <FiCopy className="w-4 h-4" />}
                 </button>
@@ -296,7 +298,7 @@ export default function VietQrModal({
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] font-medium flex items-start gap-2">
               <FiInfo className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
-                Hệ thống tự động duyệt vé ngay sau khi nhận tiền. Bạn <strong>không cần bấm nút gì thêm</strong> sau khi chuyển khoản thành công.
+                {t("Hệ thống tự động duyệt vé ngay sau khi nhận tiền. Bạn")} <strong>{t("không cần bấm nút gì thêm")}</strong> {t("sau khi chuyển khoản thành công.")}
               </span>
             </div>
           </div>
@@ -309,7 +311,7 @@ export default function VietQrModal({
             onClick={onClose}
             className="px-6 py-3 rounded-2xl app-bg-main border app-border font-extrabold text-xs app-text-sub hover:app-text-main transition-colors cursor-pointer"
           >
-            Hủy / Đóng
+            {t("Hủy / Đóng")}
           </button>
 
           <button
@@ -321,12 +323,12 @@ export default function VietQrModal({
             {isVerifying ? (
               <>
                 <FiRefreshCw className="w-4 h-4 animate-spin" />
-                <span>Đang kiểm tra kết quả...</span>
+                <span>{t("Đang kiểm tra kết quả...")}</span>
               </>
             ) : (
               <>
                 <FiCheckCircle className="w-4 h-4" />
-                <span>Kiểm tra trạng thái ngay</span>
+                <span>{t("Kiểm tra trạng thái ngay")}</span>
               </>
             )}
           </button>

@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
@@ -14,7 +13,7 @@ interface SpecialEventsProps {
 }
 
 export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, events: propEvents }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);

@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { PATHS } from "@/routes/paths";
-import { t as translate } from "@/i18n";
 import { FiX } from "react-icons/fi";
 
 export interface LoginRequiredModalProps {
@@ -20,6 +20,7 @@ export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
   message,
   redirectUrl = PATHS.MY_TICKETS,
 }) => {
+  const { t: translate } = useTranslation();
   const navigate = useNavigate();
 
   useEffect(() => {

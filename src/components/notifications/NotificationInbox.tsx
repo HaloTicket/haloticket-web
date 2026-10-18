@@ -161,7 +161,7 @@ export function NotificationInbox({
   }
 
   return (
-    <section className="flex flex-col md:flex-row h-full max-h-[75vh] overflow-hidden app-bg-card rounded-xl border app-border shadow-sm" aria-label="Notification inbox">
+    <section className="flex flex-col md:flex-row h-full max-h-[75vh] overflow-hidden app-bg-card rounded-xl border app-border shadow-sm" aria-label={label("Hộp thư thông báo", "Notification inbox")}>
       <div className="w-full md:w-[320px] lg:w-[380px] flex-shrink-0 flex flex-col border-r app-border app-bg-subnav">
         <header className="flex items-center justify-between p-3 border-b app-border app-bg-card">
           <p className="font-semibold text-[13px] app-text-main">{label("Chưa đọc", "Unread")}: {notifications.filter(isUnread).length}</p>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FiLayers, FiSave } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import type { SeatMapDocument, ZoneBlock, Seat, StageElement, StructureElement, CanvasSettings } from "@/types/seating";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { ToolBar } from "@/features/organizer/event-manage/components/seating/ToolBar";
@@ -16,10 +17,11 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
   onSaveLayout,
   onClose
 }) => {
+  const { t } = useTranslation();
   const [zones, setZones] = useState<Record<string, ZoneBlock>>(initialDocument?.zones || {
     zone_A: {
       id: "zone_A",
-      name: "Khu vực A (VIP)",
+      name: t("Khu vực A (VIP)"),
       color: "#3b82f6",
       fillColor: "#3b82f6",
       strokeColor: "#2563eb",
@@ -37,7 +39,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
     {
       id: "stage_main",
       type: "stage",
-      label: "SÂN KHẤU CHÍNH",
+      label: t("SÂN KHẤU CHÍNH"),
       x: 150,
       y: 40,
       width: 300,
@@ -58,7 +60,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
     const doc: SeatMapDocument = {
       version: "2.0",
       timestamp: new Date().toISOString(),
-      name: "Sơ đồ thiết kế",
+      name: t("Sơ đồ thiết kế"),
       venueTemplateId: "custom",
       canvasSettings,
       zones,
@@ -120,8 +122,8 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
             <FiLayers className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-extrabold app-text-main">Bước 1: Thiết kế Layout Sơ đồ ghế (Visual Designer Canvas)</h3>
-            <p className="text-[11px] app-text-muted">Vẽ khu vực, đặt hàng ghế, sân khấu & lối đi</p>
+            <h3 className="text-sm font-extrabold app-text-main">{t("Bước 1: Thiết kế Layout Sơ đồ ghế (Visual Designer Canvas)")}</h3>
+            <p className="text-[11px] app-text-muted">{t("Vẽ khu vực, đặt hàng ghế, sân khấu & lối đi")}</p>
           </div>
         </div>
 
@@ -132,7 +134,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl border app-border text-xs font-bold app-text-muted hover:app-text-main cursor-pointer"
             >
-              Hủy
+              {t("Hủy")}
             </button>
           )}
           <button
@@ -141,7 +143,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
             className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 cursor-pointer transition-all"
           >
             <FiSave className="w-4 h-4" />
-            <span>Lưu bản thiết kế sơ đồ</span>
+            <span>{t("Lưu bản thiết kế sơ đồ")}</span>
           </button>
         </div>
       </div>
@@ -237,7 +239,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
               ]);
             }}
             onAddZoneBlock={(configOrName) => {
-              const nameStr = typeof configOrName === "string" ? configOrName : configOrName?.name || `Khu vực mới ${Object.keys(zones).length + 1}`;
+              const nameStr = typeof configOrName === "string" ? configOrName : configOrName?.name || t("Khu vực mới {{num}}", { num: Object.keys(zones).length + 1 });
               const colorStr = typeof configOrName === "object" ? configOrName?.color || "#06b6d4" : "#06b6d4";
               const widthNum = typeof configOrName === "object" ? configOrName?.width || 520 : 520;
               const heightNum = typeof configOrName === "object" ? configOrName?.height || 220 : 220;

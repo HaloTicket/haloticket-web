@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FiZoomIn,
   FiZoomOut,
@@ -27,6 +28,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
   onDeleteElement,
   onSelectRowSeats,
 }) => {
+  const { t } = useTranslation();
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -83,10 +85,10 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b app-border z-20">
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold app-text-main uppercase tracking-wider">
-            {isAttendeeMode ? 'Sơ đồ chọn vé Khán Giả' : 'Sơ đồ khán phòng (2D Canvas Studio)'}
+            {isAttendeeMode ? t('Sơ đồ chọn vé Khán Giả') : t('Sơ đồ khán phòng (2D Canvas Studio)')}
           </span>
           <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[11px] font-bold font-mono">
-            {seats.length} ghế
+            {seats.length} {t("ghế")}
           </span>
         </div>
 
@@ -95,7 +97,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
             type="button"
             onClick={handleZoomOut}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title="Thu nhỏ sơ đồ"
+            title={t("Thu nhỏ sơ đồ")}
           >
             <FiZoomOut className="w-4 h-4" />
           </button>
@@ -106,7 +108,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
             type="button"
             onClick={handleZoomIn}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title="Phóng to sơ đồ"
+            title={t("Phóng to sơ đồ")}
           >
             <FiZoomIn className="w-4 h-4" />
           </button>
@@ -114,7 +116,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
             type="button"
             onClick={handleResetZoom}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer ml-1"
-            title="Đặt lại 100%"
+            title={t("Đặt lại 100%")}
           >
             <FiRotateCcw className="w-4 h-4" />
           </button>
@@ -184,7 +186,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
                       type="button"
                       onClick={() => onDeleteElement?.(elem.id)}
                       className="absolute right-2 top-2.5 p-1 rounded bg-rose-600 text-white hover:bg-rose-700 transition-colors cursor-pointer"
-                      title="Xóa phần tử này"
+                      title={t("Xóa phần tử này")}
                     >
                       <FiTrash2 className="w-3.5 h-3.5" />
                     </button>
@@ -221,7 +223,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
                           type="button"
                           onClick={() => onSelectRowSeats?.(rowName)}
                           className="w-8 h-8 rounded-lg app-bg-card border app-border text-xs font-mono font-extrabold app-text-muted hover:app-text-main hover:border-blue-500 transition-colors cursor-pointer"
-                          title={`Nhấp để chọn toàn bộ Hàng ${rowName}`}
+                          title={t("Nhấp để chọn toàn bộ Hàng {{row}}", { row: rowName })}
                         >
                           {rowName}
                         </button>
@@ -285,21 +287,21 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
                               <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none">
                                 <div className="px-3 py-1.5 bg-slate-900 text-white text-[11px] rounded-xl shadow-xl border border-slate-700 whitespace-nowrap space-y-0.5">
                                   <div className="font-extrabold flex items-center gap-1.5">
-                                    <span>Ghế {seat.row}-{seat.col}</span>
+                                    <span>{t("Ghế")} {seat.row}-{seat.col}</span>
                                     {isMaintenance && (
                                       <span className="px-1.5 py-0.2 rounded bg-rose-600 text-white text-[9px]">
-                                        BẢO TRÌ/HƯ HỎNG
+                                        {t("BẢO TRÌ/HƯ HỎNG")}
                                       </span>
                                     )}
                                   </div>
                                   <div className="text-slate-300">
-                                    {tier?.name || 'Hạng ghế'} -{' '}
+                                    {tier?.name || t('Hạng ghế')} -{' '}
                                     <span className="font-mono text-emerald-400 font-bold">
                                       {tier?.price != null ? `${tier.price.toLocaleString('vi-VN')} đ` : '0 đ'}
                                     </span>
                                   </div>
                                   <div className="text-[10px] text-slate-400 font-medium">
-                                    Trạng thái: [{seat.status}]
+                                    {t("Trạng thái:")} [{seat.status}]
                                   </div>
                                 </div>
                               </div>
@@ -313,7 +315,7 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
                           type="button"
                           onClick={() => onSelectRowSeats?.(rowName)}
                           className="w-8 h-8 rounded-lg app-bg-card border app-border text-xs font-mono font-extrabold app-text-muted hover:app-text-main hover:border-blue-500 transition-colors cursor-pointer"
-                          title={`Nhấp để chọn toàn bộ Hàng ${rowName}`}
+                          title={t("Nhấp để chọn toàn bộ Hàng {{row}}", { row: rowName })}
                         >
                           {rowName}
                         </button>
@@ -337,17 +339,17 @@ export const SeatMapCanvas: React.FC<SeatMapCanvasProps> = ({
         ))}
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded bg-slate-700/50 border border-slate-600" />
-          <span>Đã bán</span>
+          <span>{t("Đã bán")}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded bg-amber-500/20 border border-amber-500 text-amber-400 flex items-center justify-center text-[9px] font-bold">BTC</span>
-          <span>Giữ chỗ BTC</span>
+          <span>{t("Giữ chỗ BTC")}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded bg-rose-500/20 border border-rose-500 text-rose-400 flex items-center justify-center text-[9px]">
             <FiTool className="w-2.5 h-2.5" />
           </span>
-          <span>Bảo trì / Ghế hư</span>
+          <span>{t("Bảo trì / Ghế hư")}</span>
         </div>
       </div>
     </div>

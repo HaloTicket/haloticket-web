@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
@@ -40,6 +41,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
   onCloseSidebar,
   onToggleCollapse
 }) => {
+  const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const location = useLocation();
 
@@ -48,22 +50,22 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
 
   const allNavGroups = [
     {
-      groupTitle: "BÁO CÁO",
+      groupTitle: t("BÁO CÁO"),
       items: [
         {
-          label: "Phân tích",
+          label: t("Phân tích"),
           path: `/organizer/events/${eventId}/manage/overview`,
           icon: <FiPieChart className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess || isManager,
         },
         {
-          label: "Danh sách đơn hàng",
+          label: t("Danh sách đơn hàng"),
           path: `/organizer/events/${eventId}/manage/orders`,
           icon: <FiFileText className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess || isManager,
         },
         {
-          label: "Check-in",
+          label: t("Check-in"),
           path: `/organizer/events/${eventId}/manage/checkin`,
           icon: <FiCheckCircle className="w-4.5 h-4.5 shrink-0" />,
           visible: true, // everyone can see check-in
@@ -71,40 +73,40 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
       ],
     },
     {
-      groupTitle: "CÀI ĐẶT SỰ KIỆN",
+      groupTitle: t("CÀI ĐẶT SỰ KIỆN"),
       items: [
         {
-          label: "Thành viên",
+          label: t("Thành viên"),
           path: `/organizer/events/${eventId}/manage/members`,
           icon: <FiUsers className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess || isManager,
         },
         {
-          label: "Chỉnh sửa",
+          label: t("Chỉnh sửa"),
           path: `/organizer/events/${eventId}/manage/edit`,
           icon: <FiEdit3 className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess,
         },
         {
-          label: "Thiết kế sơ đồ ghế",
+          label: t("Thiết kế sơ đồ ghế"),
           path: `/organizer/events/${eventId}/manage/seating`,
           icon: <FiGrid className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess,
         },
         {
-          label: "Cài đặt hạng vé",
+          label: t("Cài đặt hạng vé"),
           path: `/organizer/events/${eventId}/manage/ticket-assign`,
           icon: <FaTicketAlt className="w-4 h-4 shrink-0" />,
           visible: isFullAccess,
         },
         {
-          label: "Chuyển nhượng vé",
+          label: t("Chuyển nhượng vé"),
           path: PATHS.EVENT_MANAGE_TRANSFERS(eventId!),
           icon: <FiRepeat className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess || isManager,
         },
         {
-          label: "Quản lý suất diễn",
+          label: t("Quản lý suất diễn"),
           path: `/organizer/events/${eventId}/manage/showtimes`,
           icon: <FiClock className="w-4 h-4 shrink-0" />,
           visible: isFullAccess,
@@ -112,10 +114,10 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
       ],
     },
     {
-      groupTitle: "MARKETING",
+      groupTitle: t("MARKETING"),
       items: [
         {
-          label: "Voucher",
+          label: t("Voucher"),
           path: `/organizer/events/${eventId}/manage/vouchers`,
           icon: <FiTag className="w-4.5 h-4.5 shrink-0" />,
           visible: isFullAccess,
@@ -144,7 +146,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
             <Link
               to={PATHS.MY_EVENTS}
               className={`flex items-center gap-2.5 group ${isCollapsed ? "justify-center" : ""}`}
-              title="HaloTicket - Trang quản trị sự kiện"
+              title={t("HaloTicket - Trang quản trị sự kiện")}
             >
               <div className="w-9.5 h-9.5 rounded-xl bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-bold shadow-md shrink-0 group-hover:scale-105 transition-transform">
                 <FaTicketAlt className="w-4 h-4 transform -rotate-12" />
@@ -152,7 +154,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
               {!isCollapsed && (
                 <div className="min-w-0">
                   <span className="text-sm font-extrabold tracking-tight text-blue-600 dark:text-blue-400 block leading-none truncate">
-                    Quản trị sự kiện
+                    {t("Quản trị sự kiện")}
                   </span>
                   <span className="text-[10px] app-text-muted font-semibold block mt-0.5">
                     HaloTicket Portal
@@ -175,7 +177,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
               type="button"
               onClick={onToggleCollapse}
               className="hidden lg:flex p-1.5 rounded-lg border app-border app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-              title={isCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+              title={isCollapsed ? t("Mở rộng menu") : t("Thu gọn menu")}
             >
               {isCollapsed ? <FiChevronRight className="w-4 h-4" /> : <FiChevronLeft className="w-4 h-4" />}
             </button>
@@ -187,10 +189,10 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
             onClick={onCloseSidebar}
             className={`flex items-center gap-3 text-xs font-bold app-text-muted hover:app-text-main transition-all group p-2.5 rounded-xl border app-border hover:bg-slate-100 dark:hover:bg-slate-800 ${isCollapsed ? "justify-center" : ""
               }`}
-            title="Quay lại Sự kiện của tôi"
+            title={t("Quay lại Sự kiện của tôi")}
           >
             <FiArrowLeft className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 transition-transform group-hover:-translate-x-1" />
-            {!isCollapsed && <span>Sự kiện của tôi</span>}
+            {!isCollapsed && <span>{t("Sự kiện của tôi")}</span>}
           </Link>
 
           {/* Event Header Banner Card */}
@@ -209,10 +211,10 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <h4 className="text-xs font-extrabold app-text-main truncate">
-                  {eventData?.title || "Sự kiện của tôi"}
+                  {eventData?.title || t("Sự kiện của tôi")}
                 </h4>
                 <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
-                  Đang diễn ra
+                  {t("Đang diễn ra")}
                 </span>
               </div>
             )}
@@ -255,7 +257,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
 
         {/* Footer Language Switcher */}
         <div className={`pt-3 border-t app-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-          {!isCollapsed && <span className="text-xs font-bold app-text-muted">Ngôn ngữ</span>}
+          {!isCollapsed && <span className="text-xs font-bold app-text-muted">{t("Ngôn ngữ")}</span>}
           <button
             type="button"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl app-bg-subnav border app-border text-xs font-bold app-text-main cursor-pointer shadow-xs"

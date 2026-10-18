@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
@@ -16,7 +15,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
   onApply,
   currentPreset = "Tất cả các ngày"
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
   const [selectedPreset, setSelectedPreset] = useState<string>(currentPreset);
   const [selectedDay, setSelectedDay] = useState<number | null>(3);
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { FiX, FiPlus, FiTrash2, FiEdit2, FiTag, FiClock, FiInfo, FiDollarSign, FiChevronRight } from 'react-icons/fi';
 import type { SeatTier, TierManagerModalProps } from '@/types/seating';
@@ -10,6 +11,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   onSaveTiers,
   readOnly = false,
 }) => {
+  const { t } = useTranslation();
   const [localTiers, setLocalTiers] = useState<SeatTier[]>(tiers);
   const [editingTierId, setEditingTierId] = useState<string | null>(null);
 
@@ -79,7 +81,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
 
   const handleDeleteItem = (id: string) => {
     if (localTiers.length <= 1) {
-      alert('Phải giữ ít nhất 1 hạng vé!');
+      alert(t('Phải giữ ít nhất 1 hạng vé!'));
       return;
     }
     if (editingTierId === id) setEditingTierId(null);
@@ -108,18 +110,18 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-black app-text-main flex items-center gap-2">
-                <span>{readOnly ? 'Danh Sách Hạng Vé Sự Kiện' : 'Quản Lý Hạng Vé & Giá Bán'}</span>
+                <span>{readOnly ? t('Danh Sách Hạng Vé Sự Kiện') : t('Quản Lý Hạng Vé & Giá Bán')}</span>
                 {isFormActive && (
                   <span className="text-xs font-bold text-blue-500 flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/20">
                     <FiChevronRight className="w-3.5 h-3.5" />
-                    {editingTierId === 'NEW' ? 'Tạo loại vé mới' : 'Chỉnh sửa loại vé'}
+                    {editingTierId === 'NEW' ? t('Tạo loại vé mới') : t('Chỉnh sửa loại vé')}
                   </span>
                 )}
               </h3>
               <p className="text-xs app-text-muted">
                 {readOnly
-                  ? 'Chế độ xem thông tin các loại vé mở bán từ CSDL'
-                  : 'Thêm, chỉnh sửa thông tin loại vé, số lượng và thời gian mở bán'}
+                  ? t('Chế độ xem thông tin các loại vé mở bán từ CSDL')
+                  : t('Thêm, chỉnh sửa thông tin loại vé, số lượng và thời gian mở bán')}
               </p>
             </div>
           </div>
@@ -139,7 +141,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
             <div className={isFormActive ? 'lg:col-span-5 space-y-4' : 'space-y-4'}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold app-text-muted uppercase tracking-wider">
-                  Danh sách Hạng vé ({localTiers.length})
+                  {t('Danh sách Hạng vé')} ({localTiers.length})
                 </span>
                 {!readOnly && !editingTierId && (
                   <button
@@ -148,7 +150,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
                   >
                     <FiPlus className="w-4 h-4" />
-                    <span>Thêm loại vé mới</span>
+                    <span>{t('Thêm loại vé mới')}</span>
                   </button>
                 )}
               </div>
@@ -170,7 +172,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                           <h4 className="text-sm font-extrabold app-text-main">{tier.name}</h4>
                           <span className="text-xs font-mono font-bold text-emerald-500">
                             {tier.isFree || tier.price === 0
-                              ? 'Vé Miễn Phí (0đ)'
+                              ? t('Vé Miễn Phí (0đ)')
                               : `${tier.price.toLocaleString('vi-VN')} đ`}
                           </span>
                         </div>
@@ -185,7 +187,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                                   ? 'bg-blue-600 text-white border-blue-500'
                                   : 'app-bg-card border-app-border app-text-muted hover:app-text-main'
                               }`}
-                              title="Chỉnh sửa hạng vé"
+                              title={t("Chỉnh sửa hạng vé")}
                             >
                               <FiEdit2 className="w-3.5 h-3.5" />
                             </button>
@@ -193,7 +195,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                               type="button"
                               onClick={() => handleDeleteItem(tier.id)}
                               className="p-2 text-xs font-bold rounded-xl app-bg-card border app-border text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                              title="Xóa hạng vé"
+                              title={t("Xóa hạng vé")}
                             >
                               <FiTrash2 className="w-3.5 h-3.5" />
                             </button>
@@ -205,16 +207,16 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                       <div className="grid grid-cols-1 gap-1.5 pt-2 border-t app-border text-[11px] app-text-muted font-medium">
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <FiClock className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Số lượng:
+                            <FiClock className="w-3.5 h-3.5 text-blue-500 shrink-0" /> {t("Số lượng")}:
                           </span>
-                          <strong className="app-text-main font-mono font-bold">{tier.totalQuantity ?? 100} vé</strong>
+                          <strong className="app-text-main font-mono font-bold">{tier.totalQuantity ?? 100} {t("vé")}</strong>
                         </div>
 
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <FiInfo className="w-3.5 h-3.5 text-indigo-500 shrink-0" /> Mua tối thiểu/đơn:
+                            <FiInfo className="w-3.5 h-3.5 text-indigo-500 shrink-0" /> {t("Mua tối thiểu/đơn")}:
                           </span>
-                          <strong className="app-text-main font-mono font-bold">{tier.minPerOrder ?? 1} - {tier.maxPerOrder ?? 5} vé</strong>
+                          <strong className="app-text-main font-mono font-bold">{tier.minPerOrder ?? 1} - {tier.maxPerOrder ?? 5} {t("vé")}</strong>
                         </div>
 
                         {tier.description && (
@@ -235,7 +237,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                 <div className="flex items-center justify-between border-b app-border pb-3">
                   <h4 className="text-sm font-extrabold app-text-main uppercase tracking-wider flex items-center gap-2">
                     <FiTag className="text-blue-600" />
-                    <span>{editingTierId === 'NEW' ? 'Tạo Loại Vé Mới' : 'Chỉnh Sửa Thông Tin Loại Vé'}</span>
+                    <span>{editingTierId === 'NEW' ? t('Tạo Loại Vé Mới') : t('Chỉnh Sửa Thông Tin Loại Vé')}</span>
                   </h4>
                   <button
                     type="button"
@@ -251,7 +253,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="block text-xs font-bold app-text-muted">
-                        Tên loại vé <span className="text-rose-500">*</span>
+                        {t('Tên loại vé')} <span className="text-rose-500">*</span>
                       </label>
                       <span className="text-[11px] app-text-muted font-mono">{name.length} / 50</span>
                     </div>
@@ -260,7 +262,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                       maxLength={50}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Ví dụ: Vé VVIP, Vé GA, Early Bird..."
+                      placeholder={t("Ví dụ: Vé VVIP, Vé GA, Early Bird...")}
                       className="w-full px-3.5 py-2.5 rounded-xl app-bg-card border app-border text-xs app-text-main font-bold focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -268,7 +270,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                   {/* Giá vé (VNĐ) & Free Checkbox */}
                   <div>
                     <label className="block text-xs font-bold app-text-muted mb-1">
-                      Giá vé (VNĐ) <span className="text-rose-500">*</span>
+                      {t("Giá vé (VNĐ)")} <span className="text-rose-500">*</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <div className="relative flex-1">
@@ -293,7 +295,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                           }}
                           className="w-4 h-4 rounded border-slate-700 app-bg-card text-blue-600 focus:ring-blue-500"
                         />
-                        <span>Vé miễn phí (0đ)</span>
+                        <span>{t("Vé miễn phí (0đ)")}</span>
                       </label>
                     </div>
                   </div>
@@ -301,7 +303,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                   {/* Quantities Row */}
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold app-text-muted mb-1">Tổng số lượng vé *</label>
+                      <label className="block text-xs font-bold app-text-muted mb-1">{t("Tổng số lượng vé")} *</label>
                       <input
                         type="number"
                         min={1}
@@ -311,7 +313,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold app-text-muted mb-1">Số vé tối thiểu/đơn</label>
+                      <label className="block text-xs font-bold app-text-muted mb-1">{t("Số vé tối thiểu/đơn")}</label>
                       <input
                         type="number"
                         min={1}
@@ -321,7 +323,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold app-text-muted mb-1">Số vé tối đa/đơn</label>
+                      <label className="block text-xs font-bold app-text-muted mb-1">{t("Số vé tối đa/đơn")}</label>
                       <input
                         type="number"
                         min={1}
@@ -335,7 +337,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                   {/* Quyền lợi */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="block text-xs font-bold app-text-muted">Thông tin quyền lợi vé</label>
+                      <label className="block text-xs font-bold app-text-muted">{t("Thông tin quyền lợi vé")}</label>
                       <span className="text-[11px] app-text-muted font-mono">{description.length} / 1000</span>
                     </div>
                     <textarea
@@ -343,7 +345,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                       maxLength={1000}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Quyền lợi đi kèm của hạng vé..."
+                      placeholder={t("Quyền lợi đi kèm của hạng vé...")}
                       className="w-full px-3.5 py-2.5 rounded-xl app-bg-card border app-border text-xs app-text-main focus:outline-none focus:border-blue-500 resize-none"
                     />
                   </div>
@@ -355,14 +357,14 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
                     onClick={() => setEditingTierId(null)}
                     className="px-4 py-2 rounded-xl app-bg-card border app-border app-text-muted text-xs font-bold hover:app-text-main cursor-pointer"
                   >
-                    Đóng form
+                    {t("Đóng form")}
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveForm}
                     className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-sm cursor-pointer"
                   >
-                    {editingTierId === 'NEW' ? 'Tạo Loại Vé' : 'Cập Nhật Loại Vé'}
+                    {editingTierId === 'NEW' ? t('Tạo Loại Vé') : t('Cập Nhật Loại Vé')}
                   </button>
                 </div>
               </div>
@@ -377,7 +379,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
             onClick={onClose}
             className="px-4.5 py-2 text-xs font-bold rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
           >
-            {readOnly ? 'Đóng' : 'Hủy bỏ'}
+            {readOnly ? t('Đóng') : t('Hủy bỏ')}
           </button>
           {!readOnly && (
             <button
@@ -385,7 +387,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
               onClick={handleSaveAll}
               className="px-6 py-2 text-xs font-extrabold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs cursor-pointer"
             >
-              Đồng bộ hạng vé
+              {t("Đồng bộ hạng vé")}
             </button>
           )}
         </div>

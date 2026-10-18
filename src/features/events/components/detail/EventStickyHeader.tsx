@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { t as translate } from "@/i18n";
 import React from "react";
 import { FiMapPin } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
@@ -16,7 +15,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
   isVisible,
   onBuyTicketsClick
 }) => {
-  useTranslation();
+  const { t: translate } = useTranslation();
 
   const salesStatus = React.useMemo(() => {
     const now = new Date();

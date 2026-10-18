@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FiZoomIn,
   FiZoomOut,
@@ -54,6 +55,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   onCanvasClickPosition,
   seatStatusMap = {},
 }) => {
+  const { t } = useTranslation();
   const getZonePrice = (zone?: ZoneBlock | Partial<ZoneBlock>) => zone?.price ?? tiers?.find((t) => t.id === zone?.tierId)?.price ?? 0;
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [gridSnap, setGridSnap] = useState<boolean>(true);
@@ -406,11 +408,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
       const isBlocked = seat.status === 'blocked' || seat.status === 'maintenance';
 
       if (isSold) {
-        alert("Ghế này đã được bán.");
+        alert(t("Ghế này đã được bán."));
       } else if (isHolding) {
-        alert("Ghế này đang được người khác giữ hoặc chờ thanh toán, vui lòng thử lại sau ít phút.");
+        alert(t("Ghế này đang được người khác giữ hoặc chờ thanh toán, vui lòng thử lại sau ít phút."));
       } else if (isBlocked) {
-        alert("Ghế này hiện đang bị khóa.");
+        alert(t("Ghế này hiện đang bị khóa."));
       } else if (onToggleAttendeeSeat) {
         onToggleAttendeeSeat(seat);
       }
@@ -950,10 +952,10 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         <div className="flex items-center gap-3">
           <span className="text-xs font-extrabold app-text-main uppercase tracking-wider flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-            {isAttendeeMode ? 'Sơ Đồ Chọn Vé Khán Giả' : 'Studio Canvas 2D Kéo Quét Chuột & Undo/Redo'}
+            {isAttendeeMode ? t('Sơ Đồ Chọn Vé Khán Giả') : t('Studio Canvas 2D Kéo Quét Chuột & Undo/Redo')}
           </span>
           <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold font-mono border border-blue-500/20">
-            {seats.length} Ghế | {stages.length} Sân khấu
+            {seats.length} {t("Ghế")} | {stages.length} {t("Sân khấu")}
           </span>
         </div>
 
@@ -966,7 +968,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 onClick={onUndo}
                 disabled={!canUndo}
                 className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main disabled:opacity-30 transition-colors cursor-pointer"
-                title="Hoàn tác thao tác (Ctrl + Z)"
+                title={t("Hoàn tác thao tác (Ctrl + Z)")}
               >
                 <FiUndo className="w-4 h-4" />
               </button>
@@ -975,7 +977,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 onClick={onRedo}
                 disabled={!canRedo}
                 className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main disabled:opacity-30 transition-colors cursor-pointer"
-                title="Lặp lại thao tác (Ctrl + Y)"
+                title={t("Lặp lại thao tác (Ctrl + Y)")}
               >
                 <FiRedo className="w-4 h-4" />
               </button>
@@ -993,10 +995,10 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
                 : 'app-bg-main border app-border app-text-muted hover:app-text-main'
                 }`}
-              title="Bật/Tắt hít lưới tọa độ"
+              title={t("Bật/Tắt hít lưới tọa độ")}
             >
               <FiGrid className="w-3.5 h-3.5" />
-              <span>Hít lưới ({gridSnap ? 'Bật' : 'Tắt'})</span>
+              <span>{t('Hít lưới')} ({gridSnap ? t('Bật') : t('Tắt')})</span>
             </button>
           )}
 
@@ -1007,7 +1009,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             type="button"
             onClick={handleZoomOut}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title="Thu nhỏ"
+            title={t("Thu nhỏ")}
           >
             <FiZoomOut className="w-4 h-4" />
           </button>
@@ -1018,7 +1020,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             type="button"
             onClick={handleZoomIn}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title="Phóng to"
+            title={t("Phóng to")}
           >
             <FiZoomIn className="w-4 h-4" />
           </button>
@@ -1039,7 +1041,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 type="button"
                 onClick={onToggleFullscreen}
                 className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 text-xs font-bold transition-all cursor-pointer"
-                title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình Studio'}
+                title={isFullscreen ? t('Thu nhỏ cửa sổ') : t('Toàn màn hình Studio')}
               >
                 {isFullscreen ? <FiMinimize2 className="w-4 h-4" /> : <FiMaximize2 className="w-4 h-4" />}
               </button>
@@ -1050,7 +1052,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
       {/* Top Legend Bar */}
       <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b app-border bg-slate-500/5 text-xs app-text-muted font-semibold z-10">
-        <span className="text-[11px] font-black uppercase app-text-sub tracking-wider">Khu vực:</span>
+        <span className="text-[11px] font-black uppercase app-text-sub tracking-wider">{t("Khu vực:")}</span>
         {(!zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>)).map((z) => (
           <div
             key={z.id}
@@ -1065,7 +1067,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
           <span className="w-3.5 h-3.5 rounded bg-rose-500/20 border border-rose-500 text-rose-400 flex items-center justify-center text-[9px]">
             <FiTool className="w-2.5 h-2.5" />
           </span>
-          <span>Bảo trì / Hư hỏng</span>
+          <span>{t("Bảo trì / Hư hỏng")}</span>
         </div>
       </div>
 
@@ -1189,20 +1191,20 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 {/* Center Label & Info inside Zone */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center z-10">
                   <span className="text-sm md:text-base font-black uppercase tracking-widest drop-shadow-md text-white">
-                    {isZoneSoldOut ? `${zone.name} (ĐÃ HẾT VÉ)` : (zone.centerText || zone.name)}
+                    {isZoneSoldOut ? `${zone.name} (${t("ĐÃ HẾT VÉ")})` : (zone.centerText || zone.name)}
                   </span>
                   {zone.tierId ? (
                     <span className="text-xs font-extrabold font-mono text-white/90 drop-shadow-sm mt-0.5">
-                      {tiers?.find((t) => t.id === zone.tierId)?.name || 'Hạng vé'} • {getZonePrice(zone).toLocaleString('vi-VN')} đ
+                      {tiers?.find((t) => t.id === zone.tierId)?.name || t('Hạng vé')} • {getZonePrice(zone).toLocaleString('vi-VN')} đ
                     </span>
                   ) : (
                     <span className="text-xs font-semibold text-white/80 drop-shadow-sm mt-0.5">
-                      {zoneSeatsCount > 0 ? `${zoneSeatsCount} ghế` : 'Chưa gán hạng vé'}
+                      {zoneSeatsCount > 0 ? `${zoneSeatsCount} ${t("ghế")}` : t("Chưa gán hạng vé")}
                     </span>
                   )}
                   {zoneSeatsCount === 0 && zone.capacity ? (
                     <span className="text-[10px] font-bold text-white/90 bg-black/40 px-2.5 py-0.5 rounded-full mt-1 border border-white/20 font-mono">
-                      Khối đứng: {zone.capacity} {zone.tierId ? 'vé' : 'chỗ'} {isZoneSoldOut ? '(Hết vé)' : ''}
+                      {t('Khối đứng:')} {zone.capacity} {zone.tierId ? t('vé') : t('chỗ')} {isZoneSoldOut ? `(${t('Hết vé')})` : ''}
                     </span>
                   ) : null}
                 </div>
@@ -1213,7 +1215,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                     <div
                       onPointerDown={(e) => handlePointerDownRotateZone(e, zone)}
                       className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-lg z-50 hover:scale-125 transition-transform"
-                      title="Kéo để xoay Khu Vực (Giữ Shift để hít góc 15°)"
+                      title={t("Kéo để xoay Khu Vực (Giữ Shift để hít góc 15°)")}
                     >
                       <FiRotateCw className="w-3.5 h-3.5" />
                     </div>
@@ -1232,7 +1234,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                         key={h.dir}
                         onPointerDown={(e) => handlePointerDownResizeZone(e, zone, h.dir as any)}
                         className={`absolute w-3.5 h-3.5 rounded-full bg-white border-2 border-teal-600 z-50 shadow-md hover:scale-125 transition-transform ${h.class}`}
-                        title={`Kéo để thay đổi kích thước Zone (${h.dir.toUpperCase()})`}
+                        title={t("Kéo để thay đổi kích thước Zone ({{dir}})", { dir: h.dir.toUpperCase() })}
                       />
                     ))}
                   </>
@@ -1273,7 +1275,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <div
                     onPointerDown={(e) => handlePointerDownRotateStage(e, stage)}
                     className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-lg z-50 hover:scale-125 transition-transform"
-                    title="Kéo để xoay Sân khấu (Giữ Shift để hít góc 15°)"
+                    title={t("Kéo để xoay Sân khấu (Giữ Shift để hít góc 15°)")}
                   >
                     <FiRotateCw className="w-3.5 h-3.5" />
                   </div>
@@ -1284,7 +1286,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <div
                     onPointerDown={(e) => handlePointerDownResizeStage(e, stage)}
                     className="absolute -right-2 -bottom-2 w-5 h-5 rounded-full bg-white text-indigo-600 border-2 border-indigo-600 flex items-center justify-center cursor-nwse-resize z-50 shadow-md"
-                    title="Kéo để đổi kích thước Sân khấu"
+                    title={t("Kéo để đổi kích thước Sân khấu")}
                   >
                     <span className="text-[9px] font-bold">↘</span>
                   </div>
@@ -1324,7 +1326,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <div
                     onPointerDown={(e) => handlePointerDownRotateStructure(e, struct)}
                     className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-lg z-50 hover:scale-125 transition-transform"
-                    title="Kéo để xoay Cấu trúc (Giữ Shift để hít góc 15°)"
+                    title={t("Kéo để xoay Cấu trúc (Giữ Shift để hít góc 15°)")}
                   >
                     <FiRotateCw className="w-3.5 h-3.5" />
                   </div>
@@ -1335,7 +1337,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                   <div
                     onPointerDown={(e) => handlePointerDownResizeStructure(e, struct)}
                     className="absolute -right-2 -bottom-2 w-5 h-5 rounded-full bg-white text-rose-600 border-2 border-rose-600 flex items-center justify-center cursor-nwse-resize z-50 shadow-md"
-                    title="Kéo để đổi kích thước Lối thoát hiểm"
+                    title={t("Kéo để đổi kích thước Lối thoát hiểm")}
                   >
                     <span className="text-[9px] font-bold">↘</span>
                   </div>
@@ -1423,15 +1425,15 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
                   <div className="px-3 py-1.5 bg-slate-950 text-white text-[11px] rounded-xl shadow-2xl border border-slate-700 whitespace-nowrap space-y-0.5">
                     <div className="font-extrabold flex items-center gap-1.5">
-                      <span>Ghế {seat.row}-{seat.number}</span>
+                      <span>{t("Ghế")} {seat.row}-{seat.number}</span>
                       {isHolding && (
                         <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-mono">
-                          ĐANG GIỮ VÉ (15p)
+                          {t("ĐANG GIỮ VÉ (15p)")}
                         </span>
                       )}
                       {isSold && (
                         <span className="px-1.5 py-0.2 rounded bg-slate-600 text-white text-[9px] font-mono">
-                          ĐÃ BÁN
+                          {t("ĐÃ BÁN")}
                         </span>
                       )}
                     </div>

@@ -64,7 +64,7 @@ export function GoogleAuthButton({
       const cancelled =
         caughtError instanceof Error && caughtError.message === "Google login was cancelled";
       if (!cancelled) {
-        setRequestError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
+        setRequestError(translate("Không thể đăng nhập bằng Google. Vui lòng thử lại."));
       }
     } finally {
       setIsPending(false);
@@ -76,7 +76,7 @@ export function GoogleAuthButton({
   if (account) {
     const initial = (account.name || account.email || "G").trim().charAt(0).toUpperCase();
     const buttonLabel = isPending
-      ? "Đang chuyển đến Google..."
+      ? translate("Đang chuyển đến Google...")
       : translate("Đăng nhập với tên {{name}}", { name: account.name });
     const avatarUrl = account.picture || account.avatarUrl;
 
@@ -136,7 +136,7 @@ export function GoogleAuthButton({
     );
   }
 
-  const buttonLabel = isPending ? "Đang chuyển đến Google..." : "Tiếp tục với Google";
+  const buttonLabel = isPending ? translate("Đang chuyển đến Google...") : translate("Tiếp tục với Google");
 
   return (
     <div>

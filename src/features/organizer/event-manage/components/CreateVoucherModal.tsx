@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { FiX, FiCheck, FiCalendar, FiPercent, FiDollarSign, FiLayers, FiAlertCircle } from "react-icons/fi";
 import type { VoucherItem, VoucherCreateData } from "@/types";
 
@@ -75,6 +76,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
   initialVoucher,
   availableShowtimes = DEFAULT_SHOWTIMES,
 }) => {
+  const { t } = useTranslation();
   const isEditMode = Boolean(initialVoucher);
 
   const [creationMode, setCreationMode] = useState<"SINGLE" | "BULK">("SINGLE");
@@ -169,81 +171,81 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
 
     // name promotion
     if (!title.trim()) {
-      newErrors.title = "Vui lòng nhập tên chương trình khuyến mãi!";
+      newErrors.title = t("Vui lòng nhập tên chương trình khuyến mãi!");
     } else if (title.trim().length > 80) {
-      newErrors.title = "Tên chương trình khuyến mãi không vượt quá 80 ký tự!";
+      newErrors.title = t("Tên chương trình khuyến mãi không vượt quá 80 ký tự!");
     }
 
     // voucher code / bnulk settings
     if (!isEditMode && creationMode === "BULK") {
       if (!codePrefix.trim()) {
-        newErrors.codePrefix = "Vui lòng nhập tiền tố mã!";
+        newErrors.codePrefix = t("Vui lòng nhập tiền tố mã!");
       } else if (codePrefix.trim().length > 6) {
-        newErrors.codePrefix = "Tiền tố tối đa 6 ký tự!";
+        newErrors.codePrefix = t("Tiền tố tối đa 6 ký tự!");
       } else if (!/^[A-Z0-9]+$/i.test(codePrefix)) {
-        newErrors.codePrefix = "Tiền tố chỉ gồm chữ cái (A-Z) và chữ số (0-9)!";
+        newErrors.codePrefix = t("Tiền tố chỉ gồm chữ cái (A-Z) và chữ số (0-9)!");
       }
 
       if (!bulkCount || bulkCount < 1 || bulkCount > 100) {
-        newErrors.bulkCount = "Số lượng mã tạo hàng loạt phải từ 1 đến 100!";
+        newErrors.bulkCount = t("Số lượng mã tạo hàng loạt phải từ 1 đến 100!");
       }
     } else {
       if (!code.trim()) {
-        newErrors.code = "Vui lòng nhập mã voucher!";
+        newErrors.code = t("Vui lòng nhập mã voucher!");
       } else if (code.trim().length < 4 || code.trim().length > 12) {
-        newErrors.code = "Mã voucher phải từ 4 đến 12 ký tự!";
+        newErrors.code = t("Mã voucher phải từ 4 đến 12 ký tự!");
       } else if (!/^[A-Z0-9]+$/i.test(code)) {
-        newErrors.code = "Mã voucher chỉ được chứa chữ cái không dấu (A-Z) và chữ số (0-9)!";
+        newErrors.code = t("Mã voucher chỉ được chứa chữ cái không dấu (A-Z) và chữ số (0-9)!");
       }
     }
 
     // start & end date
     if (!startDate) {
-      newErrors.startDate = "Vui lòng chọn thời gian bắt đầu áp dụng!";
+      newErrors.startDate = t("Vui lòng chọn thời gian bắt đầu áp dụng!");
     }
     if (!endDate) {
-      newErrors.endDate = "Vui lòng chọn thời gian kết thúc áp dụng!";
+      newErrors.endDate = t("Vui lòng chọn thời gian kết thúc áp dụng!");
     }
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (end <= start) {
-        newErrors.endDate = "Thời gian kết thúc phải sau thời gian bắt đầu!";
+        newErrors.endDate = t("Thời gian kết thúc phải sau thời gian bắt đầu!");
       }
     }
 
     // discount
     if (discountValue === undefined || discountValue === null || isNaN(discountValue) || discountValue <= 0) {
-      newErrors.discountValue = "Vui lòng nhập giá trị mức giảm lớn hơn 0!";
+      newErrors.discountValue = t("Vui lòng nhập giá trị mức giảm lớn hơn 0!");
     } else if (discountType === "PERCENTAGE" && discountValue > 100) {
-      newErrors.discountValue = "Mức giảm phần trăm không vượt quá 100%!";
+      newErrors.discountValue = t("Mức giảm phần trăm không vượt quá 100%!");
     } else if (discountType === "FIXED_AMOUNT" && discountValue < 1000) {
-      newErrors.discountValue = "Mức giảm cố định tối thiểu là 1.000 VNĐ!";
+      newErrors.discountValue = t("Mức giảm cố định tối thiểu là 1.000 VNĐ!");
     }
 
     // quantity limited
     if (applyTicketLimitType === "LIMITED") {
       if (!ticketLimitCount || ticketLimitCount < 1) {
-        newErrors.ticketLimitCount = "Số lượng vé tối đa phải lớn hơn 0!";
+        newErrors.ticketLimitCount = t("Số lượng vé tối đa phải lớn hơn 0!");
       }
     }
 
     // advanced limited
     if (!maxOrdersPerBuyer || maxOrdersPerBuyer < 1) {
-      newErrors.maxOrdersPerBuyer = "Số đơn tối đa/người mua phải lớn hơn 0!";
+      newErrors.maxOrdersPerBuyer = t("Số đơn tối đa/người mua phải lớn hơn 0!");
     }
     if (!minTicketsPerOrder || minTicketsPerOrder < 1) {
-      newErrors.minTicketsPerOrder = "Số vé tối thiểu/đơn phải lớn hơn 0!";
+      newErrors.minTicketsPerOrder = t("Số vé tối thiểu/đơn phải lớn hơn 0!");
     }
     if (!maxTicketsPerOrder || maxTicketsPerOrder < 1) {
-      newErrors.maxTicketsPerOrder = "Số vé tối đa/đơn phải lớn hơn 0!";
+      newErrors.maxTicketsPerOrder = t("Số vé tối đa/đơn phải lớn hơn 0!");
     } else if (minTicketsPerOrder && maxTicketsPerOrder < minTicketsPerOrder) {
-      newErrors.maxTicketsPerOrder = "Số vé tối đa/đơn phải lớn hơn hoặc bằng số vé tối thiểu!";
+      newErrors.maxTicketsPerOrder = t("Số vé tối đa/đơn phải lớn hơn hoặc bằng số vé tối thiểu!");
     }
 
     // apply scope showtime
     if (applyScope === "LIMITED_SHOWTIMES" && selectedShowtimes.length === 0) {
-      newErrors.selectedShowtimes = "Vui lòng chọn ít nhất 1 suất diễn áp dụng!";
+      newErrors.selectedShowtimes = t("Vui lòng chọn ít nhất 1 suất diễn áp dụng!");
     }
 
     setErrors(newErrors);
@@ -299,7 +301,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
         <div className="p-5 border-b app-border flex items-center justify-between app-bg-subnav">
           <h2 className="text-base font-black app-text-main flex items-center gap-2">
             <FiLayers className="w-5 h-5 text-blue-500" />
-            <span>{isEditMode ? "Chỉnh sửa voucher" : "Tạo voucher mới"}</span>
+            <span>{isEditMode ? t("Chỉnh sửa voucher") : t("Tạo voucher mới")}</span>
           </h2>
           <button
             type="button"
@@ -324,13 +326,13 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
               >
                 <div>
                   <h3 className="font-extrabold app-text-main text-sm flex items-center gap-2">
-                    <span>Tạo 1 mã</span>
+                    <span>{t("Tạo 1 mã")}</span>
                     {creationMode === "SINGLE" && (
                       <span className="w-2 h-2 rounded-full bg-blue-500 inline-block animate-pulse" />
                     )}
                   </h3>
                   <p className="text-xs app-text-muted mt-1">
-                    Tạo một mã voucher duy nhất tùy chỉnh cho sự kiện của bạn
+                    {t("Tạo một mã voucher duy nhất tùy chỉnh cho sự kiện của bạn")}
                   </p>
                 </div>
                 <div className="pt-2 flex justify-end">
@@ -341,7 +343,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         : "app-bg-card border app-border app-text-muted"
                     }`}
                   >
-                    {creationMode === "SINGLE" ? "Đã chọn" : "Chọn"}
+                    {creationMode === "SINGLE" ? t("Đã chọn") : t("Chọn")}
                   </span>
                 </div>
               </div>
@@ -356,13 +358,13 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
               >
                 <div>
                   <h3 className="font-extrabold app-text-main text-sm flex items-center gap-2">
-                    <span>Tạo nhiều mã (Hàng loạt)</span>
+                    <span>{t("Tạo nhiều mã (Hàng loạt)")}</span>
                     {creationMode === "BULK" && (
                       <span className="w-2 h-2 rounded-full bg-blue-500 inline-block animate-pulse" />
                     )}
                   </h3>
                   <p className="text-xs app-text-muted mt-1">
-                    Tự động tạo ngẫu nhiên danh sách mã voucher hàng loạt cùng áp dụng các thiết lập bên dưới
+                    {t("Tự động tạo ngẫu nhiên danh sách mã voucher hàng loạt cùng áp dụng các thiết lập bên dưới")}
                   </p>
                 </div>
                 <div className="pt-2 flex justify-end">
@@ -373,7 +375,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         : "app-bg-card border app-border app-text-muted"
                     }`}
                   >
-                    {creationMode === "BULK" ? "Đã chọn" : "Chọn"}
+                    {creationMode === "BULK" ? t("Đã chọn") : t("Chọn")}
                   </span>
                 </div>
               </div>
@@ -383,21 +385,21 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
           {/* Section 1: Thông tin cơ bản */}
           <div className="space-y-4 pt-2 border-t app-border">
             <h3 className="text-xs font-black app-text-main uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              1. Thông tin cơ bản
+              {t("1. Thông tin cơ bản")}
             </h3>
 
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold app-text-main">
-                    Tên chương trình khuyến mãi <span className="text-rose-500">*</span>
+                    {t("Tên chương trình khuyến mãi")} <span className="text-rose-500">*</span>
                   </label>
                   <span className="text-[11px] app-text-muted font-mono">{title.length} / 80</span>
                 </div>
                 <input
                   type="text"
                   maxLength={80}
-                  placeholder="Nhập tên chương trình khuyến mãi"
+                  placeholder={t("Nhập tên chương trình khuyến mãi")}
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);
@@ -413,7 +415,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                     <span>{errors.title}</span>
                   </p>
                 ) : (
-                  <p className="text-[11px] app-text-muted mt-1">Tên chương trình giúp quản lý voucher nội bộ dễ dàng</p>
+                  <p className="text-[11px] app-text-muted mt-1">{t("Tên chương trình giúp quản lý voucher nội bộ dễ dàng")}</p>
                 )}
               </div>
 
@@ -422,7 +424,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-bold app-text-main">
-                      Mã voucher <span className="text-rose-500">*</span>
+                      {t("Mã voucher")} <span className="text-rose-500">*</span>
                     </label>
                     <span className="text-[11px] app-text-muted font-mono">{code.length} / 12</span>
                   </div>
@@ -446,7 +448,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                     </p>
                   ) : (
                     <p className="text-[11px] app-text-muted mt-1">
-                      Cho phép chữ cái (A-Z) và chữ số (0-9), tối thiểu 4 và tối đa 12 ký tự
+                      {t("Cho phép chữ cái (A-Z) và chữ số (0-9), tối thiểu 4 và tối đa 12 ký tự")}
                     </p>
                   )}
                 </div>
@@ -454,7 +456,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold app-text-main mb-1.5">
-                      Tiền tố mã (Prefix): <span className="text-rose-500">*</span>
+                      {t("Tiền tố mã (Prefix):")} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -475,12 +477,12 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         <span>{errors.codePrefix}</span>
                       </p>
                     ) : (
-                      <p className="text-[11px] app-text-muted mt-1">Tiền tố đứng trước đoạn mã sinh ngẫu nhiên</p>
+                      <p className="text-[11px] app-text-muted mt-1">{t("Tiền tố đứng trước đoạn mã sinh ngẫu nhiên")}</p>
                     )}
                   </div>
                   <div>
                     <label className="block text-xs font-bold app-text-main mb-1.5">
-                      Số lượng mã tạo hàng loạt: <span className="text-rose-500">*</span>
+                      {t("Số lượng mã tạo hàng loạt:")} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -501,7 +503,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         <span>{errors.bulkCount}</span>
                       </p>
                     ) : (
-                      <p className="text-[11px] app-text-muted mt-1">Số lượng voucher ngẫu nhiên sẽ được sinh tự động</p>
+                      <p className="text-[11px] app-text-muted mt-1">{t("Số lượng voucher ngẫu nhiên sẽ được sinh tự động")}</p>
                     )}
                   </div>
                 </div>
@@ -510,7 +512,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold app-text-main mb-1.5">
-                    Thời gian bắt đầu áp dụng: <span className="text-rose-500">*</span>
+                    {t("Thời gian bắt đầu áp dụng:")} <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -532,7 +534,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-bold app-text-main mb-1.5">
-                    Thời gian kết thúc: <span className="text-rose-500">*</span>
+                    {t("Thời gian kết thúc:")} <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -556,11 +558,11 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold app-text-main mb-1.5">
-                  Điều khoản & Quy định sử dụng:
+                  {t("Điều khoản & Quy định sử dụng:")}
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Nhập ghi chú hoặc điều khoản áp dụng voucher..."
+                  placeholder={t("Nhập ghi chú hoặc điều khoản áp dụng voucher...")}
                   value={terms}
                   onChange={(e) => setTerms(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-xs focus:outline-none focus:border-blue-500 font-medium"
@@ -572,13 +574,13 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
           {/* Section 2: Thiết lập mã voucher */}
           <div className="space-y-4 pt-4 border-t app-border">
             <h3 className="text-xs font-black app-text-main uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              2. Thiết lập mức giảm & giới hạn
+              {t("2. Thiết lập mức giảm & giới hạn")}
             </h3>
 
             <div className="space-y-5">
               {/* Restyled Promotion Type Radio Cards */}
               <div className="space-y-2">
-                <label className="text-xs font-bold app-text-main block">Loại khuyến mãi & Mức giảm: <span className="text-rose-500">*</span></label>
+                <label className="text-xs font-bold app-text-main block">{t("Loại khuyến mãi & Mức giảm:")} <span className="text-rose-500">*</span></label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div
                     onClick={() => {
@@ -596,8 +598,8 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         <FiPercent className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-xs">Theo phần trăm (%)</div>
-                        <div className="text-[10px] opacity-70">Giảm giá theo % giá trị đơn hàng</div>
+                        <div className="text-xs">{t("Theo phần trăm (%)")}</div>
+                        <div className="text-[10px] opacity-70">{t("Giảm giá theo % giá trị đơn hàng")}</div>
                       </div>
                     </div>
                     {discountType === "PERCENTAGE" && <FiCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
@@ -619,8 +621,8 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         <FiDollarSign className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-xs">Theo số tiền (VNĐ)</div>
-                        <div className="text-[10px] opacity-70">Giảm trực tiếp số tiền cố định</div>
+                        <div className="text-xs">{t("Theo số tiền (VNĐ)")}</div>
+                        <div className="text-[10px] opacity-70">{t("Giảm trực tiếp số tiền cố định")}</div>
                       </div>
                     </div>
                     {discountType === "FIXED_AMOUNT" && <FiCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
@@ -639,7 +641,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                     className={`w-full px-4 py-2.5 rounded-xl app-bg-main border text-xs focus:outline-none font-bold pr-12 transition-all ${
                       errors.discountValue ? "border-rose-500 text-rose-600 focus:border-rose-500" : "app-border app-text-main focus:border-blue-500"
                     }`}
-                    placeholder="Nhập giá trị giảm"
+                    placeholder={t("Nhập giá trị giảm")}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-blue-600 dark:text-blue-400 font-mono">
                     {discountType === "PERCENTAGE" ? "%" : "VNĐ"}
@@ -655,7 +657,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
 
               {/* Total ticket usage limit */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start pt-2">
-                <label className="text-xs font-bold app-text-main pt-2">Tổng số vé được áp dụng:</label>
+                <label className="text-xs font-bold app-text-main pt-2">{t("Tổng số vé được áp dụng:")}</label>
                 <div className="sm:col-span-2 space-y-2">
                   <div className="flex items-center gap-6 text-xs app-text-main font-bold">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -669,7 +671,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         }}
                         className="accent-blue-600 w-4 h-4"
                       />
-                      <span>Giới hạn</span>
+                      <span>{t("Giới hạn")}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -682,7 +684,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         }}
                         className="accent-blue-600 w-4 h-4"
                       />
-                      <span>Không giới hạn</span>
+                      <span>{t("Không giới hạn")}</span>
                     </label>
                   </div>
 
@@ -699,7 +701,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         className={`w-full px-4 py-2.5 rounded-xl app-bg-main border text-xs focus:outline-none font-bold transition-all ${
                           errors.ticketLimitCount ? "border-rose-500 text-rose-600 focus:border-rose-500" : "app-border app-text-main focus:border-blue-500"
                         }`}
-                        placeholder="Nhập số lượng vé tối đa"
+                        placeholder={t("Nhập số lượng vé tối đa")}
                       />
                       {errors.ticketLimitCount && (
                         <p className="text-[11px] text-rose-500 font-bold mt-1 flex items-center gap-1">
@@ -709,14 +711,14 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                       )}
                     </div>
                   )}
-                  <p className="text-[11px] app-text-muted">Tổng số lượt áp dụng tối đa của mã voucher này</p>
+                  <p className="text-[11px] app-text-muted">{t("Tổng số lượt áp dụng tối đa của mã voucher này")}</p>
                 </div>
               </div>
 
               {/* Advanced limits */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold app-text-main mb-1.5">Số đơn tối đa/Người mua:</label>
+                  <label className="block text-xs font-bold app-text-main mb-1.5">{t("Số đơn tối đa/Người mua:")}</label>
                   <input
                     type="number"
                     min={1}
@@ -737,7 +739,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-main mb-1.5">Số vé tối thiểu/Đơn:</label>
+                  <label className="block text-xs font-bold app-text-main mb-1.5">{t("Số vé tối thiểu/Đơn:")}</label>
                   <input
                     type="number"
                     min={1}
@@ -758,7 +760,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold app-text-main mb-1.5">Số vé tối đa/Đơn:</label>
+                  <label className="block text-xs font-bold app-text-main mb-1.5">{t("Số vé tối đa/Đơn:")}</label>
                   <input
                     type="number"
                     min={1}
@@ -785,7 +787,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
           {/* Section 3: Phạm vi áp dụng (Showtimes selection) */}
           <div className="space-y-4 pt-4 border-t app-border">
             <h3 className="text-xs font-black app-text-main uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              3. Phạm vi áp dụng theo suất diễn
+              {t("3. Phạm vi áp dụng theo suất diễn")}
             </h3>
 
             <div className="space-y-3">
@@ -803,7 +805,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                       }}
                       className="accent-blue-600 w-4 h-4"
                     />
-                    <span>Toàn bộ suất diễn (Tất cả các ngày)</span>
+                    <span>{t("Toàn bộ suất diễn (Tất cả các ngày)")}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -816,7 +818,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                       }}
                       className="accent-blue-600 w-4 h-4"
                     />
-                    <span>Giới hạn suất diễn</span>
+                    <span>{t("Giới hạn suất diễn")}</span>
                   </label>
                 </div>
 
@@ -827,7 +829,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-2 transition-all cursor-pointer shadow-sm"
                   >
                     <FiCalendar className="w-4 h-4" />
-                    <span>{showShowtimePicker ? "Đóng danh sách suất" : "Chọn suất diễn"}</span>
+                    <span>{showShowtimePicker ? t("Đóng danh sách suất") : t("Chọn suất diễn")}</span>
                   </button>
                 )}
               </div>
@@ -837,7 +839,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 <div className="p-4 rounded-2xl app-bg-main border app-border space-y-3 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold app-text-main">
-                      Chọn các suất diễn áp dụng mã ({selectedShowtimes.length} đã chọn):
+                      {t("Chọn các suất diễn áp dụng mã")} ({selectedShowtimes.length} {t("đã chọn")}):
                     </span>
                     <button
                       type="button"
@@ -850,7 +852,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                       }
                       className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                     >
-                      {selectedShowtimes.length === showtimeList.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                      {selectedShowtimes.length === showtimeList.length ? t("Bỏ chọn tất cả") : t("Chọn tất cả")}
                     </button>
                   </div>
 
@@ -895,7 +897,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
               onClick={onClose}
               className="px-5 py-2.5 rounded-xl text-xs font-bold app-text-muted hover:app-text-main app-bg-main border app-border transition-all cursor-pointer"
             >
-              Hủy
+              {t("Hủy")}
             </button>
             <button
               type="submit"
@@ -903,12 +905,12 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
               className="px-6 py-2.5 rounded-xl text-xs font-black bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
             >
               {isSubmitting
-                ? "Đang xử lý..."
+                ? t("Đang xử lý...")
                 : isEditMode
-                ? "Lưu thay đổi"
+                ? t("Lưu thay đổi")
                 : creationMode === "BULK"
-                ? `Tạo ${bulkCount} voucher`
-                : "Tạo voucher"}
+                ? `${t("Tạo")} ${bulkCount} voucher`
+                : t("Tạo voucher")}
             </button>
           </div>
         </form>
