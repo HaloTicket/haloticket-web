@@ -13,6 +13,7 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 import { adminConfigApi } from "@/services/adminConfigApi";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import { NotificationToast } from "@/components/notifications/NotificationToast";
 import type { NotificationItem } from "@/types";
 import { VietnamFlag, UKFlag } from "./common/FlagIcons";
 import { LoginRequiredModal } from "./common/LoginRequiredModal";
@@ -294,7 +295,11 @@ export const Header: React.FC = () => {
 
           <div className="h-6 w-px app-border hidden lg:block" />
 
-          {isAuthenticated && userProfile?.keycloakId && <GiftNotificationBell userId={userProfile.keycloakId} />}
+          {isAuthenticated && (
+            <UnifiedNotificationBell
+              userIds={[userProfile?.keycloakId, userProfile?.id].filter(Boolean) as string[]}
+            />
+          )}
 
           {/* Auth Dropdown (Ảnh 1) */}
           {isAuthenticated ? (
@@ -718,16 +723,53 @@ export const Header: React.FC = () => {
 
 export default Header;
 
-function GiftNotificationBell({ userId }: { userId: string }) {
+function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationSocket(userId);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userIds);
+
   const onClick = (item: NotificationItem) => {
     void markAsRead(item.id);
+    clearToast();
     if (item.type === "GIFT_INVITATION") {
       const sagaId = item.message.match(/Mã lời mời: ([a-f0-9-]{36})/i)?.[1];
-      if (sagaId) navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
+      if (sagaId) {
+        navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
+        return;
+      }
     }
+    if (item.type === "PAYOUT_APPROVED" || item.type === "PAYOUT_REQUESTED") {
+      navigate(PATHS.REPORTS);
+      return;
+    }
+    if (item.type === "EVENT_APPROVED" || item.type === "EVENT_UPDATE_APPROVED" || item.type === "EVENT_REJECTED") {
+      navigate(PATHS.MY_EVENTS);
+      return;
+    }
+    if (item.type === "TICKETS_ISSUED" || item.type === "TICKET_ISSUED" || item.type === "RESALE_LISTING_ACTIVATED" || item.type === "RESALE_LISTING_FAILED") {
+      navigate(PATHS.MY_TICKETS);
+      return;
+    }
+    navigate(PATHS.MY_EVENTS);
   };
-  return <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllAsRead={markAllAsRead} onNotificationClick={onClick} viewAllLink={PATHS.MY_TICKETS} titleText={t("Thông báo vé")} />;
+
+  return (
+    <>
+      <NotificationDropdown
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkAllAsRead={markAllAsRead}
+        onNotificationClick={onClick}
+        viewAllLink={PATHS.MY_EVENTS}
+        titleText={t("Thông báo")}
+      />
+      <NotificationToast
+        toast={latestToast}
+        onToastClick={onClick}
+        onClose={clearToast}
+        actionText={t("Nhấn để xem chi tiết →")}
+        accentColor="blue"
+      />
+    </>
+  );
 }

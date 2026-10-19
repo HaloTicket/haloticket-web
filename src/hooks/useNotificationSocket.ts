@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { notificationApi } from "@/services/notificationApi";
 import type { NotificationItem } from "@/types";
 import { toast } from "sonner";
@@ -132,7 +132,7 @@ function deduplicateNotificationList(items: NotificationItem[]): NotificationIte
   return result;
 }
 
-export function useNotificationSocket(userId: string = "ADMIN") {
+export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,35 +142,52 @@ export function useNotificationSocket(userId: string = "ADMIN") {
   const readRevision = useRef(0);
   const unreadCount = notifications.filter((notification) => !notification.readStatus).length;
 
-  // load initial notifications from DB
+  const targetIdSerialized = JSON.stringify(targetId);
+  const userIds = useMemo(() => {
+    const list = Array.isArray(targetId) ? targetId : [targetId];
+    const filtered = list.filter((id) => Boolean(id && typeof id === "string" && id.trim().length > 0));
+    return filtered.length > 0 ? Array.from(new Set(filtered)) : ["ADMIN"];
+  }, [targetIdSerialized]);
 
+  // load initial notifications from DB
   const loadNotifications = useCallback(async () => {
     if (!hasLoadedNotifications.current) setLoading(true);
     const requestReadRevision = readRevision.current;
     try {
-      const data = await notificationApi.getUserNotifications(userId);
-      if (Array.isArray(data)) {
-        const formatted: NotificationItem[] = data.map((item: RawNotification) => ({
-          id: item.id || `notif-${Date.now()}-${Math.random()}`,
-          userId: item.userId || userId,
-          type: item.type || "GENERAL",
-          title: item.title || item.subjectTemplate || "Thông báo mới",
-          message: item.message || item.bodyTemplate || "Có cập nhật mới từ hệ thống.",
-          readStatus: Boolean(item.readStatus),
-          createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
-        }));
-        const deduped = deduplicateNotificationList(formatted);
-        if (requestReadRevision === readRevision.current) setNotifications(deduped);
-        setError(null);
-        hasLoadedNotifications.current = true;
+      const results = await Promise.allSettled(
+        userIds.map((uid) => notificationApi.getUserNotifications(uid))
+      );
+      const allRaw: RawNotification[] = [];
+      for (const res of results) {
+        if (res.status === "fulfilled" && Array.isArray(res.value)) {
+          allRaw.push(...res.value);
+        }
       }
+      const formatted: NotificationItem[] = allRaw.map((item: RawNotification) => ({
+        id: item.id || `notif-${Date.now()}-${Math.random()}`,
+        userId: item.userId || userIds[0],
+        type: item.type || "GENERAL",
+        title: item.title || item.subjectTemplate || "Thông báo mới",
+        message: item.message || item.bodyTemplate || "Có cập nhật mới từ hệ thống.",
+        readStatus: Boolean(item.readStatus),
+        createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
+      }));
+      const deduped = deduplicateNotificationList(formatted);
+      deduped.sort((a, b) => {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tB - tA;
+      });
+      if (requestReadRevision === readRevision.current) setNotifications(deduped);
+      setError(null);
+      hasLoadedNotifications.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load notifications");
     } finally {
       hasLoadedNotifications.current = true;
       setLoading(false);
     }
-  }, [userId]);
+  }, [userIds]);
 
   useEffect(() => {
     const initTimer = setTimeout(() => {
@@ -195,8 +212,10 @@ export function useNotificationSocket(userId: string = "ADMIN") {
 
       socket.onopen = () => {
         socket?.send("CONNECT\naccept-version:1.1,1.0\nheart-beat:10000,10000\n\n\0");
-        const topic = userId === "ADMIN" ? "/topic/admin-notifications" : `/topic/user-notifications/${userId}`;
-        socket?.send(`SUBSCRIBE\nid:sub-0\ndestination:${topic}\n\n\0`);
+        userIds.forEach((uid, idx) => {
+          const topic = uid === "ADMIN" ? "/topic/admin-notifications" : `/topic/user-notifications/${uid}`;
+          socket?.send(`SUBSCRIBE\nid:sub-${idx}\ndestination:${topic}\n\n\0`);
+        });
       };
 
       socket.onmessage = (event) => {
@@ -208,7 +227,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
               const parsed = JSON.parse(bodyStr);
               const newNotif: NotificationItem = {
                 id: parsed.id || `notif-${Date.now()}`,
-                userId: parsed.userId || userId,
+                userId: parsed.userId || userIds[0],
                 type: parsed.type || "GENERAL",
                 title: parsed.title || "Thông báo mới",
                 message: parsed.message || "Có thông báo mới",
@@ -251,7 +270,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
       }
       clearInterval(pollInterval);
     };
-  }, [userId, loadNotifications]);
+  }, [userIds, loadNotifications]);
 
   const markAsRead = async (id: string) => {
     const notification = notifications.find((item) => item.id === id);
@@ -273,7 +292,7 @@ export function useNotificationSocket(userId: string = "ADMIN") {
     if (!unreadIds.size) return;
     setReadError(null);
     try {
-      await notificationApi.markAllNotificationsAsRead(userId);
+      await Promise.allSettled(userIds.map((uid) => notificationApi.markAllNotificationsAsRead(uid)));
       readRevision.current += 1;
       setNotifications((prev) => prev.map((item) => unreadIds.has(item.id) ? { ...item, readStatus: true } : item));
     } catch (err) {

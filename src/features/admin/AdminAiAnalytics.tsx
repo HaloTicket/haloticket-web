@@ -273,7 +273,7 @@ export const AdminAiAnalytics: React.FC = () => {
           {label("Phân Tích Dữ Liệu AI", "AI Data Analytics")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">(Text-to-SQL)</span>
         </h1>
         <p className="text-sm app-text-muted max-w-lg mx-auto">
-          {label("Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh, AI (Gemini Flash) sẽ tự động viết câu lệnh SQL để truy vấn cơ sở dữ liệu và trả về kết quả kèm phân tích ngay lập tức!", "Ask questions in Vietnamese or English, AI (Gemini Flash) will automatically generate SQL to query the database and return results with insights instantly!")}
+          {label("Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh, AI sẽ tự động viết câu lệnh SQL để truy vấn cơ sở dữ liệu và trả về kết quả kèm phân tích ngay lập tức!", "Ask questions in Vietnamese or English, AI will automatically generate SQL to query the database and return results with insights instantly!")}
         </p>
       </div>
 

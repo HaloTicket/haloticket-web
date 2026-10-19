@@ -153,6 +153,34 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
         ))}
       </div>
 
+      {/* AI Natural Language Search Prompt Suggestions */}
+      <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-blue-500/20">
+        <div className="flex items-center gap-2 text-xs font-extrabold text-blue-600 dark:text-blue-400">
+          <span className="text-sm">✨</span>
+          <span>{translate("Gợi ý tìm kiếm thông minh bằng AI:")}</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            "Đêm nhạc acoustic lãng mạn cuối tuần",
+            "Kịch nói kịch thiếu nhi cả gia đình",
+            "Giải đấu thể thao pickleball sôi động",
+            "Concert âm nhạc hot nhất tháng này"
+          ].map((promptText) => (
+            <button
+              key={promptText}
+              type="button"
+              onClick={() => {
+                onSelectKeyword(promptText);
+                onClose();
+              }}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer shadow-2xs"
+            >
+              {promptText}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <hr className="border-slate-200/60 dark:border-slate-800/60" />
 
       {/* Explore Tab Switcher*/}

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, X, Send, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { aiApi } from '../../../services/aiApi';
 import type { AiChatMessage } from '../../../types/ai';
 import AIChatMessage from './AIChatMessage';
@@ -97,11 +97,11 @@ const AIChatWidget: React.FC = () => {
     <>
       {/* Chat Window */}
       {isOpen && (
-        <div className={`${
+        <div className={`fixed z-[100] bg-white dark:bg-[#18181b] shadow-[0_12px_40px_rgb(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.6)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden origin-bottom-right transition-all duration-300 ease-in-out ${
           isExpanded 
-            ? 'fixed bottom-0 right-0 w-full h-[100dvh] z-[100] rounded-none' 
-            : 'fixed bottom-40 right-8 w-[90vw] sm:w-[350px] h-[500px] z-50 rounded-2xl'
-        } bg-white dark:bg-[#18181b] shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-200 dark:border-gray-700/60 flex flex-col overflow-hidden origin-bottom-right animate-in fade-in zoom-in-95 duration-300 ease-out transition-all`}>
+            ? 'bottom-0 right-0 w-full md:w-screen h-[100dvh] max-h-none rounded-none' 
+            : 'bottom-5 right-4 sm:right-6 w-[95vw] sm:w-[440px] md:w-[460px] h-[640px] max-h-[85vh] rounded-2xl animate-in fade-in zoom-in-95'
+        }`}>
 
           {/* Header */}
           <div className="gradient-btn p-4 flex justify-between items-center text-white shadow-sm">
@@ -113,9 +113,26 @@ const AIChatWidget: React.FC = () => {
                 </span>
                 HaloTicket Assistant
               </h3>
-              <p className="text-xs text-white/80 mt-0.5">Gemini Flash Agent</p>
             </div>
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('ai_chat_history');
+                  setMessages([
+                    {
+                      id: '1',
+                      sender: 'ai',
+                      text: t('Xin chào! Mình là trợ lý AI thông minh của HaloTicket. Mình có thể giúp bạn tìm vé sự kiện, bảng giá và sơ đồ ghế!'),
+                      timestamp: new Date()
+                    }
+                  ]);
+                }}
+                className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer"
+                title={t("Làm mới cuộc trò chuyện")}
+              >
+                <RotateCcw size={16} />
+              </button>
               <button onClick={() => setIsExpanded(!isExpanded)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer" title={isExpanded ? t("Thu nhỏ") : t("Phóng to")}>
                 {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
@@ -142,6 +159,28 @@ const AIChatWidget: React.FC = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Quick Suggestions Chips */}
+          {messages.length <= 2 && (
+            <div className="px-3 py-2 bg-gray-50/80 dark:bg-[#18181b]/80 border-t border-gray-100 dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {[
+                { label: t("Sự kiện hot nhất"), text: "Cho tôi xem các sự kiện hot nhất hiện nay" },
+                { label: t("Show ca nhạc cuối tuần"), text: "Cuối tuần này có show ca nhạc nào hay không?" },
+                { label: t("Kịch & Nghệ thuật"), text: "Tôi muốn tìm vé xem kịch nghệ thuật" },
+                { label: t("Sự kiện tại TP.HCM"), text: "Có những sự kiện nào đang diễn ra tại TP. Hồ Chí Minh?" }
+              ].map((chip, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => sendMessage(chip.text)}
+                  disabled={isLoading}
+                  className="px-2.5 py-1 text-[11px] font-medium bg-white dark:bg-[#27272a] text-brand-primary dark:text-brand-accent border border-gray-200 dark:border-gray-700 rounded-full hover:bg-brand-primary/10 transition-colors whitespace-nowrap cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Input Area */}
           <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#18181b]">
@@ -174,7 +213,7 @@ const AIChatWidget: React.FC = () => {
       )}
 
       {/* Floating Button */}
-      {!isExpanded && (
+      {!isOpen && (
         <div className="fixed bottom-24 right-8 z-50">
           <button
             onClick={() => setIsOpen(!isOpen)}

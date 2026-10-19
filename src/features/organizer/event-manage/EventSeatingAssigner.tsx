@@ -294,22 +294,23 @@ export const EventSeatingAssigner: React.FC = () => {
       return sum + zSeats;
     }, 0);
     const totalAssignedSeats = currentZoneSeatCount + otherZonesSeatCount;
-    const tierTotalQty = targetTier?.totalQuantity ?? 100;
+    const tierTotalQty = targetTier ? (targetTier.totalQuantity ?? (targetTier as any).quantity ?? 100) : 0;
 
-    if (targetTier && totalAssignedSeats > tierTotalQty) {
-      setConfirmModal({
-        isOpen: true,
-        title: t('Cảnh Báo Vượt Sức Chứa Hạng Vé'),
-        message: otherZonesWithTier.length > 0
-          ? `${t('Hạng vé')} "${targetTier.name}" ${t('đang được gán cho nhiều khu vực với tổng cộng')} ${totalAssignedSeats} ${t('ghế, lớn hơn tổng số lượng vé mở bán')} (${tierTotalQty} ${t('vé')}).\n\n${t('Bạn có muốn tiếp tục gán không?')}`
-          : `${t('Khu vực')} "${currentZone.name}" ${t('có')} ${currentZoneSeatCount} ${t('ghế, lớn hơn tổng số lượng vé mở bán của hạng vé')} "${targetTier.name}" (${tierTotalQty} ${t('vé')}).\n\n${t('Bạn có muốn tiếp tục gán không?')}`,
-        type: 'warning',
-        onConfirm: () => {
-          applyZoneTier(zoneId, tierId);
-          setConfirmModal(null);
-        },
-      });
-      return;
+    if (targetTier) {
+      if (currentZoneSeatCount > tierTotalQty) {
+        showToast(
+          'error',
+          `${t('Không thể gán')}: ${t('Số vé trong hạng vé')} "${targetTier.name}" (${tierTotalQty} ${t('vé')}) < ${t('số ghế bên trong khu vực')} "${currentZone.name}" (${currentZoneSeatCount} ${t('ghế')}).`
+        );
+        return;
+      }
+      if (totalAssignedSeats > tierTotalQty) {
+        showToast(
+          'error',
+          `${t('Không thể gán')}: ${t('Tổng số ghế các khu vực gán hạng vé')} "${targetTier.name}" (${totalAssignedSeats} ${t('ghế')}) > ${t('số lượng vé mở bán')} (${tierTotalQty} ${t('vé')}).`
+        );
+        return;
+      }
     }
 
     applyZoneTier(zoneId, tierId);

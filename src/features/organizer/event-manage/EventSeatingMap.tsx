@@ -50,6 +50,7 @@ import {
   DEFAULT_CANVAS_SETTINGS,
   DEFAULT_EVENT_TICKET_TIERS,
   generateSeatMapSVG,
+  getRowLabel,
   isSeatInsideZone,
   safeClone,
 } from '@/utils/seatMapHelpers';
@@ -152,6 +153,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   const [history, setHistory] = useState<StudioSnapshot[]>([safeClone(initialSnapshot)]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const historyIndexRef = useRef(0);
 
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
@@ -359,6 +361,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               latestRef.current = snapshot;
               setHistory([safeClone(snapshot)]);
               setHistoryIndex(0);
+              historyIndexRef.current = 0;
               return;
             } catch (e) {
               console.warn('Failed to parse draftJson', e);
@@ -395,6 +398,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               };
             });
             setZones(zonesMap);
+            const snapshot: StudioSnapshot = {
+              seats: safeClone(seats),
+              stages: safeClone(stages),
+              structures: safeClone(structures),
+              zones: safeClone(zonesMap),
+              canvasSettings: safeClone(canvasSettings),
+            };
+            applySnapshot(snapshot);
+            latestRef.current = snapshot;
+            setHistory([safeClone(snapshot)]);
+            setHistoryIndex(0);
+            historyIndexRef.current = 0;
           }
         }
       } catch (err) {
@@ -522,11 +537,13 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const pushHistory = (snapshot?: StudioSnapshot) => {
     const nextSnapshot = safeClone(snapshot || latestRef.current);
     setHistory((prev) => {
-      const base = prev.slice(0, historyIndex + 1);
+      const base = prev.slice(0, historyIndexRef.current + 1);
       const last = base[base.length - 1];
       if (last && JSON.stringify(last) === JSON.stringify(nextSnapshot)) return prev;
       const next = [...base, nextSnapshot].slice(-80);
-      setHistoryIndex(next.length - 1);
+      const newIdx = next.length - 1;
+      historyIndexRef.current = newIdx;
+      setHistoryIndex(newIdx);
       return next;
     });
   };
@@ -546,18 +563,24 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   // handle undo action
   const handleUndo = () => {
-    if (historyIndex <= 0) return;
-    const nextIndex = historyIndex - 1;
-    applySnapshot(history[nextIndex]);
-    setHistoryIndex(nextIndex);
+    if (historyIndexRef.current <= 0) return;
+    const nextIndex = historyIndexRef.current - 1;
+    if (history[nextIndex]) {
+      applySnapshot(history[nextIndex]);
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
+    }
   };
 
   // handle redo action
   const handleRedo = () => {
-    if (historyIndex >= history.length - 1) return;
-    const nextIndex = historyIndex + 1;
-    applySnapshot(history[nextIndex]);
-    setHistoryIndex(nextIndex);
+    if (historyIndexRef.current >= history.length - 1) return;
+    const nextIndex = historyIndexRef.current + 1;
+    if (history[nextIndex]) {
+      applySnapshot(history[nextIndex]);
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
+    }
   };
 
   // commit new state change
@@ -958,10 +981,9 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       const totalW = seatsPerRow * spacingX;
       const startX = Math.round(zoneX + (width - totalW) / 2 + spacingX / 2);
       const startY = Math.round(zoneY + 45);
-      const startChar = rowPrefix.charCodeAt(0);
 
       for (let r = 0; r < rowCount; r++) {
-        const rowName = String.fromCharCode(startChar + r);
+        const rowName = getRowLabel(rowPrefix, r);
         for (let c = 0; c < seatsPerRow; c++) {
           generatedSeats.push({
             id: `seat_${baseId}_${r}_${c}`,
@@ -1244,6 +1266,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     latestRef.current = snapshot;
     setHistory([safeClone(snapshot)]);
     setHistoryIndex(0);
+    historyIndexRef.current = 0;
     setSelectedTemplateId(template.id);
     setAttendeeCart([]);
     setIsTemplateModalOpen(false);

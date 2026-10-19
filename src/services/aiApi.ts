@@ -8,6 +8,16 @@ export const aiApi = {
     return response as any; // axiosClient interceptor returns data directly
   },
 
+  searchEventsByNaturalLanguage: async (query: string, top_k: number = 6): Promise<{ query: string; total: number; events: any[]; matches: any[] }> => {
+    try {
+      const response = await axiosClient.post('/customer/chat-search', { query, top_k });
+      return response as any;
+    } catch (err) {
+      console.warn("AI natural language search failed:", err);
+      return { query, total: 0, events: [], matches: [] };
+    }
+  },
+
   chatAdminAssistant: async (message: string, history: any[] = []): Promise<AiChatResponse> => {
     const response = await axiosClient.post('/admin/assistant-chat', { message, history });
     return response as any;

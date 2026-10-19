@@ -376,4 +376,29 @@ export const generateGalaTableSeats = (args: {
   return { tableStructure, seats };
 };
 
+export const getRowLabel = (startPrefix: string, rowIndex: number): string => {
+  const clean = (startPrefix || 'A').trim().toUpperCase();
+  if (/^\d+$/.test(clean)) {
+    return String(parseInt(clean, 10) + rowIndex);
+  }
+
+  let baseNum = 0;
+  for (let i = 0; i < clean.length; i++) {
+    const code = clean.charCodeAt(i);
+    if (code >= 65 && code <= 90) {
+      baseNum = baseNum * 26 + (code - 64);
+    }
+  }
+
+  const targetNum = (baseNum > 0 ? baseNum : 1) + rowIndex;
+  let result = '';
+  let n = targetNum;
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    result = String.fromCharCode(65 + rem) + result;
+    n = Math.floor((n - 1) / 26);
+  }
+  return result;
+};
+
 

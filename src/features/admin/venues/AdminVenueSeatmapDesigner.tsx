@@ -41,6 +41,7 @@ import ConfirmModal from "@/components/common/ConfirmModal";
 import {
   DEFAULT_CANVAS_SETTINGS,
   generateSeatMapSVG,
+  getRowLabel,
   isSeatInsideZone,
   safeClone,
 } from "@/utils/seatMapHelpers";
@@ -92,8 +93,16 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
   // history state
-  const [history, setHistory] = useState<HistoryState[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const initialDefaultSnapshot: HistoryState = {
+    stages: safeClone(INITIAL_STAGES),
+    structures: [],
+    seats: [],
+    zones: safeClone(INITIAL_ZONES),
+  };
+  const [history, setHistory] = useState<HistoryState[]>([initialDefaultSnapshot]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const historyIndexRef = useRef(0);
+  const historyRef = useRef<HistoryState[]>([initialDefaultSnapshot]);
   const isHistoryActionRef = useRef(false);
 
   // confirm modal
@@ -128,10 +137,15 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
 
     if (isNew) {
       localStorage.removeItem(`admin_venue_seatmap_draft_${venueId}`);
+      const emptyState: HistoryState = { stages: [], structures: [], seats: [], zones: {} };
       setStages([]);
       setStructures([]);
       setSeats([]);
       setZones({});
+      setHistory([safeClone(emptyState)]);
+      setHistoryIndex(0);
+      historyIndexRef.current = 0;
+      historyRef.current = [safeClone(emptyState)];
       setAutoSaveStatus("Sơ đồ mới trống");
       setLoading(false);
       try {
@@ -151,11 +165,21 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
         if (res.adminTemplate) {
           try {
             const parsed = JSON.parse(res.adminTemplate);
-            setStages(parsed.stages || []);
-            setStructures(parsed.structures || []);
-            setSeats(parsed.seats || []);
-            setZones(parsed.zones || {});
+            const snapshot: HistoryState = {
+              stages: safeClone(parsed.stages || []),
+              structures: safeClone(parsed.structures || []),
+              seats: safeClone(parsed.seats || []),
+              zones: safeClone(parsed.zones || {}),
+            };
+            setStages(snapshot.stages);
+            setStructures(snapshot.structures);
+            setSeats(snapshot.seats);
+            setZones(snapshot.zones);
             if (parsed.canvasSettings) setCanvasSettings(parsed.canvasSettings);
+            setHistory([safeClone(snapshot)]);
+            setHistoryIndex(0);
+            historyIndexRef.current = 0;
+            historyRef.current = [safeClone(snapshot)];
             setAutoSaveStatus("Đã tải Sơ đồ mẫu chính thức");
             if (!hasInitialLoadedRef.current) {
               hasInitialLoadedRef.current = true;
@@ -172,11 +196,21 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
         if (localDraft) {
           try {
             const parsed = JSON.parse(localDraft);
-            setStages(parsed.stages || []);
-            setStructures(parsed.structures || []);
-            setSeats(parsed.seats || []);
-            setZones(parsed.zones || {});
+            const snapshot: HistoryState = {
+              stages: safeClone(parsed.stages || []),
+              structures: safeClone(parsed.structures || []),
+              seats: safeClone(parsed.seats || []),
+              zones: safeClone(parsed.zones || {}),
+            };
+            setStages(snapshot.stages);
+            setStructures(snapshot.structures);
+            setSeats(snapshot.seats);
+            setZones(snapshot.zones);
             if (parsed.canvasSettings) setCanvasSettings(parsed.canvasSettings);
+            setHistory([safeClone(snapshot)]);
+            setHistoryIndex(0);
+            historyIndexRef.current = 0;
+            historyRef.current = [safeClone(snapshot)];
             setAutoSaveStatus("Đã khôi phục bản nháp");
             if (!hasInitialLoadedRef.current) {
               hasInitialLoadedRef.current = true;
@@ -195,11 +229,21 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
             const tpls = JSON.parse(localTemplatesStr);
             const activeTpl = tpls.find((t: any) => t.isPublished) || tpls[0];
             if (activeTpl?.data) {
-              setStages(activeTpl.data.stages || []);
-              setStructures(activeTpl.data.structures || []);
-              setSeats(activeTpl.data.seats || []);
-              setZones(activeTpl.data.zones || {});
+              const snapshot: HistoryState = {
+                stages: safeClone(activeTpl.data.stages || []),
+                structures: safeClone(activeTpl.data.structures || []),
+                seats: safeClone(activeTpl.data.seats || []),
+                zones: safeClone(activeTpl.data.zones || {}),
+              };
+              setStages(snapshot.stages);
+              setStructures(snapshot.structures);
+              setSeats(snapshot.seats);
+              setZones(snapshot.zones);
               if (activeTpl.data.canvasSettings) setCanvasSettings(activeTpl.data.canvasSettings);
+              setHistory([safeClone(snapshot)]);
+              setHistoryIndex(0);
+              historyIndexRef.current = 0;
+              historyRef.current = [safeClone(snapshot)];
               setAutoSaveStatus("Đã tải Sơ đồ mẫu");
               return;
             }
@@ -207,10 +251,15 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
         } catch {}
 
         hasInitialLoadedRef.current = true;
+        const emptyState: HistoryState = { stages: [], structures: [], seats: [], zones: {} };
         setStages([]);
         setStructures([]);
         setSeats([]);
         setZones({});
+        setHistory([safeClone(emptyState)]);
+        setHistoryIndex(0);
+        historyIndexRef.current = 0;
+        historyRef.current = [safeClone(emptyState)];
         setAutoSaveStatus("Sẵn sàng thiết kế");
       })
       .catch((err) => {
@@ -229,38 +278,53 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       structures: safeClone(structures),
       zones: safeClone(zones),
     };
-    setHistory((prev) => [...prev.slice(0, historyIndex + 1), currentState]);
-    setHistoryIndex((prev) => prev + 1);
+    setHistory((prev) => {
+      const base = prev.slice(0, historyIndexRef.current + 1);
+      const last = base[base.length - 1];
+      if (last && JSON.stringify(last) === JSON.stringify(currentState)) return prev;
+      const next = [...base, currentState].slice(-80);
+      const newIdx = next.length - 1;
+      historyIndexRef.current = newIdx;
+      setHistoryIndex(newIdx);
+      historyRef.current = next;
+      return next;
+    });
   };
 
   const handleUndo = () => {
-    if (historyIndex > 0) {
-      isHistoryActionRef.current = true;
-      const targetState = history[historyIndex - 1];
+    if (historyIndexRef.current <= 0) return;
+    isHistoryActionRef.current = true;
+    const nextIndex = historyIndexRef.current - 1;
+    const targetState = historyRef.current[nextIndex] || history[nextIndex];
+    if (targetState) {
       setSeats(safeClone(targetState.seats));
       setStages(safeClone(targetState.stages));
       setStructures(safeClone(targetState.structures));
       setZones(safeClone(targetState.zones));
-      setHistoryIndex((prev) => prev - 1);
-      setTimeout(() => {
-        isHistoryActionRef.current = false;
-      }, 50);
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
     }
+    setTimeout(() => {
+      isHistoryActionRef.current = false;
+    }, 50);
   };
 
   const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      isHistoryActionRef.current = true;
-      const targetState = history[historyIndex + 1];
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    isHistoryActionRef.current = true;
+    const nextIndex = historyIndexRef.current + 1;
+    const targetState = historyRef.current[nextIndex] || history[nextIndex];
+    if (targetState) {
       setSeats(safeClone(targetState.seats));
       setStages(safeClone(targetState.stages));
       setStructures(safeClone(targetState.structures));
       setZones(safeClone(targetState.zones));
-      setHistoryIndex((prev) => prev + 1);
-      setTimeout(() => {
-        isHistoryActionRef.current = false;
-      }, 50);
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
     }
+    setTimeout(() => {
+      isHistoryActionRef.current = false;
+    }, 50);
   };
 
   // auto-save draft locally
@@ -627,10 +691,9 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       const totalW = seatsPerRow * spacingX;
       const startX = Math.round(zoneX + (width - totalW) / 2 + spacingX / 2);
       const startY = Math.round(zoneY + 45);
-      const startChar = rowPrefix.charCodeAt(0);
 
       for (let r = 0; r < rowCount; r++) {
-        const rowName = String.fromCharCode(startChar + r);
+        const rowName = getRowLabel(rowPrefix, r);
         for (let c = 0; c < seatsPerRow; c++) {
           generatedSeats.push({
             id: `seat_${baseId}_${r}_${c}`,

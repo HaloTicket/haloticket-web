@@ -269,7 +269,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   <input
                     type="number"
                     min={1}
-                    max={50}
+                    max={500}
                     value={rowCountRowMode}
                     onChange={(e) => setRowCountRowMode(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl app-bg-card border app-border app-text-main font-mono font-bold text-center"
@@ -295,7 +295,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   <input
                     type="number"
                     min={1}
-                    max={26}
+                    max={500}
                     value={matrixRows}
                     onChange={(e) => setMatrixRows(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl app-bg-card border app-border app-text-main font-mono font-bold text-center"
@@ -306,7 +306,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   <input
                     type="number"
                     min={1}
-                    max={40}
+                    max={500}
                     value={matrixCols}
                     onChange={(e) => setMatrixCols(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl app-bg-card border app-border app-text-main font-mono font-bold text-center"
@@ -332,7 +332,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
                   <input
                     type="number"
                     min={2}
-                    max={40}
+                    max={300}
                     value={arcCount}
                     onChange={(e) => setArcCount(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl app-bg-card border app-border app-text-main font-mono font-bold text-center"

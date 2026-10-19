@@ -83,18 +83,33 @@ export const OrganizerLayout: React.FC = () => {
     };
   }, [navigate]);
 
-  const organizerTargetId = userProfile?.keycloakId || userProfile?.id || "ORGANIZER";
+  const userTargetIds = [userProfile?.keycloakId, userProfile?.id].filter(Boolean) as string[];
   const isAdmin = Boolean(userProfile?.roles?.includes("ADMIN"));
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(organizerTargetId);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userTargetIds.length ? userTargetIds : "ORGANIZER");
 
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
-    if (n.type === "PAYOUT_APPROVED") {
-      navigate(PATHS.REPORTS);
-    } else {
-      navigate(PATHS.MY_EVENTS);
+    if (n.type === "GIFT_INVITATION") {
+      const sagaId = n.message.match(/Mã lời mời: ([a-f0-9-]{36})/i)?.[1];
+      if (sagaId) {
+        navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
+        return;
+      }
     }
+    if (n.type === "PAYOUT_APPROVED" || n.type === "PAYOUT_REQUESTED") {
+      navigate(PATHS.REPORTS);
+      return;
+    }
+    if (n.type === "EVENT_APPROVED" || n.type === "EVENT_UPDATE_APPROVED" || n.type === "EVENT_REJECTED") {
+      navigate(PATHS.MY_EVENTS);
+      return;
+    }
+    if (n.type === "TICKETS_ISSUED" || n.type === "TICKET_ISSUED" || n.type === "RESALE_LISTING_ACTIVATED" || n.type === "RESALE_LISTING_FAILED") {
+      navigate(PATHS.MY_TICKETS);
+      return;
+    }
+    navigate(PATHS.MY_EVENTS);
   };
 
   useEffect(() => {

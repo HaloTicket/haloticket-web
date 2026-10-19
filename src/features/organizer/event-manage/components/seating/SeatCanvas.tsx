@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   FiZoomIn,
   FiZoomOut,
-  FiRotateCcw,
   FiRotateCw,
   FiMove,
   FiTool,
@@ -13,6 +12,7 @@ import {
   FiMaximize2,
   FiMinimize2,
   FiGrid,
+  FiTarget,
   FiRotateCcw as FiUndo,
   FiRotateCw as FiRedo,
 } from 'react-icons/fi';
@@ -45,7 +45,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   onRedo,
   canUndo,
   canRedo,
-  onCommitHistory: _onCommitHistory,
+  onCommitHistory,
   isAttendeeMode = false,
   attendeeCart = [],
   onToggleAttendeeSeat,
@@ -150,36 +150,76 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
   };
 
-  // Auto-fit zoom calculation for Attendee Mode based on tight content bounding box
-  useEffect(() => {
-    if (isAttendeeMode && canvasRef.current) {
-      const bbox = getBoundingBox();
-      const el = canvasRef.current;
-      const padding = 50;
-      const contentW = bbox.width + padding * 2;
-      const contentH = bbox.height + padding * 2;
+  const hasInitialCentered = useRef(false);
 
+  // Center seatmap content inside viewport with optional auto-fit zoom
+  const centerContent = (zoomToFit = false) => {
+    if (!canvasRef.current) return;
+    const bbox = getBoundingBox();
+    const el = canvasRef.current;
+    const padding = 60;
+    const contentW = Math.max(100, bbox.width + padding * 2);
+    const contentH = Math.max(100, bbox.height + padding * 2);
+
+    let activeZoom = zoomLevel;
+    if (zoomToFit || isAttendeeMode) {
       const fitZoomW = Math.floor((el.clientWidth / contentW) * 100);
       const fitZoomH = Math.floor((el.clientHeight / contentH) * 100);
       const fitZoom = Math.min(fitZoomW, fitZoomH);
-      const clampedZoom = Math.min(Math.max(fitZoom, 35), 85);
+      activeZoom = Math.min(Math.max(fitZoom, 35), isAttendeeMode ? 85 : 85);
+      setZoomLevel(activeZoom);
+    }
 
-      setZoomLevel(clampedZoom);
+    setTimeout(() => {
+      if (canvasRef.current) {
+        const elCurrent = canvasRef.current;
+        const scale = (zoomToFit || isAttendeeMode ? activeZoom : zoomLevel) / 100;
+        const centerX = (bbox.minX + bbox.maxX) / 2;
+        const centerY = (bbox.minY + bbox.maxY) / 2;
+        const targetX = Math.max(0, centerX * scale - elCurrent.clientWidth / 2);
+        const targetY = Math.max(0, centerY * scale - elCurrent.clientHeight / 2);
+        elCurrent.scrollLeft = targetX;
+        elCurrent.scrollTop = targetY;
+      }
+    }, 50);
+  };
 
-      setTimeout(() => {
-        if (canvasRef.current) {
-          const scale = clampedZoom / 100;
-          const targetX = Math.max(0, (bbox.minX - padding) * scale);
-          const targetY = Math.max(0, (bbox.minY - padding) * scale);
-          canvasRef.current.scrollLeft = targetX;
-          canvasRef.current.scrollTop = targetY;
-        }
-      }, 60);
-    } else if (canvasRef.current) {
-      const el = canvasRef.current;
-      el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
+  // Initial centering when seatmap content is loaded (runs only ONCE to prevent jerking during edits)
+  useEffect(() => {
+    if (hasInitialCentered.current || !canvasRef.current) return;
+    const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
+    const hasElements =
+      zoneList.length > 0 ||
+      (seats && seats.length > 0) ||
+      (stages && stages.length > 0) ||
+      (structures && structures.length > 0);
+
+    if (hasElements) {
+      centerContent(isAttendeeMode);
+      hasInitialCentered.current = true;
     }
   }, [isAttendeeMode, zones, seats, stages, structures]);
+
+  // Fallback initial center after component mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!hasInitialCentered.current && canvasRef.current) {
+        centerContent(isAttendeeMode);
+        hasInitialCentered.current = true;
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [isAttendeeMode]);
+
+  // Re-center when fullscreen is toggled
+  useEffect(() => {
+    if (hasInitialCentered.current) {
+      const timer = setTimeout(() => {
+        centerContent(isAttendeeMode);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isFullscreen, isAttendeeMode]);
 
   // Mouse wheel interaction: Ctrl+Wheel to Zoom, Shift+Wheel to Scroll Horizontally
   useEffect(() => {
@@ -277,6 +317,14 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         selectionBoxRef.current = null;
         setSelectionBox(null);
       }
+      if (draggingRef.current) {
+        const dragType = draggingRef.current.type;
+        if (dragType === 'ELEMENTS') {
+          onUpdateSeats((prevSeats) => reassignSeatZones(prevSeats, zones));
+        }
+        draggingRef.current = null;
+        onCommitHistory?.();
+      }
     };
 
     window.addEventListener('pointermove', handleWindowPointerMove);
@@ -285,7 +333,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
       window.removeEventListener('pointermove', handleWindowPointerMove);
       window.removeEventListener('pointerup', handleWindowPointerUp);
     };
-  }, [zoomLevel, seats, stages, structures, zones, setSelectedSeatIds, setSelectedStageId, setSelectedStructureId, setSelectedZoneId]);
+  }, [zoomLevel, seats, stages, structures, zones, setSelectedSeatIds, setSelectedStageId, setSelectedStructureId, setSelectedZoneId, onCommitHistory, onUpdateSeats]);
 
   // global keyboard listener for Ctrl+Z, Ctrl+Y, Delete, Backspace
   useEffect(() => {
@@ -318,13 +366,14 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         if (selectedSeatIds.length > 0 || selectedStageId || selectedStructureId || selectedZoneId) {
           e.preventDefault();
           onDeleteSelected();
+          onCommitHistory?.();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedSeatIds, selectedStageId, selectedStructureId, selectedZoneId, onDeleteSelected, onUndo, onRedo, canUndo, canRedo]);
+  }, [selectedSeatIds, selectedStageId, selectedStructureId, selectedZoneId, onDeleteSelected, onUndo, onRedo, canUndo, canRedo, onCommitHistory]);
 
   // zoom handlers
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 15, 200));
@@ -939,16 +988,17 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         // Ignore
       }
       draggingRef.current = null;
+      onCommitHistory?.();
     }
   };
 
   return (
     <div
-      className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'h-full min-h-[calc(100vh-140px)] rounded-xl border-none' : 'h-full min-h-[500px]'
+      className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'h-full min-h-0 rounded-xl border-none' : 'h-full min-h-0'
         }`}
     >
       {/* Top Floating Viewport Control Bar with z-10 (below header z-30) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b app-border bg-slate-500/5 z-10">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 border-b app-border bg-slate-500/5 z-10">
         <div className="flex items-center gap-3">
           <span className="text-xs font-extrabold app-text-main uppercase tracking-wider flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
@@ -984,7 +1034,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             </div>
           )}
 
-          <div className="w-px h-5 app-border bg-slate-700 mx-1" />
+          {!isAttendeeMode && <div className="w-px h-5 app-border bg-slate-700 mx-1" />}
 
           {/* Grid Snap Toggle */}
           {!isAttendeeMode && (
@@ -995,42 +1045,47 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
                 ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
                 : 'app-bg-main border app-border app-text-muted hover:app-text-main'
                 }`}
-              title={t("Bật/Tắt hít lưới tọa độ")}
+              title={gridSnap ? t("Tắt hít lưới") : t("Bật hít lưới")}
             >
               <FiGrid className="w-3.5 h-3.5" />
               <span>{t('Hít lưới')} ({gridSnap ? t('Bật') : t('Tắt')})</span>
             </button>
           )}
 
-          <div className="w-px h-5 app-border bg-slate-700 mx-1" />
+          {!isAttendeeMode && <div className="w-px h-5 app-border bg-slate-700 mx-1" />}
 
           {/* Zoom Controls */}
           <button
             type="button"
             onClick={handleZoomOut}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title={t("Thu nhỏ")}
+            title={t("Thu nhỏ (-)")}
           >
             <FiZoomOut className="w-4 h-4" />
           </button>
-          <span className="text-xs font-mono font-extrabold app-text-main px-2">
+          <button
+            type="button"
+            onClick={handleResetZoom}
+            className="text-xs font-mono font-extrabold app-text-main px-2 py-1 rounded-lg hover:bg-slate-500/10 transition-colors cursor-pointer"
+            title={t("Đặt lại thu phóng (100%)")}
+          >
             {zoomLevel}%
-          </span>
+          </button>
           <button
             type="button"
             onClick={handleZoomIn}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title={t("Phóng to")}
+            title={t("Phóng to (+)")}
           >
             <FiZoomIn className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={handleResetZoom}
+            onClick={() => centerContent(false)}
             className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
-            title="100%"
+            title={t("Căn giữa sơ đồ")}
           >
-            <FiRotateCcw className="w-4 h-4" />
+            <FiTarget className="w-4 h-4" />
           </button>
 
           {/* Full-Screen Studio Expand Toggle */}
@@ -1078,7 +1133,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="relative flex-1 w-full min-h-[620px] overflow-auto app-bg-main p-8 transition-all select-none touch-none"
+        className="relative flex-1 w-full min-h-0 overflow-auto app-bg-main p-8 transition-all select-none touch-none"
         style={{
           backgroundImage: gridSnap
             ? 'radial-gradient(circle, rgba(148, 163, 184, 0.22) 1px, transparent 1px)'

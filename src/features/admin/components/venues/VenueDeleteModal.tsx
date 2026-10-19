@@ -37,7 +37,7 @@ export const VenueDeleteModal: React.FC<VenueDeleteModalProps> = ({
       {error && <p role="alert" aria-label={translate("Không thể xóa địa điểm")} className="text-sm text-red-600">{error}</p>}
       {venue.eventsHosted > 0 && (
         <p className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
-          ⚠️ {translate("Lưu ý: Địa điểm này đang được liên kết với")} {venue.eventsHosted} {translate("sự kiện trong hệ thống.")}
+          {translate("Lưu ý: Địa điểm này đang được liên kết với")} {venue.eventsHosted} {translate("sự kiện trong hệ thống.")}
         </p>
       )}
     </AdminConfirmModal>

@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FiCalendar, FiFilter, FiClock } from "react-icons/fi";
+import { FiCalendar, FiFilter, FiClock, FiCpu } from "react-icons/fi";
 import { eventApi, type EventApiData } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
 import { EventCard } from "@/components/common/EventCard";
 import DateFilterModal from "./components/DateFilterModal";
 import AdvancedFilterModal from "./components/AdvancedFilterModal";
@@ -12,8 +13,12 @@ export default function EventSearch() {
   const [searchParams] = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const cityParam = searchParams.get("city") || "";
+  const aiParam = searchParams.get("ai") === "true";
 
   const [allEvents, setAllEvents] = useState<EventApiData[]>([]);
+  const [aiEvents, setAiEvents] = useState<EventApiData[]>([]);
+  const [isAiMode, setIsAiMode] = useState<boolean>(aiParam);
+  const [isAiSearching, setIsAiSearching] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
   // filter modal toggle states
@@ -57,10 +62,40 @@ export default function EventSearch() {
     };
   }, []);
 
+  // natural language / semantic search with AI when queryParam changes
+  useEffect(() => {
+    if (!queryParam.trim()) {
+      setAiEvents([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAiSearching(true);
+    aiApi.searchEventsByNaturalLanguage(queryParam, 8).then((res) => {
+      if (isMounted && res && Array.isArray(res.events) && res.events.length > 0) {
+        setAiEvents(res.events as EventApiData[]);
+        // if query looks like a natural sentence or has ai param, auto-activate AI mode
+        if (aiParam || queryParam.split(" ").length >= 3) {
+          setIsAiMode(true);
+        }
+      }
+      if (isMounted) setIsAiSearching(false);
+    }).catch(() => {
+      if (isMounted) setIsAiSearching(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [queryParam, aiParam]);
+
+  // determine which event list to use: AI semantic search vs normal keyword search
+  const baseEvents = (isAiMode && aiEvents.length > 0) ? aiEvents : allEvents;
+
   // filter events based on active search parameters
-  const filteredEvents = allEvents.filter((ev: EventApiData) => {
-    // text query filter
-    if (queryParam) {
+  const filteredEvents = baseEvents.filter((ev: EventApiData) => {
+    // if not in AI mode, apply text query filter
+    if (!isAiMode && queryParam) {
       const q = queryParam.toLowerCase();
       const matchTitle = ev.title?.toLowerCase().includes(q);
       const matchLoc = ev.locationName?.toLowerCase().includes(q);
@@ -72,7 +107,7 @@ export default function EventSearch() {
     // location filter
     if (selectedLocation !== "Toàn quốc") {
       const loc = selectedLocation.toLowerCase();
-      const matchLoc = ev.address?.toLowerCase().includes(loc) || ev.locationName?.toLowerCase().includes(loc);
+      const matchLoc = ev.address?.toLowerCase().includes(loc) || ev.locationName?.toLowerCase().includes(loc) || (ev as any).city?.toLowerCase().includes(loc);
       if (!matchLoc) return false;
     }
 
@@ -91,20 +126,41 @@ export default function EventSearch() {
     <div className="min-h-screen bg-[#f4f4f5] dark:bg-[#27272a] text-zinc-900 dark:text-zinc-100 pb-16 transition-colors duration-300">
       <div className="container mx-auto px-4 md:px-8 pt-8">
         {/* Top Search Result Header & Filter Actions Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold app-text-main tracking-tight">
               {translate("Sự kiện (")}{filteredEvents.length})
             </h1>
             {queryParam && (
               <p className="text-xs md:text-sm font-semibold app-text-muted mt-1">
-                {translate("Kết quả tìm kiếm cho từ khóa:")}<strong className="app-text-brand">"{queryParam}"</strong>
+                {translate("Kết quả tìm kiếm cho:")} <strong className="app-text-brand">"{queryParam}"</strong>
               </p>
             )}
           </div>
 
           {/* Filter Bar Buttons */}
-          <div className="flex items-center gap-3 self-end sm:self-auto">
+          <div className="flex items-center gap-3 self-end sm:self-auto flex-wrap">
+            {/* AI Semantic Search Toggle */}
+            {queryParam && (
+              <button
+                type="button"
+                onClick={() => setIsAiMode(!isAiMode)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isAiMode
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-md shadow-blue-500/20"
+                    : "app-bg-card border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                }`}
+                title={translate("Tìm kiếm theo ngữ nghĩa và ngôn ngữ tự nhiên bằng AI")}
+              >
+                <FiCpu className="w-3.5 h-3.5" />
+                <span>{translate("AI Tìm kiếm")}</span>
+                {aiEvents.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">
+                    {aiEvents.length}
+                  </span>
+                )}
+              </button>
+            )}
             {/* Date Filter Button */}
             <div ref={dateFilterRef} className="relative">
               <button
@@ -161,6 +217,33 @@ export default function EventSearch() {
             </div>
           </div>
         </div>
+
+        {/* AI Semantic Search Banner */}
+        {isAiMode && queryParam && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
+                <FiCpu className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs md:text-sm font-bold app-text-main flex items-center gap-2">
+                  <span>{translate("Đang hiển thị kết quả tìm kiếm bằng Trí tuệ Nhân tạo (Semantic AI Search)")}</span>
+                  {isAiSearching && <span className="text-[10px] text-blue-500 animate-pulse">({translate("Đang phân tích...")})</span>}
+                </p>
+                <p className="text-[11px] app-text-muted mt-0.5">
+                  {translate("Hệ thống tự động phân tích ngữ nghĩa tự nhiên cho:")} <strong className="text-blue-600 dark:text-blue-400">"{queryParam}"</strong>
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAiMode(false)}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border app-border app-bg-card hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+            >
+              {translate("Chuyển về tìm từ khóa thường")}
+            </button>
+          </div>
+        )}
 
         {/* Loading Spinner State */}
         {loading ? (
