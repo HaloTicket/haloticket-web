@@ -6,13 +6,39 @@ import { FiChevronDown } from "react-icons/fi";
 
 interface LanguageSwitcherProps {
   className?: string;
+  direction?: "up" | "down" | "auto";
 }
 
-export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwitcherProps) {
   const { t: translate, i18n } = useTranslation();
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [computedPlacement, setComputedPlacement] = useState<"up" | "down">(
+    direction === "up" ? "up" : "down"
+  );
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const lang = i18n.resolvedLanguage === "en" ? "en" : "vi";
+
+  const updatePlacement = () => {
+    if (direction === "up") {
+      setComputedPlacement("up");
+    } else if (direction === "down") {
+      setComputedPlacement("down");
+    } else if (langDropdownRef.current) {
+      const rect = langDropdownRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setComputedPlacement(spaceBelow < 140 ? "up" : "down");
+    }
+  };
+
+  useEffect(() => {
+    updatePlacement();
+    window.addEventListener("resize", updatePlacement);
+    window.addEventListener("scroll", updatePlacement, true);
+    return () => {
+      window.removeEventListener("resize", updatePlacement);
+      window.removeEventListener("scroll", updatePlacement, true);
+    };
+  }, [direction]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -27,8 +53,14 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const isUp = computedPlacement === "up";
+
   return (
-    <div ref={langDropdownRef} className={`relative group py-0.5 ${className || ""}`}>
+    <div
+      ref={langDropdownRef}
+      onMouseEnter={updatePlacement}
+      className={`relative group py-0.5 ${className || ""}`}
+    >
       {/* Hidden select for accessibility & automated tests (e.g. getByRole('combobox')) */}
       <select
         aria-label={translate("Chọn ngôn ngữ")}
@@ -44,7 +76,10 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
       {/* Flag Trigger Button matching Client Web Design */}
       <button
         type="button"
-        onClick={() => setIsLangOpen((prev) => !prev)}
+        onClick={() => {
+          updatePlacement();
+          setIsLangOpen((prev) => !prev);
+        }}
         className="flex items-center gap-1.5 text-xs font-medium hover:opacity-90 transition-all app-bg-card hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-1.5 rounded-md active:scale-95 cursor-pointer border border-slate-200 dark:border-slate-800 shadow-xs"
         title={translate("Ngôn ngữ")}
         aria-label={translate("Chọn ngôn ngữ")}
@@ -63,9 +98,13 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
 
       {/* Flag Hover / Click Dropdown Menu */}
       <div
-        className={`absolute right-0 top-full pt-1.5 w-36 transition-all duration-200 z-50 origin-top-right ${
+        className={`absolute right-0 ${
+          isUp ? "bottom-full pb-1.5 origin-bottom-right" : "top-full pt-1.5 origin-top-right"
+        } w-36 transition-all duration-200 z-50 ${
           isLangOpen
             ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
+            : isUp
+            ? "opacity-0 pointer-events-none translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
             : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
         }`}
       >

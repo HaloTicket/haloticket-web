@@ -156,7 +156,9 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
     if (p.endsWith("/members")) return t("Thành viên Ban tổ chức");
     if (p.endsWith("/vouchers")) return t("Mã giảm giá (Voucher)");
     if (p.endsWith("/seating")) return t("Sơ đồ ghế & Khán phòng");
+    if (p.endsWith("/ticket-assign")) return t("Cài đặt hạng vé");
     if (p.endsWith("/transfers")) return t("Chuyển nhượng vé");
+    if (p.endsWith("/showtimes")) return t("Quản lý suất diễn");
     if (p.endsWith("/edit")) return t("Chỉnh sửa thông tin sự kiện");
     return eventData?.title || t("Quản trị sự kiện");
   };

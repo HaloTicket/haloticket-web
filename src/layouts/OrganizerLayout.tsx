@@ -10,6 +10,7 @@ import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
+import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
 import {
   FiStar,
@@ -233,7 +234,7 @@ export const OrganizerLayout: React.FC = () => {
         {/* Bottom Language Switcher */}
         <div className="pt-4 border-t app-border flex items-center justify-between">
           <span className="text-xs font-bold app-text-muted">{translate("Ngôn ngữ")}</span>
-          <LanguageSwitcher />
+          <LanguageSwitcher direction="up" />
         </div>
       </aside>
 
@@ -435,6 +436,9 @@ export const OrganizerLayout: React.FC = () => {
         actionText={translate("Nhấn để xem chi tiết →")}
         accentColor="blue"
       />
+
+      {/* Floating Organizer AI Data Assistant Chatbot */}
+      <OrganizerAIChatWidget />
     </div>
   );
 };

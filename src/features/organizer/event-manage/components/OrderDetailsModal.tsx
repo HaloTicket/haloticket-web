@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiX, FiCheckCircle, FiClock, FiXCircle, FiUser, FiCreditCard, FiTag } from "react-icons/fi";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
+import { vi, enUS } from "date-fns/locale";
 import { ticketApi } from "@/services/ticketApi";
 import { eventApi } from "@/services/eventApi";
 
@@ -23,7 +23,8 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   seatZones = [],
   ticketNameResolver,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "en" ? enUS : vi;
   const [internalTypes, setInternalTypes] = useState<any[]>([]);
   const [internalZones, setInternalZones] = useState<any[]>([]);
 
@@ -266,7 +267,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               {t("Thời gian mua:")}{" "}
               {order.createdAt
                 ? format(new Date(order.createdAt), "HH:mm, dd/MM/yyyy", {
-                    locale: vi,
+                    locale: dateLocale,
                   })
                 : "N/A"}
             </p>

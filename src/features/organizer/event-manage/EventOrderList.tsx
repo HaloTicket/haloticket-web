@@ -246,7 +246,7 @@ export const EventOrderList: React.FC = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center app-text-muted">
-                    <p className="font-bold">{t("Đang tải...")}</p>
+                    <p className="font-bold">{t("Đang tải dữ liệu...")}</p>
                   </td>
                 </tr>
               ) : orders.length === 0 ? (

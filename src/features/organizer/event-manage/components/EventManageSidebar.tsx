@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import {
   FiArrowLeft,
   FiPieChart,
@@ -258,13 +259,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
         {/* Footer Language Switcher */}
         <div className={`pt-3 border-t app-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
           {!isCollapsed && <span className="text-xs font-bold app-text-muted">{t("Ngôn ngữ")}</span>}
-          <button
-            type="button"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl app-bg-subnav border app-border text-xs font-bold app-text-main cursor-pointer shadow-xs"
-          >
-            <span className="text-sm">🇻🇳</span>
-            {!isCollapsed && <span>Vie</span>}
-          </button>
+          <LanguageSwitcher direction="up" />
         </div>
       </aside>
 

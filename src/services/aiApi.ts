@@ -51,16 +51,13 @@ export const aiApi = {
     return response as any;
   },
 
-  getDynamicPriceCeiling: async (eventId: string, demandLevel: string): Promise<{ suggested_cap_percent: number, reason: string }> => {
-    const response = await axiosClient.post('/admin/dynamic-price-ceiling', {
+  chatWithOrganizerAgent: async (message: string, history: any[] = [], eventId?: string, eventTitle?: string): Promise<any> => {
+    const response = await axiosClient.post('/organizer/agent-chat', {
+      message,
+      history,
       event_id: eventId,
-      current_demand_level: demandLevel
+      event_title: eventTitle
     });
-    return response as any;
-  },
-
-  getAnomalyDetection: async (): Promise<{ has_anomaly: boolean, description: string, action_taken: string }> => {
-    const response = await axiosClient.get('/admin/anomaly-detection');
     return response as any;
   },
 

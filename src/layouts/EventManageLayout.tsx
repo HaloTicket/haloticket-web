@@ -3,6 +3,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { eventApi } from "@/services/eventApi";
 import { EventManageSidebar } from "@/features/organizer/event-manage/components/EventManageSidebar";
 import { EventManageHeader } from "@/features/organizer/event-manage/components/EventManageHeader";
+import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
 export const EventManageLayout: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -47,6 +48,12 @@ export const EventManageLayout: React.FC = () => {
           <Outlet context={{ myRole, eventData }} />
         </main>
       </div>
+
+      {/* Floating Organizer AI Data Assistant Chatbot with Event Context */}
+      <OrganizerAIChatWidget 
+        eventId={eventId} 
+        eventTitle={(eventData?.title as string) || undefined} 
+      />
     </div>
   );
 };
