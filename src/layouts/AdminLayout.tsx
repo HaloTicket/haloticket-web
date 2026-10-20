@@ -638,10 +638,13 @@ export const AdminLayout: React.FC = () => {
 
       {/* Floating AI Action Button */}
       <button
+        type="button"
         onClick={() => setIsAiDrawerOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-full flex items-center justify-center text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(59,130,246,0.3)] hover:scale-105 transition-all duration-300 group"
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 transition-all duration-300 cursor-pointer"
+        aria-label="Halo AI Assistant"
+        title="Halo AI Assistant"
       >
-        <FiMessageSquare className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        <FiMessageSquare className="w-5 h-5" />
       </button>
 
       {/* AI Assistant Drawer */}
@@ -652,9 +655,9 @@ export const AdminLayout: React.FC = () => {
             onClick={() => setIsAiDrawerOpen(false)}
           />
           <div className="relative w-full max-w-sm md:max-w-md h-full app-bg-card shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="flex items-center justify-between p-3 border-b app-border app-bg-subnav">
+            <div className="flex items-center justify-between p-3.5 border-b app-border app-bg-subnav">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+                <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
                   <FiZap className="w-4 h-4" />
                 </div>
                 <div>
@@ -663,8 +666,9 @@ export const AdminLayout: React.FC = () => {
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={() => setIsAiDrawerOpen(false)}
-                className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 app-text-main transition-colors"
+                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer"
               >
                 <FiX className="w-5 h-5" />
               </button>

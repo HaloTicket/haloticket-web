@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FiSend, FiLoader, FiZap, FiDatabase, FiTrash2 } from "react-icons/fi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { aiApi } from "@/services/aiApi";
 import { eventApi } from "@/services/eventApi";
 import { Link } from "react-router-dom";
@@ -21,6 +22,14 @@ interface ChatMessage {
   timestamp: Date;
   actionableEvents?: ActionableEvent[];
 }
+
+const normalizeMarkdown = (text: string) => {
+  if (!text) return "";
+  // fix tables where rows or header dividers are glued together with ||
+  let formatted = text.replace(/\|\|\s*\|/g, "|\n|");
+  formatted = formatted.replace(/\|\|\s*/g, "|\n");
+  return formatted;
+};
 
 export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" }: { isDrawer?: boolean, initialPrompt?: string }) {
   const { t, i18n } = useTranslation();
@@ -216,20 +225,76 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
 
           {messages.map((msg, idx) => (
             <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] sm:max-w-[75%] rounded-md px-3.5 py-2.5 text-xs shadow-xs ${
+              <div className={`max-w-[90%] sm:max-w-[85%] px-4 py-3 text-xs shadow-xs ${
                 msg.sender === "user" 
-                  ? "gradient-btn rounded-br-sm text-white" 
-                  : "app-bg-subnav app-text-main rounded-bl-sm border app-border"
+                  ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm" 
+                  : "bg-white dark:bg-[#18181b] app-text-main rounded-2xl rounded-tl-sm border border-slate-200 dark:border-slate-800"
               }`}>
                 {msg.sender === "ai" && idx === 0 ? (
-                  <div className="flex items-center gap-2 mb-1">
-                    <FiDatabase className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">System AI</span>
+                  <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800 text-blue-600 dark:text-blue-400">
+                    <FiDatabase className="w-3.5 h-3.5" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">System AI</span>
                   </div>
                 ) : null}
-                <div className="leading-relaxed text-xs prose prose-sm max-w-none dark:prose-invert prose-p:text-xs prose-li:text-xs">
+                <div className="leading-relaxed text-xs">
                   {msg.sender === "ai" ? (
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        table: ({ node, ...props }) => (
+                          <div className="my-2.5 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40">
+                            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs text-left" {...props} />
+                          </div>
+                        ),
+                        thead: ({ node, ...props }) => (
+                          <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-[11px]" {...props} />
+                        ),
+                        tbody: ({ node, ...props }) => (
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300" {...props} />
+                        ),
+                        tr: ({ node, ...props }) => (
+                          <tr className="hover:bg-blue-50/50 dark:hover:bg-slate-800/40 transition-colors" {...props} />
+                        ),
+                        th: ({ node, ...props }) => (
+                          <th className="px-3 py-2 font-bold text-slate-900 dark:text-white whitespace-nowrap border-b border-slate-200 dark:border-slate-700" {...props} />
+                        ),
+                        td: ({ node, ...props }) => (
+                          <td className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/60 leading-relaxed" {...props} />
+                        ),
+                        p: ({ node, ...props }) => (
+                          <p className="my-1.5 leading-relaxed text-xs text-slate-800 dark:text-slate-200" {...props} />
+                        ),
+                        strong: ({ node, ...props }) => (
+                          <strong className="font-bold text-slate-900 dark:text-white" {...props} />
+                        ),
+                        ul: ({ node, ...props }) => (
+                          <ul className="my-2 pl-4 list-disc space-y-1 text-xs text-slate-800 dark:text-slate-200" {...props} />
+                        ),
+                        ol: ({ node, ...props }) => (
+                          <ol className="my-2 pl-4 list-decimal space-y-1 text-xs text-slate-800 dark:text-slate-200" {...props} />
+                        ),
+                        li: ({ node, ...props }) => (
+                          <li className="leading-relaxed" {...props} />
+                        ),
+                        code: ({ node, className, children, ...props }: any) => {
+                          const match = /language-(\w+)/.exec(className || "");
+                          const isInline = !match && !String(children).includes("\n");
+                          return isInline ? (
+                            <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-mono text-[11px]" {...props}>
+                              {children}
+                            </code>
+                          ) : (
+                            <div className="my-2 p-2.5 rounded-lg bg-slate-900 text-slate-100 font-mono text-[11px] overflow-x-auto">
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            </div>
+                          );
+                        }
+                      }}
+                    >
+                      {normalizeMarkdown(msg.text)}
+                    </ReactMarkdown>
                   ) : (
                     <div className="whitespace-pre-wrap">{msg.text}</div>
                   )}
@@ -244,7 +309,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
                           <p className="text-[11px] app-text-muted mt-0.5 truncate">{ev.organizer?.name || 'Unknown Organizer'}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                           <Link to={`${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${ev.id}`} className="px-3 py-1.5 gradient-btn rounded-md text-[11px] font-bold transition-colors shadow-xs">Xem & Duyệt</Link>
+                           <Link to={`${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${ev.id}`} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[11px] font-bold transition-colors shadow-xs">Xem & Duyệt</Link>
                         </div>
                       </div>
                     ))}
@@ -263,7 +328,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="app-bg-subnav rounded-md rounded-bl-sm px-3.5 py-2.5 flex items-center gap-2 border app-border shadow-xs">
+              <div className="bg-white dark:bg-[#18181b] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2 border border-slate-200 dark:border-slate-800 shadow-xs">
                 <FiLoader className="w-4 h-4 text-blue-600 animate-spin" />
                 <span className="text-[11px] font-medium app-text-muted">{label("Đang phân tích...", "Analyzing...")}</span>
               </div>
@@ -279,13 +344,13 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="w-full app-bg-card border app-border rounded-md pl-3.5 pr-11 min-h-8 py-1.5 text-xs font-medium app-text-main focus:outline-none focus:border-blue-500 shadow-xs transition-all placeholder:text-slate-400"
+              className="w-full app-bg-card border app-border rounded-xl pl-3.5 pr-11 min-h-9 py-2 text-xs font-medium app-text-main focus:outline-none focus:border-blue-500 shadow-xs transition-all placeholder:text-slate-400"
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={!inputText.trim() || isLoading}
-              className="absolute right-1.5 h-6 w-6 flex items-center justify-center rounded-md gradient-btn disabled:opacity-50 transition-colors"
+              className="absolute right-1.5 h-7 w-7 flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
             >
               <FiSend className="w-3.5 h-3.5" />
             </button>
