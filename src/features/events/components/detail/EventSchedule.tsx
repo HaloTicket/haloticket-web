@@ -541,8 +541,8 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (onSelectTicket && st.tickets && st.tickets[0]) {
-                              onSelectTicket(st, st.tickets[0]);
+                            if (onSelectTicket) {
+                              onSelectTicket(st, (st.tickets && st.tickets[0]) ? st.tickets[0] : ({} as any));
                             }
                           }}
                           className="px-4 py-2 gradient-btn text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"

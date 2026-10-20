@@ -77,12 +77,6 @@ export default function EventDetail() {
   }, []);
 
   const handleGoToSelectTicket = (showtimeId?: string) => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      navigate(`/login?returnUrl=/events/${id}`);
-      return;
-    }
-    
     if (typeof showtimeId === "string") {
       navigate(`/events/${id}/select-ticket?showtimeId=${showtimeId}`);
       return;

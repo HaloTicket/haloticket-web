@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2 } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2, FiTag, FiShoppingBag, FiInfo } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { bookingApi } from "@/services/bookingApi";
 import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
-import type { TicketTypeApiResponse } from "@/types";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
-import { PRESET_TEMPLATES } from "@/mock/presetTemplates";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/utils/formatters";
 import { Client } from "@stomp/stompjs";
@@ -204,12 +202,15 @@ export default function SelectTicket() {
 
         const mappedTiers: SeatTier[] = [];
 
-        // 3. fetch seat layout from backend DB or localStorage or fallback to preset
+        // 3. fetch seat layout from backend DB or localStorage
         let doc: SeatMapDocument | null = null;
         const layoutData = await ticketApi.getSeatLayoutByEventId(id!);
         if (layoutData?.draftJson) {
           try {
-            doc = JSON.parse(layoutData.draftJson) as SeatMapDocument;
+            const parsed = JSON.parse(layoutData.draftJson) as SeatMapDocument;
+            if ((parsed.zones && Object.keys(parsed.zones).length > 0) || (parsed.seats && parsed.seats.length > 0)) {
+              doc = parsed;
+            }
           } catch (e) {
             console.warn("Failed parsing backend layout draftJson:", e);
           }
@@ -222,7 +223,10 @@ export default function SelectTicket() {
             (evTitle ? localStorage.getItem(`haloticket_seatmap_draft_${evTitle}`) : null);
           if (localStr) {
             try {
-              doc = JSON.parse(localStr) as SeatMapDocument;
+              const parsed = JSON.parse(localStr) as SeatMapDocument;
+              if ((parsed.zones && Object.keys(parsed.zones).length > 0) || (parsed.seats && parsed.seats.length > 0)) {
+                doc = parsed;
+              }
             } catch (e) {
               console.warn("Failed parsing localStorage seatmap draft:", e);
             }
@@ -263,7 +267,25 @@ export default function SelectTicket() {
               ticketTiers: mappedTiers,
             });
           } else {
-            setSeatMap(PRESET_TEMPLATES[0] as unknown as SeatMapDocument);
+            // Event has NO seatmap - clean null state!
+            setSeatMap(null);
+          }
+
+          // Initial fallback tickets from event detail if available
+          if ((ev as any)?.tickets && Array.isArray((ev as any).tickets) && (ev as any).tickets.length > 0) {
+            const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
+            const mapped = (ev as any).tickets.map((tt: any, idx: number) => ({
+              id: tt.id || `tt_${idx}`,
+              name: tt.name || t("Vé Thường"),
+              price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
+              color: tt.color || colors[idx % colors.length],
+              isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
+              totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
+              minPerOrder: tt.minPerOrder ?? 1,
+              maxPerOrder: tt.maxPerOrder ?? 10,
+              description: tt.description || "",
+            }));
+            setTicketTypes(mapped);
           }
         }
 
@@ -292,31 +314,37 @@ export default function SelectTicket() {
       if (!types || types.length === 0) {
         types = await ticketApi.getTicketTypesByEventId(id!);
       }
+      if (!types || types.length === 0) {
+        if (eventData && (eventData as any).tickets && Array.isArray((eventData as any).tickets)) {
+          types = (eventData as any).tickets;
+        }
+      }
       if (isMounted) {
         if (types && types.length > 0) {
           const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
-          const mappedTiers = types.map((tt: TicketTypeApiResponse, idx: number) => ({
-            id: tt.id,
+          const mappedTiers = types.map((tt: any, idx: number) => ({
+            id: tt.id || `tt_${idx}`,
             name: tt.name || t("Vé Thường"),
-            price: tt.price || 0,
-            color: colors[idx % colors.length],
-            isFree: tt.isFree ?? tt.price === 0,
-            totalQuantity: tt.totalQuantity ?? 100,
+            price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
+            color: tt.color || colors[idx % colors.length],
+            isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
+            totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
             minPerOrder: tt.minPerOrder ?? 1,
-            maxPerOrder: tt.maxPerOrder ?? 5,
-
+            maxPerOrder: tt.maxPerOrder ?? 10,
             description: tt.description || "",
           }));
           setTicketTypes(mappedTiers);
-        } else {
-          setTicketTypes([]);
         }
       }
 
-      // get realtime seat status for this showtime
-      const statusMap = await ticketApi.getSeatStatus(id!, selectedShowtimeId!);
-      if (isMounted) {
-        setSeatStatusMap(statusMap);
+      // get realtime seat status for this showtime only if seatmap exists
+      if (isMounted && seatMap && ((seatMap.seats && seatMap.seats.length > 0) || (seatMap.zones && Object.keys(seatMap.zones).length > 0))) {
+        try {
+          const statusMap = await ticketApi.getSeatStatus(id!, selectedShowtimeId!);
+          if (isMounted) {
+            setSeatStatusMap(statusMap);
+          }
+        } catch {}
       }
     }
 
@@ -324,7 +352,7 @@ export default function SelectTicket() {
     return () => {
       isMounted = false;
     };
-  }, [id, selectedShowtimeId]);
+  }, [id, selectedShowtimeId, seatMap]);
 
   useEffect(() => {
     if (!id) return;
@@ -367,6 +395,56 @@ export default function SelectTicket() {
       stompClient.deactivate();
     };
   }, [id]);
+
+  // check if event has an interactive seatmap
+  const hasSeatmap = useMemo(() => {
+    if (!seatMap) return false;
+    const hasSeats = Array.isArray(seatMap.seats) && seatMap.seats.length > 0;
+    const hasZones = Boolean(seatMap.zones && Object.keys(seatMap.zones).length > 0);
+    return Boolean(hasSeats || hasZones);
+  }, [seatMap]);
+
+  // non-seatmap tier quantity handler
+  const handleUpdateTierQuantity = (tier: SeatTier, delta: number) => {
+    const existing = cart.find(c => c.zoneId === tier.id || c.tierId === tier.id);
+    const maxQty = tier.maxPerOrder || 10;
+    const minQty = tier.minPerOrder || 1;
+
+    if (!existing) {
+      if (delta > 0) {
+        setCart(prev => [
+          ...prev,
+          {
+            zoneId: tier.id,
+            zoneName: tier.name,
+            tierId: tier.id,
+            tierName: tier.name,
+            price: tier.price,
+            quantity: minQty,
+            color: tier.color,
+            maxPerOrder: maxQty,
+            minPerOrder: minQty,
+          }
+        ]);
+      }
+      return;
+    }
+
+    const nextQty = existing.quantity + delta;
+    if (nextQty <= 0) {
+      setCart(prev => prev.filter(c => c.zoneId !== tier.id && c.tierId !== tier.id));
+      return;
+    }
+
+    if (nextQty > maxQty) {
+      setErrorMessage(t(`Bạn chỉ được chọn tối đa ${maxQty} vé cho hạng vé này`));
+      return;
+    }
+
+    setCart(prev =>
+      prev.map(c => (c.zoneId === tier.id || c.tierId === tier.id) ? { ...c, quantity: nextQty } : c)
+    );
+  };
 
   // extract combined zones list
   const zonesList = useMemo(() => {
@@ -806,15 +884,17 @@ export default function SelectTicket() {
 
         <div className="text-center">
           <h2 className="text-xs md:text-sm font-black app-text-main uppercase tracking-tight">
-            Bước 1: Chọn khu vực vé trên sơ đồ
+            {hasSeatmap ? t("Bước 1: Chọn khu vực vé trên sơ đồ") : t("Bước 1: Chọn loại vé và số lượng")}
           </h2>
           <p className="text-[11px] app-text-sub hidden sm:block font-medium">
-            Bạn có thể nhấp chọn vé ở nhiều khu vực khác nhau trước khi tiến hành thanh toán
+            {hasSeatmap
+              ? t("Bạn có thể nhấp chọn vé ở nhiều khu vực khác nhau trước khi tiến hành thanh toán")
+              : t("Chọn số lượng vé bạn muốn mua cho từng hạng vé trước khi tiến hành thanh toán")}
           </p>
         </div>
 
         <div className="text-right text-xs font-extrabold text-blue-500 hidden sm:block">
-          Sơ đồ trực quan 2D
+          {hasSeatmap ? t("Sơ đồ trực quan 2D") : t("Vé điện tử E-Ticket")}
         </div>
       </div>
 
@@ -832,8 +912,9 @@ export default function SelectTicket() {
         </div>
       )}
 
-      {/* Main Interactive Studio Grid */}
-      <div className="flex-1 flex flex-col lg:flex-row relative overflow-hidden min-h-[600px]">
+      {/* Main Interactive Studio Grid OR Non-SeatMap Ticket Tier List */}
+      {hasSeatmap ? (
+        <div className="flex-1 flex flex-col lg:flex-row relative overflow-hidden min-h-[600px]">
         {/* Left Interactive 2D SeatMap Canvas */}
         <div className="flex-1 relative app-bg-page flex flex-col p-2 lg:p-4 overflow-hidden min-h-[550px]">
           <SeatCanvas
@@ -1088,9 +1169,302 @@ export default function SelectTicket() {
           </div>
         </div>
       </div>
+      ) : (
+        /* Non-SeatMap Ticket Selection Layout */
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="max-w-6xl mx-auto space-y-6 pb-12">
+            {/* Event Summary Card */}
+            <div className="app-bg-card rounded-2xl border app-border p-5 md:p-6 shadow-xs flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+              <div className="flex items-start md:items-center gap-4">
+                {(eventData?.bannerUrl || eventData?.posterImage || eventData?.thumbnailUrl || eventData?.image) && (
+                  <img
+                    src={eventData?.bannerUrl || eventData?.posterImage || eventData?.thumbnailUrl || eventData?.image}
+                    alt={eventData?.title || "Event Poster"}
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-xl object-cover shrink-0 border app-border"
+                  />
+                )}
+                <div className="space-y-1.5">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    <FiTag className="w-3 h-3" />
+                    {t("Vé mở bán trực tiếp")}
+                  </span>
+                  <h1 className="text-base md:text-xl font-black app-text-main leading-snug">
+                    {eventData?.title || "SỰ KIỆN NỔI BẬT HALOTICKET"}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium app-text-sub">
+                    <div className="flex items-center gap-1.5">
+                      <FiCalendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>
+                        {eventData?.startTime
+                          ? `${new Date(eventData.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} — ${new Date(eventData.startTime).toLocaleDateString("vi-VN")}`
+                          : "19:00, 18 Tháng 10, 2026"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <FiMapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>{eventData?.locationName || eventData?.address || "Trung tâm Sự kiện HaloTicket"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Grid Layout: Left Ticket Tiers, Right Order Sticky Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left: Ticket Tiers List */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-black uppercase tracking-wider app-text-main flex items-center gap-2">
+                    <FiLayers className="w-4 h-4 text-blue-500" />
+                    <span>{t("Danh sách các hạng vé")}</span>
+                  </h2>
+                  <span className="text-xs font-bold app-text-sub font-mono">
+                    {ticketTypes.length} {t("hạng vé có sẵn")}
+                  </span>
+                </div>
+
+                {ticketTypes.length === 0 ? (
+                  <div className="p-8 text-center rounded-2xl border app-border app-bg-card space-y-3">
+                    <FiInfo className="w-10 h-10 text-amber-500 mx-auto" />
+                    <p className="text-sm font-bold app-text-main">
+                      {t("Hiện chưa có hạng vé nào được mở bán trực tuyến cho sự kiện này.")}
+                    </p>
+                    <p className="text-xs app-text-sub">
+                      {t("Vui lòng quay lại sau hoặc liên hệ ban tổ chức để biết thêm chi tiết.")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/events/${id}`)}
+                      className="mt-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
+                    >
+                      {t("Quay về trang sự kiện")}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {ticketTypes.map((tier) => {
+                      const inCart = cart.find((c) => c.zoneId === tier.id || c.tierId === tier.id);
+                      const currentQty = inCart ? inCart.quantity : 0;
+                      const maxQty = tier.maxPerOrder || 10;
+                      const isMax = currentQty >= maxQty;
+                      const isMin = currentQty <= 0;
+
+                      return (
+                        <div
+                          key={tier.id}
+                          className={`p-5 rounded-2xl border transition-all duration-200 app-bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                            currentQty > 0
+                              ? "border-blue-500 ring-2 ring-blue-500/20 shadow-md"
+                              : "app-border hover:border-blue-500/50 hover:shadow-xs"
+                          }`}
+                        >
+                          {/* Tier Info */}
+                          <div className="flex items-start gap-4 min-w-0">
+                            <span
+                              className="w-3.5 h-12 rounded-full shrink-0 mt-0.5"
+                              style={{ backgroundColor: tier.color || "#3b82f6" }}
+                            />
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm md:text-base font-black app-text-main">
+                                  {tier.name}
+                                </h3>
+                                {tier.isFree ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    {t("Miễn phí")}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                    {formatCurrency(tier.price)}
+                                  </span>
+                                )}
+                              </div>
+
+                              {tier.description && (
+                                <p className="text-xs app-text-sub line-clamp-2">
+                                  {tier.description}
+                                </p>
+                              )}
+
+                              <div className="flex items-center gap-3 text-[11px] font-medium app-text-sub">
+                                <span>{t("Tối đa")}: {maxQty} {t("vé/đơn")}</span>
+                                {tier.totalQuantity !== undefined && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{t("Sức chứa")}: {tier.totalQuantity} {t("chỗ")}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Tier Quantity Stepper & Subtotal */}
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 app-border">
+                            <div className="flex items-center gap-1.5 app-bg-main p-1 rounded-xl border app-border">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateTierQuantity(tier, -1)}
+                                disabled={isMin}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${
+                                  isMin
+                                    ? "opacity-30 cursor-not-allowed"
+                                    : "app-bg-card hover:bg-slate-200 dark:hover:bg-slate-700 text-rose-500 cursor-pointer shadow-2xs"
+                                }`}
+                              >
+                                -
+                              </button>
+
+                              <span className="w-10 text-center font-mono font-black text-sm app-text-main">
+                                {currentQty}
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateTierQuantity(tier, 1)}
+                                disabled={isMax}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${
+                                  isMax
+                                    ? "opacity-30 cursor-not-allowed"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
+                                }`}
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            {currentQty > 0 && (
+                              <div className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
+                                {formatCurrency(tier.price * currentQty)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Sticky Order Summary */}
+              <div className="lg:col-span-4 sticky top-6 space-y-4">
+                <div className="app-bg-card rounded-2xl border app-border p-5 space-y-5 shadow-lg">
+                  <div className="flex items-center justify-between border-b app-border pb-3">
+                    <h3 className="text-xs font-black uppercase tracking-wider app-text-main flex items-center gap-2">
+                      <FiShoppingBag className="w-4 h-4 text-blue-500" />
+                      <span>{t("Tổng quan đơn hàng")}</span>
+                    </h3>
+                    {cart.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCart([])}
+                        className="text-[11px] font-bold text-rose-500 hover:underline cursor-pointer"
+                      >
+                        {t("Xóa tất cả")}
+                      </button>
+                    )}
+                  </div>
+
+                  {cart.length === 0 ? (
+                    <div className="py-8 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
+                        <FiShoppingBag className="w-6 h-6" />
+                      </div>
+                      <p className="text-xs font-bold app-text-main">
+                        {t("Chưa có vé nào được chọn")}
+                      </p>
+                      <p className="text-[11px] app-text-sub">
+                        {t("Hãy nhấn dấu (+) bên cạnh hạng vé bạn muốn mua")}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {cart.map((item) => (
+                          <div
+                            key={item.zoneId}
+                            className="flex items-center justify-between p-2.5 rounded-xl app-bg-main border app-border text-xs"
+                          >
+                            <div className="flex items-center gap-2 min-w-0 pr-2">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: item.color || "#3b82f6" }}
+                              />
+                              <div className="min-w-0">
+                                <div className="font-extrabold app-text-main truncate">
+                                  {item.zoneName}
+                                </div>
+                                <div className="text-[10px] app-text-sub font-mono">
+                                  {formatCurrency(item.price)} x {item.quantity}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-mono font-black text-xs text-blue-600 dark:text-blue-400">
+                                {formatCurrency(item.price * item.quantity)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCartItem(item.zoneId)}
+                                className="p-1 text-rose-400 hover:text-rose-600 cursor-pointer"
+                              >
+                                <FiTrash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="border-t app-border pt-3 space-y-2 text-xs">
+                        <div className="flex items-center justify-between app-text-sub font-medium">
+                          <span>{t("Tổng số lượng vé")}</span>
+                          <span className="font-mono font-bold app-text-main">{cartTotalTickets} {t("vé")}</span>
+                        </div>
+                        <div className="flex items-center justify-between font-black text-sm">
+                          <span className="app-text-main">{t("Tổng thanh toán")}</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-mono text-base">
+                            {formatCurrency(cartTotalAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    {cart.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={handleProceedToCheckout}
+                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>{t("Tiếp tục thanh toán")} ({cartTotalTickets} {t("vé")})</span>
+                        <span>»</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-3.5 rounded-xl app-bg-main border app-border app-text-sub font-extrabold text-xs flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+                      >
+                        <span>{t("Vui lòng chọn vé để tiếp tục")}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] app-text-sub bg-blue-500/5 p-3 rounded-xl border border-blue-500/10">
+                    <FiCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>{t("Vé điện tử kèm mã QR sẽ được gửi ngay sau khi xác nhận thanh toán.")}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Zone Quantity Selection Modal */}
-      {activeZoneModal && (
+      {hasSeatmap && activeZoneModal && (
         <div
           className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setActiveZoneModal(null)}

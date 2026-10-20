@@ -63,7 +63,8 @@ export const eventApi = {
           descriptionText: response.descriptionText || response.description,
           galleryImages: response.galleryImages || [],
           organizer: response.organizer || null,
-          showtimes: response.showtimes || []
+          showtimes: response.showtimes || [],
+          tickets: (response.tickets || (typeof response.ticketsData === "string" ? (() => { try { return JSON.parse(response.ticketsData as string); } catch { return []; } })() : response.ticketsData) || [])
         };
       }
       return null;
