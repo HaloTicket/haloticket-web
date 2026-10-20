@@ -53,13 +53,13 @@ export function PaymentMonitoring() {
   const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
   const [eventTitles, setEventTitles] = useState<Record<string, string>>({});
 
-  // Dispute modal state
+  // dispute modal state
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [targetDisputePayout, setTargetDisputePayout] = useState<PayoutResponse | null>(null);
   const [disputeReason, setDisputeReason] = useState('');
   const [isDisputing, setIsDisputing] = useState(false);
 
-  // Platform Fee Configuration Collapsible & State
+  // platform fee configuration collapsible & state
   const [isFeeConfigExpanded, setIsFeeConfigExpanded] = useState(false);
   const [primaryTotalFee, setPrimaryTotalFee] = useState<number>(5.0);
   const [primaryGatewayFee, setPrimaryGatewayFee] = useState<number>(1.5);
@@ -67,7 +67,7 @@ export function PaymentMonitoring() {
   const [primaryFeePayer, setPrimaryFeePayer] = useState<'ORGANIZER_DEDUCT' | 'BUYER_PAYS'>('ORGANIZER_DEDUCT');
   const [isSavingFee, setIsSavingFee] = useState(false);
 
-  // Load fee configuration on mount
+  // load fee configuration on mount
   useEffect(() => {
     const saved = localStorage.getItem("haloticket_fee_config");
     if (saved) {
@@ -123,7 +123,7 @@ export function PaymentMonitoring() {
       const data = await payoutApi.getAllAdminPayouts();
       setAllPayouts(data || []);
 
-      // Fetch public events to resolve real event titles
+      // fetch public events to resolve real event titles
       try {
         const events = await eventApi.getAllEvents();
         if (Array.isArray(events) && events.length > 0) {
@@ -137,39 +137,13 @@ export function PaymentMonitoring() {
         // continue
       }
 
-      // Fetch organizer display names
+      // fetch organizer display names
       const uniqueIds = Array.from(new Set((data || []).map(p => p.organizerUserId).filter(Boolean)));
       uniqueIds.forEach(async (id) => {
-        if (id === 'mock-organizer-id' || id === 'org-001') {
-          setOrganizerNames(prev => ({ ...prev, [id]: 'Công ty Giải trí Halo' }));
-          return;
-        }
-        if (id === 'org-002') {
-          setOrganizerNames(prev => ({ ...prev, [id]: 'SpaceSpeakers Group' }));
-          return;
-        }
-        if (id === 'org-003') {
-          setOrganizerNames(prev => ({ ...prev, [id]: 'EDM Vietnam Live' }));
-          return;
-        }
-
         const cachedUser = getCachedUserProfile();
         if (cachedUser && (cachedUser.id === id || cachedUser.keycloakId === id)) {
           setOrganizerNames(prev => ({ ...prev, [id]: cachedUser.fullName }));
           return;
-        }
-
-        try {
-          const savedOrg = localStorage.getItem("halo_organizer_profile");
-          if (savedOrg) {
-            const parsed = JSON.parse(savedOrg);
-            if (parsed.name) {
-              setOrganizerNames(prev => ({ ...prev, [id]: parsed.name }));
-              return;
-            }
-          }
-        } catch {
-          // ignore
         }
 
         try {
@@ -194,7 +168,7 @@ export function PaymentMonitoring() {
           // fallback
         }
 
-        setOrganizerNames(prev => ({ ...prev, [id]: 'Ban Tổ Chức Halo' }));
+        setOrganizerNames(prev => ({ ...prev, [id]: id }));
       });
     } catch (error) {
       toast.error(t("Không thể tải danh sách lệnh đối soát."));
@@ -207,7 +181,7 @@ export function PaymentMonitoring() {
     fetchAllPayouts();
   }, []);
 
-  // Bank Account details for payout settlement
+  // bank Account details for payout settlement
   const [payoutBankInfo, setPayoutBankInfo] = useState<{
     accountHolder: string;
     accountNumber: string;
@@ -237,49 +211,15 @@ export function PaymentMonitoring() {
     const loadBank = async () => {
       setIsLoadingBank(true);
 
-      // 1. Check local storage cache from step 5 payout account setup or draft event
-      try {
-        const cachedPayout = localStorage.getItem("halo_organizer_payout_account");
-        if (cachedPayout) {
-          const parsed = JSON.parse(cachedPayout);
-          if (parsed && (parsed.accountNumber || parsed.accountHolder)) {
-            setPayoutBankInfo({
-              accountHolder: ((parsed.accountHolder || parsed.bankAccountHolder || organizerNames[selectedPayout.organizerUserId] || "CONG TY TNHH TO CHUC SU KIEN HALO") as string).toUpperCase(),
-              accountNumber: (parsed.accountNumber || parsed.bankAccountNumber || "1028736491") as string,
-              bankName: (parsed.bankName || "Vietcombank") as string,
-              bankBranch: (parsed.bankBranch || "Chi nhánh TP.HCM") as string,
-            });
-            setIsLoadingBank(false);
-            return;
-          }
-        }
-        const draftEvent = localStorage.getItem("halo_draft_event");
-        if (draftEvent) {
-          const parsedDraft = JSON.parse(draftEvent);
-          if (parsedDraft?.step5?.accountNumber) {
-            setPayoutBankInfo({
-              accountHolder: ((parsedDraft.step5.accountHolder || organizerNames[selectedPayout.organizerUserId] || "CONG TY TNHH TO CHUC SU KIEN HALO") as string).toUpperCase(),
-              accountNumber: (parsedDraft.step5.accountNumber || "1028736491") as string,
-              bankName: (parsedDraft.step5.bankName || "Vietcombank") as string,
-              bankBranch: (parsedDraft.step5.bankBranch || "Chi nhánh TP.HCM") as string,
-            });
-            setIsLoadingBank(false);
-            return;
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      // 2. Fetch from payment-service
+      // fetch from payment-service payout accounts
       try {
         const res = await organizerApi.getPayoutAccount(selectedPayout.organizerUserId);
         if (res && (res.accountNumber || res.accountHolder)) {
           setPayoutBankInfo({
-            accountHolder: ((res.accountHolder || res.bankAccountHolder || organizerNames[selectedPayout.organizerUserId] || "CONG TY TNHH TO CHUC SU KIEN HALO") as string).toUpperCase(),
-            accountNumber: (res.accountNumber || res.bankAccountNumber || "1028736491") as string,
-            bankName: (res.bankName || "Vietcombank") as string,
-            bankBranch: (res.bankBranch || "Chi nhánh TP.HCM") as string,
+            accountHolder: ((res.accountHolder || res.bankAccountHolder || organizerNames[selectedPayout.organizerUserId] || "") as string).toUpperCase(),
+            accountNumber: (res.accountNumber || res.bankAccountNumber || "") as string,
+            bankName: (res.bankName || "") as string,
+            bankBranch: (res.bankBranch || "") as string,
           });
           setIsLoadingBank(false);
           return;
@@ -288,14 +228,7 @@ export function PaymentMonitoring() {
         // continue
       }
 
-      // 3. Fallback to organizer profile or realistic sample bank
-      const orgName = organizerNames[selectedPayout.organizerUserId] || "CONG TY TNHH TO CHUC SU KIEN HALO";
-      setPayoutBankInfo({
-        accountHolder: orgName.toUpperCase(),
-        accountNumber: "1028736491",
-        bankName: "Vietcombank",
-        bankBranch: "Chi nhánh TP.HCM",
-      });
+      setPayoutBankInfo(null);
       setIsLoadingBank(false);
     };
     loadBank();
@@ -351,15 +284,15 @@ export function PaymentMonitoring() {
     }
   };
 
-  // Base status lists
+  // base status lists
   const pendingPayouts = allPayouts.filter(p => p.status === 'PENDING');
   const completedPayouts = allPayouts.filter(p => p.status === 'COMPLETED');
   const disputePayouts = allPayouts.filter(p => p.status === 'DISPUTE');
 
-  // Universal Filter & Search function
+  // universal Filter & Search function
   const filterList = (list: PayoutResponse[]) => {
     return list.filter(p => {
-      // 1. Search Query
+      // 1. search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const orgName = (organizerNames[p.organizerUserId] || "").toLowerCase();
@@ -370,12 +303,12 @@ export function PaymentMonitoring() {
         if (!matchId && !matchEvent && !matchOrg) return false;
       }
 
-      // 2. Gross revenue range filter
+      // 2. gross revenue range filter
       if (filterGross === 'UNDER_100M' && p.grossAmount >= 100_000_000) return false;
       if (filterGross === '100M_500M' && (p.grossAmount < 100_000_000 || p.grossAmount > 500_000_000)) return false;
       if (filterGross === 'ABOVE_500M' && p.grossAmount <= 500_000_000) return false;
 
-      // 3. Date filter
+      // 3. date filter
       if (filterDate !== 'ALL') {
         const date = new Date(p.createdAt);
         const now = new Date();
@@ -394,23 +327,23 @@ export function PaymentMonitoring() {
     });
   };
 
-  // Sort newest first
+  // sort newest first
   const filteredPending = filterList(pendingPayouts).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   const filteredCompleted = filterList(completedPayouts).sort((a, b) => new Date(b.transferredAt || b.createdAt || 0).getTime() - new Date(a.transferredAt || a.createdAt || 0).getTime());
   const filteredDispute = filterList(disputePayouts).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
-  // Current tab items & pagination
+  // current tab items & pagination
   const currentTabItems = activeTab === 'PENDING' ? filteredPending : activeTab === 'COMPLETED' ? filteredCompleted : filteredDispute;
   const totalPages = Math.ceil(currentTabItems.length / pageSize) || 1;
   const paginatedItems = currentTabItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // Stats calculation
+  // stats calculation
   const totalGross = allPayouts.reduce((sum, p) => sum + p.grossAmount, 0);
   const totalEscrow = pendingPayouts.reduce((sum, p) => sum + p.netAmount, 0);
   const totalPaid = completedPayouts.reduce((sum, p) => sum + p.netAmount, 0);
   const totalFee = allPayouts.reduce((sum, p) => sum + p.platformFee, 0);
 
-  // Dynamic Cash Flow percentages
+  // dynamic Cash Flow percentages
   const escrowPercent = totalGross > 0 ? Math.round((totalEscrow / totalGross) * 100) : 0;
   const paidPercent = totalGross > 0 ? Math.round((totalPaid / totalGross) * 100) : 0;
   const feePercent = totalGross > 0 ? Math.max(0, 100 - escrowPercent - paidPercent) : 0;
@@ -424,7 +357,7 @@ export function PaymentMonitoring() {
 
   const [isExporting, setIsExporting] = useState(false);
 
-  // Export Excel (.xlsx) function
+  // export Excel (.xlsx) function
   const handleExportExcel = async () => {
     if (currentTabItems.length === 0) {
       toast.error(t("Không có dữ liệu để xuất báo cáo."));
@@ -458,7 +391,7 @@ export function PaymentMonitoring() {
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-      // Auto column widths
+      // auto column widths
       worksheet["!cols"] = [
         { wch: 6 },  // STT
         { wch: 22 }, // Mã đối soát
@@ -486,7 +419,7 @@ export function PaymentMonitoring() {
     }
   };
 
-  // Export CSV function with UTF-8 BOM
+  // export CSV function with UTF-8 BOM
   const handleExportCSV = () => {
     if (currentTabItems.length === 0) {
       toast.error(t("Không có dữ liệu để xuất báo cáo."));
@@ -1184,7 +1117,7 @@ export function PaymentMonitoring() {
                         <div>
                           <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">{t("Ngân hàng:")}</span>
                           <strong className="app-text-main font-bold text-sm block truncate" title={payoutBankInfo?.bankName}>
-                            {payoutBankInfo?.bankName || "Vietcombank"}
+                            {payoutBankInfo?.bankName || t("Chưa thiết lập")}
                             {payoutBankInfo?.bankBranch ? ` (${payoutBankInfo.bankBranch})` : ""}
                           </strong>
                         </div>
@@ -1279,7 +1212,11 @@ export function PaymentMonitoring() {
 
               {/* Right Column: Large VietQR Card (5 cols) */}
               <div className="lg:col-span-5 flex flex-col items-center">
-                {payoutBankInfo ? (
+                {isLoadingBank ? (
+                  <div className="w-full h-64 rounded-2xl border app-border bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-xs text-slate-400">
+                    <FiLoader className="w-5 h-5 animate-spin mr-2" /> {t("Đang tải thông tin thanh toán...")}
+                  </div>
+                ) : payoutBankInfo?.accountNumber ? (
                   <div className="w-full p-4 rounded-2xl border app-border bg-white dark:bg-zinc-900 shadow-md flex flex-col items-center text-center">
                     <div className="flex items-center gap-1.5 mb-2">
                       <span className="text-xs font-black tracking-wide text-emerald-600 dark:text-emerald-400 uppercase">
@@ -1318,8 +1255,10 @@ export function PaymentMonitoring() {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full h-64 rounded-2xl border app-border bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-xs text-slate-400">
-                    <FiLoader className="w-5 h-5 animate-spin mr-2" /> {t("Đang chuẩn bị mã QR...")}
+                  <div className="w-full h-64 rounded-2xl border app-border bg-slate-50 dark:bg-zinc-800/40 flex flex-col items-center justify-center text-xs text-slate-400 p-6 text-center">
+                    <FiAlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
+                    <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">{t("Chưa có thông tin tài khoản ngân hàng")}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 max-w-xs">{t("Ban tổ chức chưa cung cấp thông tin tài khoản để tạo mã VietQR.")}</p>
                   </div>
                 )}
               </div>

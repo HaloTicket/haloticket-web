@@ -10,7 +10,20 @@ export async function initializeBrowserAuth({
   dispatchEvent,
 }: BrowserAuthBootstrapOptions): Promise<boolean> {
   const authenticated = await init();
-  if (!authenticated) return false;
+  if (!authenticated) {
+    if (typeof window !== "undefined") {
+      const hadSession = Boolean(
+        localStorage.getItem("token") || localStorage.getItem("refresh_token")
+      );
+      const path = window.location.pathname;
+      if (hadSession && !path.startsWith("/login") && !path.startsWith("/auth/")) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("session-expired"));
+        }, 200);
+      }
+    }
+    return false;
+  }
 
   await syncCurrentUser();
   const notify =

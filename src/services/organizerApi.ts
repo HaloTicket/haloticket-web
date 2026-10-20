@@ -18,7 +18,7 @@ export const organizerApi = {
 
   // fetch organizer payout account directly from payment-service (/api/payments/organizer-payout-account/{userId})
   getPayoutAccount: async (userId?: string): Promise<Record<string, unknown> | null> => {
-    // 1. try local cache from Step 5 payout account setup or draft event
+    // try local cache from Step 5 payout account setup or draft event
     try {
       const cachedPayout = localStorage.getItem("halo_organizer_payout_account");
       if (cachedPayout) {
@@ -49,13 +49,7 @@ export const organizerApi = {
       const response: unknown = await axiosClient.get(url);
       return response as Record<string, unknown>;
     } catch {
-      // fallback safely to realistic organizer payout bank account for settlement preview
-      return {
-        accountHolder: "CONG TY TNHH TO CHUC SU KIEN HALO",
-        accountNumber: "1028736491",
-        bankName: "Vietcombank",
-        bankBranch: "Chi nhánh TP.HCM",
-      };
+      return null;
     }
   },
 

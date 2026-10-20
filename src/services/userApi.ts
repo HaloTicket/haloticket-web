@@ -105,19 +105,7 @@ export const userApi = {
       const cached = getCachedUserProfile();
       if (cached) return cached;
 
-      // default mock user profile when logged in but backend endpoint unreachable
-      const fallbackProfile: UserProfile = {
-        id: "u-default",
-        email: "minh.nguyen@haloticket.vn",
-        fullName: "Nguyễn Văn Minh",
-        phoneNumber: "0901234567",
-        gender: "MALE",
-        status: "ACTIVE",
-        roles: ["CUSTOMER"],
-        createdAt: new Date().toISOString(),
-      };
-      setCachedUserProfile(fallbackProfile, false);
-      return fallbackProfile;
+      return null as unknown as UserProfile;
     })();
 
     return inFlightProfilePromise;
