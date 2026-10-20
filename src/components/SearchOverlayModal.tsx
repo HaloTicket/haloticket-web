@@ -156,7 +156,6 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
       {/* AI Natural Language Search Prompt Suggestions */}
       <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-blue-500/20">
         <div className="flex items-center gap-2 text-xs font-extrabold text-blue-600 dark:text-blue-400">
-          <span className="text-sm">✨</span>
           <span>{translate("Gợi ý tìm kiếm thông minh bằng AI:")}</span>
         </div>
         <div className="flex flex-wrap gap-1.5">

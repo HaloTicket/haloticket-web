@@ -47,6 +47,18 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+let lastSessionExpiredDispatch = 0;
+function dispatchSessionExpiredOnce() {
+  const now = Date.now();
+  if (now - lastSessionExpiredDispatch < 3000) return;
+  lastSessionExpiredDispatch = now;
+  if (typeof window !== "undefined") {
+    const path = window.location.pathname;
+    if (path.startsWith("/login") || path.startsWith("/auth/")) return;
+    window.dispatchEvent(new CustomEvent("session-expired"));
+  }
+}
+
 // response interceptor: automatically handle errors and retry public calls if token expired
 axiosClient.interceptors.response.use(
   (response) => response.data,
@@ -75,7 +87,7 @@ axiosClient.interceptors.response.use(
                 "Unauthorized API call after token refresh:",
                 originalRequest.url,
               );
-              window.dispatchEvent(new CustomEvent("session-expired"));
+              dispatchSessionExpiredOnce();
             }
             return Promise.reject(retryErr);
           }
@@ -85,7 +97,7 @@ axiosClient.interceptors.response.use(
             "Session expired during token refresh for:",
             originalRequest.url,
           );
-          window.dispatchEvent(new CustomEvent("session-expired"));
+          dispatchSessionExpiredOnce();
           return Promise.reject(error);
         }
       } else {
@@ -97,13 +109,13 @@ axiosClient.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !originalRequest?._retry) {
       console.warn("Unauthorized API call:", error.config?.url);
       if (
         originalRequest?._hadAuthSession ||
         getKeycloakSession().isAuthenticated()
       ) {
-        window.dispatchEvent(new CustomEvent("session-expired"));
+        dispatchSessionExpiredOnce();
       }
     }
     return Promise.reject(error);
