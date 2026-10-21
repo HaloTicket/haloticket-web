@@ -49,12 +49,86 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
   const [chatError, setChatError] = useState<string | null>(null);
 
+  const [fetchedTickets, setFetchedTickets] = useState<any[]>([]);
+  const [isFetchingTickets, setIsFetchingTickets] = useState(false);
+
   if (!showtimes || showtimes.length === 0) {
     return null;
   }
 
   const currentShowtime = showtimes[selectedShowtimeIdx] || showtimes[0];
-  const tickets = currentShowtime.tickets || [];
+
+  // resolve tickets from showtime, or fallback to event-level tickets or other showtimes
+  const directTickets = (currentShowtime.tickets && Array.isArray(currentShowtime.tickets) && currentShowtime.tickets.length > 0)
+    ? currentShowtime.tickets
+    : (data.tickets && Array.isArray(data.tickets) && data.tickets.length > 0)
+    ? data.tickets
+    : showtimes.flatMap((s: any) => s.tickets || []);
+
+  const resolvedDirectTickets = React.useMemo(() => {
+    if (!directTickets || directTickets.length === 0) return [];
+    const map: Record<string, any> = {};
+    directTickets.forEach((t: any) => {
+      const key = (t.name || "").trim().toLowerCase() || t.id;
+      if (!map[key]) map[key] = t;
+    });
+    return Object.values(map);
+  }, [directTickets]);
+
+  // if still empty, fetch live tickets from ticketApi / eventApi
+  useEffect(() => {
+    if (resolvedDirectTickets.length > 0) return;
+    if (!eventId && !currentShowtime.id) return;
+
+    let isMounted = true;
+    setIsFetchingTickets(true);
+
+    const loadLiveTickets = async () => {
+      try {
+        let liveList: any[] = [];
+        if (currentShowtime.id) {
+          try {
+            const stRes = await ticketApi.getTicketTypesByShowtimeId(String(currentShowtime.id));
+            if (Array.isArray(stRes) && stRes.length > 0) liveList = stRes;
+          } catch {}
+        }
+        if (liveList.length === 0 && eventId) {
+          try {
+            const evRes = await ticketApi.getTicketTypesByEventId(String(eventId));
+            if (Array.isArray(evRes) && evRes.length > 0) liveList = evRes;
+          } catch {}
+        }
+        if (liveList.length === 0 && eventId) {
+          try {
+            const evDetail = await eventApi.getEventById(String(eventId));
+            const evTickets = (evDetail as any)?.tickets || (evDetail as any)?.ticketTypes;
+            if (Array.isArray(evTickets) && evTickets.length > 0) liveList = evTickets;
+          } catch {}
+        }
+
+        if (isMounted && liveList.length > 0) {
+          setFetchedTickets(liveList.map((tk: any) => ({
+            id: tk.id,
+            name: tk.name,
+            price: Number(tk.price) || 0,
+            description: tk.description || "",
+            status: tk.status || tk.ticketTypeStatus || "ACTIVE",
+            total_quantity: tk.totalQuantity ?? tk.total_quantity,
+            min_per_order: tk.minPerOrder ?? tk.min_per_order ?? 1,
+            max_per_order: tk.maxPerOrder ?? tk.max_per_order ?? 10,
+            is_seated: Boolean(tk.is_seated || tk.isSeated),
+          })));
+        }
+      } finally {
+        if (isMounted) setIsFetchingTickets(false);
+      }
+    };
+
+    loadLiveTickets();
+    return () => { isMounted = false; };
+  }, [currentShowtime.id, eventId, resolvedDirectTickets.length]);
+
+  const tickets = resolvedDirectTickets.length > 0 ? resolvedDirectTickets : fetchedTickets;
 
   const updateQuantity = (ticketId: string, delta: number, max: number = 10, min: number = 1) => {
     setChatError(null);
@@ -299,7 +373,17 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         </div>
 
         <div className="flex flex-col gap-2">
-          {tickets.map((tItem: any) => {
+          {isFetchingTickets ? (
+            <div className="flex items-center justify-center gap-2 py-4 text-xs text-gray-500">
+              <Loader2 size={14} className="animate-spin text-brand-primary" />
+              <span>{t("Đang tải danh sách hạng vé...")}</span>
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#1e1e22] text-center text-xs text-gray-400">
+              {t("Chưa có thông tin hạng vé cho suất diễn này.")}
+            </div>
+          ) : (
+            tickets.map((tItem: any) => {
             const qty = ticketQuantities[tItem.id] || 0;
             const maxOrder = tItem.max_per_order || tItem.maxPerOrder || 10;
             const minOrder = tItem.min_per_order || tItem.minPerOrder || 1;
@@ -405,7 +489,8 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
                 )}
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
 
@@ -957,7 +1042,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
                                 </p>
                               )}
                               <p className="text-xs font-bold text-orange-500 mt-auto pt-1">
-                                {t("Từ")} {evt.min_price ? Number(evt.min_price).toLocaleString('vi-VN') : 0} đ
+                                {Number(evt.min_price) > 0 ? `${t("Từ")} ${Number(evt.min_price).toLocaleString('vi-VN')} đ` : t("Miễn phí")}
                               </p>
                               <div className="mt-1.5 flex gap-1.5">
                                 <a href={`/events/${evt.event_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 text-center text-[10px] sm:text-[11px] font-semibold text-brand-primary border border-brand-primary hover:bg-brand-primary/10 py-1 rounded-lg transition-colors">

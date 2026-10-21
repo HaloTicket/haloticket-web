@@ -24,13 +24,49 @@ export const EventCard: React.FC<EventCardProps> = ({
   if (!event) return null;
 
   const isPoster = variant === "poster";
-  const rawPrice = event.minPrice ?? event.price;
+  
+  // dynamically determine minPrice by comparing prices across all event ticket tiers
+  const rawTickets = (event as any).tickets || (event as any).ticketTypes;
+  let computedMinPrice: number | undefined = undefined;
+
+  if (Array.isArray(rawTickets) && rawTickets.length > 0) {
+    const validPrices = rawTickets
+      .filter((t: any) => t && t.status !== "HIDDEN" && t.ticketTypeStatus !== "HIDDEN")
+      .map((t: any) => {
+        if (typeof t.price === "number") return t.price;
+        return parseVndAmount(t.price);
+      })
+      .filter((p: any): p is number => typeof p === "number" && !isNaN(p));
+      
+    if (validPrices.length > 0) {
+      computedMinPrice = Math.min(...validPrices);
+    }
+  }
+
+  if (Array.isArray(event.showtimes)) {
+    event.showtimes.forEach((st: any) => {
+      if (Array.isArray(st.tickets)) {
+        st.tickets.forEach((t: any) => {
+          if (t && t.status !== "HIDDEN" && t.ticketTypeStatus !== "HIDDEN") {
+            const p = typeof t.price === "number" ? t.price : parseVndAmount(t.price ?? t.priceValue);
+            if (typeof p === "number" && !isNaN(p)) {
+              if (computedMinPrice === undefined || p < computedMinPrice) {
+                computedMinPrice = p;
+              }
+            }
+          }
+        });
+      }
+    });
+  }
+
+  const rawPrice = computedMinPrice ?? event.minPrice ?? event.price;
   const numericPrice = parseVndAmount(rawPrice);
   const displayPrice = numericPrice !== undefined
     ? numericPrice > 0
       ? translate("Từ {{price}}", { price: formatCurrency(numericPrice) })
       : translate("Miễn phí")
-    : rawPrice ? translate(rawPrice) : translate("Miễn phí");
+    : rawPrice ? String(rawPrice) : translate("Chưa mở bán");
   const displayDate = event.startTime
     ? formatDate(event.startTime)
     : event.date ? formatLegacyVietnameseDate(event.date) ?? translate(event.date) : translate("Sắp diễn ra");

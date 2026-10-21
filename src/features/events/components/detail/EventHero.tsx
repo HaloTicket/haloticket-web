@@ -22,11 +22,11 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
   const { displayPrice } = useMemo(() => {
     const prices: number[] = [];
     if (event.minPrice !== undefined && event.minPrice !== null) {
-      if (typeof event.minPrice === "number" && !isNaN(event.minPrice)) {
+      if (typeof event.minPrice === "number" && !isNaN(event.minPrice) && event.minPrice > 0) {
         prices.push(event.minPrice);
       } else if (typeof event.minPrice === "string") {
         const parsed = parseVndAmount(event.minPrice);
-        if (parsed !== undefined) prices.push(parsed);
+        if (parsed !== undefined && parsed > 0) prices.push(parsed);
       }
     }
 
@@ -60,9 +60,12 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
     }
 
     if (prices.length > 0) {
-      const min = Math.min(...prices);
-      if (min === 0) return { displayPrice: translate("Miễn phí") };
-      return { displayPrice: formatCurrency(min) };
+      const positivePrices = prices.filter((p) => p > 0);
+      if (positivePrices.length > 0) {
+        const min = Math.min(...positivePrices);
+        return { displayPrice: formatCurrency(min) };
+      }
+      return { displayPrice: translate("Miễn phí") };
     }
     return { displayPrice: translate("Miễn phí") };
   }, [event]);
