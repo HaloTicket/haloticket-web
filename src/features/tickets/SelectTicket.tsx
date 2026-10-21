@@ -101,6 +101,7 @@ export default function SelectTicket() {
   const [seatMap, setSeatMap] = useState<SeatMapDocument | null>(null);
   const [seatStatusMap, setSeatStatusMap] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isHoldingSeats, setIsHoldingSeats] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // showtime selection
@@ -1000,7 +1001,7 @@ export default function SelectTicket() {
 
     // realtime holding: lock all allocated seats and contiguous STT tickets via bookingApi.holdSeat
     if (finalSeatIds.length > 0) {
-      setIsLoading(true);
+      setIsHoldingSeats(true);
       try {
         const holdResults = await Promise.all(
           finalSeatIds.map((seatId) =>
@@ -1015,15 +1016,15 @@ export default function SelectTicket() {
         const allSuccess = holdResults.every((res) => res === true);
         if (!allSuccess) {
           setErrorMessage(t("Một số vé hoặc ghế bạn chọn đã bị người khác giữ. Vui lòng chọn lại."));
-          setIsLoading(false);
+          setIsHoldingSeats(false);
           return;
         }
       } catch (err) {
         setErrorMessage(t("Lỗi hệ thống khi giữ vé. Vui lòng thử lại."));
-        setIsLoading(false);
+        setIsHoldingSeats(false);
         return;
       }
-      setIsLoading(false);
+      setIsHoldingSeats(false);
     }
 
     const firstItem = cart[0];
@@ -1083,7 +1084,9 @@ export default function SelectTicket() {
       <div className="w-full flex-1 app-bg-page app-text-main flex items-center justify-center min-h-[450px]">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-extrabold app-text-sub">Đang tải sơ đồ thiết kế ghế thực tế...</p>
+          <p className="text-xs font-extrabold app-text-sub">
+            {hasSeatmap ? t("Đang tải sơ đồ thiết kế ghế...") : t("Đang tải thông tin vé...")}
+          </p>
         </div>
       </div>
     );
@@ -1380,11 +1383,21 @@ export default function SelectTicket() {
             {cart.length > 0 ? (
               <button
                 type="button"
+                disabled={isHoldingSeats}
                 onClick={handleProceedToCheckout}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-wait"
               >
-                <span>Tiếp tục thanh toán ({cartTotalTickets} vé - {formatCurrency(cartTotalAmount)})</span>
-                <span>»</span>
+                {isHoldingSeats ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{t("Đang giữ vé...")}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Tiếp tục thanh toán ({cartTotalTickets} vé - {formatCurrency(cartTotalAmount)})</span>
+                    <span>»</span>
+                  </>
+                )}
               </button>
             ) : (
               <button
@@ -1709,11 +1722,21 @@ export default function SelectTicket() {
                     {cart.length > 0 ? (
                       <button
                         type="button"
+                        disabled={isHoldingSeats}
                         onClick={handleProceedToCheckout}
-                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-wait"
                       >
-                        <span>{t("Tiếp tục thanh toán")} ({cartTotalTickets} {t("vé")})</span>
-                        <span>»</span>
+                        {isHoldingSeats ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>{t("Đang giữ chỗ...")}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{t("Tiếp tục thanh toán")} ({cartTotalTickets} {t("vé")})</span>
+                            <span>»</span>
+                          </>
+                        )}
                       </button>
                     ) : (
                       <button
