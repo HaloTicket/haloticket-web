@@ -48,7 +48,6 @@ import {
   buildSeatMapDocument,
   cloneTemplateForCurrentEvent,
   DEFAULT_CANVAS_SETTINGS,
-  DEFAULT_EVENT_TICKET_TIERS,
   generateSeatMapSVG,
   getRowLabel,
   isSeatInsideZone,
@@ -115,7 +114,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const [backendTiers, setBackendTiers] = useState<SeatTier[]>([]);
 
   const effectiveTiers = useMemo(
-    () => (backendTiers.length ? backendTiers : (ticketTiers?.length ? ticketTiers : DEFAULT_EVENT_TICKET_TIERS)),
+    () => (backendTiers.length ? backendTiers : (ticketTiers?.length ? ticketTiers : [])),
     [backendTiers, ticketTiers]
   );
   const defaultTemplate = PRESET_TEMPLATES[0];

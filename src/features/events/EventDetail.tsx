@@ -8,6 +8,7 @@ import EventStickyHeader from "./components/detail/EventStickyHeader";
 import EventOrganizer from "./components/detail/EventOrganizer";
 import EventCard from "@/components/common/EventCard";
 import { eventApi } from "@/services/eventApi";
+import { getKeycloakSession } from "@/services/keycloakSession";
 import { PATHS } from "@/routes/paths";
 import { FiGrid } from "react-icons/fi";
 
@@ -77,44 +78,53 @@ export default function EventDetail() {
   }, []);
 
   const handleGoToSelectTicket = (showtimeId?: string) => {
+    let target = `/events/${id}/select-ticket`;
     if (typeof showtimeId === "string") {
-      navigate(`/events/${id}/select-ticket?showtimeId=${showtimeId}`);
+      target = `/events/${id}/select-ticket?showtimeId=${showtimeId}`;
+    } else {
+      // check active showtimes
+      if (!eventData) return;
+      
+      const now = new Date();
+      const parseSaleDate = (value: unknown): Date | null => {
+        if (Array.isArray(value)) {
+          const [year, month, day, hour = 0, minute = 0, second = 0] = value as number[];
+          const date = new Date(year, month - 1, day, hour, minute, second);
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+        if (typeof value !== "string" && typeof value !== "number") return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      };
+      const activeShowtimes = eventData.showtimes?.filter((st) => {
+        const saleStart = parseSaleDate((st as typeof st & { saleStartTime?: unknown }).saleStartTime) || parseSaleDate(eventData.ticketSaleStartDate);
+        const saleEnd = parseSaleDate((st as typeof st & { saleEndTime?: unknown }).saleEndTime) || parseSaleDate(eventData.ticketSaleEndDate);
+        const isUpcoming = saleStart && now < saleStart;
+        const isEnded = saleEnd && now > saleEnd;
+        return !isUpcoming && !isEnded;
+      }) || [];
+
+      if (activeShowtimes.length === 1) {
+        target = `/events/${id}/select-ticket?showtimeId=${activeShowtimes[0].id}`;
+      } else {
+        const scheduleEl = document.getElementById("event-schedule-section");
+        if (scheduleEl) {
+          scheduleEl.scrollIntoView({ behavior: "smooth" });
+          return;
+        } else {
+          const firstShowtime = eventData.showtimes?.[0]?.id || "st_default_1";
+          target = `/events/${id}/select-ticket?showtimeId=${firstShowtime}`;
+        }
+      }
+    }
+
+    if (!getKeycloakSession().isAuthenticated()) {
+      sessionStorage.setItem("haloticket_auth_redirect", target);
+      navigate(PATHS.LOGIN);
       return;
     }
-    
-    // check active showtimes
-    if (!eventData) return;
-    
-    const now = new Date();
-    const parseSaleDate = (value: unknown): Date | null => {
-      if (Array.isArray(value)) {
-        const [year, month, day, hour = 0, minute = 0, second = 0] = value as number[];
-        const date = new Date(year, month - 1, day, hour, minute, second);
-        return Number.isNaN(date.getTime()) ? null : date;
-      }
-      if (typeof value !== "string" && typeof value !== "number") return null;
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? null : date;
-    };
-    const activeShowtimes = eventData.showtimes?.filter((st) => {
-      const saleStart = parseSaleDate((st as typeof st & { saleStartTime?: unknown }).saleStartTime) || parseSaleDate(eventData.ticketSaleStartDate);
-      const saleEnd = parseSaleDate((st as typeof st & { saleEndTime?: unknown }).saleEndTime) || parseSaleDate(eventData.ticketSaleEndDate);
-      const isUpcoming = saleStart && now < saleStart;
-      const isEnded = saleEnd && now > saleEnd;
-      return !isUpcoming && !isEnded;
-    }) || [];
 
-    if (activeShowtimes.length === 1) {
-      navigate(`/events/${id}/select-ticket?showtimeId=${activeShowtimes[0].id}`);
-    } else {
-      const scheduleEl = document.getElementById("event-schedule-section");
-      if (scheduleEl) {
-        scheduleEl.scrollIntoView({ behavior: "smooth" });
-      } else {
-        const firstShowtime = eventData.showtimes?.[0]?.id || "st_default_1";
-        navigate(`/events/${id}/select-ticket?showtimeId=${firstShowtime}`);
-      }
-    }
+    navigate(target);
   };
 
   if (isLoading) {

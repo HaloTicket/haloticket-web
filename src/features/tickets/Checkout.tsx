@@ -14,6 +14,8 @@ import UpdateRecipientInfoModal, { type RecipientInfoData } from "./components/U
 import VietQrModal from "./components/VietQrModal";
 import TicketHoldTimeoutModal from "@/features/resale/components/TicketHoldTimeoutModal";
 import { ToastContainer, type ToastMessage } from "@/features/organizer/event-manage/components/seating/SeatingToast";
+import { getKeycloakSession } from "@/services/keycloakSession";
+import { PATHS } from "@/routes/paths";
 import type { VietQrPayloadResponse } from "@/types";
 
 export default function Checkout() {
@@ -105,8 +107,13 @@ export default function Checkout() {
   const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
 
   useEffect(() => {
+    if (!getKeycloakSession().isAuthenticated()) {
+      sessionStorage.setItem("haloticket_auth_redirect", window.location.pathname + window.location.search);
+      navigate(PATHS.LOGIN, { replace: true });
+      return;
+    }
     window.scrollTo(0, 0);
-  }, [step]);
+  }, [step, navigate]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -365,13 +372,20 @@ export default function Checkout() {
   const handleFinalPaymentSubmit = async (recipientData: RecipientInfoData) => {
     try {
       void recipientData;
+      if (!getKeycloakSession().isAuthenticated()) {
+        sessionStorage.setItem("haloticket_auth_redirect", window.location.pathname + window.location.search);
+        showToast("error", t("Vui lòng đăng nhập để tiến hành thanh toán vé."));
+        navigate(PATHS.LOGIN);
+        return;
+      }
+
       setIsSubmitting(true);
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
       const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : (order.zoneId ? [order.zoneId] : []);
 
-      // use logged in user ID if available, otherwise fallback to session ID
+      // use logged in user ID
       const profile = await userApi.getProfile().catch(() => null);
-      const userId = profile?.keycloakId || localStorage.getItem("haloticket_session_id") || "ANONYMOUS";
+      const userId = profile?.keycloakId || "ANONYMOUS";
       let bookingId = activeBookingId;
       let bookingCode = activeBookingCode;
 
@@ -417,18 +431,23 @@ export default function Checkout() {
                  const rowName = String.fromCharCode(65 + parseInt(match[1], 10));
                  const colName = parseInt(match[2], 10) + 1;
                  seatLabel = `${t("Hàng")} ${rowName} - ${t("Ghế")} ${colName}`;
+               } else if (seatId.includes("-GA-") || seatId.includes("-AI-")) {
+                 seatLabel = `${t("STT")}: #${String(i + 1).padStart(2, "0")} (${t("Vé tự do / Vào cổng")})`;
                } else {
-                 seatLabel = seatId.replace(/seat_\d+_\d+_/, "");
+                 seatLabel = `${t("STT")}: #${String(i + 1).padStart(2, "0")}`;
                }
              }
-             displayTicketName = `${t("Hạng vé")} ${zoneNameStr}: ${seatLabel}`;
+             displayTicketName = `${t("Hạng vé")} ${zoneNameStr} - ${seatLabel}`;
           } else {
-             displayTicketName = `${t("Hạng vé")} ${zoneNameStr}`;
+             seatLabel = `${t("STT")}: #${String(i + 1).padStart(2, "0")} (${t("Vé tự do")})`;
+             displayTicketName = `${t("Hạng vé")} ${zoneNameStr} - ${seatLabel}`;
           }
 
           newTickets.push({
             id: `${bookingId}-${globalTicketIdx}`,
             bookingCode: `${bookingCode}-${globalTicketIdx+1}`,
+            ticketSequence: globalTicketIdx + 1,
+            seatPosition: seatLabel,
             eventId: activeEventId,
             eventTitle: order.eventTitle,
             eventTime: order.eventTime,
@@ -1074,6 +1093,25 @@ export default function Checkout() {
                   <span className="app-text-sub text-[11px] block">{formatCurrency(order.price)}</span>
                 </div>
                 <span className="font-extrabold app-text-main font-mono">x0{order.quantity}</span>
+              </div>
+            )}
+
+            {/* Seat & STT Number Details */}
+            {order.seatNames && Object.keys(order.seatNames).length > 0 && (
+              <div className="pt-2 border-t app-border/40 text-xs">
+                <span className="text-[11px] font-bold text-blue-500 uppercase tracking-wider block mb-1.5">
+                  {t("Vị trí vé / Ghế đã giữ:")}
+                </span>
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {Object.values(order.seatNames).map((label, lIdx) => (
+                    <span
+                      key={lIdx}
+                      className="px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-mono text-[11px] font-extrabold"
+                    >
+                      {String(label)}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

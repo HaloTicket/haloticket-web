@@ -506,7 +506,7 @@ export function EventApprovalDetail() {
               <div className="space-y-6">
                 {event.showtimes?.map((showtime, index) => {
                   const stTickets = event.tickets?.filter(t => t.showtimeId === showtime.id) || [];
-                  const displayTickets = stTickets.length > 0 ? stTickets : (event.showtimes?.length === 1 ? event.tickets || [] : []);
+                  const displayTickets = stTickets.length > 0 ? stTickets : (event.tickets?.filter(t => !t.showtimeId)?.length ? event.tickets.filter(t => !t.showtimeId) : (event.tickets || []));
 
                   const now = new Date();
                   const saleStart = showtime.saleStartTime ? new Date(showtime.saleStartTime) : null;

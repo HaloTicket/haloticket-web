@@ -34,7 +34,6 @@ import { AttendeePreview } from "./components/seating/AttendeePreview";
 import { PRESET_TEMPLATES } from "@/mock/presetTemplates";
 import {
   DEFAULT_CANVAS_SETTINGS,
-  DEFAULT_EVENT_TICKET_TIERS,
   generateSeatMapSVG,
   safeClone,
 } from "@/utils/seatMapHelpers";
@@ -127,13 +126,48 @@ export const EventSeatingAssigner: React.FC = () => {
           mappedTiers = mappedTiers.filter((t, index, self) =>
             index === self.findIndex((tc) => tc.name.trim().toLowerCase() === t.name.trim().toLowerCase())
           );
+        }
 
-          if (isMounted) {
-            setBackendTiers(mappedTiers);
+        // fallback to eventRes tickets if tiersRes was empty
+        if (mappedTiers.length === 0 && eventRes) {
+          const rawEvTickets = (eventRes as any)?.tickets || (eventRes as any)?.ticketsData;
+          let parsedTickets: any[] = [];
+          if (Array.isArray(rawEvTickets)) {
+            parsedTickets = rawEvTickets;
+          } else if (typeof rawEvTickets === "string") {
+            try { parsedTickets = JSON.parse(rawEvTickets); } catch {}
+          }
+          const showtimeNames = ((eventRes as any).showtimes || []).map((s: any) => (s.name || "").trim().toLowerCase());
+          const validEvTickets = parsedTickets.filter((t: any) => {
+            const tName = (t.name || "").trim().toLowerCase();
+            const looksLikeShowtime = t.startTime && !t.price && !t.minPerOrder;
+            const matchesShowtime = showtimeNames.length > 0 && showtimeNames.includes(tName) && !t.minPerOrder && !t.description;
+            return !looksLikeShowtime && !matchesShowtime;
+          });
+          if (validEvTickets.length > 0) {
+            const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
+            mappedTiers = validEvTickets.map((t: any, idx: number) => ({
+              id: t.id || `tier_${Date.now()}_${idx}`,
+              name: t.name || t("Vé Thường"),
+              price: t.price || 0,
+              color: t.color || colors[idx % colors.length],
+              isFree: t.isFree ?? t.price === 0,
+              totalQuantity: t.totalQuantity ?? 100,
+              minPerOrder: t.minPerOrder ?? 1,
+              maxPerOrder: t.maxPerOrder ?? 5,
+              description: t.description || "",
+            }));
+            mappedTiers = mappedTiers.filter((t, index, self) =>
+              index === self.findIndex((tc) => tc.name.trim().toLowerCase() === t.name.trim().toLowerCase())
+            );
           }
         }
 
-        const effectiveLoadedTiers = mappedTiers.length ? mappedTiers : DEFAULT_EVENT_TICKET_TIERS;
+        if (isMounted && mappedTiers.length > 0) {
+          setBackendTiers(mappedTiers);
+        }
+
+        const effectiveLoadedTiers = mappedTiers.length > 0 ? mappedTiers : [];
 
         // fetch draft layout
         let doc: SeatMapDocument | null = null;
@@ -253,7 +287,7 @@ export const EventSeatingAssigner: React.FC = () => {
   }, [activeEventId]);
 
   const effectiveTiers = useMemo(
-    () => (backendTiers.length ? backendTiers : DEFAULT_EVENT_TICKET_TIERS),
+    () => (backendTiers.length ? backendTiers : []),
     [backendTiers]
   );
 

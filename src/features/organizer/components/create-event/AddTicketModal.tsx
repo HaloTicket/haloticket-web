@@ -28,9 +28,15 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   const handleSave = () => {
     setErrorMsg(null);
     if (!newTicketName.trim()) {
-      const msg = translate("Vui lòng nhập tên loại vé!");
-      setErrorMsg(msg);
-      alert(msg);
+      setErrorMsg(translate("Vui lòng nhập tên loại vé!"));
+      return;
+    }
+    if (Number(newTicketMinOrder) < 1) {
+      setErrorMsg(translate("Số vé tối thiểu/đơn phải từ 1 trở lên!"));
+      return;
+    }
+    if (Number(newTicketMaxOrder) < Number(newTicketMinOrder)) {
+      setErrorMsg(translate("Số vé tối đa/đơn không được nhỏ hơn số vé tối thiểu/đơn!"));
       return;
     }
 

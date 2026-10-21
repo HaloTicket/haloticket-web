@@ -47,6 +47,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
   const [selectedShowtimeIdx, setSelectedShowtimeIdx] = useState(0);
   // quantities for current tickets: { [ticketId]: number }
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
+  const [chatError, setChatError] = useState<string | null>(null);
 
   if (!showtimes || showtimes.length === 0) {
     return null;
@@ -55,10 +56,18 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
   const currentShowtime = showtimes[selectedShowtimeIdx] || showtimes[0];
   const tickets = currentShowtime.tickets || [];
 
-  const updateQuantity = (ticketId: string, delta: number, max: number = 10) => {
+  const updateQuantity = (ticketId: string, delta: number, max: number = 10, min: number = 1) => {
+    setChatError(null);
     setTicketQuantities(prev => {
       const current = prev[ticketId] || 0;
-      const next = Math.max(0, Math.min(max, current + delta));
+      let next = current + delta;
+      if (next <= 0) next = 0;
+      else if (current === 0 && delta > 0 && min > 1) next = min;
+      else if (next < min && delta < 0) next = 0;
+      else if (next > max) {
+        setChatError(t(`Bạn chỉ được chọn tối đa ${max} vé cho hạng vé này.`));
+        return prev;
+      }
       return { ...prev, [ticketId]: next };
     });
   };
@@ -105,6 +114,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
   };
 
   const handleProceedToCheckout = () => {
+    setChatError(null);
     if (totalSelectedTickets === 0 || currentShowtime.status !== 'ON_SALE') return;
 
     const cart = tickets
@@ -117,16 +127,34 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         zoneId: tItem.id,
         zoneName: tItem.name,
         tierId: tItem.id,
+        min_per_order: tItem.min_per_order || tItem.minPerOrder || 1,
+        max_per_order: tItem.max_per_order || tItem.maxPerOrder || 10,
         is_seated: Boolean(tItem.is_seated),
       }));
 
     if (cart.length === 0) return;
 
-    // generate GA or ticket placeholder seat identifiers
+    for (const item of cart) {
+      if (item.quantity < item.min_per_order) {
+        setChatError(t(`Hạng vé "${item.name}" yêu cầu số lượng mua tối thiểu là ${item.min_per_order} vé.`));
+        return;
+      }
+      if (item.quantity > item.max_per_order) {
+        setChatError(t(`Hạng vé "${item.name}" chỉ được mua tối đa ${item.max_per_order} vé/đơn.`));
+        return;
+      }
+    }
+
+    // generate GA or ticket placeholder seat identifiers with sequential numbers
     const gaSeatIds: string[] = [];
+    const seatNames: Record<string, string> = {};
+    let globalIdx = 0;
     cart.forEach((c: any) => {
       for (let i = 0; i < c.quantity; i++) {
-        gaSeatIds.push(`${c.zoneId}-AI-${Date.now()}-${i + 1}`);
+        globalIdx++;
+        const seatId = `${c.zoneId}-AI-${Date.now()}-${globalIdx}`;
+        gaSeatIds.push(seatId);
+        seatNames[seatId] = `${t("STT")}: #${String(globalIdx).padStart(2, "0")} (${t("Vé tự do / Vào cổng")})`;
       }
     });
 
@@ -149,7 +177,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         unitPrice: c.price,
       })),
       seatIds: gaSeatIds,
-      seatNames: {},
+      seatNames: seatNames,
       price: cart[0]?.price || 0,
       quantity: totalSelectedTickets,
       totalAmount: totalAmount,
@@ -247,6 +275,14 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
             </span>
           </div>
         )}
+
+        {/* Constraint validation error notice */}
+        {chatError && (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] text-rose-700 dark:text-rose-300 animate-in fade-in">
+            <AlertCircle size={14} className="shrink-0 text-rose-500" />
+            <span>{chatError}</span>
+          </div>
+        )}
       </div>
 
       {/* Ticket Types for Selected Showtime */}
@@ -265,6 +301,8 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         <div className="flex flex-col gap-2">
           {tickets.map((tItem: any) => {
             const qty = ticketQuantities[tItem.id] || 0;
+            const maxOrder = tItem.max_per_order || tItem.maxPerOrder || 10;
+            const minOrder = tItem.min_per_order || tItem.minPerOrder || 1;
             const isTicketSoldOut = tItem.status === 'SOLD_OUT' || (tItem.total_quantity !== undefined && tItem.total_quantity <= 0);
             const isDisabled = isTicketSoldOut || isShowtimeNotOpen;
 
@@ -343,7 +381,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
                     <button
                       type="button"
                       disabled={qty === 0}
-                      onClick={() => updateQuantity(tItem.id, -1, tItem.max_per_order || 10)}
+                      onClick={() => updateQuantity(tItem.id, -1, maxOrder, minOrder)}
                       className="w-7 h-7 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-l-lg disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       title={t("Giảm")}
                     >
@@ -356,8 +394,8 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
 
                     <button
                       type="button"
-                      disabled={qty >= (tItem.max_per_order || 10)}
-                      onClick={() => updateQuantity(tItem.id, 1, tItem.max_per_order || 10)}
+                      disabled={qty >= maxOrder}
+                      onClick={() => updateQuantity(tItem.id, 1, maxOrder, minOrder)}
                       className="w-7 h-7 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-r-lg disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       title={t("Tăng")}
                     >

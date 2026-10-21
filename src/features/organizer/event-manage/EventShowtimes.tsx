@@ -97,9 +97,12 @@ export const EventShowtimes: React.FC = () => {
       <div className="space-y-5">
         {eventData.showtimes.map((st: any) => {
           // find tickets for this showtime
-          const stTickets = Array.isArray(eventData.tickets) 
+          const rawStTickets = Array.isArray(eventData.tickets) 
             ? eventData.tickets.filter((t: any) => t.showtimeId === st.id)
             : [];
+          const stTickets = rawStTickets.length > 0 
+            ? rawStTickets 
+            : (Array.isArray(eventData.tickets) ? eventData.tickets.filter((t: any) => !t.showtimeId) : []);
             
           let hasAvailableTickets = false;
           let totalInitial = 0;

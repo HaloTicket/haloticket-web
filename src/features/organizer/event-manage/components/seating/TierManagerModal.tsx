@@ -23,6 +23,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   const [minPerOrder, setMinPerOrder] = useState<number>(1);
   const [maxPerOrder, setMaxPerOrder] = useState<number>(5);
   const [description, setDescription] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (tiers && tiers.length > 0) {
@@ -33,6 +34,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   if (!isOpen) return null;
 
   const handleStartAdd = () => {
+    setErrorMessage(null);
     setEditingTierId('NEW');
     setName('');
     setPrice(100000);
@@ -45,6 +47,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
 
 
   const handleStartEdit = (tier: SeatTier) => {
+    setErrorMessage(null);
     setEditingTierId(tier.id);
     setName(tier.name);
     setPrice(tier.price || 0);
@@ -56,12 +59,25 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   };
 
   const handleSaveForm = () => {
-    if (!name.trim()) return;
+    setErrorMessage(null);
+    if (!name.trim()) {
+      setErrorMessage(t('Vui lòng nhập tên hạng vé!'));
+      return;
+    }
+
+    const trimmedName = name.trim();
+    const isDuplicate = localTiers.some(
+      (t) => t.id !== editingTierId && t.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      setErrorMessage(t('Tên hạng vé đã tồn tại, vui lòng chọn tên khác!'));
+      return;
+    }
 
     const finalPrice = isFree ? 0 : Number(price);
     const updatedItem: SeatTier = {
       id: editingTierId === 'NEW' ? `tier_${Date.now()}` : editingTierId!,
-      name: name.trim(),
+      name: trimmedName,
       price: finalPrice,
       color: '#3b82f6', // default color token (visual color is determined by Zone/Seat)
       isFree,
@@ -80,8 +96,9 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   };
 
   const handleDeleteItem = (id: string) => {
+    setErrorMessage(null);
     if (localTiers.length <= 1) {
-      alert(t('Phải giữ ít nhất 1 hạng vé!'));
+      setErrorMessage(t('Phải giữ ít nhất 1 hạng vé!'));
       return;
     }
     if (editingTierId === id) setEditingTierId(null);
@@ -136,6 +153,18 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto flex-1">
+          {errorMessage && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex items-center justify-between">
+              <span>{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="text-rose-400 hover:text-rose-600 cursor-pointer ml-2"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <div className={isFormActive ? 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start' : 'space-y-4'}>
             {/* Left Column: List of Ticket Tiers */}
             <div className={isFormActive ? 'lg:col-span-5 space-y-4' : 'space-y-4'}>

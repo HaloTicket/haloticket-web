@@ -38,9 +38,17 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
     }
 
     if (Array.isArray(rawTickets)) {
-      rawTickets = rawTickets.filter((tc: any, index: number, self: any[]) =>
-        index === self.findIndex((t: any) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
-      );
+      const showtimeNames = (event.showtimes || []).map((s: any) => (s.name || "").trim().toLowerCase());
+      rawTickets = rawTickets
+        .filter((tc: any) => {
+          const tcName = (tc.name || "").trim().toLowerCase();
+          const looksLikeShowtime = tc.startTime && !tc.price;
+          const matchesShowtime = showtimeNames.length > 0 && showtimeNames.includes(tcName) && (!tc.price || tc.price === 0) && !tc.minPerOrder;
+          return !looksLikeShowtime && !matchesShowtime;
+        })
+        .filter((tc: any, index: number, self: any[]) =>
+          index === self.findIndex((t: any) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
+        );
     }
 
     const defaultTickets: TicketTier[] = Array.isArray(rawTickets) && rawTickets.length > 0

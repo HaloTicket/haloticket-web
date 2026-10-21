@@ -1,6 +1,6 @@
 /* This module intentionally co-locates route definitions and their small auth adapters. */
 /* eslint-disable react-refresh/only-export-components */
-import { createBrowserRouter, Navigate, useNavigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { PATHS } from "./paths";
 
 // Layouts
@@ -119,9 +119,11 @@ function CustomerRouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
   const authed = getKeycloakSession().isAuthenticated();
   if (!authed) {
-    return <Navigate to={PATHS.LOGIN} replace />;
+    sessionStorage.setItem("haloticket_auth_redirect", location.pathname + location.search);
+    return <Navigate to={PATHS.LOGIN} state={{ from: location }} replace />;
   }
   if (checkIsAdmin()) {
     return <Navigate to={PATHS.ADMIN_DASHBOARD} replace />;
@@ -216,15 +218,27 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/events/:id/select-ticket",
-        element: <SelectTicket />,
+        element: (
+          <ProtectedRoute>
+            <SelectTicket />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.CHECKOUT,
-        element: <Checkout />,
+        element: (
+          <ProtectedRoute>
+            <Checkout />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.BOOKING_SUCCESS,
-        element: <BookingSuccess />,
+        element: (
+          <ProtectedRoute>
+            <BookingSuccess />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.PAYMENT_CALLBACK,

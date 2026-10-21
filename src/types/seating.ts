@@ -36,6 +36,7 @@ export interface SeatTier {
   totalQuantity?: number;
   minPerOrder?: number;
   maxPerOrder?: number;
+  initialQuantity?: number;
 }
 
 export interface Seat {

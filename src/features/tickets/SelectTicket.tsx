@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2, FiTag, FiShoppingBag, FiInfo } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTrash2, FiTag, FiShoppingBag, FiInfo, FiAlertCircle } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { bookingApi } from "@/services/bookingApi";
@@ -8,6 +8,8 @@ import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/utils/formatters";
+import { getKeycloakSession } from "@/services/keycloakSession";
+import { PATHS } from "@/routes/paths";
 import { Client } from "@stomp/stompjs";
 
 
@@ -149,10 +151,15 @@ export default function SelectTicket() {
     return 0;
   });
 
-  // scroll to top on mount
+  // auth check and scroll to top on mount
   useEffect(() => {
+    if (!getKeycloakSession().isAuthenticated()) {
+      sessionStorage.setItem("haloticket_auth_redirect", window.location.pathname + window.location.search);
+      navigate(PATHS.LOGIN, { replace: true });
+      return;
+    }
     window.scrollTo(0, 0);
-  }, []);
+  }, [navigate]);
 
   // timer countdown for unfinished order modal
   useEffect(() => {
@@ -177,6 +184,15 @@ export default function SelectTicket() {
     const pad = (num: number) => String(num).padStart(2, "0");
     return `${pad(mins)}:${pad(secs)}`;
   };
+
+  // Auto-dismiss error alert after 4.5s
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => {
+      setErrorMessage(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
 
   // fetch event details, ticket types, and seat layout
   useEffect(() => {
@@ -267,14 +283,30 @@ export default function SelectTicket() {
               ticketTiers: mappedTiers,
             });
           } else {
-            // Event has NO seatmap - clean null state!
+            // event has NO seatmap - clean null state!
             setSeatMap(null);
           }
 
-          // Initial fallback tickets from event detail if available
+          // initial fallback tickets from event detail if available
           if ((ev as any)?.tickets && Array.isArray((ev as any).tickets) && (ev as any).tickets.length > 0) {
+            const showtimeNames = ((ev as any).showtimes || []).map((s: any) => (s.name || "").trim().toLowerCase());
+            const initialStId = showtimeIdFromUrl || (ev as any)?.showtimes?.[0]?.id;
+            let rawCandidateTickets = (ev as any).tickets;
+            if (initialStId && rawCandidateTickets.some((t: any) => t.showtimeId === initialStId)) {
+              rawCandidateTickets = rawCandidateTickets.filter((t: any) => t.showtimeId === initialStId);
+            }
+            const filtered = rawCandidateTickets.filter((tt: any) => {
+              const ttName = (tt.name || "").trim().toLowerCase();
+              const looksLikeShowtime = tt.startTime && !tt.price;
+              const matchesShowtime = showtimeNames.length > 0 && showtimeNames.includes(ttName) && (!tt.price || tt.price === 0) && !tt.minPerOrder;
+              return !looksLikeShowtime && !matchesShowtime;
+            });
+            const targetTickets = filtered.length > 0 ? filtered : rawCandidateTickets;
+            const uniqueTargetTickets = targetTickets.filter((t: any, idx: number, self: any[]) =>
+              idx === self.findIndex((o: any) => (o.name || "").trim().toLowerCase() === (t.name || "").trim().toLowerCase())
+            );
             const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
-            const mapped = (ev as any).tickets.map((tt: any, idx: number) => ({
+            const mapped = uniqueTargetTickets.map((tt: any, idx: number) => ({
               id: tt.id || `tt_${idx}`,
               name: tt.name || t("Vé Thường"),
               price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
@@ -282,7 +314,7 @@ export default function SelectTicket() {
               isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
               totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
               minPerOrder: tt.minPerOrder ?? 1,
-              maxPerOrder: tt.maxPerOrder ?? 10,
+              maxPerOrder: tt.maxPerOrder ?? 5,
               description: tt.description || "",
             }));
             setTicketTypes(mapped);
@@ -316,13 +348,23 @@ export default function SelectTicket() {
       }
       if (!types || types.length === 0) {
         if (eventData && (eventData as any).tickets && Array.isArray((eventData as any).tickets)) {
-          types = (eventData as any).tickets;
+          const allTickets = (eventData as any).tickets;
+          const matchingSt = allTickets.filter((t: any) => t.showtimeId === selectedShowtimeId);
+          types = matchingSt.length > 0 ? matchingSt : allTickets;
         }
       }
       if (isMounted) {
         if (types && types.length > 0) {
+          const showtimeNames = (((eventData as any) || (eventData as any)?.showtimes) ? (eventData as any).showtimes : [])?.map((s: any) => (s.name || "").trim().toLowerCase()) || [];
+          const filtered = types.filter((tt: any) => {
+            const ttName = (tt.name || "").trim().toLowerCase();
+            const looksLikeShowtime = tt.startTime && !tt.price;
+            const matchesShowtime = showtimeNames.length > 0 && showtimeNames.includes(ttName) && (!tt.price || tt.price === 0) && !tt.minPerOrder;
+            return !looksLikeShowtime && !matchesShowtime;
+          });
+          const targetTypes = filtered.length > 0 ? filtered : types;
           const colors = ["#b45309", "#047857", "#c2410c", "#0284c7", "#1d4ed8", "#be185d", "#475569", "#f59e0b"];
-          const mappedTiers = types.map((tt: any, idx: number) => ({
+          const mappedTiers = targetTypes.map((tt: any, idx: number) => ({
             id: tt.id || `tt_${idx}`,
             name: tt.name || t("Vé Thường"),
             price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
@@ -330,10 +372,15 @@ export default function SelectTicket() {
             isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
             totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
             minPerOrder: tt.minPerOrder ?? 1,
-            maxPerOrder: tt.maxPerOrder ?? 10,
+            maxPerOrder: tt.maxPerOrder ?? 5,
             description: tt.description || "",
           }));
-          setTicketTypes(mappedTiers);
+
+          // strictly deduplicate by tier name so each tier appears only once
+          const uniqueMappedTiers = mappedTiers.filter((t, idx, self) =>
+            idx === self.findIndex((o) => o.name.trim().toLowerCase() === t.name.trim().toLowerCase())
+          );
+          setTicketTypes(uniqueMappedTiers);
         }
       }
 
@@ -406,12 +453,27 @@ export default function SelectTicket() {
 
   // non-seatmap tier quantity handler
   const handleUpdateTierQuantity = (tier: SeatTier, delta: number) => {
+    setErrorMessage(null);
     const existing = cart.find(c => c.zoneId === tier.id || c.tierId === tier.id);
-    const maxQty = tier.maxPerOrder || 10;
-    const minQty = tier.minPerOrder || 1;
+    const maxQty = tier.maxPerOrder ?? 5;
+    const minQty = tier.minPerOrder ?? 1;
+    const totalAvail = tier.totalQuantity !== undefined ? tier.totalQuantity : 100;
+
+    if (totalAvail <= 0) {
+      setErrorMessage(t(`Hạng vé "${tier.name}" hiện đã hết vé.`));
+      return;
+    }
 
     if (!existing) {
       if (delta > 0) {
+        if (minQty > maxQty) {
+          setErrorMessage(t("Cấu hình số vé mua không hợp lệ."));
+          return;
+        }
+        if (minQty > totalAvail) {
+          setErrorMessage(t(`Số lượng vé còn lại không đủ số lượng tối thiểu (${minQty} vé).`));
+          return;
+        }
         setCart(prev => [
           ...prev,
           {
@@ -436,8 +498,19 @@ export default function SelectTicket() {
       return;
     }
 
+    if (nextQty < minQty && delta < 0) {
+      // drop to 0 if decreased below minPerOrder
+      setCart(prev => prev.filter(c => c.zoneId !== tier.id && c.tierId !== tier.id));
+      return;
+    }
+
     if (nextQty > maxQty) {
-      setErrorMessage(t(`Bạn chỉ được chọn tối đa ${maxQty} vé cho hạng vé này`));
+      setErrorMessage(t(`Bạn chỉ được chọn tối đa ${maxQty} vé cho hạng vé "${tier.name}".`));
+      return;
+    }
+
+    if (nextQty > totalAvail) {
+      setErrorMessage(t(`Số lượng vé của hạng vé "${tier.name}" chỉ còn ${totalAvail} vé.`));
       return;
     }
 
@@ -678,6 +751,87 @@ export default function SelectTicket() {
 
     const price = legendItem?.price !== undefined ? legendItem.price : (activeZoneModal.price ?? 1000000);
 
+    const seatsInZone = seatMap?.seats?.filter((s) => s.zoneId === activeZoneModal.id || (activeZoneModal.name && s.zoneId === activeZoneModal.name)) || [];
+    const isSeatedZone = seatsInZone.length > 0;
+
+    if (isSeatedZone) {
+      // find available seats in this zone
+      const availableSeats = seatsInZone.filter((s) => {
+        const st = seatStatusMap[s.id] || s.status;
+        return st !== "SOLD" && st !== "sold" && st !== "HELD" && st !== "HOLDING" && st !== "reserved" && st !== "BLOCKED" && st !== "blocked";
+      });
+
+      if (availableSeats.length < selectedQuantity) {
+        setErrorMessage(t("Số lượng ghế trống trong khu vực này không đủ {{qty}} vé.", { qty: selectedQuantity }));
+        return;
+      }
+
+      // group available seats by row
+      const seatsByRow: Record<string, any[]> = {};
+      availableSeats.forEach((s) => {
+        const m = s.id ? String(s.id).match(/seat_\d+_(\d+)_\d+/) : null;
+        const row = s.row || (m && m[1] ? String.fromCharCode(65 + parseInt(m[1], 10)) : "A");
+        if (!seatsByRow[row]) seatsByRow[row] = [];
+        seatsByRow[row].push(s);
+      });
+
+      // sort seats within each row by column / seat number
+      Object.keys(seatsByRow).forEach((r) => {
+        seatsByRow[r].sort((a, b) => {
+          const mA = a.id ? String(a.id).match(/seat_\d+_\d+_(\d+)/) : null;
+          const colA = a.col ?? a.number ?? (mA && mA[1] ? parseInt(mA[1], 10) : 0);
+          const mB = b.id ? String(b.id).match(/seat_\d+_\d+_(\d+)/) : null;
+          const colB = b.col ?? b.number ?? (mB && mB[1] ? parseInt(mB[1], 10) : 0);
+          return colA - colB;
+        });
+      });
+
+      // search for contiguous seats in the same row
+      let pickedSeats: any[] | null = null;
+      for (const row of Object.keys(seatsByRow)) {
+        const rowSeats = seatsByRow[row];
+        if (rowSeats.length >= selectedQuantity) {
+          for (let i = 0; i <= rowSeats.length - selectedQuantity; i++) {
+            let isContiguous = true;
+            for (let j = 0; j < selectedQuantity - 1; j++) {
+              const mCurr = rowSeats[i + j].id ? String(rowSeats[i + j].id).match(/seat_\d+_\d+_(\d+)/) : null;
+              const colCurr = rowSeats[i + j].col ?? rowSeats[i + j].number ?? (mCurr && mCurr[1] ? parseInt(mCurr[1], 10) : 0);
+              const mNext = rowSeats[i + j + 1].id ? String(rowSeats[i + j + 1].id).match(/seat_\d+_\d+_(\d+)/) : null;
+              const colNext = rowSeats[i + j + 1].col ?? rowSeats[i + j + 1].number ?? (mNext && mNext[1] ? parseInt(mNext[1], 10) : 0);
+              if (colNext !== colCurr + 1) {
+                isContiguous = false;
+                break;
+              }
+            }
+            if (isContiguous) {
+              pickedSeats = rowSeats.slice(i, i + selectedQuantity);
+              break;
+            }
+          }
+          if (pickedSeats) break;
+        }
+      }
+
+      // if no strictly contiguous block in one row, pick closest available in same row or zone
+      if (!pickedSeats) {
+        for (const row of Object.keys(seatsByRow)) {
+          if (seatsByRow[row].length >= selectedQuantity) {
+            pickedSeats = seatsByRow[row].slice(0, selectedQuantity);
+            break;
+          }
+        }
+      }
+      if (!pickedSeats) {
+        pickedSeats = availableSeats.slice(0, selectedQuantity);
+      }
+
+      // update selectedSeatObjects: replace previous seats of this zone with newly picked contiguous seats
+      setSelectedSeatObjects((prev) => {
+        const filtered = prev.filter((s) => !(s.zoneId === activeZoneModal.id || (activeZoneModal.name && s.zoneId === activeZoneModal.name)));
+        return [...filtered, ...(pickedSeats || [])];
+      });
+    }
+
     setCart((prevCart) => {
       const exists = prevCart.some((item) => item.zoneId === activeZoneModal.id);
       if (exists) {
@@ -740,7 +894,22 @@ export default function SelectTicket() {
 
   // proceed to checkout step with all selected tickets
   const handleProceedToCheckout = async () => {
+    setErrorMessage(null);
     if (cart.length === 0 || cartTotalTickets === 0) return;
+
+    // check min and max order constraints for each cart tier
+    for (const item of cart) {
+      const min = item.minPerOrder || 1;
+      const max = item.maxPerOrder || 5;
+      if (item.quantity < min) {
+        setErrorMessage(t(`Hạng vé "${item.zoneName || item.tierName}" yêu cầu đặt mua tối thiểu ${min} vé.`));
+        return;
+      }
+      if (item.quantity > max) {
+        setErrorMessage(t(`Hạng vé "${item.zoneName || item.tierName}" chỉ cho phép đặt mua tối đa ${max} vé.`));
+        return;
+      }
+    }
 
     // generate or get a pseudo userId for holding
     let userId = localStorage.getItem("haloticket_session_id");
@@ -749,20 +918,108 @@ export default function SelectTicket() {
       localStorage.setItem("haloticket_session_id", userId);
     }
 
-    if (selectedSeatObjects.length > 0) {
+    const finalSeatIds: string[] = [];
+    const seatNamesMap: Record<string, string> = {};
+
+    cart.forEach((c) => {
+      const seatsInZone = selectedSeatObjects.filter(
+        (s) => s.zoneId === c.zoneId || s.zoneId === c.zoneName
+      );
+
+      if (seatsInZone.length > 0) {
+        // seated zone with designated row and seat numbers
+        seatsInZone.forEach((s) => {
+          finalSeatIds.push(s.id);
+          if (s.row && (s.col !== undefined || s.number !== undefined)) {
+            seatNamesMap[s.id] = `${t("Hàng")} ${s.row} - ${t("Ghế")} ${s.col ?? s.number}`;
+          } else {
+            const match = s.id.match(/seat_\d+_(\d+)_(\d+)/);
+            if (match) {
+              const r = String.fromCharCode(65 + parseInt(match[1]));
+              const col = parseInt(match[2]) + 1;
+              seatNamesMap[s.id] = `${t("Hàng")} ${r} - ${t("Ghế")} ${col}`;
+            } else {
+              seatNamesMap[s.id] = s.id;
+            }
+          }
+        });
+      } else {
+        // standing / general admission / non-seatmap: allocate contiguous sequence numbers
+        const occupiedNums = new Set<number>();
+        const keyPrefix1 = `${c.zoneId}-STT-`;
+        const keyPrefix2 = c.tierId ? `${c.tierId}-STT-` : "";
+
+        Object.keys(seatStatusMap).forEach((k) => {
+          if (k.startsWith(keyPrefix1) || (keyPrefix2 && k.startsWith(keyPrefix2))) {
+            const val = seatStatusMap[k];
+            if (val === "SOLD" || val === "sold" || val === "HELD" || val === "HOLDING" || val === "reserved") {
+              const parts = k.split("-STT-");
+              if (parts[1]) {
+                const num = parseInt(parts[1], 10);
+                if (!isNaN(num)) occupiedNums.add(num);
+              }
+            }
+          }
+        });
+
+        // add already sold count from tier definition
+        const tierObj = ticketTypes.find((t) => t.id === c.tierId || t.name === c.tierName);
+        const soldFromTier = Math.max(
+          0,
+          ((tierObj as any)?.initialQuantity || tierObj?.totalQuantity || 0) - (tierObj?.totalQuantity || 0)
+        );
+        for (let s = 1; s <= soldFromTier; s++) {
+          occupiedNums.add(s);
+        }
+
+        // find the lowest available contiguous block of c.quantity numbers
+        let startNum = 1;
+        while (true) {
+          let contiguousBlockAvailable = true;
+          for (let offset = 0; offset < c.quantity; offset++) {
+            if (occupiedNums.has(startNum + offset)) {
+              contiguousBlockAvailable = false;
+              startNum = startNum + offset + 1;
+              break;
+            }
+          }
+          if (contiguousBlockAvailable) {
+            break;
+          }
+        }
+
+        for (let i = 0; i < c.quantity; i++) {
+          const num = startNum + i;
+          const seatId = `${c.zoneId || c.tierId}-STT-${num}`;
+          finalSeatIds.push(seatId);
+          seatNamesMap[seatId] = `${t("STT")}: #${String(num).padStart(2, "0")} (${c.zoneName || c.tierName})`;
+          occupiedNums.add(num);
+        }
+      }
+    });
+
+    // realtime holding: lock all allocated seats and contiguous STT tickets via bookingApi.holdSeat
+    if (finalSeatIds.length > 0) {
       setIsLoading(true);
       try {
         const holdResults = await Promise.all(
-          selectedSeatObjects.map((s) => bookingApi.holdSeat({ eventId: id!, showtimeId: selectedShowtimeId!, seatId: s.id, userId: userId! }))
+          finalSeatIds.map((seatId) =>
+            bookingApi.holdSeat({
+              eventId: id!,
+              showtimeId: selectedShowtimeId!,
+              seatId,
+              userId: userId!,
+            })
+          )
         );
         const allSuccess = holdResults.every((res) => res === true);
         if (!allSuccess) {
-          setErrorMessage(t("Một số ghế bạn chọn đã bị người khác giữ. Vui lòng chọn ghế khác."));
+          setErrorMessage(t("Một số vé hoặc ghế bạn chọn đã bị người khác giữ. Vui lòng chọn lại."));
           setIsLoading(false);
           return;
         }
       } catch (err) {
-        setErrorMessage(t("Lỗi hệ thống khi giữ ghế. Vui lòng thử lại."));
+        setErrorMessage(t("Lỗi hệ thống khi giữ vé. Vui lòng thử lại."));
         setIsLoading(false);
         return;
       }
@@ -770,25 +1027,24 @@ export default function SelectTicket() {
     }
 
     const firstItem = cart[0];
-    const ticketSummaryText = cart.map((c) => {
-       const seatsInZone = selectedSeatObjects.filter(s => s.zoneId === c.zoneId || s.zoneId === c.zoneName);
-       if (seatsInZone.length > 0) {
-          const seatLabels = seatsInZone.map(s => {
-             if (s.row && (s.col !== undefined || s.number !== undefined)) {
-                return `${t("Hàng")} ${s.row} - ${t("Ghế")} ${s.col ?? s.number}`;
-             }
-             const match = s.id.match(/seat_\d+_(\d+)_(\d+)/);
-             if (match) {
-                 const r = String.fromCharCode(65 + parseInt(match[1]));
-                 const c = parseInt(match[2]) + 1;
-                 return `${t("Hàng")} ${r} - ${t("Ghế")} ${c}`;
-             }
-             return s.id;
-          }).join(", ");
+    const ticketSummaryText = cart
+      .map((c) => {
+        const seatsInZone = selectedSeatObjects.filter(
+          (s) => s.zoneId === c.zoneId || s.zoneId === c.zoneName
+        );
+        if (seatsInZone.length > 0) {
+          const seatLabels = seatsInZone
+            .map((s) => seatNamesMap[s.id] || s.id)
+            .join(", ");
           return `${c.zoneName} (${seatLabels})`;
-       }
-       return `${c.quantity}x ${c.zoneName}`;
-    }).join("; ");
+        }
+        const sttLabels = finalSeatIds
+          .filter((sid) => sid.startsWith(`${c.zoneId || c.tierId}-STT-`))
+          .map((sid) => seatNamesMap[sid])
+          .join(", ");
+        return `${c.quantity}x ${c.zoneName || c.tierName}${sttLabels ? ` [${sttLabels}]` : ""}`;
+      })
+      .join("; ");
     const expiresAt = Date.now() + 15 * 60 * 1000;
 
     const bookingPayload = {
@@ -809,44 +1065,8 @@ export default function SelectTicket() {
           quantity: c.quantity,
           unitPrice: c.price
       })),
-      seatIds: (() => {
-        if (selectedSeatObjects.length > 0) {
-          const orderedSeatIds: string[] = [];
-          cart.forEach(c => {
-            const seats = selectedSeatObjects.filter(s => s.zoneId === c.zoneId || s.zoneId === c.zoneName);
-            orderedSeatIds.push(...seats.map(s => s.id));
-          });
-          // include any leftover seats just in case
-          const added = new Set(orderedSeatIds);
-          selectedSeatObjects.forEach(s => {
-            if (!added.has(s.id)) orderedSeatIds.push(s.id);
-          });
-          return orderedSeatIds;
-        } else {
-          const gaSeatIds: string[] = [];
-          cart.forEach(c => {
-            for (let i = 0; i < c.quantity; i++) {
-              gaSeatIds.push(`${c.zoneId}-GA-${Date.now()}-${i+1}`);
-            }
-          });
-          return gaSeatIds;
-        }
-      })(),
-      seatNames: selectedSeatObjects.reduce((acc, s) => {
-           if (s.row && (s.col !== undefined || s.number !== undefined)) {
-               acc[s.id] = `${t("Hàng")} ${s.row} - ${t("Ghế")} ${s.col ?? s.number}`;
-           } else {
-               const match = s.id.match(/seat_\d+_(\d+)_(\d+)/);
-               if (match) {
-                   const r = String.fromCharCode(65 + parseInt(match[1]));
-                   const c = parseInt(match[2]) + 1;
-                   acc[s.id] = `${t("Hàng")} ${r} - ${t("Ghế")} ${c}`;
-               } else {
-                   acc[s.id] = s.id;
-               }
-           }
-           return acc;
-      }, {} as Record<string, string>),
+      seatIds: finalSeatIds,
+      seatNames: seatNamesMap,
       price: cart[0].price,
       quantity: cartTotalTickets,
       totalAmount: cartTotalAmount,
@@ -898,14 +1118,24 @@ export default function SelectTicket() {
         </div>
       </div>
 
-      {/* Error Toast Alert */}
+      {/* Error Floating Toast Alert */}
       {errorMessage && (
-        <div className="bg-rose-500/10 border-b border-rose-500/30 text-rose-500 px-6 py-2.5 text-xs font-extrabold flex items-center justify-between z-30 animate-in fade-in duration-200">
-          <span>{errorMessage}</span>
+        <div className="fixed top-20 right-4 sm:right-6 z-[99999] max-w-md w-[92vw] sm:w-[420px] p-4 rounded-2xl bg-slate-900/95 dark:bg-zinc-900/95 text-white border border-rose-500/50 shadow-2xl backdrop-blur-md flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 shrink-0 mt-0.5">
+            <FiAlertCircle className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-xs font-black uppercase tracking-wider text-rose-400">
+              {t("Thông báo ràng buộc vé")}
+            </h4>
+            <p className="text-xs font-bold text-slate-100 mt-0.5 leading-relaxed">
+              {errorMessage}
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            className="hover:opacity-80 p-1 cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
           >
             <FiX className="w-4 h-4" />
           </button>
@@ -1242,103 +1472,147 @@ export default function SelectTicket() {
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {ticketTypes.map((tier) => {
                       const inCart = cart.find((c) => c.zoneId === tier.id || c.tierId === tier.id);
                       const currentQty = inCart ? inCart.quantity : 0;
-                      const maxQty = tier.maxPerOrder || 10;
+                      const maxQty = tier.maxPerOrder ?? 5;
+                      const minQty = tier.minPerOrder ?? 1;
+                      const isSoldOut = tier.totalQuantity !== undefined ? tier.totalQuantity <= 0 : false;
                       const isMax = currentQty >= maxQty;
                       const isMin = currentQty <= 0;
 
                       return (
                         <div
                           key={tier.id}
-                          className={`p-5 rounded-2xl border transition-all duration-200 app-bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                          className={`p-5 rounded-2xl border transition-all duration-200 app-bg-card flex flex-col gap-4 ${
                             currentQty > 0
                               ? "border-blue-500 ring-2 ring-blue-500/20 shadow-md"
                               : "app-border hover:border-blue-500/50 hover:shadow-xs"
-                          }`}
+                          } ${isSoldOut ? "opacity-80" : ""}`}
                         >
-                          {/* Tier Info */}
-                          <div className="flex items-start gap-4 min-w-0">
-                            <span
-                              className="w-3.5 h-12 rounded-full shrink-0 mt-0.5"
-                              style={{ backgroundColor: tier.color || "#3b82f6" }}
-                            />
-                            <div className="space-y-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-sm md:text-base font-black app-text-main">
-                                  {tier.name}
-                                </h3>
-                                {tier.isFree ? (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                    {t("Miễn phí")}
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-black font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                    {formatCurrency(tier.price)}
-                                  </span>
-                                )}
-                              </div>
+                          {/* Top Row: Tier Info & Controls */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            {/* Tier Info */}
+                            <div className="flex items-start gap-3.5 min-w-0">
+                              <span
+                                className="w-3.5 h-12 rounded-full shrink-0 mt-0.5"
+                                style={{ backgroundColor: tier.color || "#3b82f6" }}
+                              />
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-base md:text-lg font-black app-text-main tracking-tight uppercase">
+                                    {tier.name}
+                                  </h3>
+                                  {tier.isFree ? (
+                                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                      {t("Miễn phí")}
+                                    </span>
+                                  ) : (
+                                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                      {formatCurrency(tier.price)}
+                                    </span>
+                                  )}
+                                  {isSoldOut && (
+                                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase tracking-wider bg-rose-500/15 text-rose-500 border border-rose-500/30">
+                                      {t("Hết vé")}
+                                    </span>
+                                  )}
+                                </div>
 
-                              {tier.description && (
-                                <p className="text-xs app-text-sub line-clamp-2">
-                                  {tier.description}
-                                </p>
+                                <div className="flex items-center gap-3 text-xs font-medium app-text-sub flex-wrap">
+                                  <span>{t("Tối đa")}: {maxQty} {t("vé/đơn")}</span>
+                                  {minQty > 1 && (
+                                    <>
+                                      <span>•</span>
+                                      <span>{t("Tối thiểu")}: {minQty} {t("vé/đơn")}</span>
+                                    </>
+                                  )}
+                                  {tier.totalQuantity !== undefined && (
+                                    <>
+                                      <span>•</span>
+                                      <span>{t("Sức chứa")}: {tier.totalQuantity} {t("chỗ")}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right: Stepper or Sold Out Badge */}
+                            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 app-border">
+                              {isSoldOut ? (
+                                <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 font-extrabold text-xs uppercase tracking-wider select-none">
+                                  {t("Hết vé")}
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-1.5 app-bg-main p-1 rounded-xl border app-border shadow-2xs">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTierQuantity(tier, -1)}
+                                      disabled={isMin}
+                                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${
+                                        isMin
+                                          ? "opacity-30 cursor-not-allowed text-zinc-400"
+                                          : "app-bg-card hover:bg-slate-200 dark:hover:bg-slate-700 text-rose-500 cursor-pointer shadow-2xs"
+                                      }`}
+                                    >
+                                      -
+                                    </button>
+
+                                    <span className="w-10 text-center font-mono font-black text-sm app-text-main">
+                                      {currentQty}
+                                    </span>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateTierQuantity(tier, 1)}
+                                      disabled={isMax}
+                                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${
+                                        isMax
+                                          ? "opacity-30 cursor-not-allowed text-zinc-400"
+                                          : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
+                                      }`}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+
+                                  {currentQty > 0 && (
+                                    <div className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
+                                      {formatCurrency(tier.price * currentQty)}
+                                    </div>
+                                  )}
+                                </>
                               )}
-
-                              <div className="flex items-center gap-3 text-[11px] font-medium app-text-sub">
-                                <span>{t("Tối đa")}: {maxQty} {t("vé/đơn")}</span>
-                                {tier.totalQuantity !== undefined && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{t("Sức chứa")}: {tier.totalQuantity} {t("chỗ")}</span>
-                                  </>
-                                )}
-                              </div>
                             </div>
                           </div>
 
-                          {/* Tier Quantity Stepper & Subtotal */}
-                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 app-border">
-                            <div className="flex items-center gap-1.5 app-bg-main p-1 rounded-xl border app-border">
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateTierQuantity(tier, -1)}
-                                disabled={isMin}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${
-                                  isMin
-                                    ? "opacity-30 cursor-not-allowed"
-                                    : "app-bg-card hover:bg-slate-200 dark:hover:bg-slate-700 text-rose-500 cursor-pointer shadow-2xs"
-                                }`}
-                              >
-                                -
-                              </button>
-
-                              <span className="w-10 text-center font-mono font-black text-sm app-text-main">
-                                {currentQty}
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateTierQuantity(tier, 1)}
-                                disabled={isMax}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${
-                                  isMax
-                                    ? "opacity-30 cursor-not-allowed"
-                                    : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
-                                }`}
-                              >
-                                +
-                              </button>
-                            </div>
-
-                            {currentQty > 0 && (
-                              <div className="text-xs font-black font-mono text-blue-600 dark:text-blue-400">
-                                {formatCurrency(tier.price * currentQty)}
+                          {/* Benefits Box (Quyền lợi vé - Photo 4 & Photo 5) */}
+                          {tier.description && tier.description.trim() && (
+                            <div className="p-3.5 rounded-xl app-bg-main/70 border app-border space-y-2">
+                              <div className="flex items-center gap-2 text-xs font-extrabold text-blue-600 dark:text-blue-400">
+                                <FiInfo className="w-4 h-4 shrink-0" />
+                                <span>{t("Thông tin & Quyền lợi hạng vé:")}</span>
                               </div>
-                            )}
-                          </div>
+                              <div className="space-y-1.5 text-xs app-text-sub font-medium pl-1">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-blue-500 font-bold shrink-0">•</span>
+                                  <span>{t("Mỗi khán giả được mua tối đa {{max}} vé/đơn", { max: maxQty })}{minQty > 1 ? ` (${t("Tối thiểu {{min}} vé", { min: minQty })})` : ""}</span>
+                                </div>
+                                {tier.description.split(/\r?\n|;/).map((line, lIdx) => {
+                                  const trimmed = line.trim().replace(/^[-•*]\s*/, "");
+                                  if (!trimmed) return null;
+                                  return (
+                                    <div key={lIdx} className="flex items-start gap-2">
+                                      <span className="text-blue-500 font-bold shrink-0">•</span>
+                                      <span className="leading-relaxed">{trimmed}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

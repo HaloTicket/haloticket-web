@@ -10,6 +10,7 @@ import Step5PaymentInfo from "@/features/organizer/components/create-event/Step5
 import AddTicketModal from "@/features/organizer/components/create-event/AddTicketModal";
 import SuccessSubmittedModal from "@/features/organizer/components/create-event/SuccessSubmittedModal";
 import { eventApi } from "@/services/eventApi";
+import { ticketApi } from "@/services/ticketApi";
 import { mediaApi } from "@/services/mediaApi";
 import { organizerApi } from "@/services/organizerApi";
 import { getCachedUserProfile } from "@/services/userApi";
@@ -330,8 +331,18 @@ export const EventEditInfo: React.FC = () => {
           parsedRawT = rawT;
         }
 
-        if (parsedRawT.length > 0) {
-          const uniqueRawT = parsedRawT.filter((tc: any, index: number, self: any[]) =>
+        // filter out accidental showtime objects mistakenly serialized as tickets
+        const showtimeNames = (ev.showtimes || []).map((s: any) => (s.name || "").trim().toLowerCase());
+        const cleanedRawT = parsedRawT.filter((tc: any) => {
+          const tcName = (tc.name || "").trim().toLowerCase();
+          const looksLikeShowtime = tc.startTime && !tc.price && !tc.minPerOrder;
+          const matchesShowtime = showtimeNames.length > 0 && showtimeNames.includes(tcName) && !tc.minPerOrder && !tc.description;
+          return !looksLikeShowtime && !matchesShowtime;
+        });
+
+        const targetList = cleanedRawT;
+        if (targetList.length > 0) {
+          const uniqueRawT = targetList.filter((tc: any, index: number, self: any[]) =>
             index === self.findIndex((t: any) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
           );
           loadedTickets = uniqueRawT.map((tc: any, i: number) => ({
@@ -344,6 +355,29 @@ export const EventEditInfo: React.FC = () => {
             maxPerOrder: tc.maxPerOrder ?? 5,
             description: tc.description || "",
           }));
+        }
+
+        // fallback: fetch from ticket-service if empty
+        if (loadedTickets.length === 0) {
+          try {
+            const fetchedTypes = await ticketApi.getTicketTypesByEventId(eventId);
+            if (Array.isArray(fetchedTypes) && fetchedTypes.length > 0) {
+              loadedTickets = fetchedTypes
+                .filter((tt: any) => tt.status !== "HIDDEN")
+                .map((tt: any, i: number) => ({
+                  id: String(tt.id || `tc_${i}_${Date.now()}`),
+                  name: tt.name || t("Hạng vé"),
+                  price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
+                  isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
+                  totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
+                  minPerOrder: tt.minPerOrder ?? 1,
+                  maxPerOrder: tt.maxPerOrder ?? 5,
+                  description: tt.description || "",
+                }));
+            }
+          } catch (e) {
+            console.warn("Could not fetch ticket types from ticket-service:", e);
+          }
         }
 
         // step 3: Settings
@@ -639,7 +673,10 @@ export const EventEditInfo: React.FC = () => {
         organizerLogo: uploadedLogo,
         startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
         endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
-        showtimes: showtimes.length > 0 ? showtimes : undefined,
+        showtimes: showtimes.length > 0 ? showtimes.map(st => ({
+          ...st,
+          tickets: tickets.length > 0 ? tickets : (st as any).tickets
+        })) : undefined,
         ticketCategories: tickets,
         tickets,
         isPrivate,
