@@ -35,7 +35,6 @@ import {
   LuLogOut,
   LuUser,
 } from "react-icons/lu";
-import { FaTicketAlt } from "react-icons/fa";
 
 export const Header: React.FC = () => {
   const { t: translate } = useTranslation();
@@ -207,19 +206,36 @@ export const Header: React.FC = () => {
       {/* Top Header Bar */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <Link to={PATHS.HOME} className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform duration-300">
-            <FaTicketAlt className="w-5 h-5 transform -rotate-12 animate-ticket-bounce" />
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400">
-            HaloTicket
-          </span>
+        <Link
+          to={PATHS.HOME}
+          aria-label="HaloTicket — Trang chủ"
+          className="relative block h-14 w-36 min-[375px]:w-40 sm:w-48 lg:w-52 shrink-0 overflow-hidden rounded-md transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <svg
+            viewBox="40 80 2100 560"
+            className="block h-full w-full"
+            role="img"
+            aria-label="HaloTicket"
+          >
+            <image
+              href="/assets/brand/logo-light.png"
+              width="2172"
+              height="724"
+              className={`transition-opacity duration-200 motion-reduce:transition-none ${isDark ? "opacity-0" : "opacity-100"}`}
+            />
+            <image
+              href="/assets/brand/logo-dark.png"
+              width="2172"
+              height="724"
+              className={`transition-opacity duration-200 motion-reduce:transition-none ${isDark ? "opacity-100" : "opacity-0"}`}
+            />
+          </svg>
         </Link>
 
         {/* Search Bar Component & Overlay Modal (Desktop) */}
         <div
           ref={searchContainerRef}
-          className="hidden lg:flex items-center grow max-w-xl mx-4 relative"
+          className="hidden lg:flex items-center grow max-w-xl relative"
         >
           <form onSubmit={handleSearchSubmit} className="relative w-full flex items-center">
             <input
