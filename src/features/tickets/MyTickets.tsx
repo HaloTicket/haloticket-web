@@ -40,6 +40,8 @@ export interface TicketItem {
   eventId: string;
   eventTitle: string;
   eventStartsAt?: string;
+  eventEndsAt?: string;
+  isEnded?: boolean;
   eventTime: string;
   eventLocation: string;
   eventPoster?: string | null;
@@ -59,7 +61,7 @@ export interface TicketItem {
   seatName?: string;
 }
 
-/** An order groups tickets that share the same bookingCode */
+/** an order groups tickets that share the same bookingCode */
 export interface OrderGroup {
   orderKey: string;
   bookingCode: string;
@@ -68,6 +70,7 @@ export interface OrderGroup {
   eventId: string;
   eventTitle: string;
   eventStartsAt?: string;
+  eventEndsAt?: string;
   eventTime: string;
   eventLocation: string;
   eventPoster?: string | null;
@@ -83,7 +86,7 @@ export interface OrderGroup {
 
 export const STATUS_PRESENTATION: Record<TicketUiStatus, { labelKey: string; className: string; dotColor: string }> = {
   UPCOMING: { labelKey: "Sắp diễn ra", className: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300", dotColor: "bg-blue-500" },
-  USED: { labelKey: "Đã sử dụng", className: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300", dotColor: "bg-slate-400" },
+  USED: { labelKey: "Lịch sử", className: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300", dotColor: "bg-slate-400" },
   SELLING: { labelKey: "Đang bán", className: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300", dotColor: "bg-amber-500" },
   GIFTING: { labelKey: "Đang tặng", className: "border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300", dotColor: "bg-violet-500" },
   TRANSFERRED: { labelKey: "Đã chuyển nhượng", className: "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400", dotColor: "bg-slate-400" },
@@ -107,9 +110,78 @@ export function mapTicketStatus(status?: string | null): TicketUiStatus {
   }
 }
 
+/**
+ * Parses API date strings safely.
+ * Backend LocalDateTime represents Asia/Ho_Chi_Minh (UTC+7).
+ * If no timezone offset is provided, appends +07:00 to ensure consistent evaluation across timezones.
+ */
+export function parseApiDateTime(value?: string | number[] | null): Date | null {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const isoString = `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:${pad(second)}+07:00`;
+    const d = new Date(isoString);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/[Zz]$|[+-]\d{2}(:?\d{2})?$/.test(trimmed)) {
+      const d = new Date(trimmed);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(`${trimmed}+07:00`);
+    if (!isNaN(d.getTime())) return d;
+    const fallback = new Date(trimmed);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+  return null;
+}
+
+/**
+ * Formats a ticket's seat label:
+ * - Real seats: "Khu X, Hàng Y, Ghế Z" (or "Hàng Y, Ghế Z" if section missing)
+ * - Free/GA seats: "Vé tự do, <tên hạng vé>"
+ * Never outputs technical IDs like UUIDs or strings containing "-STT-" or "-GA-".
+ */
+export function formatTicketSeat(ticket: {
+  section?: string | null;
+  row?: string | null;
+  seatNumber?: string | null;
+  seatName?: string | null;
+  ticketTypeName?: string | null;
+  seatId?: string | null;
+}): string {
+  const typeName = ticket.ticketTypeName?.trim() || "Vé sự kiện";
+  const seatIdOrName = `${ticket.seatId || ""} ${ticket.seatName || ""}`;
+  const isTechnicalGa =
+    seatIdOrName.includes("-STT-") ||
+    seatIdOrName.includes("-GA-") ||
+    seatIdOrName.toUpperCase().includes("GENERAL_ADMISSION") ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(ticket.seatName || "");
+
+  const hasPhysicalSeat = Boolean(ticket.row || ticket.seatNumber);
+
+  if (isTechnicalGa || !hasPhysicalSeat) {
+    return `Vé tự do, ${typeName}`;
+  }
+
+  const sectionPart = ticket.section?.trim() ? `Khu ${ticket.section.trim()}` : "";
+  const rowPart = ticket.row?.trim() ? `Hàng ${ticket.row.trim()}` : "";
+  const seatPart = ticket.seatNumber?.trim() ? `Ghế ${ticket.seatNumber.trim()}` : "";
+
+  const parts = [sectionPart, rowPart, seatPart].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(", ");
+  }
+
+  return `Vé tự do, ${typeName}`;
+}
+
 export function formatEventTime(value?: string) {
   if (!value) return "Chưa cập nhật lịch";
-  const date = new Date(value);
+  const date = parseApiDateTime(value) || new Date(value);
   if (Number.isNaN(date.getTime())) return "Chưa cập nhật lịch";
   return new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
@@ -142,20 +214,54 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
       ? event.showtimes.find((show: { id?: string }) => show.id === item.showtimeId) : undefined;
     const startsAt = typeof showtime?.startTime === "string" ? showtime.startTime
       : typeof event?.startTime === "string" ? event.startTime : undefined;
+    const endsAt = typeof showtime?.endTime === "string" ? showtime.endTime
+      : typeof event?.endTime === "string" ? event.endTime : undefined;
+
+    // Check if event or showtime has ended
+    let isEnded = false;
+    if (endsAt) {
+      const parsedEnd = parseApiDateTime(endsAt);
+      if (parsedEnd) {
+        isEnded = parsedEnd.getTime() <= Date.now();
+      }
+    } else if (startsAt) {
+      const parsedStart = parseApiDateTime(startsAt);
+      if (parsedStart) {
+        isEnded = parsedStart.getTime() + 4 * 3600 * 1000 <= Date.now();
+      }
+    }
+
     const isResale =
       item.acquisitionType === "RESALE" ||
       (item.bookingCode || "").startsWith("RSL-") ||
       (item.bookingCode || "").includes("RESALE");
 
+    const formattedSeat = formatTicketSeat({
+      section: item.section,
+      row: item.row,
+      seatNumber: item.seatNumber,
+      seatName: item.seatName,
+      ticketTypeName: item.ticketTypeName,
+      seatId: item.id,
+    });
+
+    let mappedStatus = mapTicketStatus(rawStatus);
+    // If ticket is VALID / SELLING / GIFTING but event has ended, map to USED (History)
+    if (isEnded && ["UPCOMING", "SELLING", "GIFTING"].includes(mappedStatus)) {
+      mappedStatus = "USED";
+    }
+
     return {
       id: item.id,
       bookingId: item.bookingId || undefined,
       showtimeId: item.showtimeId || undefined,
-      bookingCode: item.bookingCode?.trim() || item.id,
-      hasBookingCode: Boolean(item.bookingCode?.trim()),
+      bookingCode: item.bookingCode?.trim() || item.bookingId || item.id,
+      hasBookingCode: Boolean(item.bookingCode?.trim() || item.bookingId),
       eventId: item.eventId,
       eventTitle: String(event?.title || `Sự kiện ${item.eventId}`),
       eventStartsAt: startsAt,
+      eventEndsAt: endsAt,
+      isEnded,
       eventTime: formatEventTime(startsAt),
       eventLocation: String(event?.locationName || event?.address || "Đang cập nhật"),
       eventPoster: String(event?.posterImage || event?.bannerUrl || ""),
@@ -166,9 +272,9 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
       acquisitionType: isResale ? "RESALE" : (item.acquisitionType || "PRIMARY"),
       purchaseDate: item.issuedAt || undefined,
       rawStatus,
-      status: mapTicketStatus(rawStatus),
+      status: mappedStatus,
       qrCode: item.qrCode || undefined,
-      seatName: item.seatName || undefined,
+      seatName: formattedSeat,
       section: item.section || undefined,
       row: item.row || undefined,
       seatNumber: item.seatNumber || undefined,
@@ -176,21 +282,21 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
   });
 }
 
-/** Group only tickets with a real shared booking code; orphan tickets stay separate. */
+/** Group tickets into orders by bookingCode or bookingId */
 export function groupTicketsIntoOrders(tickets: TicketItem[]): OrderGroup[] {
   const map = new Map<string, TicketItem[]>();
   tickets.forEach((t) => {
-    const hasBookingCode = t.hasBookingCode ?? (Boolean(t.bookingCode) && t.bookingCode !== t.id);
-    const key = hasBookingCode ? `booking:${t.bookingCode}` : `ticket:${t.id}`;
+    const key = t.bookingCode?.trim() || t.bookingId || `ticket:${t.id}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(t);
   });
 
   return Array.from(map.entries()).map(([orderKey, group]) => {
     const first = group[0];
-    const hasBookingCode = orderKey.startsWith("booking:");
-    const bookingCode = hasBookingCode ? first.bookingCode : first.id;
+    const hasBookingCode = first.hasBookingCode ?? (first.bookingCode !== first.id);
+    const bookingCode = first.bookingCode || first.bookingId || first.id;
     const totalAmount = group.reduce((sum, t) => sum + t.totalAmount, 0);
+
     // derive order status from tickets
     const statuses = group.map((t) => t.status);
     let orderStatus: TicketUiStatus = first.status;
@@ -208,6 +314,7 @@ export function groupTicketsIntoOrders(tickets: TicketItem[]): OrderGroup[] {
       eventId: first.eventId,
       eventTitle: first.eventTitle,
       eventStartsAt: first.eventStartsAt,
+      eventEndsAt: first.eventEndsAt,
       eventTime: first.eventTime,
       eventLocation: first.eventLocation,
       eventPoster: first.eventPoster,
@@ -704,25 +811,23 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
 
   useEffect(() => {
     if (!embedded) window.scrollTo(0, 0);
-    let isCancelled = false;
-    ticketApi.getMyTickets().then(async (response) => {
-      if (isCancelled) return;
-      const hydrated = await hydrateTickets(Array.isArray(response) ? response : []);
-      if (!isCancelled) {
-        setTickets(hydrated);
-        setLoading(false);
-      }
-    }).catch((err) => {
-      if (!isCancelled) {
-        console.error("loadTickets failed:", err);
-        setLoadError(t("Không thể tải vé từ hệ thống. Hãy thử lại sau."));
-        setLoading(false);
-      }
-    });
-    return () => {
-      isCancelled = true;
+    loadTickets();
+
+    const handleFocus = () => {
+      loadTickets();
     };
-  }, [embedded, t]);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadTickets();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [embedded, loadTickets]);
 
   // Group tickets into orders (1 order per bookingCode)
   const allOrders = useMemo(() => groupTicketsIntoOrders(tickets), [tickets]);
@@ -732,11 +837,13 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       ALL: allOrders.length,
       UPCOMING: allOrders.filter(
         (o) =>
-          o.tickets.some((t) => ["UPCOMING", "SELLING", "GIFTING"].includes(t.status)) ||
-          ["UPCOMING", "SELLING", "GIFTING"].includes(o.status)
+          o.tickets.some((t) => ["UPCOMING", "SELLING", "GIFTING"].includes(t.status) && !t.isEnded) ||
+          (["UPCOMING", "SELLING", "GIFTING"].includes(o.status) && !o.tickets.every((t) => t.isEnded))
       ).length,
       USED: allOrders.filter(
-        (o) => o.tickets.length > 0 && o.tickets.every((t) => t.status === "USED")
+        (o) =>
+          (o.tickets.length > 0 && o.tickets.every((t) => t.status === "USED" || t.isEnded || ["CANCELLED", "REVOKED", "REFUNDED"].includes(t.rawStatus))) ||
+          o.status === "USED"
       ).length,
       TRANSFERRED: allOrders.filter(
         (o) => o.tickets.length > 0 && o.tickets.every((t) => t.status === "TRANSFERRED")
@@ -750,10 +857,13 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
       const tabMatches =
         activeTab === "ALL" ||
         (activeTab === "UPCOMING" && (
-          order.tickets.some((t) => ["UPCOMING", "SELLING", "GIFTING"].includes(t.status)) ||
-          ["UPCOMING", "SELLING", "GIFTING"].includes(order.status)
+          order.tickets.some((t) => ["UPCOMING", "SELLING", "GIFTING"].includes(t.status) && !t.isEnded) ||
+          (["UPCOMING", "SELLING", "GIFTING"].includes(order.status) && !order.tickets.every((t) => t.isEnded))
         )) ||
-        (activeTab === "USED" && order.tickets.length > 0 && order.tickets.every((t) => t.status === "USED")) ||
+        (activeTab === "USED" && (
+          (order.tickets.length > 0 && order.tickets.every((t) => t.status === "USED" || t.isEnded || ["CANCELLED", "REVOKED", "REFUNDED"].includes(t.rawStatus))) ||
+          order.status === "USED"
+        )) ||
         (activeTab === "TRANSFERRED" && order.tickets.length > 0 && order.tickets.every((t) => t.status === "TRANSFERRED"));
 
       const query = searchQuery.trim().toLowerCase();
@@ -784,7 +894,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
   const tabs: Array<{ value: TicketFilter; labelKey: string }> = [
     { value: "ALL", labelKey: "Tất cả" },
     { value: "UPCOMING", labelKey: "Sắp diễn ra" },
-    { value: "USED", labelKey: "Đã sử dụng" },
+    { value: "USED", labelKey: "Lịch sử" },
     { value: "TRANSFERRED", labelKey: "Đã chuyển nhượng" },
   ];
 

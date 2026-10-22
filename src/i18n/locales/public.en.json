@@ -619,5 +619,21 @@
   "Bạn đã từ chối nhận vé từ người tặng. Vé đã được hoàn trả lại cho người gửi.": "You have declined the ticket invitation. The ticket has been returned to the sender.",
   "Không tìm thấy thông tin lời mời tặng vé.": "Gift invitation information not found.",
   "Không thể hủy tặng vé lúc này. Vui lòng thử lại sau.": "Cannot cancel gift at this time. Please try again later.",
-  "Không thể từ chối lời mời lúc này. Vui lòng thử lại sau.": "Cannot decline invitation at this time. Please try again later."
+  "Không thể từ chối lời mời lúc này. Vui lòng thử lại sau.": "Cannot decline invitation at this time. Please try again later.",
+  "Lịch sử": "History",
+  "Thanh toán thành công! Hệ thống đang phát hành vé điện tử...": "Payment successful! The system is issuing your e-tickets...",
+  "Đang khởi tạo mã QR và vị trí vé (Đã phát hành {{current}}/{{total}} vé). Vui lòng đợi trong giây lát.": "Generating QR codes and seat positions (Issued {{current}}/{{total}} tickets). Please wait a moment.",
+  "Đang xử lý": "Processing",
+  "Thanh toán đã được ghi nhận, vé sẽ xuất hiện trong ít phút": "Payment has been recorded, your tickets will appear in a few minutes",
+  "Hệ thống đang hoàn tất xử lý vé qua hàng đợi. Bạn có thể nhấn 'Tải lại' hoặc quay lại sau mà không cần thao tác gì thêm.": "The system is finalizing ticket processing. You can click 'Reload' or check back later without any further actions.",
+  "Tải lại": "Reload",
+  "Chi tiết các hạng vé đã đặt": "Purchased ticket tiers details",
+  "Số lượng vé": "Ticket quantity",
+  "Chờ thanh toán": "Pending payment",
+  "Đã hết hạn": "Expired",
+  "Đã hoàn tiền": "Refunded",
+  "Vé tự do": "General admission",
+  "Vé tự do, {{name}}": "General admission, {{name}}",
+  "Đang cập nhật địa điểm": "Updating location",
+  "Đã ghi nhận": "Recorded"
 }

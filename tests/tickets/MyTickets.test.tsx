@@ -10,7 +10,7 @@ import { ticketApi } from "@/services/ticketApi";
 vi.mock("@/services/ticketApi", () => ({ ticketApi: { getMyTickets: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/services/marketplaceApi", () => ({ marketplaceApi: { getMyGiftInvitations: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/services/eventApi", () => ({
-  eventApi: { getEventById: vi.fn().mockResolvedValue({ id: "event-1", title: "Concert IUH Day 2", startTime: "2026-09-20T10:26:00Z", locationName: "SVD Quan Khu 7" }) },
+  eventApi: { getEventById: vi.fn().mockResolvedValue({ id: "event-1", title: "Concert IUH Day 2", startTime: "2099-09-20T10:26:00Z", endTime: "2099-09-20T14:26:00Z", locationName: "SVD Quan Khu 7" }) },
 }));
 
 afterEach(() => cleanup());

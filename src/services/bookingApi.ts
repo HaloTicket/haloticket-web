@@ -33,6 +33,21 @@ export const bookingApi = {
     }
   },
 
+  getBookingByCode: async (bookingCode: string): Promise<import("@/types").BookingDetailResponse | null> => {
+    try {
+      const response = await axiosClient.get<unknown, import("@/types").BookingDetailResponse>(
+        `/bookings/by-code/${encodeURIComponent(bookingCode)}`
+      );
+      if (response && typeof response === "object" && "bookingCode" in response) {
+        return response;
+      }
+      return null;
+    } catch (err) {
+      console.warn("Failed to fetch booking by code:", err);
+      return null;
+    }
+  },
+
   cancelBooking: async (bookingId: string): Promise<boolean> => {
     try {
       await axiosClient.post(`/bookings/${bookingId}/cancel`);

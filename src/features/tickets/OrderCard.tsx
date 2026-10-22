@@ -57,13 +57,16 @@ export function OrderCard({
 
   const date = parseOrderDate(order.eventStartsAt, t);
   const orderUrl = PATHS.ORDER_DETAIL(order.bookingCode);
-  const seats = order.tickets.map((tk) => tk.seatName).filter(Boolean).join(", ");
+  const uniqueSeats = Array.from(new Set(order.tickets.map((tk) => tk.seatName).filter(Boolean))) as string[];
+  const seats = uniqueSeats.length === 1 && uniqueSeats[0].startsWith("Vé tự do")
+    ? uniqueSeats[0]
+    : uniqueSeats.join(", ");
   const firstTicket = order.tickets[0];
   const transactionTicket = order.tickets.find(
     (ticket) => ticket.status === "UPCOMING" && ticket.rawStatus === "VALID",
   );
 
-  // Close menu when clicking outside
+  // close menu when clicking outside
   useEffect(() => {
     if (!isMenuOpen) return;
     const handleClickOutside = (event: MouseEvent) => {

@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FiCheckCircle, FiXCircle, FiRefreshCw } from "react-icons/fi";
 import { paymentApi } from "@/services/paymentApi";
+import { bookingApi } from "@/services/bookingApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
+import { PATHS } from "@/routes/paths";
 
 export default function PaymentCallback() {
   const { t } = useTranslation();
@@ -67,14 +69,24 @@ export default function PaymentCallback() {
           if (!transferCompleted) throw new Error(t("Vé đang được chuyển quyền. Vui lòng kiểm tra lại sau."));
         }
 
+        let targetCode = bookingIdParam;
+        try {
+          const bookingResp = await bookingApi.getBookingById(bookingIdParam);
+          if (bookingResp?.bookingCode) {
+            targetCode = bookingResp.bookingCode;
+          }
+        } catch {
+          // fallback to bookingIdParam
+        }
+
         if (isMounted) {
           setStatus("success");
           setMessage(isResale ? t("Vé mới đã được cấp vào Vé của tôi.") : t("Xác thực thanh toán thành công!"));
           localStorage.removeItem("haloticket_pending_order");
         }
         setTimeout(() => {
-          if (isMounted) navigate("/booking-success");
-        }, 1500);
+          if (isMounted) navigate(PATHS.ORDER_DETAIL(targetCode));
+        }, 1200);
 
       } catch (err) {
         console.error("Payment callback verification error:", err);

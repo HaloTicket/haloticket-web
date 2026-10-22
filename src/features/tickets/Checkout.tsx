@@ -547,7 +547,7 @@ export default function Checkout() {
       // fallback direct confirmation
       localStorage.removeItem("haloticket_pending_order");
       setIsRecipientModalOpen(false);
-      navigate("/booking-success");
+      navigate(PATHS.ORDER_DETAIL(bookingCode || activeBookingId));
     } catch (err: unknown) {
       console.error("Payment error:", err);
       setIsRecipientModalOpen(false);
@@ -1186,7 +1186,7 @@ export default function Checkout() {
         onSuccess={() => {
           localStorage.removeItem("haloticket_pending_order");
           setIsVietQrModalOpen(false);
-          navigate("/booking-success");
+          navigate(PATHS.ORDER_DETAIL(activeBookingCode || activeBookingId));
         }}
         onTimeout={() => {
           // Release seats on timeout

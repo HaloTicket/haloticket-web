@@ -1099,7 +1099,7 @@ export const ResaleTicketCheckout = () => {
         vietQrData={vietQrData}
         onSuccess={() => {
           setIsVietQrModalOpen(false);
-          navigate("/booking-success");
+          navigate(PATHS.ORDER_DETAIL(activeBookingId));
         }}
         onTimeout={() => {
           setIsVietQrModalOpen(false);

@@ -57,6 +57,24 @@ export interface BookingResponse {
   quantity?: number;
 }
 
+export interface BookingItemDetailResponse {
+  ticketTypeId: string;
+  ticketTypeName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface BookingDetailResponse {
+  id: string;
+  bookingCode: string;
+  status: "PENDING" | "PAID" | "CONFIRMED" | "CANCELLED" | "EXPIRED" | "REFUNDED";
+  eventId: string;
+  showtimeId?: string;
+  totalAmount: number;
+  createdAt: string;
+  items: BookingItemDetailResponse[];
+}
+
 export interface AttendeeItem {
   id: string;
   ticketCode: string;
