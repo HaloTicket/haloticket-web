@@ -555,6 +555,33 @@ export function TicketViewer({ ticket, onClose, onResale, onGift }: TicketViewer
               </div>
             )}
 
+            {(ticket.status === "GIFTING" || ticket.rawStatus === "LOCKED_FOR_TRANSFER") && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const confirmed = window.confirm(t("Bạn có chắc chắn muốn hủy lời mời tặng vé này không? Vé sẽ được mở khóa lại để bạn sử dụng."));
+                  if (!confirmed) return;
+                  try {
+                    const gift = await marketplaceApi.getActiveGiftByTicket(ticket.id) as { sagaId?: string };
+                    if (gift?.sagaId) {
+                      await marketplaceApi.cancelGift(gift.sagaId);
+                      alert(t("Đã gửi yêu cầu hủy tặng vé thành công."));
+                      onClose();
+                      window.location.reload();
+                    } else {
+                      alert(t("Không tìm thấy thông tin lời mời tặng vé."));
+                    }
+                  } catch {
+                    alert(t("Không thể hủy tặng vé lúc này. Vui lòng thử lại sau."));
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-md border border-rose-300 bg-rose-50/50 hover:bg-rose-100/60 dark:bg-rose-950/20 dark:border-rose-900 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                <FiX className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <span>{t("Hủy tặng vé")}</span>
+              </button>
+            )}
+
             <Link
               to={`/my-tickets/${ticket.id}`}
               onClick={onClose}

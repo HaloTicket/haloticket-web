@@ -66,7 +66,18 @@ export const marketplaceApi = {
     axiosClient.post<unknown, MarketplaceSagaResponse>("/marketplace/gifts", request, { headers: { "Idempotency-Key": idempotencyKey } }),
 
   acceptGift: (sagaId: string, token?: string) =>
-    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/gifts/${encodeURIComponent(sagaId)}/accept`, null, { params: token ? { token } : {} }),
+    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/gifts/${encodeURIComponent(sagaId)}/accept`, null, { params: { token: token ?? "" } }),
+
+  cancelGift: (sagaId: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/gifts/${encodeURIComponent(sagaId)}/cancel`),
+
+  declineGift: (sagaId: string) =>
+    axiosClient.post<unknown, MarketplaceSagaResponse>(`/marketplace/gifts/${encodeURIComponent(sagaId)}/decline`),
+
+  getActiveGiftByTicket: (ticketId: string) =>
+    axiosClient.get<unknown, { sagaId: string; ticketId: string; status: string; recipientEmail: string; expiresAt: string }>(
+      `/marketplace/gifts/by-ticket/${encodeURIComponent(ticketId)}`
+    ),
 
   getGiftInvitation: (sagaId: string, token?: string) =>
     axiosClient.get<unknown, {
@@ -77,7 +88,7 @@ export const marketplaceApi = {
       senderUserId?: string; senderName?: string;
       ticketIds?: string[]; quantity?: number; tickets?: TransferTicketSnapshot[];
     }>(
-      `/marketplace/gifts/${encodeURIComponent(sagaId)}/invitation`, { params: token ? { token } : {} },
+      `/marketplace/gifts/${encodeURIComponent(sagaId)}/invitation`, { params: { token: token ?? "" } },
     ),
 
   getMyGiftInvitations: () =>

@@ -38,6 +38,9 @@ export default function TicketDetail() {
   const [recipientName, setRecipientName] = useState<string>("");
   const [activeListingId, setActiveListingId] = useState<string | null>(null);
   const [isCancellingResale, setIsCancellingResale] = useState(false);
+  const [activeGiftSagaId, setActiveGiftSagaId] = useState<string | null>(null);
+  const [isCancellingGift, setIsCancellingGift] = useState(false);
+  const [showCancelGiftModal, setShowCancelGiftModal] = useState(false);
 
   const loadTicketData = useCallback(async (ticketId: string) => {
     try {
@@ -119,6 +122,18 @@ export default function TicketDetail() {
           // ignore
         }
       }
+
+      // 4. if ticket is currently locked for transfer, look up active gift saga to allow cancel
+      if (rawStatus === "LOCKED_FOR_TRANSFER" || mapTicketStatus(rawStatus) === "GIFTING") {
+        try {
+          const gift = await marketplaceApi.getActiveGiftByTicket(item.id) as { sagaId?: string };
+          if (gift?.sagaId) {
+            setActiveGiftSagaId(gift.sagaId);
+          }
+        } catch {
+          // ignore
+        }
+      }
     } catch {
       setLoadError(t("Không thể tải thông tin vé. Vui lòng thử lại sau."));
     }
@@ -131,7 +146,8 @@ export default function TicketDetail() {
   }, [id, loadTicketData]);
 
   const isSelling = ticket ? ticket.status === "SELLING" || ticket.rawStatus === "LOCKED_FOR_RESALE" : false;
-  const isLocked = ticket ? isSelling || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode : true;
+  const isGifting = ticket ? ticket.status === "GIFTING" || ticket.rawStatus === "LOCKED_FOR_TRANSFER" : false;
+  const isLocked = ticket ? isSelling || isGifting || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode : true;
   const qrCodeString = ticket?.qrCode || "";
 
   const copyCode = () => {
@@ -160,6 +176,25 @@ export default function TicketDetail() {
       alert(t("Không thể hủy niêm yết lúc này. Vui lòng thử lại sau."));
     } finally {
       setIsCancellingResale(false);
+    }
+  };
+
+  const handleCancelGift = async () => {
+    if (!activeGiftSagaId) {
+      alert(t("Không tìm thấy thông tin lời mời tặng vé."));
+      return;
+    }
+    setShowCancelGiftModal(false);
+    try {
+      setIsCancellingGift(true);
+      await marketplaceApi.cancelGift(activeGiftSagaId);
+      if (id) {
+        await loadTicketData(id);
+      }
+    } catch {
+      alert(t("Không thể hủy tặng vé lúc này. Vui lòng thử lại sau."));
+    } finally {
+      setIsCancellingGift(false);
     }
   };
 
@@ -450,6 +485,30 @@ export default function TicketDetail() {
                 </div>
               )}
 
+              {/* Action Box: Nếu vé đang có lời mời tặng vé */}
+              {isGifting && (
+                <div className="bg-violet-50/70 border border-violet-200 rounded-md p-4 space-y-3 dark:bg-violet-950/20 dark:border-violet-900/40">
+                  <div>
+                    <p className="text-xs font-bold text-violet-900 dark:text-violet-300 uppercase tracking-wide">
+                      {t("Đang tặng")}
+                    </p>
+                    <p className="text-xs text-violet-800/90 dark:text-violet-400 mt-1 leading-relaxed">
+                      {t("Vé hiện đang có lời mời tặng vé đang chờ người nhận xác nhận. Mã QR tạm thời không thể sử dụng để check-in.")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelGiftModal(true)}
+                      disabled={isCancellingGift}
+                      className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 dark:bg-slate-900 dark:border-rose-900 dark:text-rose-400 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isCancellingGift ? t("Đang hủy...") : t("Hủy tặng vé")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons: Đăng bán vé lại & Tặng vé cho bạn bè if VALID and not selling */}
               {!isLocked && ticket.status === "UPCOMING" && ticket.rawStatus === "VALID" && (
                 <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -649,6 +708,34 @@ export default function TicketDetail() {
             if (id) loadTicketData(id);
           }}
         />
+      )}
+
+      {showCancelGiftModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
+          <div className="w-full max-w-sm rounded-2xl border app-border app-bg-card p-6 shadow-xl animate-in zoom-in-95 duration-200" role="dialog" aria-modal="true">
+            <h3 className="text-base font-bold">{t("Hủy tặng vé?")}</h3>
+            <p className="mt-2 text-sm app-text-muted">
+              {t("Bạn có chắc chắn muốn hủy lời mời tặng vé này không? Vé sẽ được mở khóa lại để bạn sử dụng.")}
+            </p>
+            <div className="mt-5 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowCancelGiftModal(false)}
+                className="rounded-xl border app-border px-4 py-2 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition"
+              >
+                {t("Đóng")}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelGift}
+                disabled={isCancellingGift}
+                className="rounded-xl bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40 transition"
+              >
+                {isCancellingGift ? t("Đang xử lý…") : t("Xác nhận hủy tặng")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

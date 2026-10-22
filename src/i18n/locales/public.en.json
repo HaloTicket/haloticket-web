@@ -605,5 +605,19 @@
   "Đăng nhập ngay": "Sign in now",
   "Chưa có tài khoản?": "Don't have an account?",
   "Đăng ký tài khoản": "Sign up",
-  "Để sau": "Maybe later"
+  "Để sau": "Maybe later",
+  "Hủy tặng vé": "Cancel gift",
+  "Hủy tặng vé?": "Cancel ticket gift?",
+  "Bạn có chắc chắn muốn hủy lời mời tặng vé này không? Vé sẽ được mở khóa lại để bạn sử dụng.": "Are you sure you want to cancel this ticket gift invitation? The ticket will be unlocked for your use.",
+  "Xác nhận hủy tặng": "Confirm cancel gift",
+  "Đã gửi yêu cầu hủy tặng vé thành công.": "Gift cancellation request sent successfully.",
+  "Vé hiện đang có lời mời tặng vé đang chờ người nhận xác nhận. Mã QR tạm thời không thể sử dụng để check-in.": "This ticket has a pending gift invitation waiting for the recipient's acceptance. The QR code cannot be used for check-in currently.",
+  "Từ chối lời mời?": "Decline invitation?",
+  "Bạn có chắc chắn muốn từ chối lời mời nhận vé này không? Vé sẽ được hoàn trả lại cho người tặng.": "Are you sure you want to decline this ticket gift invitation? The ticket will be returned to the sender.",
+  "Xác nhận từ chối": "Confirm decline",
+  "Đã từ chối lời mời": "Invitation declined",
+  "Bạn đã từ chối nhận vé từ người tặng. Vé đã được hoàn trả lại cho người gửi.": "You have declined the ticket invitation. The ticket has been returned to the sender.",
+  "Không tìm thấy thông tin lời mời tặng vé.": "Gift invitation information not found.",
+  "Không thể hủy tặng vé lúc này. Vui lòng thử lại sau.": "Cannot cancel gift at this time. Please try again later.",
+  "Không thể từ chối lời mời lúc này. Vui lòng thử lại sau.": "Cannot decline invitation at this time. Please try again later."
 }

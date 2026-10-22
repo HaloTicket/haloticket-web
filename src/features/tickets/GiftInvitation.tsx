@@ -25,6 +25,7 @@ export default function GiftInvitation() {
   const [accepted, setAccepted] = useState(false);
   const [state, setState] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [loading, setLoading] = useState(Boolean(sagaId && getKeycloakSession().isAuthenticated()));
 
   useEffect(() => {
@@ -89,6 +90,20 @@ export default function GiftInvitation() {
     finally { setBusy(false); }
   };
 
+  const decline = async () => {
+    setBusy(true);
+    setError("");
+    setShowDeclineModal(false);
+    try {
+      await marketplaceApi.declineGift(sagaId);
+      setState("DECLINED");
+    } catch {
+      setError(t("Không thể từ chối lời mời lúc này. Vui lòng thử lại sau."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const seatLabel = [invitation?.row, invitation?.seat].filter(Boolean).join("-");
 
   /* ──── Success state ──── */
@@ -137,6 +152,29 @@ export default function GiftInvitation() {
             {t("Giao dịch tặng vé không thành công. Vé đã được trả lại cho người tặng.")}
           </p>
           <Link className="mt-6 inline-flex min-h-11 items-center rounded-xl border app-border px-6 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition" to={PATHS.MY_TICKETS}>
+            {t("Về vé của tôi")}
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  /* ──── Declined state ──── */
+  if (state === "DECLINED") {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center app-bg-page app-text-main px-4 py-12">
+        <div className="w-full max-w-lg rounded-2xl border app-border app-bg-card p-8 text-center shadow-lg animate-in zoom-in-95 duration-300">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+            <FiX className="h-10 w-10 text-slate-600 dark:text-slate-400" />
+          </div>
+          <h1 className="text-xl font-bold">{t("Đã từ chối lời mời")}</h1>
+          <p className="mt-3 text-sm app-text-muted">
+            {t("Bạn đã từ chối nhận vé từ người tặng. Vé đã được hoàn trả lại cho người gửi.")}
+          </p>
+          <Link
+            className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl border app-border px-6 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition"
+            to={PATHS.MY_TICKETS}
+          >
             {t("Về vé của tôi")}
           </Link>
         </div>
@@ -275,12 +313,14 @@ export default function GiftInvitation() {
                 </label>
 
                 <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-                  <Link
-                    to={PATHS.MY_TICKETS}
-                    className="flex min-h-11 items-center justify-center rounded-xl border app-border px-5 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition"
+                  <button
+                    type="button"
+                    onClick={() => setShowDeclineModal(true)}
+                    disabled={busy}
+                    className="flex min-h-11 items-center justify-center rounded-xl border app-border px-5 text-sm font-semibold app-text-main hover:bg-slate-500/10 disabled:opacity-40 transition"
                   >
                     {t("Từ chối")}
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowConfirmModal(true)}
@@ -331,6 +371,35 @@ export default function GiftInvitation() {
                 className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition"
               >
                 {busy ? t("Đang xử lý…") : t("Chấp nhận vé")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Decline Modal ── */}
+      {showDeclineModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
+          <div className="w-full max-w-sm rounded-2xl border app-border app-bg-card p-6 shadow-xl animate-in zoom-in-95 duration-200" role="dialog" aria-modal="true">
+            <h3 className="text-base font-bold">{t("Từ chối lời mời?")}</h3>
+            <p className="mt-2 text-sm app-text-muted">
+              {t("Bạn có chắc chắn muốn từ chối lời mời nhận vé này không? Vé sẽ được hoàn trả lại cho người tặng.")}
+            </p>
+            <div className="mt-5 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowDeclineModal(false)}
+                className="rounded-xl border app-border px-4 py-2 text-sm font-semibold app-text-main hover:bg-slate-500/10 transition"
+              >
+                {t("Đóng")}
+              </button>
+              <button
+                type="button"
+                onClick={decline}
+                disabled={busy}
+                className="rounded-xl bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40 transition"
+              >
+                {busy ? t("Đang xử lý…") : t("Xác nhận từ chối")}
               </button>
             </div>
           </div>
