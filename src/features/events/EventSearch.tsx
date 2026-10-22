@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { FiCalendar, FiFilter, FiClock, FiCpu } from "react-icons/fi";
 import { eventApi, type EventApiData } from "@/services/eventApi";
+import { adminConfigApi } from "@/services/adminConfigApi";
+import type { Category } from "@/types/adminConfig";
 import { aiApi } from "@/services/aiApi";
 import { EventCard } from "@/components/common/EventCard";
 import DateFilterModal from "./components/DateFilterModal";
@@ -14,6 +16,21 @@ export default function EventSearch() {
   const queryParam = searchParams.get("q") || "";
   const cityParam = searchParams.get("city") || "";
   const aiParam = searchParams.get("ai") === "true";
+
+  const { slug } = useParams<{ slug: string }>();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const routeCategory = categories.find(cat => (cat.slug?.trim() || cat.id) === slug);
+
+  useEffect(() => {
+    adminConfigApi.getCategories().then(res => {
+      const data = Array.isArray(res) ? res : res.data;
+      setCategories(data || []);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setSelectedCategory("Tất cả");
+  }, [slug]);
 
   const [allEvents, setAllEvents] = useState<EventApiData[]>([]);
   const [aiEvents, setAiEvents] = useState<EventApiData[]>([]);
@@ -110,6 +127,9 @@ export default function EventSearch() {
       const matchLoc = ev.address?.toLowerCase().includes(loc) || ev.locationName?.toLowerCase().includes(loc) || (ev as any).city?.toLowerCase().includes(loc);
       if (!matchLoc) return false;
     }
+
+    // The navigation category also applies when the search page is reused.
+    if (slug && (!routeCategory || ev.categoryName !== routeCategory.name)) return false;
 
     // category filter
     if (selectedCategory !== "Tất cả") {
