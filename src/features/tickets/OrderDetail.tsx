@@ -28,7 +28,6 @@ import { formatCurrency } from "@/utils/formatters";
 import type { BookingDetailResponse } from "@/types";
 import {
   type TicketItem,
-  type OrderGroup,
   hydrateTickets,
   downloadTicketAsImage,
   TicketViewer,
@@ -54,8 +53,7 @@ export default function OrderDetail() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
 
-  // polling state for ticket issuance
-  const [isPolling, setIsPolling] = useState(false);
+  // polling timeout
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
@@ -80,7 +78,6 @@ export default function OrderDetail() {
       clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
     }
-    setIsPolling(false);
   }, []);
 
   // poll for tickets function
@@ -201,7 +198,6 @@ export default function OrderDetail() {
         // 5. check if we need to poll for issuance
         const isPaid = bookingInfo.status === "PAID" || bookingInfo.status === "CONFIRMED";
         if (isPaid && hydrated.length < totalExpected) {
-          setIsPolling(true);
           setPollTimedOut(false);
           // start polling
           stopPolling();

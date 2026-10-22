@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import MyTickets, {
+import {
   hydrateTickets,
   groupTicketsIntoOrders,
   formatTicketSeat,
-  parseApiDateTime,
 } from "@/features/tickets/MyTickets";
 import OrderDetail from "@/features/tickets/OrderDetail";
 import { ticketApi } from "@/services/ticketApi";
