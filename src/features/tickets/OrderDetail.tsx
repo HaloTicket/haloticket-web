@@ -554,7 +554,7 @@ export default function OrderDetail() {
                   {booking.items.map((item, idx) => (
                     <div
                       key={item.ticketTypeId || idx}
-                      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm"
+                      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm border-none"
                     >
                       <div className="space-y-0.5">
                         <span className="font-bold app-text-main">{item.ticketTypeName}</span>
