@@ -147,13 +147,46 @@ export default function OrderDetail() {
 
       try {
         // 1. fetch booking details from booking-service
-        let bookingInfo: BookingDetailResponse | null = await bookingApi.getBookingByCode(normalizedCode);
+        let bookingInfo: BookingDetailResponse | null = null;
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedCode);
 
-        // fallback: if not found by code, try by ID in case route param was UUID
-        if (!bookingInfo) {
+        if (isUuid) {
+          // if route param is a UUID (bookingId), fetch by ID directly to avoid 404 on by-code
           const fallbackResp = await bookingApi.getBookingById(normalizedCode);
-          if (fallbackResp && fallbackResp.bookingCode) {
-            bookingInfo = await bookingApi.getBookingByCode(fallbackResp.bookingCode);
+          if (fallbackResp) {
+            if (fallbackResp.bookingCode) {
+              bookingInfo = await bookingApi.getBookingByCode(fallbackResp.bookingCode);
+            }
+            if (!bookingInfo) {
+              bookingInfo = {
+                id: fallbackResp.id,
+                bookingCode: fallbackResp.bookingCode || fallbackResp.id,
+                status: fallbackResp.status,
+                eventId: fallbackResp.eventId || "",
+                showtimeId: fallbackResp.showtimeId,
+                totalAmount: fallbackResp.totalAmount,
+                createdAt: fallbackResp.createdAt || fallbackResp.expiredAt || new Date().toISOString(),
+                items: [],
+              };
+            }
+          }
+        } else {
+          // if route param is a bookingCode, fetch by code first
+          bookingInfo = await bookingApi.getBookingByCode(normalizedCode);
+          if (!bookingInfo) {
+            const fallbackResp = await bookingApi.getBookingById(normalizedCode);
+            if (fallbackResp) {
+              bookingInfo = {
+                id: fallbackResp.id,
+                bookingCode: fallbackResp.bookingCode || fallbackResp.id,
+                status: fallbackResp.status,
+                eventId: fallbackResp.eventId || "",
+                showtimeId: fallbackResp.showtimeId,
+                totalAmount: fallbackResp.totalAmount,
+                createdAt: fallbackResp.createdAt || fallbackResp.expiredAt || new Date().toISOString(),
+                items: [],
+              };
+            }
           }
         }
 
@@ -225,30 +258,15 @@ export default function OrderDetail() {
     [normalizedCode, pollTickets, stopPolling, t]
   );
 
-  // mount, unmount cleanup, and focus/visibility refetch
+  // mount and unmount cleanup (do not re-fetch on window focus to avoid flicker on Alt+Tab)
   useEffect(() => {
     isMountedRef.current = true;
     window.scrollTo(0, 0);
     loadOrderData();
 
-    const handleFocus = () => {
-      loadOrderData();
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        loadOrderData();
-      }
-    };
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
       isMountedRef.current = false;
       stopPolling();
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [loadOrderData, stopPolling]);
 

@@ -88,8 +88,14 @@ function getErrorMessage(error: unknown, t: (k: string) => string) {
   if (code.includes("PRICE_OUT_OF_RANGE")) return t("Giá bán không nằm trong khoảng cho phép của tất cả vé đã chọn.");
   if (code.includes("POLICY_CHANGED")) return t("Chính sách vừa thay đổi. Quay lại để kiểm tra điều kiện vé.");
   if (code.includes("TICKET_NOT_ELIGIBLE")) return t("Một vé đã chọn không còn đủ điều kiện chuyển nhượng. Vui lòng tải lại danh sách.");
-  if (code.includes("GIFT_DISABLED")) return t("Ban tổ chức chưa mở tính năng tặng vé cho sự kiện này.");
+  if (code.includes("GIFT_POLICY_NOT_CONFIGURED")) return t("Sự kiện này chưa được thiết lập chính sách tặng vé.");
+  if (code.includes("GIFT_DISABLED") || code.includes("GIFT_DISABLED_BY_EVENT")) return t("Ban tổ chức chưa mở tính năng tặng vé cho sự kiện này.");
+  if (code.includes("GIFT_NOT_STARTED")) return t("Thời gian cho phép tặng vé của sự kiện này chưa bắt đầu.");
+  if (code.includes("GIFT_CLOSED")) return t("Đã hết thời hạn cho phép tặng vé của sự kiện này.");
   if (code.includes("GIFT_LIMIT_REACHED")) return t("Một vé đã đạt giới hạn số lần tặng của sự kiện. Vui lòng chọn vé khác.");
+  if (code.includes("TICKETS_MUST_SHARE_SHOWTIME")) return t("Các vé tặng phải thuộc cùng một suất diễn.");
+  if (code.includes("CANNOT_GIFT_SELF")) return t("Bạn không thể tặng vé cho chính mình.");
+  if (code.includes("RECIPIENT_NOT_FOUND")) return t("Không tìm thấy thông tin người nhận.");
   return t("Không thể hoàn tất thao tác. Vui lòng kiểm tra trạng thái vé và thử lại.");
 }
 

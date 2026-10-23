@@ -42,8 +42,7 @@ export const bookingApi = {
         return response;
       }
       return null;
-    } catch (err) {
-      console.warn("Failed to fetch booking by code:", err);
+    } catch {
       return null;
     }
   },
