@@ -22,8 +22,6 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
   const [isFree, setIsFree] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>(currentCategory);
 
-  if (!isOpen) return null;
-
   const locations = [
     "Toàn quốc",
     "Hồ Chí Minh",
@@ -42,6 +40,15 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
       }
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedLocation(currentLocation);
+      setSelectedCategory(currentCategory);
+    }
+  }, [isOpen, currentLocation, currentCategory]);
+
+  if (!isOpen) return null;
 
   const handleReset = () => {
     setSelectedLocation("Toàn quốc");

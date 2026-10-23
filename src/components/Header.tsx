@@ -35,7 +35,6 @@ import {
   LuLogOut,
   LuUser,
 } from "react-icons/lu";
-import { FaTicketAlt } from "react-icons/fa";
 
 export const Header: React.FC = () => {
   const { t: translate } = useTranslation();
@@ -178,8 +177,8 @@ export const Header: React.FC = () => {
     "M"
   ).toUpperCase();
 
-  const [categories, setCategories] = useState<{ label: string; path: string; isResale?: boolean }[]>([
-    { label: "Vé bán lại", path: "/resale-ticket", isResale: true },
+  const [categories, setCategories] = useState<{ label: string; path: string }[]>([
+    { label: "Vé bán lại", path: "/resale-ticket" },
     { label: "Blog", path: "/blog" },
   ]);
 
@@ -189,11 +188,11 @@ export const Header: React.FC = () => {
       if (Array.isArray(cats)) {
         const dynamicCats = cats
           .filter(c => c.active && c.status !== "INACTIVE")
-          .map(c => ({ label: c.name, path: `/category/${c.slug}` }));
+          .map(c => ({ label: c.name, path: `/category/${encodeURIComponent(c.slug?.trim() || c.id)}` }));
         
         setCategories([
           ...dynamicCats,
-          { label: "Vé bán lại", path: "/resale-ticket", isResale: true },
+          { label: "Vé bán lại", path: "/resale-ticket" },
           { label: "Blog", path: "/blog" },
         ]);
       }
@@ -207,19 +206,36 @@ export const Header: React.FC = () => {
       {/* Top Header Bar */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <Link to={PATHS.HOME} className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform duration-300">
-            <FaTicketAlt className="w-5 h-5 transform -rotate-12 animate-ticket-bounce" />
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400">
-            HaloTicket
-          </span>
+        <Link
+          to={PATHS.HOME}
+          aria-label="HaloTicket — Trang chủ"
+          className="relative block h-14 w-36 min-[375px]:w-40 sm:w-48 lg:w-52 shrink-0 overflow-hidden rounded-md transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <svg
+            viewBox="40 80 2100 560"
+            className="block h-full w-full"
+            role="img"
+            aria-label="HaloTicket"
+          >
+            <image
+              href="/assets/brand/logo-light.png"
+              width="2172"
+              height="724"
+              className={`transition-opacity duration-200 motion-reduce:transition-none ${isDark ? "opacity-0" : "opacity-100"}`}
+            />
+            <image
+              href="/assets/brand/logo-dark.png"
+              width="2172"
+              height="724"
+              className={`transition-opacity duration-200 motion-reduce:transition-none ${isDark ? "opacity-100" : "opacity-0"}`}
+            />
+          </svg>
         </Link>
 
         {/* Search Bar Component & Overlay Modal (Desktop) */}
         <div
           ref={searchContainerRef}
-          className="hidden lg:flex items-center grow max-w-xl mx-4 relative"
+          className="hidden lg:flex items-center grow max-w-xl relative"
         >
           <form onSubmit={handleSearchSubmit} className="relative w-full flex items-center">
             <input
@@ -509,20 +525,18 @@ export const Header: React.FC = () => {
       <div className="hidden lg:block app-bg-subnav border-t app-border overflow-x-auto no-scrollbar">
         <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 flex items-center gap-6 text-xs md:text-sm font-medium whitespace-nowrap py-2.5">
           {categories.map((cat) => {
-            const isActive = location.pathname === cat.path;
+            const isActive = (location.pathname === cat.path || location.pathname.startsWith(`${cat.path}/`));
             return (
               <Link
-                key={cat.label}
+                key={cat.path}
                 to={cat.path}
-                className={`relative cursor-pointer py-0.5 transition-colors flex items-center gap-1.5 ${
-                  cat.isResale 
-                    ? "text-rose-600 font-extrabold px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-900/60 uppercase" 
-                    : isActive
-                      ? "font-bold text-blue-600 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:bg-blue-600 dark:text-blue-400 dark:after:bg-blue-400"
-                      : "app-text-main hover:text-blue-600 dark:hover:text-blue-400"
+                aria-current={isActive ? "page" : undefined}
+                className={`relative cursor-pointer py-0.5 flex items-center gap-1.5 transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-4 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:origin-center after:bg-blue-600 after:transition-transform after:duration-200 dark:after:bg-blue-400 motion-reduce:transition-none motion-reduce:transform-none motion-reduce:after:transition-none ${
+                  isActive
+                      ? "font-bold text-blue-600 dark:text-blue-400 after:scale-x-100"
+                      : "app-text-main hover:text-blue-600 dark:hover:text-blue-400 after:scale-x-0 hover:after:scale-x-100 focus-visible:after:scale-x-100"
                 }`}
               >
-                {cat.isResale && <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                 {translate(cat.label)}
               </Link>
             );
@@ -683,20 +697,16 @@ export const Header: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   {categories.map((cat) => (
                     <Link
-                      key={cat.label}
+                      key={cat.path}
                       to={cat.path}
+                      aria-current={(location.pathname === cat.path || location.pathname.startsWith(`${cat.path}/`)) ? "page" : undefined}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${cat.isResale
-                          ? "text-rose-500 font-extrabold bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50"
-                          : location.pathname === cat.path
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none motion-reduce:transform-none ${(location.pathname === cat.path || location.pathname.startsWith(`${cat.path}/`))
                             ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-blue-200 dark:border-blue-800/50"
                             : "app-bg-subnav app-text-main hover:bg-slate-200 dark:hover:bg-slate-800 app-border"
                         }`}
                     >
                       <span className="truncate">{translate(cat.label)}</span>
-                      {cat.isResale && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0 ml-1" />
-                      )}
                     </Link>
                   ))}
                 </div>
