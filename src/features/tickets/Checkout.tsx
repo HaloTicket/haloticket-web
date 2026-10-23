@@ -7,6 +7,7 @@ import type { BookingOrderData } from "@/types";
 import type { CustomQuestionItem } from "@/types/organizer";
 import { eventApi } from "@/services/eventApi";
 import { bookingApi } from "@/services/bookingApi";
+import { CONFIG } from "@/config";
 import { paymentApi } from "@/services/paymentApi";
 import { userApi } from "@/services/userApi";
 import { CancelOrderModal } from "@/features/resale/components/CancelOrderModal";
@@ -381,7 +382,8 @@ export default function Checkout() {
 
       setIsSubmitting(true);
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
-      const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : (order.zoneId ? [order.zoneId] : []);
+      // with stock holds on, a general-admission order has no seats; do not invent one from the zone id
+      const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : (CONFIG.GA_RESERVATION_ENABLED ? [] : (order.zoneId ? [order.zoneId] : []));
 
       // use logged in user ID
       const profile = await userApi.getProfile().catch(() => null);
@@ -402,6 +404,9 @@ export default function Checkout() {
           items: order.items,
         });
 
+        if (CONFIG.GA_RESERVATION_ENABLED && !bookingRes?.id) {
+          throw new Error("BOOKING_CREATE_FAILED");
+        }
         bookingId = bookingRes?.id || `booking_${Date.now()}`;
         bookingCode = bookingRes?.bookingCode || `HT-${Math.floor(100000 + Math.random() * 900000)}`;
         setActiveBookingId(bookingId);
@@ -551,8 +556,19 @@ export default function Checkout() {
     } catch (err: unknown) {
       console.error("Payment error:", err);
       setIsRecipientModalOpen(false);
-      const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message 
-        || t("Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.");
+      const serverMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      if (serverMessage === "TICKET_SOLD_OUT") {
+        showToast("error", t("Hạng vé bạn chọn đã hết hoặc không còn đủ số lượng. Vui lòng chọn lại số lượng khác."));
+        localStorage.removeItem("haloticket_pending_order");
+        navigate(`/events/${activeEventId}/select-ticket`);
+        return;
+      }
+      const errorMsg = serverMessage === "TICKET_STOCK_UNAVAILABLE" || serverMessage === "TICKET_RESERVATION_REFUSED"
+        ? t("Hệ thống đang giữ vé, vui lòng thử lại sau giây lát.")
+        : serverMessage === "BOOKING_CREATE_FAILED"
+          ? t("Không thể tạo đơn hàng. Vui lòng thử lại.")
+          : serverMessage
+            || t("Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.");
       showToast("error", errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -1190,6 +1206,9 @@ export default function Checkout() {
         }}
         onTimeout={() => {
           // Release seats on timeout
+          if (CONFIG.GA_RESERVATION_ENABLED && activeBookingId) {
+            bookingApi.cancelBooking(activeBookingId).catch(console.error);
+          }
           const userId = localStorage.getItem("haloticket_session_id");
           if (userId && order?.seatIds) {
             order.seatIds.forEach((seatId: string) => {
@@ -1208,6 +1227,9 @@ export default function Checkout() {
         open={showCancelConfirmModal}
         onCancelOrder={() => {
           // Release seats when cancelled manually
+          if (CONFIG.GA_RESERVATION_ENABLED && activeBookingId) {
+            bookingApi.cancelBooking(activeBookingId).catch(console.error);
+          }
           const userId = localStorage.getItem("haloticket_session_id");
           if (userId && order?.seatIds) {
             order.seatIds.forEach((seatId: string) => {

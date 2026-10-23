@@ -4,6 +4,7 @@ import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTras
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { bookingApi } from "@/services/bookingApi";
+import { CONFIG } from "@/config";
 import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { useTranslation } from "react-i18next";
@@ -313,7 +314,7 @@ export default function SelectTicket() {
               price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
               color: tt.color || colors[idx % colors.length],
               isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
-              totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
+              totalQuantity: (CONFIG.GA_RESERVATION_ENABLED ? tt.availableQuantity : undefined) ?? tt.totalQuantity ?? tt.quantity ?? 100,
               minPerOrder: tt.minPerOrder ?? 1,
               maxPerOrder: tt.maxPerOrder ?? 5,
               description: tt.description || "",
@@ -371,7 +372,7 @@ export default function SelectTicket() {
             price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
             color: tt.color || colors[idx % colors.length],
             isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
-            totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
+            totalQuantity: (CONFIG.GA_RESERVATION_ENABLED ? tt.availableQuantity : undefined) ?? tt.totalQuantity ?? tt.quantity ?? 100,
             minPerOrder: tt.minPerOrder ?? 1,
             maxPerOrder: tt.maxPerOrder ?? 5,
             description: tt.description || "",
@@ -921,6 +922,8 @@ export default function SelectTicket() {
 
     const finalSeatIds: string[] = [];
     const seatNamesMap: Record<string, string> = {};
+    // tiers sent as quantities only (no virtual seats) when the backend holds general-admission stock
+    const gaTierIds = new Set<string>();
 
     cart.forEach((c) => {
       const seatsInZone = selectedSeatObjects.filter(
@@ -945,6 +948,11 @@ export default function SelectTicket() {
           }
         });
       } else {
+        if (CONFIG.GA_RESERVATION_ENABLED) {
+          gaTierIds.add((c.tierId || c.zoneId) as string);
+          return;
+        }
+
         // standing / general admission / non-seatmap: allocate contiguous sequence numbers
         const occupiedNums = new Set<number>();
         const keyPrefix1 = `${c.zoneId}-STT-`;
@@ -1064,7 +1072,8 @@ export default function SelectTicket() {
       items: cart.map(c => ({
           ticketTypeId: c.tierId || c.zoneId,
           quantity: c.quantity,
-          unitPrice: c.price
+          unitPrice: c.price,
+          ...(gaTierIds.has((c.tierId || c.zoneId) as string) ? { generalAdmission: true } : {})
       })),
       seatIds: finalSeatIds,
       seatNames: seatNamesMap,
@@ -1544,7 +1553,7 @@ export default function SelectTicket() {
                                   {tier.totalQuantity !== undefined && (
                                     <>
                                       <span>•</span>
-                                      <span>{t("Sức chứa")}: {tier.totalQuantity} {t("chỗ")}</span>
+                                      <span>{CONFIG.GA_RESERVATION_ENABLED ? `${t("Số vé còn lại")}: ${tier.totalQuantity}` : `${t("Sức chứa")}: ${tier.totalQuantity} ${t("chỗ")}`}</span>
                                     </>
                                   )}
                                 </div>

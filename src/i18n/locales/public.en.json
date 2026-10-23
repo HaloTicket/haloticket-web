@@ -635,5 +635,9 @@
   "Vé tự do": "General admission",
   "Vé tự do, {{name}}": "General admission, {{name}}",
   "Đang cập nhật địa điểm": "Updating location",
-  "Đã ghi nhận": "Recorded"
+  "Đã ghi nhận": "Recorded",
+  "Số vé còn lại": "Tickets remaining",
+  "Hạng vé bạn chọn đã hết hoặc không còn đủ số lượng. Vui lòng chọn lại số lượng khác.": "The ticket tier you picked is sold out or no longer has enough tickets. Please choose a different quantity.",
+  "Hệ thống đang giữ vé, vui lòng thử lại sau giây lát.": "We are holding tickets right now. Please try again in a moment.",
+  "Không thể tạo đơn hàng. Vui lòng thử lại.": "Could not create the order. Please try again."
 }

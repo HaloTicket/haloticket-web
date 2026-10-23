@@ -28,6 +28,8 @@ export interface BookingItemRequest {
   ticketTypeId: string;
   quantity: number;
   unitPrice: number;
+  /** True for a no-seat (general admission) item; the backend holds its quantity as stock. */
+  generalAdmission?: boolean;
 }
 
 export interface BookingCreateRequest {
