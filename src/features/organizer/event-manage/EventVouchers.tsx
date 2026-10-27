@@ -21,6 +21,7 @@ import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { voucherApi } from "@/services/voucherApi";
 import { eventApi } from "@/services/eventApi";
 import { aiApi } from "@/services/aiApi";
+import { isAdminToken } from "@/utils/adminAccess";
 import type { VoucherItem, VoucherCreateData } from "@/types";
 import ReactMarkdown from 'react-markdown';
 
@@ -67,6 +68,11 @@ export const EventVouchers: React.FC = () => {
 
   const handleAnalyzeStrategy = async () => {
     if (!eventId) return;
+    // the analysis runs through the AI service, which is limited to administrators for now
+    if (!isAdminToken()) {
+      showToast(t("Tính năng đang được nâng cấp"), "info");
+      return;
+    }
     setIsAnalyzing(true);
     setStrategyMessage(null);
     try {

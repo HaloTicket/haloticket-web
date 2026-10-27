@@ -13,6 +13,10 @@ import {
 import { aiApi } from '@/services/aiApi';
 import type { OrganizerChatMessage } from '@/types/ai';
 import OrganizerAIChatMessage from './OrganizerAIChatMessage';
+import { isAdminToken } from '@/utils/adminAccess';
+
+// message ids are only React keys; made outside the component because they are created in event handlers
+const newMessageId = () => crypto.randomUUID();
 
 interface OrganizerAIChatWidgetProps {
   eventId?: string;
@@ -41,7 +45,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
+        return parsed.map((m: Omit<OrganizerChatMessage, 'timestamp'> & { timestamp: string }) => ({ ...m, timestamp: new Date(m.timestamp) }));
       } catch {
         // ignore
       }
@@ -70,7 +74,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     if (!cleanText || isLoading) return;
 
     const userMessage: OrganizerChatMessage = {
-      id: Date.now().toString(),
+      id: newMessageId(),
       sender: 'user',
       text: cleanText,
       timestamp: new Date()
@@ -107,7 +111,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
       setCurrentPipelineStage(null);
 
       const aiMessage: OrganizerChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: newMessageId(),
         sender: 'ai',
         text: response.reply || 'Đã phân tích xong dữ liệu.',
         pipelineSteps: response.pipeline_steps || [],
@@ -124,7 +128,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
       setCurrentPipelineStage(null);
 
       const errorMessage: OrganizerChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: newMessageId(),
         sender: 'ai',
         text: 'Xin lỗi Ban tổ chức, hệ thống AI Data Assistant đang gặp sự cố kết nối tới máy chủ. Vui lòng thử lại sau ít phút.',
         timestamp: new Date()
@@ -141,14 +145,36 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     setInputText('');
   };
 
+  // data assistant reads event data through the AI service, which is limited to administrators for now.
+  if (!isAdminToken()) {
+    return (
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2">
+        {isOpen && (
+          <div role="status" className="max-w-65 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-xl dark:border-gray-700 dark:bg-[#18181b] dark:text-gray-200">
+            {t("Tính năng đang được nâng cấp")}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-12 h-12 rounded-full bg-gray-500 text-white flex items-center justify-center shadow-xl cursor-pointer"
+          aria-label={t("Tính năng đang được nâng cấp")}
+          title={t("Tính năng đang được nâng cấp")}
+        >
+          {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Chat Window */}
       {isOpen && (
-        <div className={`fixed z-[100] bg-white dark:bg-[#18181b] shadow-[0_12px_40px_rgb(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.6)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden origin-bottom-right transition-all duration-300 ease-in-out ${
+        <div className={`fixed z-100 bg-white dark:bg-[#18181b] shadow-[0_12px_40px_rgb(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.6)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden origin-bottom-right transition-all duration-300 ease-in-out ${
           isExpanded 
-            ? 'bottom-0 right-0 w-full md:w-screen h-[100dvh] max-h-none rounded-none' 
-            : 'bottom-5 right-4 sm:right-6 w-[95vw] sm:w-[440px] md:w-[460px] h-[640px] max-h-[85vh] rounded-2xl animate-in fade-in zoom-in-95'
+            ? 'bottom-0 right-0 w-full md:w-screen h-dvh max-h-none rounded-none' 
+            : 'bottom-5 right-4 sm:right-6 w-[95vw] sm:w-110 md:w-115 lg:w-120 h-160 max-h-[85vh] rounded-2xl animate-in fade-in zoom-in-95'
         }`}>
 
           {/* Header */}
@@ -162,7 +188,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
                 HaloTicket Organizer Assistant
               </h3>
               {activeEventId && (
-                <p className="text-[11px] text-white/85 truncate max-w-[260px] mt-0.5">
+                <p className="text-[11px] text-white/85 truncate max-w-65 mt-0.5">
                   {propEventTitle ? propEventTitle : `Event: ${activeEventId}`}
                 </p>
               )}
