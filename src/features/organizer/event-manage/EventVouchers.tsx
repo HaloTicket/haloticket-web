@@ -21,7 +21,6 @@ import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { voucherApi } from "@/services/voucherApi";
 import { eventApi } from "@/services/eventApi";
 import { aiApi } from "@/services/aiApi";
-import { isAdminToken } from "@/utils/adminAccess";
 import type { VoucherItem, VoucherCreateData } from "@/types";
 import ReactMarkdown from 'react-markdown';
 
@@ -68,11 +67,6 @@ export const EventVouchers: React.FC = () => {
 
   const handleAnalyzeStrategy = async () => {
     if (!eventId) return;
-    // the analysis runs through the AI service, which is limited to administrators for now
-    if (!isAdminToken()) {
-      showToast(t("Tính năng đang được nâng cấp"), "info");
-      return;
-    }
     setIsAnalyzing(true);
     setStrategyMessage(null);
     try {
@@ -80,7 +74,9 @@ export const EventVouchers: React.FC = () => {
       setStrategyMessage(res.strategy || t("Hệ thống chưa đủ dữ liệu để phân tích."));
     } catch (err) {
       console.error(err);
-      showToast(t("Có lỗi khi phân tích chiến lược"), "error");
+      // 403: the analysis is not open to this account yet
+      const forbidden = (err as { response?: { status?: number } })?.response?.status === 403;
+      showToast(forbidden ? t("Tính năng đang được nâng cấp") : t("Có lỗi khi phân tích chiến lược"), forbidden ? "info" : "error");
     } finally {
       setIsAnalyzing(false);
     }
@@ -105,7 +101,7 @@ export const EventVouchers: React.FC = () => {
 
       // derive showtimes from event data if available
         if (evData && Array.isArray(evData.showtimes) && evData.showtimes.length > 0) {
-          const options = evData.showtimes.map((st: any, idx: number) => {
+          const options = (evData.showtimes as { id: string; name?: string; startTime: string }[]).map((st, idx) => {
             const displayStr = new Date(st.startTime).toLocaleString("vi-VN", {
               day: "2-digit",
               month: "2-digit",
@@ -129,7 +125,9 @@ export const EventVouchers: React.FC = () => {
   }, [eventId]);
 
   useEffect(() => {
-    void loadVouchersAndShowtimes();
+    // deferred one tick: the loader sets state straight away, and doing that inside the effect body triggers a second render
+    const timer = setTimeout(() => void loadVouchersAndShowtimes(), 0);
+    return () => clearTimeout(timer);
   }, [loadVouchersAndShowtimes]);
 
   const filteredVouchers = vouchers.filter(
@@ -253,7 +251,7 @@ export const EventVouchers: React.FC = () => {
       )}
 
       {/* AI Strategy Assistant Box */}
-      <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-5 shadow-sm">
+      <div className="bg-linear-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <h3 className="text-sm font-black text-blue-700 dark:text-blue-400 flex items-center gap-2">
@@ -356,7 +354,7 @@ export const EventVouchers: React.FC = () => {
             }}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
-            <FiPlus className="w-4 h-4 stroke-[3]" />
+            <FiPlus className="w-4 h-4 stroke-3" />
             <span>{t("Tạo voucher")}</span>
           </button>
         </div>
