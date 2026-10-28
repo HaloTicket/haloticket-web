@@ -2673,5 +2673,8 @@
   "Thực nhận": "Net Payout",
   "Ngày tạo": "Creation Date",
   "Chưa có lịch sử đối soát nào.": "No reconciliation history yet.",
-  "Tính năng đang được nâng cấp": "This feature is being upgraded"
+  "Tính năng đang được nâng cấp": "This feature is being upgraded",
+  "Bạn không có quyền quét vé của sự kiện này": "You do not have permission to scan tickets for this event",
+  "Bạn không có quyền thực hiện thao tác này": "You do not have permission to do this",
+  "Bạn không có quyền xem voucher của sự kiện này": "You do not have permission to view vouchers of this event"
 }

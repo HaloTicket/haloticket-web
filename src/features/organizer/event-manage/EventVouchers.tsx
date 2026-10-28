@@ -18,6 +18,7 @@ import {
 import { CreateVoucherModal } from "./components/CreateVoucherModal";
 import { TablePagination } from "@/components/common/TablePagination";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
+import { isForbiddenError } from "@/utils/httpError";
 import { voucherApi } from "@/services/voucherApi";
 import { eventApi } from "@/services/eventApi";
 import { aiApi } from "@/services/aiApi";
@@ -118,7 +119,7 @@ export const EventVouchers: React.FC = () => {
         }
     } catch (err) {
       console.error("Failed to load vouchers from backend:", err);
-      showToast(t("Không thể tải danh sách voucher từ hệ thống"), "error");
+      showToast(isForbiddenError(err) ? t("Bạn không có quyền xem voucher của sự kiện này") : t("Không thể tải danh sách voucher từ hệ thống"), "error");
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +170,7 @@ export const EventVouchers: React.FC = () => {
           showToast(`${t("Đã")} ${nextStatusText.toLowerCase()} ${t("hoạt động mã voucher thành công!")}`, "success");
         } catch (err) {
           console.error("Failed to toggle status:", err);
-          showToast(t("Thay đổi trạng thái thất bại"), "error");
+          showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Thay đổi trạng thái thất bại"), "error");
         }
       },
     });
@@ -189,7 +190,7 @@ export const EventVouchers: React.FC = () => {
           showToast(t("Đã xóa voucher thành công!"), "success");
         } catch (err) {
           console.error("Failed to delete voucher:", err);
-          showToast(t("Xóa voucher thất bại"), "error");
+          showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Xóa voucher thất bại"), "error");
         }
       },
     });
@@ -213,7 +214,7 @@ export const EventVouchers: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to create voucher:", err);
-      showToast(t("Tạo voucher thất bại. Mã có thể đã tồn tại!"), "error");
+      showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Tạo voucher thất bại. Mã có thể đã tồn tại!"), "error");
     }
   };
 
@@ -227,7 +228,7 @@ export const EventVouchers: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to update voucher:", err);
-      showToast(t("Cập nhật voucher thất bại"), "error");
+      showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Cập nhật voucher thất bại"), "error");
     }
   };
 

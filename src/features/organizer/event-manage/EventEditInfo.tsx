@@ -10,6 +10,7 @@ import Step5PaymentInfo from "@/features/organizer/components/create-event/Step5
 import AddTicketModal from "@/features/organizer/components/create-event/AddTicketModal";
 import SuccessSubmittedModal from "@/features/organizer/components/create-event/SuccessSubmittedModal";
 import { eventApi } from "@/services/eventApi";
+import { isForbiddenError } from "@/utils/httpError";
 import { ticketApi } from "@/services/ticketApi";
 import { mediaApi } from "@/services/mediaApi";
 import { organizerApi } from "@/services/organizerApi";
@@ -728,7 +729,7 @@ export const EventEditInfo: React.FC = () => {
       showToast(t("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin."), "success");
     } catch (err) {
       console.error("Failed to update event details:", err);
-      showToast(t("Cập nhật thông tin thất bại, vui lòng thử lại."), "error");
+      showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Cập nhật thông tin thất bại, vui lòng thử lại."), "error");
     } finally {
       setIsSubmitting(false);
     }

@@ -10,7 +10,10 @@ export const EventManageLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [eventData, setEventData] = useState<Record<string, unknown> | null>(null);
-  const [myRole, setMyRole] = useState<string | null>(null);
+  const [roleState, setRoleState] = useState<{ eventId: string; role: string | null } | null>(null);
+  const current = roleState !== null && roleState.eventId === eventId ? roleState : null;
+  const myRoleLoaded = current !== null;
+  const myRole = current ? current.role : null;
 
   useEffect(() => {
     if (eventId) {
@@ -18,7 +21,7 @@ export const EventManageLayout: React.FC = () => {
         if (data) setEventData(data);
       });
       eventApi.getMyRoleInEvent(eventId).then((role) => {
-        setMyRole(role);
+        setRoleState({ eventId, role });
       });
     }
   }, [eventId]);
@@ -45,7 +48,7 @@ export const EventManageLayout: React.FC = () => {
 
         {/* Dynamic Page Content View */}
         <main className="flex-1 px-4 py-2 md:px-8 md:py-6 overflow-y-auto">
-          <Outlet context={{ myRole, eventData }} />
+          <Outlet context={{ myRole, myRoleLoaded, eventData }} />
         </main>
       </div>
 

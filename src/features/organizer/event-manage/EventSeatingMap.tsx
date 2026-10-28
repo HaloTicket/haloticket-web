@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { ticketApi } from '@/services/ticketApi';
 import { venueApi } from '@/services/venueApi';
 import { eventApi } from '@/services/eventApi';
+import { isForbiddenError } from '@/utils/httpError';
 import {
   FiCamera,
   FiCheck,
@@ -1450,7 +1451,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       showToast('info', t('Đã lưu bản nháp sơ đồ ghế (DRAFT) thành công!'));
     } catch (err) {
       console.error('Error saving seat layout draft:', err);
-      showToast('error', t('Đã xảy ra lỗi khi kết nối tới backend để lưu bản nháp!'));
+      showToast('error', isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t('Đã xảy ra lỗi khi kết nối tới backend để lưu bản nháp!'));
     } finally {
       setIsSaving(false);
     }
@@ -1495,7 +1496,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       showToast('success', t('ĐÃ LƯU CHÍNH THỨC & XUẤT BẢN (PUBLISHED) SƠ ĐỒ GHẾ THÀNH CÔNG!'));
     } catch (err) {
       console.error('Error publishing seat layout:', err);
-      showToast('error', t('Đã xảy ra lỗi khi xuất bản sơ đồ ghế lên CSDL!'));
+      showToast('error', isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t('Đã xảy ra lỗi khi xuất bản sơ đồ ghế lên CSDL!'));
     } finally {
       setIsSaving(false);
     }

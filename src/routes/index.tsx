@@ -51,6 +51,8 @@ import OrganizerTerms from "@/features/organizer/OrganizerTerms";
 // Event Management Portal Feature
 import EventManageLayout from "@/layouts/EventManageLayout";
 import { EventOverview } from "@/features/organizer/event-manage/EventOverview";
+import { EventManageIndexRedirect, EventManageRoleGate } from "@/features/organizer/event-manage/components/EventManageRoleGate";
+import { FULL_ACCESS_ROLES, VIEW_ACCESS_ROLES } from "@/features/organizer/event-manage/eventManageRoles";
 import { EventOrderList } from "@/features/organizer/event-manage/EventOrderList";
 import { EventCheckin } from "@/features/organizer/event-manage/EventCheckin";
 import { EventMembers } from "@/features/organizer/event-manage/EventMembers";
@@ -408,15 +410,23 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="overview" replace />,
+        element: <EventManageIndexRedirect />,
       },
       {
         path: "overview",
-        element: <EventOverview />,
+        element: (
+          <EventManageRoleGate allow={VIEW_ACCESS_ROLES}>
+            <EventOverview />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "orders",
-        element: <EventOrderList />,
+        element: (
+          <EventManageRoleGate allow={VIEW_ACCESS_ROLES}>
+            <EventOrderList />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "checkin",
@@ -424,31 +434,59 @@ export const router = createBrowserRouter([
       },
       {
         path: "members",
-        element: <EventMembers />,
+        element: (
+          <EventManageRoleGate allow={VIEW_ACCESS_ROLES}>
+            <EventMembers />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "vouchers",
-        element: <EventVouchers />,
+        element: (
+          <EventManageRoleGate allow={FULL_ACCESS_ROLES}>
+            <EventVouchers />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "seating",
-        element: <EventSeatingMap />,
+        element: (
+          <EventManageRoleGate allow={FULL_ACCESS_ROLES}>
+            <EventSeatingMap />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "ticket-assign",
-        element: <EventSeatingAssigner />,
+        element: (
+          <EventManageRoleGate allow={FULL_ACCESS_ROLES}>
+            <EventSeatingAssigner />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "edit",
-        element: <EventEditInfo />,
+        element: (
+          <EventManageRoleGate allow={FULL_ACCESS_ROLES}>
+            <EventEditInfo />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "showtimes",
-        element: <EventShowtimes />,
+        element: (
+          <EventManageRoleGate allow={FULL_ACCESS_ROLES}>
+            <EventShowtimes />
+          </EventManageRoleGate>
+        ),
       },
       {
         path: "transfers",
-        element: <EventTransfers />,
+        element: (
+          <EventManageRoleGate allow={VIEW_ACCESS_ROLES}>
+            <EventTransfers />
+          </EventManageRoleGate>
+        ),
       },
     ],
   },

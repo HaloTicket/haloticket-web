@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { ticketApi } from "@/services/ticketApi";
 import { eventApi } from "@/services/eventApi";
+import { isForbiddenError } from "@/utils/httpError";
 import {
   FiTag,
   FiPlus,
@@ -509,7 +510,7 @@ export const EventSeatingAssigner: React.FC = () => {
       showToast("success", t("Đã lưu & đồng bộ gán Hạng vé vào sơ đồ ghế thành công!"));
     } catch (err) {
       console.error(t("Lỗi khi lưu gán hạng vé:"), err);
-      showToast("error", t("Lỗi kết nối CSDL khi lưu gán hạng vé!"));
+      showToast("error", isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Lỗi kết nối CSDL khi lưu gán hạng vé!"));
     } finally {
       setIsSaving(false);
     }
@@ -936,7 +937,7 @@ export const EventSeatingAssigner: React.FC = () => {
           } catch (err) {
             console.error(t("Lỗi đồng bộ hạng vé:"), err);
             setBackendTiers(newTiers);
-            showToast("error", t("Lỗi kết nối CSDL khi đồng bộ hạng vé!"));
+            showToast("error", isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Lỗi kết nối CSDL khi đồng bộ hạng vé!"));
           }
         }}
       />

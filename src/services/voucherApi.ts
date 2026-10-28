@@ -1,5 +1,6 @@
 import axiosClient from "./axiosClient";
 import type { VoucherItem, VoucherCreateData } from "@/types";
+import { isForbiddenError } from "@/utils/httpError";
 
 export const voucherApi = {
   // get all vouchers for an event
@@ -11,6 +12,7 @@ export const voucherApi = {
       }
       return [];
     } catch (err) {
+      if (isForbiddenError(err)) throw err;
       console.warn("Failed to fetch vouchers from backend API:", err);
       return [];
     }

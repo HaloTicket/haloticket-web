@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import { isForbiddenError } from "@/utils/httpError";
 import type {
   TicketTypeApiRequest,
   TicketTypeApiResponse,
@@ -81,6 +82,7 @@ export const ticketApi = {
       return [];
     } catch (err) {
       console.error("Failed to sync ticket types:", err);
+      if (isForbiddenError(err)) throw err;
       return [];
     }
   },
