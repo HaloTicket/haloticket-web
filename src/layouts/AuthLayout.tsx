@@ -12,6 +12,7 @@ function AuthLayoutContent() {
   useTranslation();
   const location = useLocation();
   const isLongForm = location.pathname === PATHS.REGISTER;
+  const isLogin = location.pathname === PATHS.LOGIN;
   const { isDark, toggleTheme } = useTheme();
 
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -34,9 +35,9 @@ function AuthLayoutContent() {
 
   return (
     <div
-      className={`auth-shell ${
+      className={`auth-shell auth-shell--themed ${
         isLongForm ? "auth-shell--long-form" : ""
-      } font-sans antialiased`}
+      } ${isLogin ? "auth-shell--login" : ""} font-sans antialiased`}
     >
       <header className="auth-header">
         <Link
@@ -44,10 +45,13 @@ function AuthLayoutContent() {
           className="auth-brand-link"
           aria-label={translate("Về trang chủ HaloTicket")}
         >
-          <div className="auth-mark" aria-hidden="true">
-            H
-          </div>
-          <span className="auth-brand-name">HaloTicket</span>
+          <img
+            className="auth-brand-logo"
+            src={`/assets/brand/logo-${isDark ? "dark" : "light"}.png`}
+            alt="HaloTicket"
+            width={2172}
+            height={724}
+          />
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-2.5">
