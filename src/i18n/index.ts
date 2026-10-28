@@ -2,6 +2,8 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import publicEnglish from './locales/public.en.json';
 import managementEnglish from './locales/management.en.json';
+import invitationEnglish from './locales/invitation.en.json';
+import invitationVietnamese from './locales/invitation.vi.json';
 
 export type Language = 'vi' | 'en';
 export function getInitialLanguage(): Language {
@@ -9,8 +11,11 @@ export function getInitialLanguage(): Language {
   catch { return 'vi'; }
 }
 
-const english = { ...publicEnglish, ...managementEnglish };
-const vietnamese = Object.fromEntries(Object.keys(english).map(key => [key, key]));
+const english = { ...publicEnglish, ...managementEnglish, ...invitationEnglish };
+const vietnamese = {
+  ...Object.fromEntries(Object.keys(english).map(key => [key, key])),
+  ...invitationVietnamese,
+};
 void i18n.use(initReactI18next).init({
   resources: { vi: { translation: vietnamese }, en: { translation: english } },
   lng: getInitialLanguage(), fallbackLng: 'vi', supportedLngs: ['vi', 'en'],
@@ -23,7 +28,7 @@ function syncLanguage(language: string) {
     document.documentElement.lang = language;
     document.title = i18n.t('HaloTicket - Nền tảng Đặt vé & Sự kiện Hàng đầu');
   }
-  try { localStorage.setItem('app_lang', language); } catch { /* Storage may be disabled. */ }
+  try { localStorage.setItem('app_lang', language); } catch { /* storage may be disabled. */ }
 }
 i18n.on('languageChanged', syncLanguage);
 syncLanguage(i18n.language);

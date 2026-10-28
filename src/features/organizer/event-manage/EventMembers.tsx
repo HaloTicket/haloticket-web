@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useOutletContext, useParams } from "react-router-dom";
 import {
@@ -11,7 +11,11 @@ import {
   FiCheck,
   FiEye,
   FiRepeat,
-  FiX
+  FiX,
+  FiLoader,
+  FiAlertCircle,
+  FiSend,
+  FiXCircle
 } from "react-icons/fi";
 import { AddMemberModal } from "./components/AddMemberModal";
 import { TablePagination } from "@/components/common/TablePagination";
@@ -20,6 +24,18 @@ import { ToastContainer, type ToastMessage } from "@/features/organizer/event-ma
 import type { MemberItem } from "@/types";
 
 import { eventApi } from "@/services/eventApi";
+import { describeInvitationFailure, matchInvitationCode, readApiFailure } from "./memberInvitationErrors";
+
+const avatarOf = (member: MemberItem) => member.avatar || member.avatar_url || member.avatarUrl;
+
+const RESENDABLE_STATUSES = ["PENDING", "EXPIRED", "DECLINED"];
+const STATUS_STYLES: Record<string, string> = {
+  ACTIVE: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
+  PENDING: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20",
+  EXPIRED: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/30",
+  DECLINED: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20",
+  REVOKED: "bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/30",
+};
 
 export const EventMembers: React.FC = () => {
   const { t } = useTranslation();
@@ -36,13 +52,17 @@ export const EventMembers: React.FC = () => {
     title: string;
     message: string;
     type: ConfirmModalType;
+    confirmText?: string;
+    cancelText?: string;
     onConfirm: () => void;
   } | null>(null);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const toastSeq = useRef(0);
   const showToast = (type: "success" | "error" | "warning" | "info", text: string) => {
-    const id = `toast_${Date.now()}_${Math.random()}`;
+    const id = `toast_${++toastSeq.current}`;
     setToasts((prev) => [...prev, { id, type, text }]);
+    setLiveMessage(text);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
@@ -51,19 +71,101 @@ export const EventMembers: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"resend" | "cancel" | null>(null);
+  const inFlight = useRef(false);
+  const [liveMessage, setLiveMessage] = useState("");
+
   const fetchMembers = async () => {
     if (!eventId) return;
+    setLoading(true);
+    setLoadError(false);
     try {
       const data = await eventApi.getEventMembers(eventId);
       setMembers(data);
     } catch (err) {
       console.error(t("Không thể tải danh sách thành viên"), err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // first load: state starts as "loading", so nothing is set before the answer arrives
   useEffect(() => {
-    fetchMembers();
+    if (!eventId) return;
+    let cancelled = false;
+    eventApi.getEventMembers(eventId)
+      .then((data) => { if (!cancelled) { setMembers(data); setLoadError(false); } })
+      .catch((err) => { console.error("Failed to load event members", err); if (!cancelled) setLoadError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [eventId]);
+
+  const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "");
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "ACTIVE": return t("members.invitation.status.active");
+      case "PENDING": return t("members.invitation.status.pending");
+      case "EXPIRED": return t("members.invitation.status.expired");
+      case "DECLINED": return t("members.invitation.status.declined");
+      case "REVOKED": return t("members.invitation.status.revoked");
+      default: return t("members.invitation.status.unknown");
+    }
+  };
+
+  const handleResend = async (m: MemberItem) => {
+    if (!eventId || inFlight.current) return;
+    inFlight.current = true;
+    setBusyId(m.id);
+    setBusyAction("resend");
+    try {
+      const updated = await eventApi.resendEventMemberInvitation(eventId, m.id);
+      setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...updated } : x)));
+      showToast("success", m.status === "DECLINED" ? t("members.invitation.reinvite.done") : t("members.invitation.resend.done"));
+    } catch (err) {
+      const message = describeInvitationFailure(err, "members.invitation.error.resendGeneric");
+      showToast("error", t(message.key, message.params));
+      if (matchInvitationCode(readApiFailure(err)) === "INVITATION_NOT_RESENDABLE") void fetchMembers();
+    } finally {
+      inFlight.current = false;
+      setBusyId(null);
+      setBusyAction(null);
+    }
+  };
+
+  const handleCancelInvitation = (m: MemberItem) => {
+    if (!eventId) return;
+    setConfirmModal({
+      isOpen: true,
+      title: t("members.invitation.cancel.title"),
+      message: t("members.invitation.cancel.message", { email: m.email }),
+      type: "danger",
+      confirmText: t("members.invitation.cancel.confirm"),
+      cancelText: t("members.invitation.cancel.keep"),
+      onConfirm: async () => {
+        if (inFlight.current) return;
+        inFlight.current = true;
+        setBusyId(m.id);
+        setBusyAction("cancel");
+        try {
+          await eventApi.removeEventMember(eventId, m.id);
+          setMembers((prev) => prev.filter((x) => x.id !== m.id));
+          showToast("success", t("members.invitation.cancel.done"));
+        } catch {
+          showToast("error", t("members.invitation.cancel.failed"));
+        } finally {
+          inFlight.current = false;
+          setBusyId(null);
+          setBusyAction(null);
+          setConfirmModal(null);
+        }
+      }
+    });
+  };
 
   const filteredMembers = members.filter((m) => {
     const matchesSearch =
@@ -87,8 +189,8 @@ export const EventMembers: React.FC = () => {
         try {
           await eventApi.removeEventMember(eventId, id);
           showToast("success", t("Xóa thành viên thành công"));
-          setMembers(members.filter((m) => m.id !== id));
-        } catch (err) {
+          setMembers((prev) => prev.filter((m) => m.id !== id));
+        } catch {
           showToast("error", t("Lỗi khi xóa thành viên"));
         }
         setConfirmModal(null);
@@ -110,33 +212,30 @@ export const EventMembers: React.FC = () => {
           setTimeout(() => {
             window.location.href = "/organizer/dashboard/events";
           }, 1500);
-        } catch (err: any) {
-          showToast("error", err?.response?.data?.message || t("Lỗi khi nhượng quyền"));
+        } catch (err) {
+          showToast("error", readApiFailure(err).code || t("Lỗi khi nhượng quyền"));
         }
         setConfirmModal(null);
       }
     });
   };
 
-  const handleAddMemberSave = async (newMember: MemberItem) => {
+  // throw error to AddMemberModal remains and display notification error code
+  const handleAddMemberSave = async (email: string, role: "ADMIN" | "MANAGER" | "CHECKIN_STAFF") => {
     if (!eventId) return;
-    try {
-      const res = await eventApi.inviteEventMember(eventId, newMember.email, newMember.role);
-      showToast("success", t("Đã mời thành viên tham gia!"));
-      setMembers([res, ...members]);
-    } catch (err: any) {
-      showToast("error", err?.response?.data?.message || t("Lỗi khi mời thành viên"));
-    }
+    const res = await eventApi.inviteEventMember(eventId, email, role);
+    setMembers((prev) => [res, ...prev.filter((x) => x.id !== res.id)]);
+    showToast("success", res.status === "PENDING" ? t("members.invitation.add.sent") : t("members.invitation.add.added"));
   };
 
   const handleRoleChange = async (id: string, newRole: string) => {
     if (!eventId) return;
     try {
       await eventApi.changeEventMemberRole(eventId, id, newRole);
-      setMembers(members.map(m => m.id === id ? { ...m, role: newRole as any } : m));
+      setMembers(members.map(m => m.id === id ? { ...m, role: newRole as MemberItem["role"] } : m));
       showToast("success", t("Đã cập nhật vai trò!"));
-    } catch (err: any) {
-      showToast("error", err?.response?.data?.message || t("Lỗi khi đổi vai trò"));
+    } catch (err) {
+      showToast("error", readApiFailure(err).code || t("Lỗi khi đổi vai trò"));
     }
   };
 
@@ -242,8 +341,8 @@ export const EventMembers: React.FC = () => {
 
       {/* Members Table with NO row borders */}
       <div className="app-bg-card border app-border rounded-2xl shadow-sm p-4 space-y-4">
-        <div className="w-full">
-          <table className="w-full text-left border-collapse">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-180 text-left border-collapse">
             <thead>
               <tr className="border-b app-border bg-slate-50/50 dark:bg-slate-900/50 text-[11px] font-bold app-text-muted uppercase tracking-wider">
                 <th className="py-3.5 px-6 rounded-l-xl">{t("Tên thành viên")}</th>
@@ -258,9 +357,9 @@ export const EventMembers: React.FC = () => {
                 <tr key={m.id} className="hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-colors rounded-xl">
                   <td className="py-4 px-6 font-bold rounded-l-xl">
                     <div className="flex items-center gap-3">
-                      {m.avatar || (m as any).avatar_url || (m as any).avatarUrl ? (
+                      {avatarOf(m) ? (
                         <img
-                          src={m.avatar || (m as any).avatar_url || (m as any).avatarUrl}
+                          src={avatarOf(m)}
                           alt={m.name}
                           className="w-9 h-9 rounded-full object-cover border border-blue-500/20"
                           onError={(e) => {
@@ -271,7 +370,7 @@ export const EventMembers: React.FC = () => {
                         />
                       ) : null}
                       <div 
-                        className={`w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs ${m.avatar || (m as any).avatar_url || (m as any).avatarUrl ? 'hidden' : ''}`}
+                        className={`w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs ${avatarOf(m) ? 'hidden' : ''}`}
                       >
                         {m.name.charAt(0).toUpperCase()}
                       </div>
@@ -343,13 +442,16 @@ export const EventMembers: React.FC = () => {
                   <td className="py-4 px-6 text-center">
                     <span
                       className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        m.status === "ACTIVE"
-                          ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                          : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                        STATUS_STYLES[m.status] ?? "bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/30"
                       }`}
                     >
-                      {m.status === "ACTIVE" ? t("Đã kích hoạt") : t("Chờ chấp nhận")}
+                      {getStatusLabel(m.status)}
                     </span>
+                    {m.invitationExpiresAt && (m.status === "PENDING" || m.status === "EXPIRED") && (
+                      <span className="block mt-1 text-[10px] app-text-muted font-normal">
+                        {t(m.status === "EXPIRED" ? "members.invitation.expiredAt" : "members.invitation.expiresAt", { date: formatDateTime(m.invitationExpiresAt) })}
+                      </span>
+                    )}
                   </td>
 
                   {canEdit && (
@@ -374,7 +476,32 @@ export const EventMembers: React.FC = () => {
                         </button>
                       )}
 
-                      {m.role !== "OWNER" && (
+                      {m.role !== "OWNER" && RESENDABLE_STATUSES.includes(m.status) && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busyId !== null}
+                            onClick={() => handleResend(m)}
+                            aria-label={t(m.status === "DECLINED" ? "members.invitation.action.reinviteFor" : "members.invitation.action.resendFor", { email: m.email })}
+                            title={t(m.status === "DECLINED" ? "members.invitation.action.reinvite" : "members.invitation.action.resend")}
+                            className="p-2 app-text-muted hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer inline-flex disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {busyId === m.id && busyAction === "resend" ? <FiLoader className="w-4 h-4 motion-safe:animate-spin" aria-hidden="true" /> : <FiSend className="w-4 h-4" aria-hidden="true" />}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busyId !== null}
+                            onClick={() => handleCancelInvitation(m)}
+                            aria-label={t("members.invitation.action.cancelFor", { email: m.email })}
+                            title={t("members.invitation.action.cancel")}
+                            className="p-2 app-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer inline-flex disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {busyId === m.id && busyAction === "cancel" ? <FiLoader className="w-4 h-4 motion-safe:animate-spin" aria-hidden="true" /> : <FiXCircle className="w-4 h-4" aria-hidden="true" />}
+                          </button>
+                        </>
+                      )}
+
+                      {m.role !== "OWNER" && !RESENDABLE_STATUSES.includes(m.status) && (
                         <button
                           type="button"
                           onClick={() => handleDeleteMember(m.id)}
@@ -392,7 +519,29 @@ export const EventMembers: React.FC = () => {
           </table>
         </div>
 
-        {filteredMembers.length === 0 ? (
+        {loading ? (
+          <div role="status" className="p-12 text-center">
+            <FiLoader className="w-8 h-8 app-text-muted mx-auto mb-2 motion-safe:animate-spin" aria-hidden="true" />
+            <p className="text-xs font-bold app-text-muted">{t("members.invitation.list.loading")}</p>
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="p-12 text-center">
+            <FiAlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" aria-hidden="true" />
+            <p className="text-xs font-bold text-rose-600 dark:text-rose-300">{t("members.invitation.list.loadError")}</p>
+            <button
+              type="button"
+              onClick={() => void fetchMembers()}
+              className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+            >
+              {t("members.invitation.list.retry")}
+            </button>
+          </div>
+        ) : members.length === 0 ? (
+          <div className="p-12 text-center">
+            <FiUsers className="w-10 h-10 app-text-muted mx-auto mb-2 opacity-40" />
+            <p className="text-xs font-bold app-text-muted">{t("members.invitation.list.empty")}</p>
+          </div>
+        ) : filteredMembers.length === 0 ? (
           <div className="p-12 text-center">
             <FiUsers className="w-10 h-10 app-text-muted mx-auto mb-2 opacity-40" />
             <p className="text-xs font-bold app-text-muted">{t("Không tìm thấy thành viên nào")}</p>
@@ -431,9 +580,9 @@ export const EventMembers: React.FC = () => {
             </div>
             <div className="p-6 space-y-4">
               <div className="flex justify-center mb-6">
-                {selectedMember.avatar || (selectedMember as any).avatar_url || (selectedMember as any).avatarUrl ? (
+                {avatarOf(selectedMember) ? (
                   <img
-                    src={selectedMember.avatar || (selectedMember as any).avatar_url || (selectedMember as any).avatarUrl}
+                    src={avatarOf(selectedMember)}
                     alt={selectedMember.name}
                     className="w-24 h-24 rounded-full object-cover border-4 border-blue-500/20"
                     onError={(e) => {
@@ -444,7 +593,7 @@ export const EventMembers: React.FC = () => {
                   />
                 ) : null}
                 <div 
-                  className={`w-24 h-24 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-4xl shadow-md ${selectedMember.avatar || (selectedMember as any).avatar_url || (selectedMember as any).avatarUrl ? 'hidden' : ''}`}
+                  className={`w-24 h-24 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-4xl shadow-md ${avatarOf(selectedMember) ? 'hidden' : ''}`}
                 >
                   {selectedMember.name.charAt(0).toUpperCase()}
                 </div>
@@ -486,10 +635,14 @@ export const EventMembers: React.FC = () => {
           title={confirmModal.title}
           message={confirmModal.message}
           type={confirmModal.type}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
           onConfirm={confirmModal.onConfirm}
           onCancel={() => setConfirmModal(null)}
         />
       )}
+
+      <div className="sr-only" role="status" aria-live="polite">{liveMessage}</div>
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />

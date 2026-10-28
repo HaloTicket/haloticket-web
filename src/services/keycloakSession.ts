@@ -3,6 +3,7 @@ import Keycloak, {
   type KeycloakInitOptions,
   type KeycloakInstance,
 } from "keycloak-js";
+import { clearMemberInvitationToken } from "./memberInvitationToken";
 
 export type KeycloakLike = Pick<
   KeycloakInstance,
@@ -467,6 +468,7 @@ export function createKeycloakSession(
     },
 
     logout: async (redirectUri = `${location.origin}/`) => {
+      clearMemberInvitationToken();
       const idToken = keycloak.idToken ?? storage?.getItem("id_token");
       for (const key of [
         "access_token",

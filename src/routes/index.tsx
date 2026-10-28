@@ -37,6 +37,7 @@ import PaymentCallback from "@/features/tickets/PaymentCallback";
 import TicketDetail from "@/features/tickets/TicketDetail";
 import OrderDetail from "@/features/tickets/OrderDetail";
 import GiftInvitation from "@/features/tickets/GiftInvitation";
+import MemberInvitation from "@/features/organizer/event-manage/MemberInvitation";
 
 // User Feature
 import Profile from "@/features/user/Profile";
@@ -309,6 +310,10 @@ export const router = createBrowserRouter([
       {
         path: PATHS.GIFT_ACCEPT,
         element: <GiftInvitation />,
+      },
+      {
+        path: PATHS.EVENT_INVITATION_ACCEPT,
+        element: <MemberInvitation />,
       },
       {
         path: "/my-tickets/:id",

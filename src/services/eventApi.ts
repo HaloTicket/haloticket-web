@@ -1,5 +1,5 @@
 import axiosClient from "./axiosClient";
-import type { EventApiData } from "@/types";
+import type { EventApiData, MemberItem, MemberInvitationPreview, MemberInvitationAcceptResult } from "@/types";
 export type { EventApiData };
 
 export const eventApi = {
@@ -147,20 +147,39 @@ export const eventApi = {
   },
 
   // member management APIs
-  getEventMembers: async (eventId: string): Promise<any[]> => {
+  getEventMembers: async (eventId: string): Promise<MemberItem[]> => {
     try {
       const response = await axiosClient.get(`/events/${eventId}/members`);
-      return Array.isArray(response) ? response : [];
+      return Array.isArray(response) ? (response as unknown as MemberItem[]) : [];
     } catch (err) {
       console.error("Failed to get event members:", err);
-      return [];
+      throw err;
     }
   },
 
-  inviteEventMember: async (eventId: string, email: string, role: string): Promise<any> => {
+  resendEventMemberInvitation: async (eventId: string, assignmentId: string): Promise<MemberItem> => {
+    const response = await axiosClient.post(`/events/${eventId}/members/${assignmentId}/resend`);
+    return response as unknown as MemberItem;
+  },
+
+  previewMemberInvitation: async (token: string): Promise<MemberInvitationPreview> => {
+    const response = await axiosClient.post("/events/member-invitations/preview", { token });
+    return response as unknown as MemberInvitationPreview;
+  },
+
+  acceptMemberInvitation: async (token: string): Promise<MemberInvitationAcceptResult> => {
+    const response = await axiosClient.post("/events/member-invitations/accept", { token });
+    return response as unknown as MemberInvitationAcceptResult;
+  },
+
+  declineMemberInvitation: async (token: string): Promise<void> => {
+    await axiosClient.post("/events/member-invitations/decline", { token });
+  },
+
+  inviteEventMember: async (eventId: string, email: string, role: string): Promise<MemberItem> => {
     try {
       const response = await axiosClient.post(`/events/${eventId}/members`, { email, role });
-      return response;
+      return response as unknown as MemberItem;
     } catch (err) {
       console.error("Failed to invite event member:", err);
       throw err;

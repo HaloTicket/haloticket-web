@@ -13,6 +13,7 @@ export const PATHS = {
   MY_TICKETS: "/profile?tab=tickets",
   ORDER_DETAIL: (orderCode: string | number) => `/my-tickets/orders/${orderCode}`,
   GIFT_ACCEPT: "/gifts/accept",
+  EVENT_INVITATION_ACCEPT: "/event-invitations/accept",
   RESALE: "/resale-ticket",
   MARKETPLACE: "/resale-ticket",
   TICKET_DETAIL: (id: string | number) => `/my-tickets/${id}`,
