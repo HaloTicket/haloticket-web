@@ -324,6 +324,52 @@ input[type="submit"],
 
 
 
+.header-auth-login {
+  color: var(--text-main);
+}
+
+.header-search-input:hover {
+  background-color: #f1f1f3 !important;
+}
+
+.dark .header-search-input:hover {
+  background-color: #3f3f46 !important;
+}
+
+.header-my-tickets:hover {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+}
+
+.header-search-suggestions {
+  transform-origin: top left;
+  animation: header-search-reveal 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes header-search-reveal {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-search-suggestions { animation: none; }
+}
+
+.header-auth-login:hover {
+  color: var(--color-brand-primary);
+  background: var(--bg-secondary, var(--bg-subnav));
+}
+
+.header-auth-register {
+  color: var(--color-brand-primary);
+}
+
+.header-auth-register:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* Auth surfaces mirror the calm, centered reference while keeping HaloTicket tokens. */
 .auth-shell {
   position: relative;

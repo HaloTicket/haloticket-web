@@ -100,7 +100,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   };
 
   return (
-    <div className="absolute top-full left-0 z-50 mt-2.5 w-[82vw] max-w-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in slide-in-from-top-2 max-h-[75vh] overflow-y-auto no-scrollbar">
+    <div className="header-search-suggestions absolute top-full left-0 z-50 mt-2.5 w-[82vw] max-w-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 max-h-[75vh] overflow-y-auto no-scrollbar">
 
       {/* Saved Search History Items */}
       {history.length > 0 && (
