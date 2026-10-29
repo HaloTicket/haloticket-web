@@ -181,11 +181,13 @@ function AuthHandlers() {
     }
   };
 
-  const login = async ({ email, password }: LoginCredentials) => {
+  const login = async ({ email, password }: LoginCredentials, onSuccess?: () => void) => {
     const result = await authApi.login(email, password);
     localStorage.setItem("access_token", result.accessToken);
     if (result.refreshToken) localStorage.setItem("refresh_token", result.refreshToken);
     if (result.idToken) localStorage.setItem("id_token", result.idToken);
+    onSuccess?.();
+    await new Promise((resolve) => window.setTimeout(resolve, 950));
     await redirectAfterLogin(result.accessToken);
   };
 

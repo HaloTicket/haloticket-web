@@ -40,6 +40,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
   useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [hasPasswordInteracted, setHasPasswordInteracted] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [challenge, setChallenge] = useState<AuthChallenge>();
@@ -231,6 +232,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
           <PasswordField
             autoComplete="new-password"
             id="register-password"
+            onFocus={() => setHasPasswordInteracted(true)}
             label={translate("Mật khẩu")}
             onChange={setPassword}
             placeholder={translate("Nhập mật khẩu")}
@@ -252,7 +254,9 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             value={confirmPassword}
           />
 
-          <PasswordRequirements password={password} />
+          {(hasPasswordInteracted || password.length > 0 || isPasswordValid(password)) && (
+            <PasswordRequirements password={password} showDetails={!isPasswordValid(password)} />
+          )}
 
           {error && (
             <div className="auth-error" role="alert">

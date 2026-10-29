@@ -9,6 +9,8 @@ interface PasswordFieldProps {
   id: string;
   label: string;
   onChange: (value: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   placeholder: string;
   value: string;
   leftIcon?: ReactNode;
@@ -20,6 +22,8 @@ export function PasswordField({
   id,
   label,
   onChange,
+  onFocus,
+  onBlur,
   placeholder,
   value,
   leftIcon = <FiLock aria-hidden="true" />,
@@ -48,6 +52,8 @@ export function PasswordField({
           }`}
           id={id}
           onChange={(event) => onChange(event.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholder={placeholder}
           required
           type={isVisible ? "text" : "password"}

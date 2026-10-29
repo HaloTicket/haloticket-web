@@ -12,6 +12,26 @@ import Register from "@/features/auth/Register";
 afterEach(cleanup);
 
 describe("Google authentication entry points", () => {
+  it("shows password rules only while the registration password has focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Register onGoogleLogin={vi.fn()} onResendOtp={vi.fn()} onSubmit={vi.fn()} onVerifyOtp={vi.fn()} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("region", { name: "Yêu cầu mật khẩu" })).not.toBeInTheDocument();
+    const password = screen.getByLabelText("Mật khẩu", { exact: true });
+    await user.click(password);
+    expect(screen.getByText("Mật khẩu chưa hợp lệ")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Nhập lại mật khẩu", { exact: true }));
+    expect(screen.getByText("Mật khẩu chưa hợp lệ")).toBeInTheDocument();
+    await user.type(password, "ValidPass1!");
+    expect(screen.getByText("Mật khẩu hợp lệ")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Nhập lại mật khẩu", { exact: true }));
+    expect(screen.getByText("Mật khẩu hợp lệ")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Yêu cầu mật khẩu" }).querySelector("ul")).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("starts Google login from the login screen", async () => {
     const user = userEvent.setup();
     const onGoogleLogin = vi.fn().mockResolvedValue(undefined);

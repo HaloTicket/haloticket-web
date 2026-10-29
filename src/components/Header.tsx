@@ -189,14 +189,14 @@ export const Header: React.FC = () => {
         const dynamicCats = cats
           .filter(c => c.active && c.status !== "INACTIVE")
           .map(c => ({ label: c.name, path: `/category/${encodeURIComponent(c.slug?.trim() || c.id)}` }));
-        
+
         setCategories([
           ...dynamicCats,
           { label: "Vé bán lại", path: "/resale-ticket" },
           { label: "Blog", path: "/blog" },
         ]);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const isBookingFlow = location.pathname.includes("select-ticket") || location.pathname.includes("checkout");
@@ -252,14 +252,15 @@ export const Header: React.FC = () => {
                 }
               }}
               placeholder={translate("Bạn tìm gì hôm nay?")}
-              className="w-full app-bg-card app-text-main placeholder-zinc-400 text-sm rounded-xl pl-4 pr-24 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
+              className="header-search-input w-full app-bg-card app-text-main placeholder-zinc-400 text-sm rounded-xl pl-4 pr-12 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-xs"
             />
             <button
               type="submit"
-              className="absolute right-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+              aria-label={translate("Tìm kiếm")}
+              className="absolute right-1.5 grid place-items-center w-9 h-9 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 rounded-lg transition-colors cursor-pointer"
             >
-              <FiSearch className="w-3.5 h-3.5" />
-              <span>{translate("Tìm kiếm")}</span>
+              <FiSearch className="w-5 h-5" aria-hidden="true" />
+
             </button>
           </form>
 
@@ -288,7 +289,7 @@ export const Header: React.FC = () => {
                 navigate(PATHS.LOGIN);
               }
             }}
-            className="group hidden lg:inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold shadow-md transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
+            className="group hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-bold shadow-md transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
           >
             <FiPlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500 shrink-0" />
             <span>{translate("Tạo sự kiện")}</span>
@@ -303,7 +304,7 @@ export const Header: React.FC = () => {
                 setShowLoginModal(true);
               }
             }}
-            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium app-text-main hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer"
+            className="header-my-tickets hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium app-text-main transition-colors whitespace-nowrap cursor-pointer"
           >
             <LuTicket className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>{translate("Vé của tôi")}</span>
@@ -342,8 +343,8 @@ export const Header: React.FC = () => {
               {/* Account Hover Dropdown Menu (Ảnh 1) */}
               <div
                 className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${isAccountOpen
-                    ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
-                    : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
+                  ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
+                  : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
                   }`}
                 role="menu"
               >
@@ -426,11 +427,15 @@ export const Header: React.FC = () => {
               </div>
             </div>
           ) : (
-            <Link
-              to={PATHS.LOGIN}
-              className="hidden sm:flex text-sm font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer app-text-main"
-            >
-              {translate("Đăng nhập")}<span className="app-text-muted font-normal mx-1">|</span> {translate("Đăng ký")}</Link>
+            <div className="hidden sm:flex items-center text-sm font-bold whitespace-nowrap">
+              <Link to={PATHS.LOGIN} className="header-auth-login px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer">
+                {translate("Đăng nhập")}
+              </Link>
+              <span aria-hidden="true" className="app-text-muted font-normal mx-1">|</span>
+              <Link to={PATHS.REGISTER} className="header-auth-register px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer">
+                {translate("Đăng ký")}
+              </Link>
+            </div>
           )}
 
           {/* Language Flag Dropdown (Ảnh 2) */}
@@ -456,8 +461,8 @@ export const Header: React.FC = () => {
             {/* Flag Hover Menu (Ảnh 2) */}
             <div
               className={`absolute right-0 top-full pt-2 w-40 transition-all duration-200 z-50 origin-top-right ${isLangOpen
-                  ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
-                  : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
+                ? "opacity-100 pointer-events-auto translate-y-0 scale-100"
+                : "opacity-0 pointer-events-none -translate-y-1 scale-95 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100"
                 }`}
             >
               <div className="app-bg-card border app-border rounded-2xl p-1.5 shadow-2xl space-y-1 animate-in zoom-in-95">
@@ -468,8 +473,8 @@ export const Header: React.FC = () => {
                     setIsLangOpen(false);
                   }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${lang === "vi"
-                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
-                      : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
+                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                 >
                   <VietnamFlag className="w-5 h-5" />
@@ -483,8 +488,8 @@ export const Header: React.FC = () => {
                     setIsLangOpen(false);
                   }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors w-full text-left cursor-pointer ${lang === "en"
-                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
-                      : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
+                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                 >
                   <UKFlag className="w-5 h-5" />
@@ -531,11 +536,10 @@ export const Header: React.FC = () => {
                 key={cat.path}
                 to={cat.path}
                 aria-current={isActive ? "page" : undefined}
-                className={`relative cursor-pointer py-0.5 flex items-center gap-1.5 transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-4 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:origin-center after:bg-blue-600 after:transition-transform after:duration-200 dark:after:bg-blue-400 motion-reduce:transition-none motion-reduce:transform-none motion-reduce:after:transition-none ${
-                  isActive
-                      ? "font-bold text-blue-600 dark:text-blue-400 after:scale-x-100"
-                      : "app-text-main hover:text-blue-600 dark:hover:text-blue-400 after:scale-x-0 hover:after:scale-x-100 focus-visible:after:scale-x-100"
-                }`}
+                className={`relative cursor-pointer py-0.5 flex items-center gap-1.5 transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-4 after:absolute after:-bottom-2.5 after:left-0 after:h-0.5 after:w-full after:origin-center after:bg-blue-600 after:transition-transform after:duration-200 dark:after:bg-blue-400 motion-reduce:transition-none motion-reduce:transform-none motion-reduce:after:transition-none ${isActive
+                  ? "font-bold text-blue-600 dark:text-blue-400 after:scale-x-100"
+                  : "app-text-main hover:text-blue-600 dark:hover:text-blue-400 after:scale-x-0 hover:after:scale-x-100 focus-visible:after:scale-x-100"
+                  }`}
               >
                 {translate(cat.label)}
               </Link>
@@ -564,13 +568,14 @@ export const Header: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={translate("Bạn tìm gì hôm nay?")}
-                  className="w-full app-bg-subnav app-text-main placeholder-zinc-400 text-xs sm:text-sm rounded-xl pl-4 pr-24 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="header-search-input w-full app-bg-subnav app-text-main placeholder-zinc-400 text-xs sm:text-sm rounded-xl pl-4 pr-12 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                 />
                 <button
                   type="submit"
-                  className="absolute right-1 px-3.5 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer"
+                  aria-label={translate("Tìm kiếm")}
+                  className="absolute right-1 grid place-items-center w-9 h-9 text-blue-600 dark:text-blue-400 hover:text-blue-700 rounded-lg transition-colors cursor-pointer"
                 >
-                  <FiSearch className="w-3.5 h-3.5" />
+                  <FiSearch className="w-5 h-5" aria-hidden="true" />
                   <span>{translate("Tìm kiếm")}</span>
                 </button>
               </form>
@@ -645,13 +650,19 @@ export const Header: React.FC = () => {
                       <LuTicket className="h-4 w-4 text-emerald-600 group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300 shrink-0" />
                       <span>{translate("Vé của tôi")}</span>
                     </button>
-                    <Link
-                      to={PATHS.LOGIN}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-600 text-white shadow-sm"
-                    >
-                      <LuUser className="h-4 w-4" /> {translate("Đăng nhập | Đăng ký")}
-                    </Link>
+                    <div className="flex items-center justify-center gap-1">
+                      <Link
+                        to={PATHS.LOGIN}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="header-auth-login flex-1 text-center text-xs font-bold py-2.5 px-3 rounded-lg transition-colors"
+                      >
+                        {translate("Đăng nhập")}
+                      </Link>
+                      <span aria-hidden="true" className="app-text-muted">|</span>
+                      <Link to={PATHS.REGISTER} onClick={() => setIsMobileMenuOpen(false)} className="header-auth-register flex-1 text-center text-xs font-bold py-2.5 px-3 rounded-lg transition-colors">
+                        {translate("Đăng ký")}
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
@@ -667,8 +678,8 @@ export const Header: React.FC = () => {
                       void setLanguage("vi");
                     }}
                     className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${lang === "vi"
-                        ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
-                        : "app-bg-subnav app-text-main app-border"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
+                      : "app-bg-subnav app-text-main app-border"
                       }`}
                   >
                     <VietnamFlag className="w-4 h-4" />
@@ -680,8 +691,8 @@ export const Header: React.FC = () => {
                       void setLanguage("en");
                     }}
                     className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${lang === "en"
-                        ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
-                        : "app-bg-subnav app-text-main app-border"
+                      ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-400"
+                      : "app-bg-subnav app-text-main app-border"
                       }`}
                   >
                     <UKFlag className="w-4 h-4" />
@@ -702,8 +713,8 @@ export const Header: React.FC = () => {
                       aria-current={(location.pathname === cat.path || location.pathname.startsWith(`${cat.path}/`)) ? "page" : undefined}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none motion-reduce:transform-none ${(location.pathname === cat.path || location.pathname.startsWith(`${cat.path}/`))
-                            ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-blue-200 dark:border-blue-800/50"
-                            : "app-bg-subnav app-text-main hover:bg-slate-200 dark:hover:bg-slate-800 app-border"
+                        ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-blue-200 dark:border-blue-800/50"
+                        : "app-bg-subnav app-text-main hover:bg-slate-200 dark:hover:bg-slate-800 app-border"
                         }`}
                     >
                       <span className="truncate">{translate(cat.label)}</span>

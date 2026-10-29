@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FiMail, FiAlertCircle } from "react-icons/fi";
+import { FiMail, FiAlertCircle, FiCheck, FiLoader } from "react-icons/fi";
 import { GoogleAuthButton, PasswordField } from "@/features/auth/components";
 import { PATHS } from "@/routes/paths";
 import { getAuthErrorMessage, type LocalizedError } from "@/services/authApi";
@@ -13,7 +13,7 @@ export interface LoginCredentials {
 }
 
 interface LoginProps {
-  onSubmit: (credentials: LoginCredentials) => Promise<void>;
+  onSubmit: (credentials: LoginCredentials, onSuccess?: () => void) => Promise<void>;
   onGoogleLogin: () => Promise<void>;
 }
 
@@ -25,14 +25,17 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<LocalizedError>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
+    setIsSuccess(false);
     setIsSubmitting(true);
     try {
-      await onSubmit({ email: email.trim(), password });
+      await onSubmit({ email: email.trim(), password }, () => setIsSuccess(true));
     } catch (submitError) {
+      setIsSuccess(false);
       setError(getAuthErrorMessage(submitError, t("Không thể đăng nhập. Vui lòng thử lại.")));
     } finally {
       setIsSubmitting(false);
@@ -40,7 +43,13 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   }
 
   return (
-    <section className="auth-panel auth-panel--login">
+    <section className={`auth-panel auth-panel--login ${isSuccess ? "auth-login--success" : ""}`}>
+      {isSuccess && <div className="auth-login-success" role="status" aria-live="polite">
+        <div className="auth-login-success-mark"><FiCheck aria-hidden="true" /></div>
+        <h2>{t("Đăng nhập thành công!")}</h2>
+        <p>{t("Chào mừng bạn quay trở lại!")}</p>
+      </div>}
+      <div className={isSuccess ? "auth-login-content--hidden" : undefined}>
       <div className="auth-heading">
         <h1 className="auth-title">{t("Đăng nhập")}</h1>
         <p className="auth-subtitle">{t("Chào mừng bạn quay trở lại!")}</p>
@@ -98,6 +107,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
           disabled={isSubmitting}
           type="submit"
         >
+          {isSubmitting && <FiLoader className="animate-spin mr-2" aria-hidden="true" />}
           {isSubmitting ? translate("Đang đăng nhập...") : translate("Đăng nhập")}
         </button>
 
@@ -124,6 +134,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
             {translate("Đăng ký ngay")}</Link>
         </div>
       </form>
+      </div>
     </section>
   );
 }
