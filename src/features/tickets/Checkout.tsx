@@ -7,7 +7,6 @@ import type { BookingOrderData } from "@/types";
 import type { CustomQuestionItem } from "@/types/organizer";
 import { eventApi } from "@/services/eventApi";
 import { bookingApi } from "@/services/bookingApi";
-import { CONFIG } from "@/config";
 import { paymentApi } from "@/services/paymentApi";
 import { userApi } from "@/services/userApi";
 import { CancelOrderModal } from "@/features/resale/components/CancelOrderModal";
@@ -382,8 +381,8 @@ export default function Checkout() {
 
       setIsSubmitting(true);
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
-      // with stock holds on, a general-admission order has no seats; do not invent one from the zone id
-      const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : (CONFIG.GA_RESERVATION_ENABLED ? [] : (order.zoneId ? [order.zoneId] : []));
+      // a general-admission order has no seats; do not invent one from the zone id
+      const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : [];
 
       // use logged in user ID
       const profile = await userApi.getProfile().catch(() => null);
@@ -404,7 +403,7 @@ export default function Checkout() {
           items: order.items,
         });
 
-        if (CONFIG.GA_RESERVATION_ENABLED && !bookingRes?.id) {
+        if (!bookingRes?.id) {
           throw new Error("BOOKING_CREATE_FAILED");
         }
         bookingId = bookingRes?.id || `booking_${Date.now()}`;
@@ -1212,7 +1211,7 @@ export default function Checkout() {
         }}
         onTimeout={() => {
           // Release seats on timeout
-          if (CONFIG.GA_RESERVATION_ENABLED && activeBookingId) {
+          if (activeBookingId) {
             bookingApi.cancelBooking(activeBookingId).catch(console.error);
           }
           const userId = localStorage.getItem("haloticket_session_id");
@@ -1233,7 +1232,7 @@ export default function Checkout() {
         open={showCancelConfirmModal}
         onCancelOrder={() => {
           // Release seats when cancelled manually
-          if (CONFIG.GA_RESERVATION_ENABLED && activeBookingId) {
+          if (activeBookingId) {
             bookingApi.cancelBooking(activeBookingId).catch(console.error);
           }
           const userId = localStorage.getItem("haloticket_session_id");

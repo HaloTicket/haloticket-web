@@ -4,7 +4,6 @@ import { FiArrowLeft, FiCalendar, FiMapPin, FiX, FiLayers, FiCheckCircle, FiTras
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 import { bookingApi } from "@/services/bookingApi";
-import { CONFIG } from "@/config";
 import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { useTranslation } from "react-i18next";
@@ -927,7 +926,7 @@ export default function SelectTicket() {
 
     const finalSeatIds: string[] = [];
     const seatNamesMap: Record<string, string> = {};
-    // tiers sent as quantities only (no virtual seats) when the backend holds general-admission stock
+    // general-admission tiers are sent as quantities only; the backend holds the stock
     const gaTierIds = new Set<string>();
 
     cart.forEach((c) => {
@@ -953,63 +952,11 @@ export default function SelectTicket() {
           }
         });
       } else {
-        if (CONFIG.GA_RESERVATION_ENABLED) {
-          gaTierIds.add((c.tierId || c.zoneId) as string);
-          return;
-        }
-
-        // standing / general admission / non-seatmap: allocate contiguous sequence numbers
-        const occupiedNums = new Set<number>();
-        const keyPrefix1 = `${c.zoneId}-STT-`;
-        const keyPrefix2 = c.tierId ? `${c.tierId}-STT-` : "";
-
-        Object.keys(seatStatusMap).forEach((k) => {
-          if (k.startsWith(keyPrefix1) || (keyPrefix2 && k.startsWith(keyPrefix2))) {
-            const val = seatStatusMap[k];
-            if (val === "SOLD" || val === "sold" || val === "HELD" || val === "HOLDING" || val === "reserved") {
-              const parts = k.split("-STT-");
-              if (parts[1]) {
-                const num = parseInt(parts[1], 10);
-                if (!isNaN(num)) occupiedNums.add(num);
-              }
-            }
-          }
-        });
-
-        // add already sold count from tier definition
-        const tierObj = ticketTypes.find((t) => t.id === c.tierId || t.name === c.tierName);
-        const soldFromTier = tierObj?.soldQuantity ?? 0;
-        for (let s = 1; s <= soldFromTier; s++) {
-          occupiedNums.add(s);
-        }
-
-        // find the lowest available contiguous block of c.quantity numbers
-        let startNum = 1;
-        while (true) {
-          let contiguousBlockAvailable = true;
-          for (let offset = 0; offset < c.quantity; offset++) {
-            if (occupiedNums.has(startNum + offset)) {
-              contiguousBlockAvailable = false;
-              startNum = startNum + offset + 1;
-              break;
-            }
-          }
-          if (contiguousBlockAvailable) {
-            break;
-          }
-        }
-
-        for (let i = 0; i < c.quantity; i++) {
-          const num = startNum + i;
-          const seatId = `${c.zoneId || c.tierId}-STT-${num}`;
-          finalSeatIds.push(seatId);
-          seatNamesMap[seatId] = `${t("STT")}: #${String(num).padStart(2, "0")} (${c.zoneName || c.tierName})`;
-          occupiedNums.add(num);
-        }
+        gaTierIds.add((c.tierId || c.zoneId) as string);
       }
     });
 
-    // realtime holding: lock all allocated seats and contiguous STT tickets via bookingApi.holdSeat
+    // realtime holding: lock all selected seats via bookingApi.holdSeat
     if (finalSeatIds.length > 0) {
       setIsHoldingSeats(true);
       try {
@@ -1049,11 +996,7 @@ export default function SelectTicket() {
             .join(", ");
           return `${c.zoneName} (${seatLabels})`;
         }
-        const sttLabels = finalSeatIds
-          .filter((sid) => sid.startsWith(`${c.zoneId || c.tierId}-STT-`))
-          .map((sid) => seatNamesMap[sid])
-          .join(", ");
-        return `${c.quantity}x ${c.zoneName || c.tierName}${sttLabels ? ` [${sttLabels}]` : ""}`;
+        return `${c.quantity}x ${c.zoneName || c.tierName}`;
       })
       .join("; ");
     const expiresAt = Date.now() + 15 * 60 * 1000;

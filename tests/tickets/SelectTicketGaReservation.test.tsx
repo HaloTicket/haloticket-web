@@ -9,7 +9,7 @@ import { bookingApi } from "@/services/bookingApi";
 import { eventApi } from "@/services/eventApi";
 import { ticketApi } from "@/services/ticketApi";
 
-const { config } = vi.hoisted(() => ({ config: { API_BASE_URL: "http://test/api", TIMEOUT: 1000, GA_RESERVATION_ENABLED: false } }));
+const { config } = vi.hoisted(() => ({ config: { API_BASE_URL: "http://test/api", TIMEOUT: 1000 } }));
 vi.mock("@/config", () => ({ CONFIG: config }));
 vi.mock("@/services/eventApi");
 vi.mock("@/services/ticketApi");
@@ -48,7 +48,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-  config.GA_RESERVATION_ENABLED = false;
 });
 
 function renderPage() {
@@ -71,9 +70,8 @@ function pendingOrder() {
 }
 
 describe("SelectTicket general-admission order", () => {
-  it("with stock holds on: sends quantities only, no virtual seats, no seat holds", async () => {
-    config.GA_RESERVATION_ENABLED = true;
-    renderPage();
+  it("sends quantities only, no virtual seats, no seat holds", async () => {
+      renderPage();
     await pickTwoTickets();
 
     await waitFor(() => expect(localStorage.getItem("haloticket_pending_order")).not.toBeNull());
@@ -84,27 +82,12 @@ describe("SelectTicket general-admission order", () => {
     expect(bookingApi.holdSeat).not.toHaveBeenCalled();
   });
 
-  it("with stock holds on: shows the real remaining count and refuses to go past it", async () => {
-    config.GA_RESERVATION_ENABLED = true;
-    renderPage();
+  it("shows the real remaining count and refuses to go past it", async () => {
+      renderPage();
 
     expect(await screen.findByText(/Còn mua được: 3 vé/)).toBeInTheDocument();
     const plus = screen.getByRole("button", { name: "+" });
     for (let i = 0; i < 4; i++) fireEvent.click(plus); // 1, 2, 3, then refused
     expect(await screen.findByText(/chỉ còn 3 vé/)).toBeInTheDocument();
-  });
-
-  it("with stock holds off: behaves as before (virtual -STT- seats held one by one)", async () => {
-    renderPage();
-    await pickTwoTickets();
-
-    await waitFor(() => expect(localStorage.getItem("haloticket_pending_order")).not.toBeNull());
-    const order = pendingOrder();
-    expect(order.seatIds).toHaveLength(2);
-    expect(order.seatIds.every((id: string) => id.startsWith(`${GA_TIER}-STT-`))).toBe(true);
-    expect(order.items[0]).not.toHaveProperty("generalAdmission");
-    expect(bookingApi.holdSeat).toHaveBeenCalledTimes(2);
-    // the buyable count is shown whatever the flag says; it is the server's availableQuantity
-    expect(await screen.findByText(/Còn mua được: 3 vé/)).toBeInTheDocument();
   });
 });
