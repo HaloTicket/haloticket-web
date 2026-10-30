@@ -28,6 +28,7 @@ import type { SeatLayoutApiResponse } from "@/types";
 import { EventApprovalActions } from "./EventApprovalActions";
 import { approvalListUrl, displayApprovalStatus, normalizeApprovalEvents } from "@/utils/approvalModel";
 import type { ApprovalEventRecord } from "@/utils/approvalModel";
+import { isTicketInStock } from "@/utils/ticketQuantities";
 
 function displayDate(value?: string): string | undefined {
   if (!value) return undefined;
@@ -515,9 +516,7 @@ export function EventApprovalDetail() {
                   let hasAvailableTickets = false;
                   if (displayTickets.length > 0) {
                       displayTickets.forEach(t => {
-                        const total = typeof t.totalQuantity === "number" ? t.totalQuantity : (typeof t.quantity === "number" ? t.quantity : Infinity);
-                        const sold = typeof t.soldQuantity === "number" ? t.soldQuantity : 0;
-                        if (total - sold > 0) hasAvailableTickets = true;
+                        if (isTicketInStock(t)) hasAvailableTickets = true;
                       });
                   } else {
                       hasAvailableTickets = true;

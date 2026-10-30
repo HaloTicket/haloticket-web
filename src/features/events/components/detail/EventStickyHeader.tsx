@@ -3,6 +3,7 @@ import React from "react";
 import { FiMapPin } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { EventDetailData } from "@/types";
+import { isTicketInStock } from "@/utils/ticketQuantities";
 
 interface EventStickyHeaderProps {
   event: EventDetailData;
@@ -63,9 +64,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
         if (Array.isArray(st.tickets)) {
           hasTicketInventory ||= st.tickets.length > 0;
           st.tickets.forEach((t: any) => {
-            const q = t.totalQuantity ?? t.quantity ?? 100;
-            const s = t.soldQuantity ?? 0;
-            if (t.available !== false && q - s > 0) {
+            if (isTicketInStock(t)) {
               hasAnyTicketsAvailable = true;
             }
           });
@@ -88,9 +87,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
       if (Array.isArray(rawTickets) && rawTickets.length > 0) {
         hasTicketInventory = true;
         rawTickets.forEach((t: any) => {
-          const q = t.totalQuantity ?? t.quantity ?? 100;
-          const s = t.soldQuantity ?? 0;
-          if (t.available !== false && q - s > 0) {
+          if (isTicketInStock(t)) {
             hasAnyTicketsAvailable = true;
           }
         });

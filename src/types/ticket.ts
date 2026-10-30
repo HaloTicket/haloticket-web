@@ -17,6 +17,11 @@ export interface TicketTypeApiResponse {
   price: number;
   isFree: boolean;
   totalQuantity: number;
+  initialQuantity?: number;
+  remainingQuantity?: number;
+  heldQuantity?: number;
+  soldQuantity?: number | null;
+  availableQuantity?: number;
   minPerOrder: number;
   maxPerOrder: number;
   description?: string;

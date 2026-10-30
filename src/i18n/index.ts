@@ -4,6 +4,8 @@ import publicEnglish from './locales/public.en.json';
 import managementEnglish from './locales/management.en.json';
 import invitationEnglish from './locales/invitation.en.json';
 import invitationVietnamese from './locales/invitation.vi.json';
+import ticketsEnglish from './locales/tickets.en.json';
+import ticketsVietnamese from './locales/tickets.vi.json';
 
 export type Language = 'vi' | 'en';
 export function getInitialLanguage(): Language {
@@ -11,10 +13,11 @@ export function getInitialLanguage(): Language {
   catch { return 'vi'; }
 }
 
-const english = { ...publicEnglish, ...managementEnglish, ...invitationEnglish };
+const english = { ...publicEnglish, ...managementEnglish, ...invitationEnglish, ...ticketsEnglish };
 const vietnamese = {
   ...Object.fromEntries(Object.keys(english).map(key => [key, key])),
   ...invitationVietnamese,
+  ...ticketsVietnamese,
 };
 void i18n.use(initReactI18next).init({
   resources: { vi: { translation: vietnamese }, en: { translation: english } },

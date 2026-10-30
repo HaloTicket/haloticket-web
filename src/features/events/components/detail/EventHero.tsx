@@ -6,6 +6,7 @@ import { FaTicketAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import type { EventDetailData } from "@/types";
 import { formatCurrency, parseVndAmount } from "@/utils/formatters";
+import { isTicketInStock } from "@/utils/ticketQuantities";
 
 interface EventHeroProps {
   event: EventDetailData;
@@ -115,9 +116,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
         if (Array.isArray(st.tickets)) {
           hasTicketInventory ||= st.tickets.length > 0;
           st.tickets.forEach((t: any) => {
-            const q = t.totalQuantity ?? t.quantity ?? 100;
-            const s = t.soldQuantity ?? 0;
-            if (t.available !== false && q - s > 0) {
+            if (isTicketInStock(t)) {
               hasAnyTicketsAvailable = true;
             }
           });
@@ -138,9 +137,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
       if (Array.isArray(rawTickets) && rawTickets.length > 0) {
         hasTicketInventory = true;
         rawTickets.forEach((t: any) => {
-          const q = t.totalQuantity ?? t.quantity ?? 100;
-          const s = t.soldQuantity ?? 0;
-          if (t.available !== false && q - s > 0) {
+          if (isTicketInStock(t)) {
             hasAnyTicketsAvailable = true;
           }
         });

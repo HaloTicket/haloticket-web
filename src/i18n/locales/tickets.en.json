@@ -1,0 +1,10 @@
+{
+  "tickets.quantity.initial": "Issued",
+  "tickets.quantity.sold": "Sold",
+  "tickets.quantity.held": "On hold",
+  "tickets.quantity.remaining": "Remaining",
+  "tickets.quantity.unknown": "Unknown",
+  "tickets.quantity.heldHint": "Tickets held for orders that are not paid yet",
+  "tickets.quantity.buyable": "Available to buy: {{count}}",
+  "tickets.error.quantityOutOfRange": "The quantity is outside the limits of this ticket type. Please choose the quantity again."
+}

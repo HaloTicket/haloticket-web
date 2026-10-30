@@ -9,6 +9,7 @@ import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/utils/formatters";
+import { getBuyableQuantity, getInitialQuantity, getSoldQuantity } from "@/utils/ticketQuantities";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { PATHS } from "@/routes/paths";
 import { Client } from "@stomp/stompjs";
@@ -314,7 +315,9 @@ export default function SelectTicket() {
               price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
               color: tt.color || colors[idx % colors.length],
               isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
-              totalQuantity: (CONFIG.GA_RESERVATION_ENABLED ? tt.availableQuantity : undefined) ?? tt.totalQuantity ?? tt.quantity ?? 100,
+              totalQuantity: getBuyableQuantity(tt),
+              initialQuantity: getInitialQuantity(tt),
+              soldQuantity: getSoldQuantity(tt),
               minPerOrder: tt.minPerOrder ?? 1,
               maxPerOrder: tt.maxPerOrder ?? 5,
               description: tt.description || "",
@@ -372,7 +375,9 @@ export default function SelectTicket() {
             price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
             color: tt.color || colors[idx % colors.length],
             isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
-            totalQuantity: (CONFIG.GA_RESERVATION_ENABLED ? tt.availableQuantity : undefined) ?? tt.totalQuantity ?? tt.quantity ?? 100,
+            totalQuantity: getBuyableQuantity(tt),
+            initialQuantity: getInitialQuantity(tt),
+            soldQuantity: getSoldQuantity(tt),
             minPerOrder: tt.minPerOrder ?? 1,
             maxPerOrder: tt.maxPerOrder ?? 5,
             description: tt.description || "",
@@ -459,7 +464,7 @@ export default function SelectTicket() {
     const existing = cart.find(c => c.zoneId === tier.id || c.tierId === tier.id);
     const maxQty = tier.maxPerOrder ?? 5;
     const minQty = tier.minPerOrder ?? 1;
-    const totalAvail = tier.totalQuantity !== undefined ? tier.totalQuantity : 100;
+    const totalAvail = tier.totalQuantity ?? Infinity; // unknown stock does not block here, the server decides
 
     if (totalAvail <= 0) {
       setErrorMessage(t(`Hạng vé "${tier.name}" hiện đã hết vé.`));
@@ -562,7 +567,7 @@ export default function SelectTicket() {
           color,
           tierId: tier?.id || z.tierId,
           tierName: tier?.name || z.name,
-          capacity: z.capacity || seatMap?.seats?.filter((s) => s.zoneId === z.id).length || 100,
+          capacity: z.capacity || seatMap?.seats?.filter((s) => s.zoneId === z.id).length || undefined,
         };
       });
     }
@@ -575,7 +580,7 @@ export default function SelectTicket() {
         color: t.color || "#10b981",
         tierId: t.id,
         tierName: t.name,
-        capacity: t.totalQuantity || 100,
+        capacity: t.totalQuantity,
       }));
     }
 
@@ -619,7 +624,7 @@ export default function SelectTicket() {
         return;
       }
     } else {
-      const totalCapacity = zone.capacity || 100;
+      const totalCapacity = zone.capacity ?? Infinity;
       const soldOrHeld = Object.entries(seatStatusMap).filter(
         ([k, v]) => (k === zone.id || k.startsWith(zone.id + "_") || k.includes(zone.id)) && (v === "SOLD" || v === "HELD" || v === "HOLDING")
       ).length;
@@ -973,10 +978,7 @@ export default function SelectTicket() {
 
         // add already sold count from tier definition
         const tierObj = ticketTypes.find((t) => t.id === c.tierId || t.name === c.tierName);
-        const soldFromTier = Math.max(
-          0,
-          ((tierObj as any)?.initialQuantity || tierObj?.totalQuantity || 0) - (tierObj?.totalQuantity || 0)
-        );
+        const soldFromTier = tierObj?.soldQuantity ?? 0;
         for (let s = 1; s <= soldFromTier; s++) {
           occupiedNums.add(s);
         }
@@ -1372,9 +1374,11 @@ export default function SelectTicket() {
                               </span>
                             )}
                           </span>
-                          <span className="text-[10px] app-text-sub block font-mono">
-                            {item.capacity} chỗ mở bán
-                          </span>
+                          {item.capacity != null && (
+                            <span className="text-[10px] app-text-sub block font-mono">
+                              {item.capacity} chỗ mở bán
+                            </span>
+                          )}
                         </div>
                       </div>
                       <span className="text-xs font-black text-blue-600 dark:text-blue-400 font-mono shrink-0">
@@ -1553,7 +1557,7 @@ export default function SelectTicket() {
                                   {tier.totalQuantity !== undefined && (
                                     <>
                                       <span>•</span>
-                                      <span>{CONFIG.GA_RESERVATION_ENABLED ? `${t("Số vé còn lại")}: ${tier.totalQuantity}` : `${t("Sức chứa")}: ${tier.totalQuantity} ${t("chỗ")}`}</span>
+                                      <span>{t("tickets.quantity.buyable", { count: tier.totalQuantity })}</span>
                                     </>
                                   )}
                                 </div>

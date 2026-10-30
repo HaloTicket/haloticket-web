@@ -563,6 +563,12 @@ export default function Checkout() {
         navigate(`/events/${activeEventId}/select-ticket`);
         return;
       }
+      if (serverMessage === "QUANTITY_OUT_OF_RANGE") {
+        showToast("error", t("tickets.error.quantityOutOfRange"));
+        localStorage.removeItem("haloticket_pending_order");
+        navigate(`/events/${activeEventId}/select-ticket`);
+        return;
+      }
       const errorMsg = serverMessage === "TICKET_STOCK_UNAVAILABLE" || serverMessage === "TICKET_RESERVATION_REFUSED"
         ? t("Hệ thống đang giữ vé, vui lòng thử lại sau giây lát.")
         : serverMessage === "BOOKING_CREATE_FAILED"

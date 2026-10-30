@@ -11,6 +11,7 @@ import {
   FiClock,
 } from "react-icons/fi";
 import type { EventDetailData, Showtime, TicketTier } from "@/types";
+import { isTicketInStock } from "@/utils/ticketQuantities";
 
 interface EventScheduleProps {
   event: EventDetailData;
@@ -57,7 +58,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
           name: t.name || translate("Vé Thường"),
           price: typeof t.price === "number" ? `${t.price.toLocaleString("vi-VN")} đ` : String(t.price || "0 đ"),
           priceValue: typeof t.price === "number" ? t.price : (parseFloat(String(t.price).replace(/[^0-9]/g, "")) || 1000000),
-          available: t.totalQuantity ? t.totalQuantity > 0 : t.available !== false,
+          available: isTicketInStock(t),
         }))
       : [
           { id: `t_vip`, name: "VIP", price: "2.000.000 đ", priceValue: 2000000, available: true },

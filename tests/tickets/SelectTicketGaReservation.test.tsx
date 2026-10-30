@@ -88,7 +88,7 @@ describe("SelectTicket general-admission order", () => {
     config.GA_RESERVATION_ENABLED = true;
     renderPage();
 
-    expect(await screen.findByText(/Số vé còn lại: 3/)).toBeInTheDocument();
+    expect(await screen.findByText(/Còn mua được: 3 vé/)).toBeInTheDocument();
     const plus = screen.getByRole("button", { name: "+" });
     for (let i = 0; i < 4; i++) fireEvent.click(plus); // 1, 2, 3, then refused
     expect(await screen.findByText(/chỉ còn 3 vé/)).toBeInTheDocument();
@@ -104,6 +104,7 @@ describe("SelectTicket general-admission order", () => {
     expect(order.seatIds.every((id: string) => id.startsWith(`${GA_TIER}-STT-`))).toBe(true);
     expect(order.items[0]).not.toHaveProperty("generalAdmission");
     expect(bookingApi.holdSeat).toHaveBeenCalledTimes(2);
-    expect(await screen.queryByText(/Số vé còn lại/)).not.toBeInTheDocument();
+    // the buyable count is shown whatever the flag says; it is the server's availableQuantity
+    expect(await screen.findByText(/Còn mua được: 3 vé/)).toBeInTheDocument();
   });
 });

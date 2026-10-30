@@ -4,9 +4,11 @@ import { useParams } from "react-router-dom";
 import { eventApi } from "@/services/eventApi";
 import { FiClock, FiCalendar, FiActivity, FiTag, FiPauseCircle, FiPlayCircle } from "react-icons/fi";
 import { formatDatetimeLocal } from "@/utils/formatters";
+import { formatQuantity, getHeldQuantity, getInitialQuantity, getRemainingQuantity, getSoldQuantity } from "@/utils/ticketQuantities";
 
 export const EventShowtimes: React.FC = () => {
   const { t } = useTranslation();
+  const unknownLabel = t("tickets.quantity.unknown");
   const { eventId } = useParams<{ eventId: string }>();
   
   const [eventData, setEventData] = useState<any>(null);
@@ -105,15 +107,11 @@ export const EventShowtimes: React.FC = () => {
             : (Array.isArray(eventData.tickets) ? eventData.tickets.filter((t: any) => !t.showtimeId) : []);
             
           let hasAvailableTickets = false;
-          let totalInitial = 0;
-          let totalRemaining = 0;
           
           stTickets.forEach((t: any) => {
-             const remaining = t.totalQuantity || 0;
-             const initial = t.initialQuantity || t.totalQuantity || 0;
-             totalInitial += initial;
-             totalRemaining += remaining;
-             if (remaining > 0) hasAvailableTickets = true;
+             // an unknown number (old backend) is not counted as sold out
+             const remaining = getRemainingQuantity(t);
+             if (remaining === undefined || remaining > 0) hasAvailableTickets = true;
           });
           
           const now = new Date();
@@ -199,17 +197,19 @@ export const EventShowtimes: React.FC = () => {
                         <tr className="border-b app-border text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800/50">
                           <th className="px-4 py-3 font-extrabold rounded-tl-xl">{t("Tên hạng vé")}</th>
                           <th className="px-4 py-3 font-extrabold">{t("Giá vé")}</th>
-                          <th className="px-4 py-3 font-extrabold text-right">{t("Tổng vé phát hành")}</th>
-                          <th className="px-4 py-3 font-extrabold text-right">{t("Đã bán")}</th>
-                          <th className="px-4 py-3 font-extrabold text-right rounded-tr-xl">{t("Còn lại")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right">{t("tickets.quantity.initial")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right">{t("tickets.quantity.sold")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right" title={t("tickets.quantity.heldHint")}>{t("tickets.quantity.held")}</th>
+                          <th className="px-4 py-3 font-extrabold text-right rounded-tr-xl">{t("tickets.quantity.remaining")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y app-divide">
                         {stTickets.map((t: any) => {
-                          const initial = t.initialQuantity || t.totalQuantity || 0;
-                          const remaining = t.totalQuantity || 0;
-                          const sold = initial - remaining;
-                          const isSoldOut = remaining <= 0;
+                          const initial = getInitialQuantity(t);
+                          const remaining = getRemainingQuantity(t);
+                          const sold = getSoldQuantity(t);
+                          const held = getHeldQuantity(t);
+                          const isSoldOut = remaining !== undefined && remaining <= 0;
                           
                           return (
                             <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors border-b app-border">
@@ -225,13 +225,16 @@ export const EventShowtimes: React.FC = () => {
                                 {t.isFree ? t("Miễn phí") : `${t.price?.toLocaleString("vi-VN")} đ`}
                               </td>
                               <td className="px-4 py-3 text-right font-medium app-text-muted">
-                                {initial}
+                                {formatQuantity(initial, unknownLabel)}
                               </td>
                               <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                                {sold}
+                                {formatQuantity(sold, unknownLabel)}
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium app-text-muted">
+                                {formatQuantity(held, unknownLabel)}
                               </td>
                               <td className={`px-4 py-3 text-right font-black ${isSoldOut ? 'text-rose-500' : 'text-blue-600 dark:text-blue-400'}`}>
-                                {remaining}
+                                {formatQuantity(remaining, unknownLabel)}
                               </td>
                             </tr>
                           );

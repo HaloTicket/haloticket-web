@@ -1,0 +1,10 @@
+{
+  "tickets.quantity.initial": "Phát hành",
+  "tickets.quantity.sold": "Đã bán",
+  "tickets.quantity.held": "Đang giữ",
+  "tickets.quantity.remaining": "Còn lại",
+  "tickets.quantity.unknown": "Không rõ",
+  "tickets.quantity.heldHint": "Số vé đang được giữ cho các đơn chưa thanh toán",
+  "tickets.quantity.buyable": "Còn mua được: {{count}} vé",
+  "tickets.error.quantityOutOfRange": "Số lượng vé không nằm trong giới hạn của hạng vé này. Vui lòng chọn lại số lượng."
+}
