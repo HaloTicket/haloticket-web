@@ -1349,10 +1349,30 @@ input[type="submit"],
   --border-color: #dce7fb;
   --color-brand-primary: #064bff;
   --color-brand-hover: #003fe0;
+  /* background drawn by AuthBackground (SVG + CSS, no image file) */
+  --auth-base: #f1f7ff;
+  --auth-page-glow: radial-gradient(ellipse 90% 60% at 50% 0%, #ffffff 0%, rgba(255, 255, 255, 0) 70%);
+  --auth-glow-top: #ffffff;
+  --auth-glow-corner: #8cc4ff;
+  --auth-glow-left: #d9c8ff;
+  --auth-glow-opacity: 0.9;
+  --auth-a1: #a9d4ff;
+  --auth-a2: #4f9cff;
+  --auth-b1: #f0dcff;
+  --auth-b2: #b9b4f7;
+  --auth-c1: #8fe0ff;
+  --auth-c2: #3d86ff;
+  --auth-line: #ffffff;
+  --auth-blend: normal;
+  --auth-spot: rgba(96, 165, 250, 0.3);
+  --auth-spot-blend: normal;
+  --auth-wave-opacity: 0.85;
+  --auth-stars-opacity: 0;
+  --auth-bokeh-opacity: 0.7;
   height: auto;
   min-height: 100dvh;
   overflow: visible;
-  background: #f1f7ff url('/assets/auth/login-light.png') center bottom / cover no-repeat;
+  background: var(--auth-page-glow), var(--auth-base);
 }
 
 .dark .auth-shell--themed {
@@ -1364,12 +1384,111 @@ input[type="submit"],
   --border-color: #143867;
   --color-brand-primary: #00c8ff;
   --color-brand-hover: #00a9ef;
-  background-color: #020c2b;
-  background-image: url('/assets/auth/login-dark.png');
+  --auth-base: #020c2b;
+  --auth-page-glow: radial-gradient(ellipse 80% 55% at 50% -8%, #0b2a9c 0%, rgba(2, 12, 43, 0) 70%);
+  --auth-glow-top: #1238d6;
+  --auth-glow-corner: #0a74ff;
+  --auth-glow-left: #5b21b6;
+  --auth-glow-opacity: 0.55;
+  --auth-a1: #0a28b5;
+  --auth-a2: #1f78ff;
+  --auth-b1: #6d28d9;
+  --auth-b2: #b794ff;
+  --auth-c1: #00c8ff;
+  --auth-c2: #2563eb;
+  --auth-line: #9bd7ff;
+  --auth-blend: screen;
+  --auth-spot: rgba(34, 150, 255, 0.4);
+  --auth-spot-blend: screen;
+  --auth-wave-opacity: 1;
+  --auth-stars-opacity: 1;
+  --auth-bokeh-opacity: 0;
 }
 
 .auth-shell--themed::before {
   content: none;
+}
+
+/* Auth background: fixed layers behind the form (AuthBackground.tsx); a long register form scrolls over them. */
+.auth-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* the layers are a little larger than the screen so the pointer parallax never shows an edge */
+.auth-bg-layer {
+  position: absolute;
+  inset: -48px;
+  will-change: transform;
+}
+
+.auth-bg-layer svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.auth-bg-glows {
+  position: absolute;
+  inset: 0;
+  opacity: var(--auth-glow-opacity);
+  background:
+    radial-gradient(ellipse 62% 46% at 50% -8%, var(--auth-glow-top), transparent 72%),
+    radial-gradient(ellipse 38% 30% at 90% 80%, color-mix(in srgb, var(--auth-glow-corner) 55%, transparent), transparent 72%),
+    radial-gradient(ellipse 36% 30% at 6% 100%, var(--auth-glow-left), transparent 72%);
+}
+
+.auth-stop-a1 { stop-color: var(--auth-a1); }
+.auth-stop-a2 { stop-color: var(--auth-a2); }
+.auth-stop-b1 { stop-color: var(--auth-b1); }
+.auth-stop-b2 { stop-color: var(--auth-b2); }
+.auth-stop-c1 { stop-color: var(--auth-c1); }
+.auth-stop-c2 { stop-color: var(--auth-c2); }
+.auth-stop-line { stop-color: var(--auth-line); }
+
+.auth-ribbon-line { opacity: 0.85; }
+.auth-bg-waves { mix-blend-mode: var(--auth-blend); opacity: var(--auth-wave-opacity); }
+
+.auth-bg-bokeh { opacity: var(--auth-bokeh-opacity); }
+.auth-bg-stars { opacity: var(--auth-stars-opacity); }
+.auth-star { fill: #ffffff; opacity: 0.85; }
+.auth-star--sparkle { fill: #cfe8ff; }
+
+/* the stars, bigger and glowing, appear only under the pointer */
+.auth-bg-layer .auth-bg-stars-bright {
+  position: absolute;
+  inset: 0;
+  opacity: var(--auth-stars-opacity);
+  -webkit-mask-image: radial-gradient(circle 240px at var(--mx, -999px) var(--my, -999px), #000 0%, rgba(0, 0, 0, 0.5) 55%, transparent 100%);
+  mask-image: radial-gradient(circle 240px at var(--mx, -999px) var(--my, -999px), #000 0%, rgba(0, 0, 0, 0.5) 55%, transparent 100%);
+}
+
+/* a soft light that follows the pointer */
+.auth-bg-spot {
+  position: absolute;
+  inset: 0;
+  opacity: var(--spot, 0);
+  background: radial-gradient(circle 300px at var(--mx, -999px) var(--my, -999px), var(--auth-spot), transparent 72%);
+  mix-blend-mode: var(--auth-spot-blend);
+}
+
+.auth-bg-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes auth-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-star { animation: auth-twinkle 4s ease-in-out infinite; }
 }
 
 .auth-shell--themed .auth-header {

@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { PATHS } from "@/routes/paths";
 import { VietnamFlag, UKFlag } from "@/components/common/FlagIcons";
 import { FiSun, FiMoon, FiChevronDown } from "react-icons/fi";
+import { AuthBackground } from "./AuthBackground";
 
 function AuthLayoutContent() {
   useTranslation();
@@ -39,6 +40,7 @@ function AuthLayoutContent() {
         isLongForm ? "auth-shell--long-form" : ""
       } ${isLogin ? "auth-shell--login" : ""} font-sans antialiased`}
     >
+      <AuthBackground />
       <header className="auth-header">
         <Link
           to={PATHS.HOME}
