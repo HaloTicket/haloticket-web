@@ -42,7 +42,7 @@ describe("OrderReconciliation", () => {
     render(<OrderReconciliation />);
     expect(screen.getAllByRole("status").some((el) => /Đang tải/.test(el.textContent || ""))).toBe(true);
     expect(await screen.findByText("HT-1001")).toBeTruthy();
-    expect(screen.getByText("99999999")).toBeTruthy();
+    expect(screen.getByText("99999999…")).toBeTruthy();
     expect(screen.queryByText(exception.paymentId)).toBeNull();
     expect(screen.getByText("Thanh toán muộn, hết vé")).toBeTruthy();
   });
@@ -80,19 +80,25 @@ describe("OrderReconciliation", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(/Không thể tải dữ liệu đối soát/);
     fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
     expect(await screen.findByText("HT-2")).toBeTruthy();
-    expect(screen.getByText("42")).toBeTruthy();
+    expect(screen.getByText("42 phút")).toBeTruthy();
+    expect(screen.getByText("Thiếu 1 vé")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: /Lệch kho/ }));
     expect(await screen.findByText("Không có mục nào cần xử lý")).toBeTruthy();
   });
 
   it("lists stock discrepancies with unknown numbers shown as 'không rõ'", async () => {
-    api.getStockDiscrepancies.mockResolvedValue({ items: [{ ticketTypeId: "cccccccc-1", eventId: "dddddddd-1", name: "VIP", initial: 1000, remaining: 1000, held: 0, issued: 1, heldByReservations: null, diffStockVsIssued: 1, diffHeldVsReservations: null, note: "mismatch" }] });
+    api.getStockDiscrepancies.mockResolvedValue({ items: [{ ticketTypeId: "cccccccc-1", eventId: "dddddddd-1111-2222-3333-444444444444", name: "VIP", initial: 1000, remaining: 1000, held: 0, issued: 1, heldByReservations: null, diffStockVsIssued: 1, diffHeldVsReservations: null, note: "INITIAL_QUANTITY_NULL; SOMETHING_NEW" }] });
     render(<OrderReconciliation />);
     await screen.findByText("HT-1001");
     fireEvent.click(screen.getByRole("tab", { name: /Lệch kho/ }));
     expect(await screen.findByText("VIP")).toBeTruthy();
-    expect(screen.getAllByText("không rõ").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("dddddddd")).toBeTruthy();
+    expect(screen.getAllByText("không rõ").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("dddddddd…")).toBeTruthy();
+    // codes are explained in words, never shown raw
+    expect(screen.getByText(/Chưa ghi số phát hành/)).toBeTruthy();
+    expect(screen.getByText(/Có điểm bất thường khác/)).toBeTruthy();
+    expect(screen.queryByText(/INITIAL_QUANTITY_NULL|SOMETHING_NEW/)).toBeNull();
+    expect(screen.getByText("Kho đã trừ nhiều hơn vé phát hành 1 vé")).toBeTruthy();
   });
 
   it("requires a note before resolving, then resolves with a toast and refreshes", async () => {
