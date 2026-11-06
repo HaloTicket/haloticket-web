@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { resolveCheckoutError } from "./checkoutErrors";
 import { FiClock, FiCheck, FiShield, FiTag, FiAlertCircle, FiArrowLeft } from "react-icons/fi";
 import { formatCurrency } from "@/utils/formatters";
 import type { BookingOrderData } from "@/types";
@@ -555,26 +556,12 @@ export default function Checkout() {
     } catch (err: unknown) {
       console.error("Payment error:", err);
       setIsRecipientModalOpen(false);
-      const serverMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      if (serverMessage === "TICKET_SOLD_OUT") {
-        showToast("error", t("Hạng vé bạn chọn đã hết hoặc không còn đủ số lượng. Vui lòng chọn lại số lượng khác."));
+      const resolved = resolveCheckoutError(err);
+      showToast("error", t(resolved.key));
+      if (resolved.backToSelection) {
         localStorage.removeItem("haloticket_pending_order");
         navigate(`/events/${activeEventId}/select-ticket`);
-        return;
       }
-      if (serverMessage === "QUANTITY_OUT_OF_RANGE") {
-        showToast("error", t("tickets.error.quantityOutOfRange"));
-        localStorage.removeItem("haloticket_pending_order");
-        navigate(`/events/${activeEventId}/select-ticket`);
-        return;
-      }
-      const errorMsg = serverMessage === "TICKET_STOCK_UNAVAILABLE" || serverMessage === "TICKET_RESERVATION_REFUSED"
-        ? t("Hệ thống đang giữ vé, vui lòng thử lại sau giây lát.")
-        : serverMessage === "BOOKING_CREATE_FAILED"
-          ? t("Không thể tạo đơn hàng. Vui lòng thử lại.")
-          : serverMessage
-            || t("Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại.");
-      showToast("error", errorMsg);
     } finally {
       setIsSubmitting(false);
     }

@@ -4,6 +4,9 @@ export interface TicketItem {
   price: number;
   isFree: boolean;
   totalQuantity: number;
+  initialQuantity?: number;
+  soldQuantity?: number;
+  heldQuantity?: number;
   minPerOrder: number;
   maxPerOrder: number;
   description: string;

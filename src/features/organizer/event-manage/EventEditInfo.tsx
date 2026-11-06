@@ -11,6 +11,8 @@ import AddTicketModal from "@/features/organizer/components/create-event/AddTick
 import SuccessSubmittedModal from "@/features/organizer/components/create-event/SuccessSubmittedModal";
 import { eventApi } from "@/services/eventApi";
 import { isForbiddenError } from "@/utils/httpError";
+import { EVENT_TICKETS_SYNC_CHANGED, eventSaveFailureMessage, parseEventSaveFailure } from "@/utils/eventSaveErrors";
+import { getInitialQuantity, getMinIssuedQuantity, getSoldQuantity, getHeldQuantity, normalizeTicketsForSave, type TicketQuantityFields } from "@/utils/ticketQuantities";
 import { ticketApi } from "@/services/ticketApi";
 import { mediaApi } from "@/services/mediaApi";
 import { organizerApi } from "@/services/organizerApi";
@@ -38,12 +40,104 @@ async function ensureS3Url(urlOrData: string | null | undefined, folder: string)
   return urlOrData;
 }
 
+/** What the event, ticket and payout APIs return: every field may be missing, so all are optional. */
+interface ApiShowtime {
+  id?: string;
+  name?: string;
+  startTime?: string;
+  endTime?: string;
+  saleStartTime?: string;
+  saleEndTime?: string;
+  tickets?: TicketItem[];
+}
+
+interface ApiTicketType extends TicketQuantityFields {
+  id?: string | number;
+  name?: string;
+  price?: number | string;
+  isFree?: boolean;
+  minPerOrder?: number;
+  maxPerOrder?: number;
+  description?: string;
+  status?: string;
+  startTime?: string;
+}
+
+interface ApiPayoutFields {
+  accountHolder?: string;
+  bankAccountHolder?: string;
+  accountNumber?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  bankBranch?: string;
+  businessType?: string;
+  taxName?: string;
+  taxAddress?: string;
+  taxCode?: string;
+}
+
+interface ApiOrganizerProfile extends ApiPayoutFields {
+  name?: string;
+  organizerName?: string;
+  description?: string;
+  avatar?: string;
+  organizerLogo?: string;
+  businessAddress?: string;
+}
+
+interface ApiEvent extends ApiPayoutFields {
+  title?: string;
+  categoryName?: string;
+  category?: string;
+  locationType?: string;
+  locationName?: string;
+  city?: string;
+  ward?: string;
+  address?: string;
+  startTime?: string;
+  startDate?: string;
+  endTime?: string;
+  endDate?: string;
+  showtimes?: ApiShowtime[];
+  tickets?: ApiTicketType[] | string;
+  ticketCategories?: ApiTicketType[] | string;
+  galleryImages?: string[] | string;
+  posterImage?: string;
+  image?: string;
+  thumbnailUrl?: string;
+  bannerUrl?: string;
+  description?: string;
+  descriptionText?: string;
+  organizerName?: string;
+  organizerInfo?: string;
+  organizerLogo?: string;
+  organizer?: { name?: string; description?: string; avatar?: string };
+  paymentInfo?: ApiPayoutFields;
+  isPrivate?: boolean;
+  confirmationMessage?: string;
+  enableCustomQuestions?: boolean;
+  questionScope?: string;
+  customQuestions?: CustomQuestionItem[] | string;
+  questions?: CustomQuestionItem[] | string;
+  status?: string;
+  approvalStatus?: string;
+  eventApprovalStatus?: string;
+  rejectionReason?: string;
+  rejectionNotes?: string;
+}
+
+// the edit form shows and sends the ISSUED number (initialQuantity), never the remaining stock; sold/held are read-only
+function issuedQuantityFields(raw: TicketQuantityFields & { quantity?: number | null }) {
+  const issued = getInitialQuantity(raw) ?? raw.totalQuantity ?? raw.quantity ?? 100;
+  return { totalQuantity: issued, initialQuantity: issued, soldQuantity: getSoldQuantity(raw), heldQuantity: getHeldQuantity(raw) };
+}
+
 export const EventEditInfo: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
 
   // active stepper step (1 to 5)
-  const [currentStep, setCurrentStep] = useState(1);
+  const [stepIndex, setCurrentStep] = useState(1);
 
   // modals & loading state
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
@@ -125,7 +219,7 @@ export const EventEditInfo: React.FC = () => {
           const startHour = start.getHours() + start.getMinutes() / 60 + start.getSeconds() / 3600;
           const endHour = end.getHours() + end.getMinutes() / 60 + end.getSeconds() / 3600;
           
-          let dailyDurationMs = 0;
+          let dailyDurationMs: number;
           if (startHour <= endHour) {
              dailyDurationMs = (end.getTime() % 86400000) - (start.getTime() % 86400000);
              if (dailyDurationMs < 0) dailyDurationMs += 86400000;
@@ -137,10 +231,10 @@ export const EventEditInfo: React.FC = () => {
           // fallback if calculated duration is 0, make it at least 1 hour
           if (dailyDurationMs === 0) dailyDurationMs = 3600000;
 
-          let currentDate = new Date(start);
+          const currentDate = new Date(start);
           currentDate.setHours(0, 0, 0, 0);
           
-          let tempEnd = new Date(end);
+          const tempEnd = new Date(end);
           if (startHour > endHour) {
             // if overnight, the last showtime starts on the day before tempEnd
             tempEnd.setDate(tempEnd.getDate() - 1);
@@ -184,6 +278,9 @@ export const EventEditInfo: React.FC = () => {
           });
         }
         
+        // the showtime list is derived from the two dates and keeps the sale times the organizer already typed, so it is
+        // set here, in the effect that watches the dates
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowtimes(prev => newShowtimes.map(ns => {
            const existing = prev.find(p => p.name === ns.name);
            if (existing) {
@@ -195,15 +292,14 @@ export const EventEditInfo: React.FC = () => {
     } else {
       setShowtimes([]);
     }
+    // the names are written in the language of the moment the dates change; a language switch must not rebuild them,
+    // because the sale times are matched by name
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate]);
 
-  // auto-clamp currentStep if enableCustomQuestions changes
   const totalSteps = enableCustomQuestions ? 5 : 4;
-  useEffect(() => {
-    if (!enableCustomQuestions && currentStep > 4) {
-      setCurrentStep(4);
-    }
-  }, [enableCustomQuestions, currentStep]);
+  // without the custom-questions step there are only 4 steps, so a step beyond that falls back to the last one
+  const currentStep = enableCustomQuestions ? stepIndex : Math.min(stepIndex, 4);
 
   const getFormSnapshotString = (
     overrides?: Partial<Record<string, unknown>>
@@ -255,23 +351,23 @@ export const EventEditInfo: React.FC = () => {
         const currentUserId = cachedUser?.id || cachedUser?.keycloakId;
 
         // 1. fetch real payout account from payment-service via organizerApi
-        let payoutAccount: any = null;
-        let orgProfile: any = null;
+        let payoutAccount: ApiPayoutFields | null = null;
+        let orgProfile: ApiOrganizerProfile | null = null;
         if (currentUserId) {
           try {
             const [pRes, oRes] = await Promise.all([
               organizerApi.getPayoutAccount(currentUserId).catch(() => null),
               organizerApi.getOrganizerProfile(currentUserId).catch(() => null)
             ]);
-            payoutAccount = pRes;
-            orgProfile = oRes;
+            payoutAccount = pRes as ApiPayoutFields | null;
+            orgProfile = oRes as ApiOrganizerProfile | null;
           } catch (e) {
             console.warn("Could not fetch payout profile from payment-service:", e);
           }
         }
 
         // 2. fetch event details from event-service via eventApi
-        const ev: any = await eventApi.getEventById(eventId);
+        const ev = (await eventApi.getEventById(eventId)) as ApiEvent | null;
         if (!isMounted || !ev) return;
 
         // step 1 fields
@@ -307,7 +403,7 @@ export const EventEditInfo: React.FC = () => {
         const loadedEnd = ev.endTime || ev.endDate ? formatDatetimeLocal((ev.endTime || ev.endDate) as string) : "";
 
         if (Array.isArray(ev.showtimes) && ev.showtimes.length > 0) {
-          const mappedShowtimes = ev.showtimes.map((st: any) => ({
+          const mappedShowtimes = ev.showtimes.map((st) => ({
             id: st.id || Date.now().toString(),
             name: st.name || t("Suất diễn"),
             startTime: st.startTime ? formatDatetimeLocal(st.startTime) : "",
@@ -320,7 +416,7 @@ export const EventEditInfo: React.FC = () => {
 
         let loadedTickets: TicketItem[] = [];
         const rawT = ev.ticketCategories || ev.tickets;
-        let parsedRawT: any[] = [];
+        let parsedRawT: ApiTicketType[] = [];
         if (typeof rawT === "string") {
           try {
             const parsed = JSON.parse(rawT);
@@ -333,8 +429,8 @@ export const EventEditInfo: React.FC = () => {
         }
 
         // filter out accidental showtime objects mistakenly serialized as tickets
-        const showtimeNames = (ev.showtimes || []).map((s: any) => (s.name || "").trim().toLowerCase());
-        const cleanedRawT = parsedRawT.filter((tc: any) => {
+        const showtimeNames = (ev.showtimes || []).map((s) => (s.name || "").trim().toLowerCase());
+        const cleanedRawT = parsedRawT.filter((tc) => {
           const tcName = (tc.name || "").trim().toLowerCase();
           const looksLikeShowtime = tc.startTime && !tc.price && !tc.minPerOrder;
           const matchesShowtime = showtimeNames.length > 0 && showtimeNames.includes(tcName) && !tc.minPerOrder && !tc.description;
@@ -343,15 +439,15 @@ export const EventEditInfo: React.FC = () => {
 
         const targetList = cleanedRawT;
         if (targetList.length > 0) {
-          const uniqueRawT = targetList.filter((tc: any, index: number, self: any[]) =>
-            index === self.findIndex((t: any) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
+          const uniqueRawT = targetList.filter((tc, index, self) =>
+            index === self.findIndex((t) => (t.name || "").trim().toLowerCase() === (tc.name || "").trim().toLowerCase())
           );
-          loadedTickets = uniqueRawT.map((tc: any, i: number) => ({
+          loadedTickets = uniqueRawT.map((tc, i) => ({
             id: String(tc.id || `tc_${i}_${Date.now()}`),
             name: tc.name || t("Hạng vé"),
             price: typeof tc.price === "number" ? tc.price : (parseFloat(String(tc.price).replace(/[^0-9]/g, "")) || 0),
-            isFree: tc.price === 0 || tc.price === "0" || tc.isFree,
-            totalQuantity: tc.totalQuantity ?? tc.quantity ?? 100,
+            isFree: Boolean(tc.price === 0 || tc.price === "0" || tc.isFree),
+            ...issuedQuantityFields(tc),
             minPerOrder: tc.minPerOrder ?? 1,
             maxPerOrder: tc.maxPerOrder ?? 5,
             description: tc.description || "",
@@ -364,13 +460,13 @@ export const EventEditInfo: React.FC = () => {
             const fetchedTypes = await ticketApi.getTicketTypesByEventId(eventId);
             if (Array.isArray(fetchedTypes) && fetchedTypes.length > 0) {
               loadedTickets = fetchedTypes
-                .filter((tt: any) => tt.status !== "HIDDEN")
-                .map((tt: any, i: number) => ({
+                .filter((tt: ApiTicketType) => tt.status !== "HIDDEN")
+                .map((tt: ApiTicketType, i: number) => ({
                   id: String(tt.id || `tc_${i}_${Date.now()}`),
                   name: tt.name || t("Hạng vé"),
                   price: typeof tt.price === "number" ? tt.price : (parseFloat(String(tt.price).replace(/[^0-9]/g, "")) || 0),
                   isFree: tt.isFree ?? (tt.price === 0 || tt.price === "0"),
-                  totalQuantity: tt.totalQuantity ?? tt.quantity ?? 100,
+                  ...issuedQuantityFields(tt),
                   minPerOrder: tt.minPerOrder ?? 1,
                   maxPerOrder: tt.maxPerOrder ?? 5,
                   description: tt.description || "",
@@ -387,7 +483,7 @@ export const EventEditInfo: React.FC = () => {
         const loadedEnableQuestions = typeof ev.enableCustomQuestions === "boolean" ? ev.enableCustomQuestions : false;
 
         // step 4: Questions
-        const loadedQScope = ev.questionScope || "order";
+        const loadedQScope: "order" | "ticket" = ev.questionScope === "ticket" ? "ticket" : "order";
         let loadedQuestions: CustomQuestionItem[] = [];
         const rawQ = ev.customQuestions || ev.questions;
         if (typeof rawQ === "string") {
@@ -648,12 +744,22 @@ export const EventEditInfo: React.FC = () => {
       return;
     }
 
+    const tooLow = tickets.find((tk) => {
+      const min = getMinIssuedQuantity(tk);
+      return min !== undefined && Number(tk.totalQuantity) < min;
+    });
+    if (tooLow) {
+      showToast(t("tickets.quantity.belowSoldHeld", { name: tooLow.name, min: getMinIssuedQuantity(tooLow), sold: tooLow.soldQuantity ?? 0, held: tooLow.heldQuantity ?? 0 }), "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const uploadedPoster = await ensureS3Url(posterImage, "events/posters");
       const uploadedBanner = await ensureS3Url(bannerImage, "events/banners");
       const uploadedLogo = await ensureS3Url(organizerLogo, "organizers/logos");
 
+      const ticketsToSave = normalizeTicketsForSave(tickets);
       const payload: Record<string, unknown> = {
         eventId,
         title,
@@ -676,10 +782,10 @@ export const EventEditInfo: React.FC = () => {
         endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
         showtimes: showtimes.length > 0 ? showtimes.map(st => ({
           ...st,
-          tickets: tickets.length > 0 ? tickets : (st as any).tickets
+          tickets: tickets.length > 0 ? ticketsToSave : st.tickets
         })) : undefined,
-        ticketCategories: tickets,
-        tickets,
+        ticketCategories: ticketsToSave,
+        tickets: ticketsToSave,
         isPrivate,
         confirmationMessage,
         enableCustomQuestions,
@@ -699,8 +805,15 @@ export const EventEditInfo: React.FC = () => {
 
       // 1. update event details in event-service
       const eventApiWithUpdate = eventApi as unknown as { updateEvent?: (id: string, p: unknown) => Promise<unknown> };
+      let syncFailed = false;
       if (eventId && typeof eventApiWithUpdate.updateEvent === "function") {
-        await eventApiWithUpdate.updateEvent(eventId, payload);
+        try {
+          await eventApiWithUpdate.updateEvent(eventId, payload);
+        } catch (updateErr) {
+          // 502 TICKETS_SYNC_FAILED: the event IS saved, so carry on saving the rest but report an error, not success.
+          if (parseEventSaveFailure(updateErr)?.kind !== "ticketsSyncFailed") throw updateErr;
+          syncFailed = true;
+        }
       } else {
         await eventApi.createEventApprovalRequest(payload);
       }
@@ -725,10 +838,21 @@ export const EventEditInfo: React.FC = () => {
       // 3. update initial snapshot to match current state
       setInitialSnapshot(currentSnap);
 
-      // 4. show success toast for organizer
+      // 4. show success toast for organizer (an error when the tickets were not synced)
+      window.dispatchEvent(new Event(EVENT_TICKETS_SYNC_CHANGED));
+      if (syncFailed) {
+        showToast(t("tickets.sync.savedNotSynced"), "error");
+        return;
+      }
       showToast(t("Cập nhật thông tin sự kiện thành công! Đã gửi thông báo đến Admin."), "success");
     } catch (err) {
       console.error("Failed to update event details:", err);
+      const failure = parseEventSaveFailure(err);
+      if (failure) {
+        // The form stays as it is. A sync failure means the event IS saved: the layout banner offers "Sync again".
+        showToast(eventSaveFailureMessage(failure, t), "error");
+        return;
+      }
       showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Cập nhật thông tin thất bại, vui lòng thử lại."), "error");
     } finally {
       setIsSubmitting(false);

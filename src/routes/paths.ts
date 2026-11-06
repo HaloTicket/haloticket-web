@@ -49,6 +49,7 @@ export const PATHS = {
   ADMIN_ORGANIZERS: "/admin/users/organizers",
   ADMIN_ADMINISTRATORS: "/admin/users/administrators",
   ADMIN_FINANCE: "/admin/finance",
+  ADMIN_RECONCILIATION: "/admin/reconciliation",
   ADMIN_PAYMENT_TRANSACTIONS: "/admin/finance/payments",
   ADMIN_REFUNDS: "/admin/finance/refunds",
   ADMIN_ORGANIZER_SETTLEMENTS: "/admin/finance/settlements",

@@ -17,8 +17,32 @@ import { mediaApi } from "@/services/mediaApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { ekycApi } from "@/services/ekycApi";
 import { formatDatetimeLocal } from "@/utils/formatters";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { normalizeTicketsForSave } from "@/utils/ticketQuantities";
+import { eventSaveFailureMessage, parseEventSaveFailure } from "@/utils/eventSaveErrors";
 import { PATHS } from "@/routes/paths";
+
+/** A showtime as it comes back from a saved draft (any field may be missing). */
+interface DraftShowtime {
+  id?: string;
+  name?: string;
+  startTime?: string;
+  endTime?: string;
+  saleStartTime?: string;
+  saleEndTime?: string;
+}
+
+/** The payout account fields read back from the organizer profile or the local cache. */
+interface PayoutAccountInfo {
+  accountHolder?: string;
+  accountNumber?: string;
+  bankName?: string;
+  bankBranch?: string;
+  businessType?: "individual" | "company";
+  taxName?: string;
+  taxAddress?: string;
+  taxCode?: string;
+}
 
 interface DraftEventItem extends Partial<EventApiData> {
   id: string;
@@ -93,6 +117,8 @@ export const CreateEvent: React.FC = () => {
   const [showEkycModal, setShowEkycModal] = useState(false);
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [savedEventIdForSync, setSavedEventIdForSync] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // eKYC check on mount
@@ -162,7 +188,7 @@ export const CreateEvent: React.FC = () => {
           const startHour = start.getHours() + start.getMinutes() / 60 + start.getSeconds() / 3600;
           const endHour = end.getHours() + end.getMinutes() / 60 + end.getSeconds() / 3600;
           
-          let dailyDurationMs = 0;
+          let dailyDurationMs: number;
           if (startHour <= endHour) {
              dailyDurationMs = (end.getTime() % 86400000) - (start.getTime() % 86400000);
              if (dailyDurationMs < 0) dailyDurationMs += 86400000;
@@ -174,10 +200,10 @@ export const CreateEvent: React.FC = () => {
           // fallback if calculated duration is 0, make it at least 1 hour
           if (dailyDurationMs === 0) dailyDurationMs = 3600000;
 
-          let currentDate = new Date(start);
+          const currentDate = new Date(start);
           currentDate.setHours(0, 0, 0, 0);
           
-          let tempEnd = new Date(end);
+          const tempEnd = new Date(end);
           if (startHour > endHour) {
             // if overnight, the last showtime starts on the day before tempEnd
             tempEnd.setDate(tempEnd.getDate() - 1);
@@ -221,6 +247,9 @@ export const CreateEvent: React.FC = () => {
           });
         }
         
+        // the showtime list is derived from the two dates and keeps the sale times the organizer already typed, so it is
+        // set here, in the effect that watches the dates
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowtimes(prev => newShowtimes.map(ns => {
            const existing = prev.find(p => p.name === ns.name);
            if (existing) {
@@ -286,7 +315,7 @@ export const CreateEvent: React.FC = () => {
               if (orgProfile.avatar) setOrganizerLogo(orgProfile.avatar);
               setIsOrganizerPreFilled(true);
             }
-          } catch (error) {
+          } catch {
             // expected to fail with 403 if user hasn't verified ekyc
             console.log("Organizer profile not found or forbidden, falling back to empty.");
           }
@@ -367,10 +396,10 @@ export const CreateEvent: React.FC = () => {
           if (draftEventData.showtimes) {
             let parsedShowtimes = draftEventData.showtimes;
             if (typeof parsedShowtimes === "string") {
-              try { parsedShowtimes = JSON.parse(parsedShowtimes); } catch {}
+              try { parsedShowtimes = JSON.parse(parsedShowtimes); } catch { /* keep the raw value; it is ignored below when it is not an array */ }
             }
             if (Array.isArray(parsedShowtimes) && parsedShowtimes.length > 0) {
-              const mappedShowtimes = parsedShowtimes.map((st: any) => ({
+              const mappedShowtimes = parsedShowtimes.map((st: DraftShowtime) => ({
                 id: st.id || String(Date.now() + Math.random()),
                 name: st.name || "",
                 startTime: formatDatetimeLocal(st.startTime) || "",
@@ -447,7 +476,7 @@ export const CreateEvent: React.FC = () => {
             try {
               const payoutInfo = await organizerApi.getPayoutAccount(currentUserId);
               if (payoutInfo) {
-                const info = payoutInfo as Record<string, any>;
+                const info = payoutInfo as PayoutAccountInfo;
                 if (info.accountHolder) setAccountHolder(info.accountHolder);
                 if (info.accountNumber) setAccountNumber(info.accountNumber);
                 if (info.bankName) setBankName(info.bankName);
@@ -574,7 +603,7 @@ export const CreateEvent: React.FC = () => {
 
         const showtimesPayload = showtimes.map(st => ({
           ...st,
-          tickets: tickets.length > 0 ? tickets : st.tickets
+          tickets: tickets.length > 0 ? normalizeTicketsForSave(tickets) : st.tickets
         }));
 
         const { uploadedPoster, uploadedBanner, uploadedLogo, uploadedGallery } =
@@ -599,7 +628,7 @@ export const CreateEvent: React.FC = () => {
           organizerLogo: uploadedLogo,
           startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
           endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
-          tickets,
+          tickets: normalizeTicketsForSave(tickets),
           showtimes: showtimesPayload.length > 0 ? showtimesPayload : undefined,
           isPrivate,
           confirmationMessage,
@@ -701,7 +730,7 @@ export const CreateEvent: React.FC = () => {
         organizerLogo: uploadedLogo,
         startTime: startDate,
         endTime: endDate,
-        tickets,
+        tickets: normalizeTicketsForSave(tickets),
         isPrivate,
         confirmationMessage,
         enableCustomQuestions,
@@ -847,6 +876,7 @@ export const CreateEvent: React.FC = () => {
     setStep5Errors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    setSubmitError(null);
     setIsSubmitting(true);
 
     try {
@@ -861,7 +891,7 @@ export const CreateEvent: React.FC = () => {
 
       const showtimesPayload = showtimes.map(st => ({
         ...st,
-        tickets: tickets.length > 0 ? tickets : st.tickets
+        tickets: tickets.length > 0 ? normalizeTicketsForSave(tickets) : st.tickets
       }));
 
       const payload = {
@@ -884,7 +914,7 @@ export const CreateEvent: React.FC = () => {
         organizerLogo: uploadedLogo,
         startTime: startDate ? (startDate.length === 16 ? startDate + ":00" : startDate) : undefined,
         endTime: endDate ? (endDate.length === 16 ? endDate + ":00" : endDate) : undefined,
-        tickets,
+        tickets: normalizeTicketsForSave(tickets),
         showtimes: showtimesPayload.length > 0 ? showtimesPayload : undefined,
         isPrivate,
         confirmationMessage,
@@ -924,6 +954,17 @@ export const CreateEvent: React.FC = () => {
       setIsSubmitted(true);
     } catch (error) {
       console.error("Failed to submit event approval request", error);
+      const failure = parseEventSaveFailure(error);
+      if (failure) {
+        // real error, not success; the form keeps its data. When the event was saved, remember its id so a retry updates it.
+        if (failure.kind === "ticketsSyncFailed" && failure.eventId) {
+          updateCurrentEventId(failure.eventId);
+          setSavedEventIdForSync(failure.eventId);
+        }
+        setSubmitError(eventSaveFailureMessage(failure, translate));
+      } else {
+        setSubmitError(translate("Không thể gửi yêu cầu duyệt sự kiện. Vui lòng thử lại."));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -940,6 +981,12 @@ export const CreateEvent: React.FC = () => {
 
       {/* Main Container */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 pt-6">
+        {submitError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+            <span className="min-w-0 flex-1">{submitError}</span>
+            {savedEventIdForSync && <Link to={PATHS.EVENT_MANAGE(savedEventIdForSync)} className="min-h-11 inline-flex items-center rounded-lg bg-rose-600 px-4 text-xs font-bold text-white">{translate("Mở trang quản lý sự kiện")}</Link>}
+          </div>
+        )}
         {/* Real-time Auto-Save Status Banner */}
         <div className="flex flex-wrap items-center justify-between gap-3 app-bg-card border app-border rounded-xl px-4 py-2.5 mb-4 shadow-2xs">
           <div className="flex items-center gap-2 text-xs font-bold">

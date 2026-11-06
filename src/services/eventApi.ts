@@ -1,5 +1,6 @@
 import axiosClient from "./axiosClient";
 import type { EventApiData, MemberItem, MemberInvitationPreview, MemberInvitationAcceptResult } from "@/types";
+import { parseEventSaveFailure } from "@/utils/eventSaveErrors";
 export type { EventApiData };
 
 export const eventApi = {
@@ -104,6 +105,8 @@ export const eventApi = {
       return response;
     } catch (err) {
       console.error("Failed to create/submit event in DB:", err);
+      // 502 TICKETS_SYNC_FAILED (event saved) and 422 QUANTITY_BELOW_SOLD_AND_HELD must reach the screen.
+      if (parseEventSaveFailure(err)) throw err;
       return null;
     }
   },
@@ -115,8 +118,14 @@ export const eventApi = {
       return response;
     } catch (err) {
       console.error("Failed to update event in DB:", err);
+      if (parseEventSaveFailure(err)) throw err;
       return null;
     }
+  },
+
+  // send the stored ticket types to the ticket service again; throws on failure (502 TICKETS_SYNC_FAILED)
+  resyncTickets: async (id: string): Promise<unknown> => {
+    return axiosClient.post(`/events/${encodeURIComponent(id)}/tickets/resync`);
   },
 
   // get list approval events

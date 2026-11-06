@@ -14,6 +14,7 @@ import { NotificationToast } from "@/components/notifications/NotificationToast"
 import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 import { aiApi } from "@/services/aiApi";
 import { payoutApi } from "@/services/payoutApi";
+import { adminReconciliationApi } from "@/services/adminReconciliationApi";
 import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
 import {
   FiSun,
@@ -49,6 +50,7 @@ export const AdminLayout: React.FC = () => {
   const [pendingEventsCount, setPendingEventsCount] = useState<number>(0);
   const [pendingUpdatesCount, setPendingUpdatesCount] = useState<number>(0);
   const [pendingPayoutsCount, setPendingPayoutsCount] = useState<number>(0);
+  const [reconciliationCount, setReconciliationCount] = useState<number>(0);
 
   const fetchPendingCount = useCallback(async () => {
     try {
@@ -67,6 +69,13 @@ export const AdminLayout: React.FC = () => {
         }
       } catch (e) {
         console.warn("Failed to fetch pending payouts", e);
+      }
+      try {
+        // null means a source is unreadable: it adds nothing to the badge (the page itself shows "unknown").
+        const summary = await adminReconciliationApi.getSummary();
+        setReconciliationCount((summary?.openExceptions ?? 0) + (summary?.paidWithoutTickets ?? 0) + (summary?.stockDiscrepancies ?? 0));
+      } catch {
+        setReconciliationCount(0);
       }
     } catch (err) {
       console.warn("Failed to fetch pending approval count", err);
@@ -229,6 +238,9 @@ export const AdminLayout: React.FC = () => {
         badge = pendingPayoutsCount;
         collapsedBadge = pendingPayoutsCount;
         badgeColor = "bg-rose-500 text-white font-bold";
+      } else if (item.path === PATHS.ADMIN_RECONCILIATION && reconciliationCount > 0) {
+        badge = reconciliationCount;
+        collapsedBadge = reconciliationCount;
       } else if (item.path === PATHS.ADMIN_SYSTEM_MONITORING && systemUptime) {
         badge = systemUptime;
         collapsedBadge = systemUptime.replace("%", "");

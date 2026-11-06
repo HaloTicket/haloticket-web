@@ -58,3 +58,22 @@ export function isTicketInStock(t: TicketQuantityFields & { available?: boolean 
 export function formatQuantity(value: number | undefined, unknown: string): string {
   return value === undefined ? unknown : value.toLocaleString("vi-VN");
 }
+
+/** Lowest number that may be issued: sold + held (held counts as 0 when unknown). Undefined when sold is unknown. */
+export function getMinIssuedQuantity(t: TicketQuantityFields): number | undefined {
+  const sold = getSoldQuantity(t);
+  if (sold === undefined) return undefined;
+  return sold + (getHeldQuantity(t) ?? 0);
+}
+
+/**
+ * The number the organizer sees and sends is the ISSUED number, never the remaining stock. A ticket coming from the
+ * server uses initialQuantity (else totalQuantity of an old backend). The payload keeps totalQuantity equal to
+ * initialQuantity for compatibility.
+ */
+export function normalizeTicketsForSave<T extends TicketQuantityFields>(tickets: T[]): T[] {
+  return tickets.map((t) => {
+    const issued = getInitialQuantity(t) ?? num(t.totalQuantity);
+    return issued === undefined ? t : { ...t, initialQuantity: issued, totalQuantity: issued };
+  });
+}

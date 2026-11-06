@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Outlet, useParams } from "react-router-dom";
 import { eventApi } from "@/services/eventApi";
 import { EventManageSidebar } from "@/features/organizer/event-manage/components/EventManageSidebar";
 import { EventManageHeader } from "@/features/organizer/event-manage/components/EventManageHeader";
+import { EVENT_TICKETS_SYNC_CHANGED } from "@/utils/eventSaveErrors";
+import { TicketsSyncBanner, type TicketsSync } from "@/features/organizer/event-manage/components/TicketsSyncBanner";
 import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
 export const EventManageLayout: React.FC = () => {
@@ -15,16 +17,26 @@ export const EventManageLayout: React.FC = () => {
   const myRoleLoaded = current !== null;
   const myRole = current ? current.role : null;
 
+  const refreshEvent = useCallback(() => {
+    if (!eventId) return;
+    eventApi.getEventById(eventId).then((data) => {
+      if (data) setEventData(data);
+    });
+  }, [eventId]);
+
+  useEffect(() => {
+    window.addEventListener(EVENT_TICKETS_SYNC_CHANGED, refreshEvent);
+    return () => window.removeEventListener(EVENT_TICKETS_SYNC_CHANGED, refreshEvent);
+  }, [refreshEvent]);
+
   useEffect(() => {
     if (eventId) {
-      eventApi.getEventById(eventId).then((data) => {
-        if (data) setEventData(data);
-      });
+      refreshEvent();
       eventApi.getMyRoleInEvent(eventId).then((role) => {
         setRoleState({ eventId, role });
       });
     }
-  }, [eventId]);
+  }, [eventId, refreshEvent]);
 
   return (
     <div className="min-h-screen flex app-bg-page transition-colors duration-300 font-sans antialiased">
@@ -48,6 +60,7 @@ export const EventManageLayout: React.FC = () => {
 
         {/* Dynamic Page Content View */}
         <main className="flex-1 px-4 py-2 md:px-8 md:py-6 overflow-y-auto">
+          {eventId && <TicketsSyncBanner eventId={eventId} ticketsSync={eventData?.ticketsSync as TicketsSync | undefined} onResynced={refreshEvent} />}
           <Outlet context={{ myRole, myRoleLoaded, eventData }} />
         </main>
       </div>

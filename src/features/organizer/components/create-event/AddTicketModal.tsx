@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { FiX, FiAlertCircle } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem } from "@/types/organizer";
+import { getMinIssuedQuantity } from "@/utils/ticketQuantities";
 
 interface AddTicketModalProps {
   initialTicket?: TicketItem | null;
@@ -19,7 +20,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   const [newTicketName, setNewTicketName] = useState(initialTicket?.name || "");
   const [newTicketPrice, setNewTicketPrice] = useState(initialTicket?.price ?? 0);
   const [newTicketIsFree, setNewTicketIsFree] = useState(initialTicket?.isFree ?? false);
-  const [newTicketTotalQuantity, setNewTicketTotalQuantity] = useState(initialTicket?.totalQuantity ?? 100);
+  const [newTicketTotalQuantity, setNewTicketTotalQuantity] = useState(initialTicket?.initialQuantity ?? initialTicket?.totalQuantity ?? 100);
   const [newTicketMinOrder, setNewTicketMinOrder] = useState(initialTicket?.minPerOrder ?? 1);
   const [newTicketMaxOrder, setNewTicketMaxOrder] = useState(initialTicket?.maxPerOrder ?? 5);
   const [newTicketDescription, setNewTicketDescription] = useState(initialTicket?.description || "");
@@ -29,6 +30,11 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
     setErrorMsg(null);
     if (!newTicketName.trim()) {
       setErrorMsg(translate("Vui lòng nhập tên loại vé!"));
+      return;
+    }
+    const minIssued = initialTicket ? getMinIssuedQuantity({ soldQuantity: initialTicket.soldQuantity, heldQuantity: initialTicket.heldQuantity }) : undefined;
+    if (minIssued !== undefined && Number(newTicketTotalQuantity) < minIssued) {
+      setErrorMsg(translate("tickets.quantity.belowSoldHeld", { name: newTicketName.trim(), min: minIssued, sold: initialTicket?.soldQuantity ?? 0, held: initialTicket?.heldQuantity ?? 0 }));
       return;
     }
     if (Number(newTicketMinOrder) < 1) {
@@ -41,12 +47,15 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
     }
 
 
+    const issued = Number(newTicketTotalQuantity);
     const created: TicketItem = {
+      ...(initialTicket ?? {}),
       id: initialTicket?.id || Date.now().toString(),
       name: newTicketName.trim(),
       price: newTicketIsFree ? 0 : Number(newTicketPrice),
       isFree: newTicketIsFree,
-      totalQuantity: Number(newTicketTotalQuantity),
+      totalQuantity: issued,
+      initialQuantity: issued,
       minPerOrder: Number(newTicketMinOrder),
       maxPerOrder: Number(newTicketMaxOrder),
 
@@ -75,7 +84,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
 
         <div className="space-y-4">
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2 animate-in fade-in">
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2 animate-in fade-in">
               <FiAlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
               <span>{errorMsg}</span>
             </div>
@@ -125,13 +134,20 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
           {/* Quantities */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Tổng số lượng vé")}</label>
+              <label htmlFor="ticket-issued-qty" className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("tickets.quantity.issued")}</label>
               <input
+                id="ticket-issued-qty"
                 type="number"
                 value={newTicketTotalQuantity}
+                aria-describedby={initialTicket && initialTicket.soldQuantity !== undefined ? "ticket-sold-held-info" : undefined}
                 onChange={(e) => setNewTicketTotalQuantity(Number(e.target.value))}
                 className="w-full app-bg-subnav app-text-main text-sm rounded-xl px-4 py-2.5 border app-border font-bold"
               />
+              {initialTicket && initialTicket.soldQuantity !== undefined && (
+                <p id="ticket-sold-held-info" className="text-[11px] app-text-muted">
+                  {translate("tickets.quantity.soldHeldInfo", { sold: initialTicket.soldQuantity, held: initialTicket.heldQuantity ?? translate("tickets.quantity.unknown") })}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold app-text-main">{translate("Số vé tối thiểu/đơn")}</label>

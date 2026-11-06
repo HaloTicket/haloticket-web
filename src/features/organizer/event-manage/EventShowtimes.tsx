@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { eventApi } from "@/services/eventApi";
 import { FiClock, FiCalendar, FiActivity, FiTag, FiPauseCircle, FiPlayCircle } from "react-icons/fi";
 import { formatDatetimeLocal } from "@/utils/formatters";
-import { formatQuantity, getHeldQuantity, getInitialQuantity, getRemainingQuantity, getSoldQuantity } from "@/utils/ticketQuantities";
+import { formatQuantity, normalizeTicketsForSave, getHeldQuantity, getInitialQuantity, getRemainingQuantity, getSoldQuantity } from "@/utils/ticketQuantities";
 
 export const EventShowtimes: React.FC = () => {
   const { t } = useTranslation();
@@ -54,7 +54,7 @@ export const EventShowtimes: React.FC = () => {
       const updatePayload = {
         title: eventData.title,
         showtimes: updatedShowtimes,
-        tickets: eventData.tickets,
+        tickets: Array.isArray(eventData.tickets) ? normalizeTicketsForSave(eventData.tickets) : eventData.tickets,
         categoryId: eventData.categoryId,
         description: eventData.description,
       };
