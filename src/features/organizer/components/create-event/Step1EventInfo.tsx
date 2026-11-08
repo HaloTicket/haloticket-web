@@ -33,6 +33,8 @@ import { eventApi, type EventApiData } from "@/services/eventApi";
 import { mediaApi } from "@/services/mediaApi";
 import { adminConfigApi } from "@/services/adminConfigApi";
 import type { Category } from "@/types/adminConfig";
+import { getAiErrorMessage } from "@/utils/aiErrors";
+import { buildGeneratedDescription } from "./generatedContent";
 import { type SystemVenue } from "@/utils/venueUtils";
 import {
   DEFAULT_DESCRIPTION_TEMPLATE,
@@ -157,6 +159,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [showAIGenerateModal, setShowAIGenerateModal] = useState(false);
   const [aiBulletPoints, setAiBulletPoints] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiGenerateError, setAiGenerateError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
 
@@ -184,7 +187,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         const cats = await adminConfigApi.getCategories().catch(() => []);
         if (!isMounted) return;
         
-        setCategoriesList(Array.isArray(cats) ? cats : (cats as any)?.data || []);
+        setCategoriesList(Array.isArray(cats) ? cats : (cats as { data?: Category[] } | null)?.data || []);
 
         if (Array.isArray(realEvents)) {
           const venueMap = new Map<string, SystemVenue>();
@@ -540,27 +543,23 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }
 
     setIsGenerating(true);
+    setAiGenerateError(null);
     try {
       const { aiApi } = await import("@/services/aiApi");
       const res = await aiApi.generateEventContent(title, aiBulletPoints);
-      if (res && res.description) {
-        let fullDesc = res.description;
-        if (res.terms_and_conditions) {
-          fullDesc += "\n\n" + t("Điều khoản & Quy định:") + "\n" + res.terms_and_conditions;
-        }
-        // Strictly remove all markdown headers (#, ##, ###), bold/italic (***, **, *)
-        fullDesc = fullDesc
-          .replace(/^#{1,6}\s+/gm, '')
-          .replace(/\*{2,3}/g, '')
-          .replace(/_{2,3}/g, '');
-        setDescription(fullDesc);
-        setShowAIGenerateModal(false);
-        setAiBulletPoints("");
-        showToast(t("Tạo nội dung tự động thành công!"), "success");
+      const fullDesc = buildGeneratedDescription(res, t("Điều khoản & Quy định:"));
+      if (fullDesc === null) {
+        // a response without a description is a failure: never touch the description field.
+        setAiGenerateError(getAiErrorMessage({ response: { status: 502, data: { code: "AI_GENERATION_FAILED" } } }));
+        return;
       }
+      setDescription(fullDesc);
+      setShowAIGenerateModal(false);
+      setAiBulletPoints("");
+      showToast(t("Tạo nội dung tự động thành công!"), "success");
     } catch (err) {
       console.error("Lỗi khi sinh nội dung:", err);
-      showToast(t("Có lỗi xảy ra khi sinh nội dung. Vui lòng thử lại."), "error");
+      setAiGenerateError(getAiErrorMessage(err));
     } finally {
       setIsGenerating(false);
     }
@@ -2175,8 +2174,10 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </h3>
               <button
                 type="button"
-                onClick={() => setShowAIGenerateModal(false)}
-                className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 cursor-pointer transition-colors"
+                onClick={() => { setShowAIGenerateModal(false); setAiGenerateError(null); }}
+                disabled={isGenerating}
+                aria-label={t("Hủy")}
+                className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -2198,12 +2199,18 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   className="w-full h-32 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-800 dark:text-zinc-200 text-sm rounded-xl px-4 py-3 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium resize-none"
                 />
               </div>
+              {aiGenerateError && (
+                <div role="alert" className="p-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-xs font-medium text-red-700 dark:text-red-300">
+                  {aiGenerateError}
+                </div>
+              )}
             </div>
             <div className="p-5 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setShowAIGenerateModal(false)}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                onClick={() => { setShowAIGenerateModal(false); setAiGenerateError(null); }}
+                disabled={isGenerating}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t("Hủy")}
               </button>
@@ -2215,13 +2222,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               >
                 {isGenerating ? (
                   <>
-                    <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white motion-safe:animate-spin" />
                     <span>{t("Đang sinh...")}</span>
                   </>
                 ) : (
                   <>
                     <FiCheckCircle className="w-4 h-4" />
-                    <span>{t("Bắt đầu Sinh Nội dung")}</span>
+                    <span>{aiGenerateError ? t("ai.action.retry") : t("Bắt đầu Sinh Nội dung")}</span>
                   </>
                 )}
               </button>

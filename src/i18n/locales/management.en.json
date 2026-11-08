@@ -2732,5 +2732,6 @@
   "Số còn lại đang âm": "Remaining quantity is negative",
   "Số đang giữ lớn hơn số còn lại": "Held quantity is larger than the remaining quantity",
   "Số còn lại lớn hơn số phát hành": "Remaining quantity is larger than the quantity issued",
-  "Có điểm bất thường khác, hãy kiểm tra hạng vé này": "Another irregularity was found, please check this ticket type"
+  "Có điểm bất thường khác, hãy kiểm tra hạng vé này": "Another irregularity was found, please check this ticket type",
+  "Chưa chấm được": "Not scored yet"
 }

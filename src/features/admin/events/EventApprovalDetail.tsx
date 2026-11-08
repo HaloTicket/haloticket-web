@@ -23,6 +23,7 @@ import { AdminDataState } from "@/components/admin/AdminDataState";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { eventApi } from "@/services/eventApi";
 import { aiApi } from "@/services/aiApi";
+import { getAiErrorMessage } from "@/utils/aiErrors";
 import { ticketApi } from "@/services/ticketApi";
 import type { SeatLayoutApiResponse } from "@/types";
 import { EventApprovalActions } from "./EventApprovalActions";
@@ -36,6 +37,11 @@ function displayDate(value?: string): string | undefined {
   return Number.isFinite(date.getTime()) ? date.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : value;
 }
 
+function altZoneName(zone: object): string | undefined {
+  const value = (zone as { zoneName?: unknown }).zoneName;
+  return typeof value === "string" ? value : undefined;
+}
+
 export function EventApprovalDetail() {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -45,43 +51,18 @@ export function EventApprovalDetail() {
   const [event, setEvent] = useState<ApprovalEventRecord | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "missing">("loading");
   const [resolvedId, setResolvedId] = useState<string | undefined>();
-  const [riskScore, setRiskScore] = useState<{ risk_level: string, risk_score: number, reasons: string[] } | null>(null);
+  const [riskScore, setRiskScore] = useState<{ risk_level: string, risk_score: number, reasons?: string[] } | null>(null);
   const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
-  const [collisionInfo, setCollisionInfo] = useState<{ hasCollision: boolean; conflictingEvent?: string; timeSlot?: string } | null>(null);
+  const [riskError, setRiskError] = useState<string | null>(null);
+  const [collisionInfo, setCollisionInfo] = useState<{ hasCollision: boolean; conflictingEvent?: string; timeSlot?: string; message?: string } | null>(null);
   const [seatLayout, setSeatLayout] = useState<SeatLayoutApiResponse | null>(null);
   const [showSeatMapModal, setShowSeatMapModal] = useState(false);
   const requestVersion = useRef(0);
 
-  const loadEvent = useCallback(async () => {
-    const version = ++requestVersion.current;
-    try {
-      // the approval list is the only confirmed admin source
-      const data = await eventApi.getApprovalEvents("ALL");
-      const normalized = normalizeApprovalEvents(data);
-      const found = normalized.find((item) => item.id === eventId) ?? null;
-      if (version === requestVersion.current) {
-        setEvent(found);
-        setResolvedId(eventId);
-        setState(found ? "ready" : "missing");
-
-        // automatically check venue schedule collision with other events
-        if (found) {
-          checkVenueCollision(found, normalized);
-          loadSeatLayout(found.id);
-        }
-      }
-    } catch {
-      if (version === requestVersion.current) {
-        setResolvedId(eventId);
-        setState("error");
-      }
-    }
-  }, [eventId]);
-
   const checkVenueCollision = (currentEvent: ApprovalEventRecord, allEvents: ApprovalEventRecord[]) => {
     const venueName = (currentEvent.locationName || currentEvent.address || "").toLowerCase().trim();
     if (!venueName) {
-      setCollisionInfo({ hasCollision: false, message: t("Sự kiện chưa thiết lập địa điểm cụ thể.") } as any);
+      setCollisionInfo({ hasCollision: false, message: t("Sự kiện chưa thiết lập địa điểm cụ thể.") });
       return;
     }
 
@@ -118,7 +99,7 @@ export function EventApprovalDetail() {
     }
   };
 
-  const loadSeatLayout = async (targetId: string) => {
+  const loadSeatLayout = useCallback(async (targetId: string) => {
     try {
       const layout = await ticketApi.getSeatLayoutByEventId(targetId);
       if (layout && (layout.draftJson || layout.zones?.length)) {
@@ -129,7 +110,33 @@ export function EventApprovalDetail() {
     } catch {
       setSeatLayout(null);
     }
-  };
+  }, []);
+
+  const loadEvent = useCallback(async () => {
+    const version = ++requestVersion.current;
+    try {
+      // the approval list is the only confirmed admin source
+      const data = await eventApi.getApprovalEvents("ALL");
+      const normalized = normalizeApprovalEvents(data);
+      const found = normalized.find((item) => item.id === eventId) ?? null;
+      if (version === requestVersion.current) {
+        setEvent(found);
+        setResolvedId(eventId);
+        setState(found ? "ready" : "missing");
+
+        // automatically check venue schedule collision with other events
+        if (found) {
+          checkVenueCollision(found, normalized);
+          loadSeatLayout(found.id);
+        }
+      }
+    } catch {
+      if (version === requestVersion.current) {
+        setResolvedId(eventId);
+        setState("error");
+      }
+    }
+  }, [eventId]);
 
   // Parse seat layout into interactive Canvas document
   const parsedCanvasDoc = useMemo<{
@@ -160,7 +167,7 @@ export function EventApprovalDetail() {
         const id = z.id || `zone_${idx}`;
         zMap[id] = {
           id,
-          name: z.name || (z as any).zoneName || `${t("Khu")} ${idx + 1}`,
+          name: z.name || altZoneName(z) || `${t("Khu")} ${idx + 1}`,
           color: z.colorCode || z.fillColor || "#3b82f6",
           fillColor: z.fillColor || z.colorCode || "#3b82f6",
           strokeColor: z.strokeColor || "#2563eb",
@@ -215,9 +222,14 @@ export function EventApprovalDetail() {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          setRiskScore(parsed);
-          setIsAnalyzingRisk(false);
-          return;
+          // only a real score is ever served from cache (older builds may have cached failures).
+          if (parsed && typeof parsed.risk_score === "number" && parsed.risk_level !== "UNKNOWN") {
+            setRiskScore({ ...parsed, reasons: parsed.reasons ?? [] });
+            setRiskError(null);
+            setIsAnalyzingRisk(false);
+            return;
+          }
+          localStorage.removeItem(cacheKey);
         } catch {
           // ignore error and proceed
         }
@@ -225,6 +237,7 @@ export function EventApprovalDetail() {
     }
 
     setIsAnalyzingRisk(true);
+    setRiskError(null);
     try {
       const score = await aiApi.analyzeRiskScore(
         targetEvent.id,
@@ -232,13 +245,17 @@ export function EventApprovalDetail() {
         targetEvent.description || "",
         targetEvent.organizerName || ""
       );
-      setRiskScore(score);
-      if (score) {
-        localStorage.setItem(cacheKey, JSON.stringify(score));
+      if (!score || typeof score.risk_score !== "number" || !score.risk_level) {
+        throw { response: { status: 502, data: { code: "AI_GENERATION_FAILED" } } };
       }
+      const valid = { ...score, reasons: score.reasons ?? [] };
+      setRiskScore(valid);
+      localStorage.setItem(cacheKey, JSON.stringify(valid));
     } catch (error) {
       console.error("Risk assessment failed:", error);
+      // Failures are shown, never cached and never rendered as a green 0.
       setRiskScore(null);
+      setRiskError(getAiErrorMessage(error));
     } finally {
       setIsAnalyzingRisk(false);
     }
@@ -251,9 +268,10 @@ export function EventApprovalDetail() {
   }, [loadEvent]);
 
   useEffect(() => {
-    if (event && event.id) {
-      runRiskAssessment(event, false);
-    }
+    if (!event || !event.id) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void runRiskAssessment(event, false); });
+    return () => { cancelled = true; };
   }, [event?.id, runRiskAssessment]);
 
   const back = <Link to={listUrl} className="inline-flex min-h-9 items-center gap-2 rounded-md border app-border app-bg-card px-4 text-sm font-semibold app-text-main transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"><FiArrowLeft aria-hidden="true" />{t("Quay lại danh sách")}</Link>;
@@ -272,21 +290,23 @@ export function EventApprovalDetail() {
           
           {/* AI Risk Scoring Banner */}
           <div className={`p-4 rounded-lg shadow-xs border flex flex-col sm:flex-row gap-4 items-start ${
-            isAnalyzingRisk ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" :
+            isAnalyzingRisk || riskError ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" :
             riskScore?.risk_level === "HIGH" ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50" :
             riskScore?.risk_level === "MEDIUM" ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50" :
             "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50"
           }`}>
             <div className="flex items-center justify-center w-14 h-14 rounded-full shrink-0 shadow-inner bg-white dark:bg-zinc-800 border border-slate-100 dark:border-slate-700">
               {isAnalyzingRisk ? (
-                <FiRefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                <FiRefreshCw className="w-6 h-6 text-blue-500 motion-safe:animate-spin" />
+              ) : riskError || !riskScore ? (
+                <span className="text-xl font-black text-slate-500" aria-hidden="true">?</span>
               ) : (
                 <span className={`text-xl font-black ${
                   riskScore?.risk_level === "HIGH" ? "text-rose-600" :
                   riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
                   "text-emerald-600"
                 }`}>
-                  {riskScore?.risk_score || 0}
+                  {riskScore.risk_score}
                 </span>
               )}
             </div>
@@ -295,6 +315,7 @@ export function EventApprovalDetail() {
                 <h4 className="text-sm font-bold flex items-center gap-2">
                   <FiShield className={`w-4 h-4 ${
                     isAnalyzingRisk ? "text-blue-500" :
+                    riskError ? "text-slate-500" :
                     riskScore?.risk_level === "HIGH" ? "text-rose-600" :
                     riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
                     "text-emerald-600"
@@ -320,16 +341,22 @@ export function EventApprovalDetail() {
                   className="px-2.5 py-1 text-[11px] font-bold rounded-lg border app-border app-bg-card hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   title={t("Chạy lại phân tích rủi ro bằng AI")}
                 >
-                  <FiRefreshCw className={`w-3 h-3 ${isAnalyzingRisk ? "animate-spin" : ""}`} />
+                  <FiRefreshCw className={`w-3 h-3 ${isAnalyzingRisk ? "motion-safe:animate-spin" : ""}`} />
                   <span>{t("Làm mới phân tích")}</span>
                 </button>
               </div>
 
               {isAnalyzingRisk ? (
-                <p className="text-xs app-text-muted">{t("Đang đánh giá theo tiêu chuẩn quy định nghiêm ngặt của HaloTicket...")}</p>
+                <p role="status" className="text-xs app-text-muted">{t("Đang đánh giá theo tiêu chuẩn quy định nghiêm ngặt của HaloTicket...")}</p>
+              ) : riskError ? (
+                <div role="alert" className="text-xs space-y-1.5">
+                  <p className="font-bold app-text-main">{t("Chưa chấm được")}</p>
+                  <p className="app-text-muted">{riskError}</p>
+                  <button type="button" onClick={() => event && runRiskAssessment(event, true)} className="px-2.5 py-1 text-[11px] font-bold rounded-lg border app-border app-bg-card hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 cursor-pointer">{t("Thử lại")}</button>
+                </div>
               ) : (
                 <ul className="text-xs app-text-muted list-disc list-inside space-y-0.5 pl-1">
-                  {riskScore?.reasons.map((reason, idx) => (
+                  {(riskScore?.reasons ?? []).map((reason, idx) => (
                     <li key={idx} className="leading-tight">{reason}</li>
                   ))}
                 </ul>
@@ -418,7 +445,7 @@ export function EventApprovalDetail() {
                         className="w-3 h-3 rounded-full shrink-0"
                         style={{ backgroundColor: zone.colorCode || zone.fillColor || "#3b82f6" }}
                       />
-                      <span className="font-bold app-text-main">{zone.name || (zone as any).zoneName || t("Khu vực")}</span>
+                      <span className="font-bold app-text-main">{zone.name || altZoneName(zone) || t("Khu vực")}</span>
                       <span className="text-slate-500 font-mono">({zone.capacity || 0} {t("chỗ")})</span>
                     </div>
                   ))}
@@ -522,8 +549,8 @@ export function EventApprovalDetail() {
                       hasAvailableTickets = true;
                   }
 
-                  let statusLabel = "";
-                  let statusClass = "";
+                  let statusLabel: string;
+                  let statusClass: string;
                   if (!hasAvailableTickets && displayTickets.length > 0) {
                       statusLabel = t("Hết vé");
                       statusClass = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700";

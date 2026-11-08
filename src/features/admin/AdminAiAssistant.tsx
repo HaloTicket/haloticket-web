@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSend, FiLoader, FiZap, FiDatabase, FiTrash2 } from "react-icons/fi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aiApi } from "@/services/aiApi";
 import { eventApi } from "@/services/eventApi";
+import { resolveAiError, aiErrorMessage, type AiErrorInfo } from "@/utils/aiErrors";
 import { Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 
@@ -31,6 +32,17 @@ const normalizeMarkdown = (text: string) => {
   return formatted;
 };
 
+// react-markdown hands the parsed `node` to every renderer; it must not be spread onto the DOM element
+function withoutNode<T extends object>(props: T): Omit<T, "node"> {
+  const rest = { ...props } as Record<string, unknown>;
+  delete rest.node;
+  return rest as Omit<T, "node">;
+}
+
+type StoredMessage = Omit<ChatMessage, "timestamp"> & { timestamp?: string | number };
+
+const newMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
 export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" }: { isDrawer?: boolean, initialPrompt?: string }) {
   const { t, i18n } = useTranslation();
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
@@ -52,18 +64,22 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((m: any) => ({
+          return parsed.map((m: StoredMessage) => ({
             ...m,
             timestamp: new Date(m.timestamp || Date.now())
           }));
         }
       }
-    } catch {}
+    } catch {
+      // saved history is unreadable or corrupt: start again from the welcome message
+    }
     return [getWelcomeMessage()];
   });
 
   const [inputText, setInputText] = useState(initialPrompt);
   const [isLoading, setIsLoading] = useState(false);
+  // failures are shown as a system bubble that lives outside `messages`: never persisted, never sent back as history.
+  const [chatError, setChatError] = useState<{ info: AiErrorInfo; text: string; userMessageId: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -76,14 +92,16 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
   const clearChatHistory = () => {
     const fresh = [getWelcomeMessage()];
     setMessages(fresh);
+    setChatError(null);
     localStorage.setItem('admin_ai_chat_history', JSON.stringify(fresh));
   };
 
-  useEffect(() => {
-    if (initialPrompt) {
-      setInputText(initialPrompt);
-    }
-  }, [initialPrompt]);
+  // a new prompt handed in by the parent replaces the draft (adjusting state while rendering instead of in an effect)
+  const [seenPrompt, setSeenPrompt] = useState(initialPrompt);
+  if (initialPrompt !== seenPrompt) {
+    setSeenPrompt(initialPrompt);
+    if (initialPrompt) setInputText(initialPrompt);
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -91,25 +109,38 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, chatError]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputText.trim()) return;
 
     const userMessage = {
-      id: Date.now().toString(),
+      id: newMessageId(),
       sender: "user" as const,
       text: inputText.trim(),
       timestamp: new Date()
     };
     
+    const history = messages.slice(1);
     setMessages(prev => [...prev, userMessage]);
     setInputText("");
+    void requestReply(userMessage.text, userMessage.id, history);
+  };
+
+  const resendLast = () => {
+    if (!chatError || isLoading) return;
+    const index = messages.findIndex(m => m.id === chatError.userMessageId);
+    void requestReply(chatError.text, chatError.userMessageId, index > 0 ? messages.slice(1, index) : messages.slice(1));
+  };
+
+  const requestReply = async (text: string, userMessageId: string, previous: ChatMessage[]) => {
+    const userMessage = { text };
+    setChatError(null);
     setIsLoading(true);
 
     try {
-      const history = messages.slice(1).map(m => ({ 
+      const history = previous.map(m => ({ 
         role: m.sender === "user" ? "user" : "assistant", 
         content: m.text 
       }));
@@ -138,12 +169,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
       }]);
     } catch (error) {
       console.error("AI Assistant Error:", error);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        sender: "ai",
-        text: label("Rất tiếc, máy chủ AI hiện không phản hồi. Vui lòng thử lại sau.", "Sorry, the AI server is not responding. Please try again later."),
-        timestamp: new Date()
-      }]);
+      setChatError({ info: resolveAiError(error), text, userMessageId });
     } finally {
       setIsLoading(false);
     }
@@ -189,7 +215,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
 
       <div className={`flex-1 min-h-0 flex flex-col shadow-xs ${isDrawer ? '' : 'border app-border rounded-lg app-bg-card'}`}>
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
+        <div role="log" aria-live="polite" aria-label={label("Cuộc trò chuyện với trợ lý AI", "Conversation with the AI assistant")} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
           {messages.length === 1 && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
               <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
@@ -241,42 +267,43 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        table: ({ node, ...props }) => (
+                        table: (props) => (
                           <div className="my-2.5 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40">
-                            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs text-left" {...props} />
+                            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs text-left" {...withoutNode(props)} />
                           </div>
                         ),
-                        thead: ({ node, ...props }) => (
-                          <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-[11px]" {...props} />
+                        thead: (props) => (
+                          <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-[11px]" {...withoutNode(props)} />
                         ),
-                        tbody: ({ node, ...props }) => (
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300" {...props} />
+                        tbody: (props) => (
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300" {...withoutNode(props)} />
                         ),
-                        tr: ({ node, ...props }) => (
-                          <tr className="hover:bg-blue-50/50 dark:hover:bg-slate-800/40 transition-colors" {...props} />
+                        tr: (props) => (
+                          <tr className="hover:bg-blue-50/50 dark:hover:bg-slate-800/40 transition-colors" {...withoutNode(props)} />
                         ),
-                        th: ({ node, ...props }) => (
-                          <th className="px-3 py-2 font-bold text-slate-900 dark:text-white whitespace-nowrap border-b border-slate-200 dark:border-slate-700" {...props} />
+                        th: (props) => (
+                          <th className="px-3 py-2 font-bold text-slate-900 dark:text-white whitespace-nowrap border-b border-slate-200 dark:border-slate-700" {...withoutNode(props)} />
                         ),
-                        td: ({ node, ...props }) => (
-                          <td className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/60 leading-relaxed" {...props} />
+                        td: (props) => (
+                          <td className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/60 leading-relaxed" {...withoutNode(props)} />
                         ),
-                        p: ({ node, ...props }) => (
-                          <p className="my-1.5 leading-relaxed text-xs text-slate-800 dark:text-slate-200" {...props} />
+                        p: (props) => (
+                          <p className="my-1.5 leading-relaxed text-xs text-slate-800 dark:text-slate-200" {...withoutNode(props)} />
                         ),
-                        strong: ({ node, ...props }) => (
-                          <strong className="font-bold text-slate-900 dark:text-white" {...props} />
+                        strong: (props) => (
+                          <strong className="font-bold text-slate-900 dark:text-white" {...withoutNode(props)} />
                         ),
-                        ul: ({ node, ...props }) => (
-                          <ul className="my-2 pl-4 list-disc space-y-1 text-xs text-slate-800 dark:text-slate-200" {...props} />
+                        ul: (props) => (
+                          <ul className="my-2 pl-4 list-disc space-y-1 text-xs text-slate-800 dark:text-slate-200" {...withoutNode(props)} />
                         ),
-                        ol: ({ node, ...props }) => (
-                          <ol className="my-2 pl-4 list-decimal space-y-1 text-xs text-slate-800 dark:text-slate-200" {...props} />
+                        ol: (props) => (
+                          <ol className="my-2 pl-4 list-decimal space-y-1 text-xs text-slate-800 dark:text-slate-200" {...withoutNode(props)} />
                         ),
-                        li: ({ node, ...props }) => (
-                          <li className="leading-relaxed" {...props} />
+                        li: (props) => (
+                          <li className="leading-relaxed" {...withoutNode(props)} />
                         ),
-                        code: ({ node, className, children, ...props }: any) => {
+                        code: ({ className, children, ...rest }: ComponentPropsWithoutRef<"code">) => {
+                          const props = withoutNode(rest);
                           const match = /language-(\w+)/.exec(className || "");
                           const isInline = !match && !String(children).includes("\n");
                           return isInline ? (
@@ -329,8 +356,20 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white dark:bg-[#18181b] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2 border border-slate-200 dark:border-slate-800 shadow-xs">
-                <FiLoader className="w-4 h-4 text-blue-600 animate-spin" />
+                <FiLoader className="w-4 h-4 text-blue-600 motion-safe:animate-spin" />
                 <span className="text-[11px] font-medium app-text-muted">{label("Đang phân tích...", "Analyzing...")}</span>
+              </div>
+            </div>
+          )}
+          {chatError && !isLoading && (
+            <div className="flex justify-start">
+              <div role="alert" className="max-w-[90%] sm:max-w-[85%] rounded-2xl rounded-tl-sm border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-xs text-rose-800 dark:text-rose-200">
+                <p>{aiErrorMessage(chatError.info)}</p>
+                {chatError.info.retryable && (
+                  <button type="button" onClick={resendLast} className="mt-2 inline-flex items-center rounded-md border border-rose-300 dark:border-rose-800 px-2.5 py-1 text-[11px] font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer">
+                    {label("Gửi lại", "Resend")}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -344,6 +383,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
+              aria-label={label("Nhập tin nhắn cho trợ lý AI", "Type a message to the AI assistant")}
               className="w-full app-bg-card border app-border rounded-xl pl-3.5 pr-11 min-h-9 py-2 text-xs font-medium app-text-main focus:outline-none focus:border-blue-500 shadow-xs transition-all placeholder:text-slate-400"
               disabled={isLoading}
             />

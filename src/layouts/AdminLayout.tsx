@@ -140,26 +140,38 @@ export const AdminLayout: React.FC = () => {
   }, [navigate]);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    let failures = 0;
+    // 60 s polling that backs off after errors and skips work while the tab is hidden.
     const fetchHealth = async () => {
-      try {
-        const data = await aiApi.getSystemHealth();
-        if (Array.isArray(data) && data.length > 0) {
-          const upCount = data.filter((s: any) => s.status === "UP").length;
-          setSystemUptime(((upCount / data.length) * 100).toFixed(1) + "%");
+      if (cancelled) return;
+      if (!document.hidden) {
+        try {
+          const data = await aiApi.getSystemHealth();
+          failures = 0;
+          if (Array.isArray(data) && data.length > 0) {
+            const upCount = data.filter((s) => s.status === "UP").length;
+            setSystemUptime(((upCount / data.length) * 100).toFixed(1) + "%");
+          } else {
+            setSystemUptime(null);
+          }
+        } catch {
+          failures += 1;
+          // no data: do not keep showing an old percentage as if it were current
+          setSystemUptime(null);
         }
-      } catch (e) {
-        // fail silently
       }
+      if (!cancelled) timer = setTimeout(fetchHealth, Math.min(60000 * 2 ** failures, 600000));
     };
-    
+
     if (userProfile?.roles?.includes("ADMIN")) {
-      fetchHealth();
-      interval = setInterval(fetchHealth, 60000);
+      void fetchHealth();
     }
-    
+
     return () => {
-      if (interval) clearInterval(interval);
+      cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [userProfile?.roles]);
 

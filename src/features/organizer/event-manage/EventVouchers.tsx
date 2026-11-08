@@ -22,6 +22,7 @@ import { isForbiddenError } from "@/utils/httpError";
 import { voucherApi } from "@/services/voucherApi";
 import { eventApi } from "@/services/eventApi";
 import { aiApi } from "@/services/aiApi";
+import { getAiErrorMessage } from "@/utils/aiErrors";
 import type { VoucherItem, VoucherCreateData } from "@/types";
 import ReactMarkdown from 'react-markdown';
 
@@ -77,7 +78,8 @@ export const EventVouchers: React.FC = () => {
       console.error(err);
       // 403: the analysis is not open to this account yet
       const forbidden = (err as { response?: { status?: number } })?.response?.status === 403;
-      showToast(forbidden ? t("Tính năng đang được nâng cấp") : t("Có lỗi khi phân tích chiến lược"), forbidden ? "info" : "error");
+      // any other failure: say what actually happened (rate limit, unavailable, ...), by error code
+      showToast(forbidden ? t("Tính năng đang được nâng cấp") : getAiErrorMessage(err), forbidden ? "info" : "error");
     } finally {
       setIsAnalyzing(false);
     }

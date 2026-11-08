@@ -4,12 +4,14 @@ import { FiSearch, FiCode, FiDatabase, FiLoader, FiAlertCircle, FiDownload, FiBo
 import ReactMarkdown from 'react-markdown';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { aiApi } from '@/services/aiApi';
+import type { AiAnalyzeResponse } from '@/types/ai';
 import { FiRefreshCw } from 'react-icons/fi';
+import { resolveAiError, aiErrorMessage } from '@/utils/aiErrors';
 
 interface AiQueryHistoryItem {
   id: string;
   question: string;
-  result: any;
+  result: AiAnalyzeResponse | null;
   timestamp: string;
 }
 
@@ -32,27 +34,32 @@ export const AdminAiAnalytics: React.FC = () => {
         const parsed = JSON.parse(last);
         return parsed.question || '';
       }
-    } catch {}
+    } catch {
+      // localStorage unavailable or corrupt JSON: start with an empty question
+    }
     return '';
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(() => {
+  const [result, setResult] = useState<AiAnalyzeResponse | null>(() => {
     try {
       const last = localStorage.getItem('admin_ai_last_query');
       if (last) {
         const parsed = JSON.parse(last);
         return parsed.result || null;
       }
-    } catch {}
+    } catch {
+      // localStorage unavailable or corrupt JSON: start without a previous result
+    }
     return null;
   });
 
   const [error, setError] = useState<string | null>(null);
+  const [errorRetryable, setErrorRetryable] = useState(false);
   const [showSchema, setShowSchema] = useState(false);
   const [chartTypeOverride, setChartTypeOverride] = useState<'bar'|'pie'|'line'|null>(null);
 
-  const saveToHistory = (q: string, res: any) => {
+  const saveToHistory = (q: string, res: AiAnalyzeResponse | null) => {
     const newItem: AiQueryHistoryItem = {
       id: String(Date.now()),
       question: q.trim(),
@@ -76,7 +83,9 @@ export const AdminAiAnalytics: React.FC = () => {
     setChartTypeOverride(null);
     try {
       localStorage.setItem('admin_ai_last_query', JSON.stringify(item));
-    } catch {}
+    } catch {
+      // localStorage unavailable or quota exceeded: persisting the last query is best-effort
+    }
   };
 
   const removeHistoryItem = (e: React.MouseEvent, id: string) => {
@@ -107,9 +116,12 @@ export const AdminAiAnalytics: React.FC = () => {
       const response = await aiApi.analyzeData(question);
       setResult(response);
       saveToHistory(question, response);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("AI Analytics error:", err);
-      setError(label("Rất tiếc, AI không thể phân tích yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn hoặc kiểm tra kết nối CSDL.", "Sorry, AI could not analyze this request. Please try again with a clearer question or check database connectivity."));
+      // a refused question and a system failure need different messages and different next steps.
+      const info = resolveAiError(err);
+      setError(aiErrorMessage(info));
+      setErrorRetryable(info.retryable);
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +132,7 @@ export const AdminAiAnalytics: React.FC = () => {
     const columns = Object.keys(result.data[0]);
     const csvContent = [
       columns.join(","),
-      ...result.data.map((row: any) => columns.map(col => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(","))
+      ...result.data.map((row: Record<string, unknown>) => columns.map(col => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(","))
     ].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -152,7 +164,7 @@ export const AdminAiAnalytics: React.FC = () => {
     setChartTypeOverride(null);
     localStorage.removeItem('admin_ai_last_query');
   };
-  const renderTable = (data: any[]) => {
+  const renderTable = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return <p className="text-sm app-text-muted mt-4 text-center py-8">{label("Không tìm thấy dữ liệu phù hợp với yêu cầu của bạn.", "No matching data found for your request.")}</p>;
 
     const columns = Object.keys(data[0]);
@@ -186,13 +198,13 @@ export const AdminAiAnalytics: React.FC = () => {
     );
   };
 
-  const renderChart = (data: any[]) => {
+  const renderChart = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return null;
     const columns = Object.keys(data[0]);
     if (columns.length < 2) return null; 
 
     // Try to find a string/categorical column and a numeric column
-    let labelCol = columns.find(col => typeof data[0][col] === 'string') || columns[0];
+    const labelCol = columns.find(col => typeof data[0][col] === 'string') || columns[0];
     let numCols = columns.filter(col => typeof data[0][col] === 'number');
 
     if (numCols.length === 0) {
@@ -234,7 +246,7 @@ export const AdminAiAnalytics: React.FC = () => {
             <PieChart>
               <Pie data={chartData} dataKey={valueCol} nameKey={labelCol} cx="50%" cy="50%" outerRadius={100} label>
                 {chartData.map((index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={COLORS[(index as unknown as number) % COLORS.length]} />
                 ))}
               </Pie>
               <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
@@ -298,7 +310,7 @@ export const AdminAiAnalytics: React.FC = () => {
               className="px-4 py-2 min-h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white text-xs font-bold rounded-md transition-all active:scale-95 flex items-center gap-1.5"
             >
               {isLoading ? (
-                <><FiLoader className="w-4 h-4 animate-spin" /> {label("Đang phân tích", "Analyzing")}</>
+                <><FiLoader className="w-4 h-4 motion-safe:animate-spin" /> {label("Đang phân tích", "Analyzing")}</>
               ) : (
                 <>{label("Truy vấn ngay", "Query now")}</>
               )}
@@ -413,9 +425,14 @@ export const AdminAiAnalytics: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="max-w-3xl mx-auto mt-6 p-4 rounded-lg shadow-xs bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-3 animate-in fade-in zoom-in-95">
+        <div role="alert" className="max-w-3xl mx-auto mt-6 p-4 rounded-lg shadow-xs bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-3 animate-in fade-in zoom-in-95">
           <FiAlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+          <p className="text-sm text-red-700 dark:text-red-400 flex-1">{error}</p>
+          {errorRetryable && (
+            <button type="button" onClick={() => handleSearch()} disabled={isLoading} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-red-300 dark:border-red-800 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 cursor-pointer">
+              <FiRefreshCw className="w-3.5 h-3.5" /> {label("Thử lại", "Retry")}
+            </button>
+          )}
         </div>
       )}
 

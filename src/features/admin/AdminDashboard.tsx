@@ -41,6 +41,23 @@ interface ActivityLogItem {
   type: "success" | "warning" | "info";
 }
 
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
+const readActivityLogs = (): ActivityLogItem[] => {
+  try {
+    const saved = localStorage.getItem("admin_activity_logs");
+    if (saved) {
+      const parsed: unknown = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (parsed as ActivityLogItem[]).slice(0, 5);
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return [];
+};
+
 export const AdminDashboard: React.FC = () => {
   const { t: translate, i18n } = useTranslation();
   const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
@@ -55,9 +72,9 @@ export const AdminDashboard: React.FC = () => {
   const [pendingEvents, setPendingEvents] = useState<PendingEventItem[]>([]);
   const [resaleCap, setResaleCap] = useState<number>(20);
   const [resaleListingsCount, setResaleListingsCount] = useState<number>(0);
-  const [servicesCount, setServicesCount] = useState<{ up: number; total: number }>({ up: 8, total: 8 });
+  const [servicesCount, setServicesCount] = useState<{ up: number; total: number } | null>(null);
   const [venuesCount, setVenuesCount] = useState<number>(0);
-  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(readActivityLogs);
 
   // load Real Dashboard Stats
   const loadDashboardData = useCallback(async () => {
@@ -65,14 +82,14 @@ export const AdminDashboard: React.FC = () => {
       // pending events
       const rawEvents = await eventApi.getApprovalEvents("PENDING");
       if (Array.isArray(rawEvents)) {
-        const mapped: PendingEventItem[] = rawEvents.map((ev: any) => ({
+        const mapped: PendingEventItem[] = rawEvents.map((ev) => ({
           id: String(ev.id),
-          title: ev.title || "Sự kiện chưa đặt tên",
-          organizer: ev.organizerName || ev.author || "Ban Tổ Chức",
-          category: ev.categoryName || ev.category?.name || "Sự kiện",
-          submittedAt: ev.submittedAt || ev.createdAt || new Date().toISOString(),
+          title: str(ev.title) || "Sự kiện chưa đặt tên",
+          organizer: str(ev.organizerName) || str(ev.author) || "Ban Tổ Chức",
+          category: str(ev.categoryName) || str((ev.category as { name?: unknown } | null | undefined)?.name) || "Sự kiện",
+          submittedAt: str(ev.submittedAt) || str(ev.createdAt) || new Date().toISOString(),
           status: String(ev.eventApprovalStatus || ev.eventStatus || "PENDING"),
-          poster: ev.bannerUrl || ev.thumbnailUrl || ev.posterImage || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=600&q=80"
+          poster: str(ev.bannerUrl) || str(ev.thumbnailUrl) || str(ev.posterImage) || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=600&q=80"
         }));
         setPendingEvents(mapped);
       }
@@ -95,12 +112,15 @@ export const AdminDashboard: React.FC = () => {
       // microservices Health
       try {
         const health = await aiApi.getSystemHealth();
-        if (Array.isArray(health)) {
-          const up = health.filter((s: any) => s.status === "UP").length;
+        // an empty list or an error is "no data", never a healthy 0/0.
+        if (Array.isArray(health) && health.length > 0) {
+          const up = health.filter((s) => s.status === "UP").length;
           setServicesCount({ up, total: health.length });
+        } else {
+          setServicesCount(null);
         }
       } catch {
-        // fallback
+        setServicesCount(null);
       }
 
       // venues count
@@ -114,31 +134,16 @@ export const AdminDashboard: React.FC = () => {
       }
 
       // activity Logs
-      loadActivityLogs();
+      setActivityLogs(readActivityLogs());
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     }
   }, []);
 
-  const loadActivityLogs = () => {
-    try {
-      const saved = localStorage.getItem("admin_activity_logs");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setActivityLogs(parsed.slice(0, 5));
-          return;
-        }
-      }
-    } catch {
-      // fallback
-    }
-
-    setActivityLogs([]);
-  };
-
   useEffect(() => {
-    loadDashboardData();
+    queueMicrotask(() => {
+      void loadDashboardData();
+    });
   }, [loadDashboardData]);
 
   // ai executive summary generation with cache to prevent excessive runs
@@ -158,9 +163,11 @@ export const AdminDashboard: React.FC = () => {
     setIsAiAnalyzing(true);
     setTimeout(() => {
       const pendingCount = pendingEvents.length;
-      const healthStatus = servicesCount.up === servicesCount.total 
-        ? (isEn ? "operating completely stable (100% UP)" : "hoạt động hoàn toàn ổn định (100% UP)")
-        : (isEn ? `has ${servicesCount.total - servicesCount.up} services needing inspection` : `có ${servicesCount.total - servicesCount.up} dịch vụ cần kiểm tra`);
+      const healthStatus = !servicesCount
+        ? (isEn ? "has no status data available right now" : "hiện chưa có dữ liệu trạng thái")
+        : servicesCount.up === servicesCount.total
+          ? (isEn ? "operating completely stable (100% UP)" : "hoạt động hoàn toàn ổn định (100% UP)")
+          : (isEn ? `has ${servicesCount.total - servicesCount.up} services needing inspection` : `có ${servicesCount.total - servicesCount.up} dịch vụ cần kiểm tra`);
 
       const summaryText = isEn
         ? `Real-time system report: Currently **${pendingCount} events** are in the approval queue awaiting Admin review.\n\nSecondary resale price cap policy at **+${resaleCap}%** is active with **${resaleListingsCount} tickets** trading safely.\n\nMicroservices infrastructure is ${healthStatus}, database connections and notification channels are running smoothly. The system currently manages **${venuesCount} venues** with standardized seatmaps.`
@@ -174,9 +181,14 @@ export const AdminDashboard: React.FC = () => {
   }, [i18n.language, pendingEvents.length, resaleCap, resaleListingsCount, servicesCount, venuesCount]);
 
   useEffect(() => {
-    if (venuesCount >= 0) {
-      generateOrLoadAiSummary(false);
-    }
+    if (venuesCount < 0) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) generateOrLoadAiSummary(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [generateOrLoadAiSummary, venuesCount]);
 
   const statCards = [
@@ -205,13 +217,13 @@ export const AdminDashboard: React.FC = () => {
     {
       id: "system-health",
       title: label("Sức khỏe Microservices", "Microservices Health"),
-      value: `${servicesCount.up}/${servicesCount.total} ${label("Dịch vụ", "Services")}`,
-      change: servicesCount.up === servicesCount.total ? label("Hệ thống UP (Clean)", "System UP (Clean)") : label("Cảnh báo dịch vụ", "Service Warning"),
-      changeType: servicesCount.up === servicesCount.total ? "positive" : "warning",
+      value: servicesCount ? `${servicesCount.up}/${servicesCount.total} ${label("Dịch vụ", "Services")}` : "—",
+      change: !servicesCount ? label("Không có dữ liệu", "No data") : servicesCount.up === servicesCount.total ? label("Hệ thống UP (Clean)", "System UP (Clean)") : label("Cảnh báo dịch vụ", "Service Warning"),
+      changeType: servicesCount && servicesCount.up === servicesCount.total ? "positive" : "warning",
       icon: <FiActivity className="w-5 h-5 text-indigo-500" />,
       bg: "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-900",
       link: PATHS.ADMIN_SYSTEM_HEALTH,
-      badgeText: servicesCount.up === servicesCount.total ? label("Ổn định", "Stable") : label("Cần kiểm tra", "Needs check")
+      badgeText: !servicesCount ? label("Chưa rõ", "Unknown") : servicesCount.up === servicesCount.total ? label("Ổn định", "Stable") : label("Cần kiểm tra", "Needs check")
     },
     {
       id: "venues-seatmaps",

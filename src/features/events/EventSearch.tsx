@@ -6,6 +6,7 @@ import { eventApi, type EventApiData } from "@/services/eventApi";
 import { adminConfigApi } from "@/services/adminConfigApi";
 import type { Category } from "@/types/adminConfig";
 import { aiApi } from "@/services/aiApi";
+import { resolveAiError, aiErrorMessage, type AiErrorInfo } from "@/utils/aiErrors";
 import { EventCard } from "@/components/common/EventCard";
 import DateFilterModal from "./components/DateFilterModal";
 import AdvancedFilterModal from "./components/AdvancedFilterModal";
@@ -36,6 +37,9 @@ export default function EventSearch() {
   const [aiEvents, setAiEvents] = useState<EventApiData[]>([]);
   const [isAiMode, setIsAiMode] = useState<boolean>(aiParam);
   const [isAiSearching, setIsAiSearching] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<AiErrorInfo | null>(null);
+  const [aiDegraded, setAiDegraded] = useState<boolean>(false);
+  const [aiRetryTick, setAiRetryTick] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   // filter modal toggle states
@@ -88,23 +92,31 @@ export default function EventSearch() {
 
     let isMounted = true;
     setIsAiSearching(true);
+    setAiError(null);
+    setAiDegraded(false);
     aiApi.searchEventsByNaturalLanguage(queryParam, 8).then((res) => {
       if (isMounted && res && Array.isArray(res.events) && res.events.length > 0) {
-        setAiEvents(res.events as EventApiData[]);
+        setAiDegraded(res.degraded === true || res.search_mode === "keyword");
+        setAiEvents(res.events as unknown as EventApiData[]);
         // if query looks like a natural sentence or has ai param, auto-activate AI mode
         if (aiParam || queryParam.split(" ").length >= 3) {
           setIsAiMode(true);
         }
       }
       if (isMounted) setIsAiSearching(false);
-    }).catch(() => {
-      if (isMounted) setIsAiSearching(false);
+    }).catch((err: unknown) => {
+      if (!isMounted) return;
+      // Fall back to the plain keyword search, but tell the user why.
+      setAiEvents([]);
+      setIsAiMode(false);
+      setAiError(resolveAiError(err));
+      setIsAiSearching(false);
     });
 
     return () => {
       isMounted = false;
     };
-  }, [queryParam, aiParam]);
+  }, [queryParam, aiParam, aiRetryTick]);
 
   // determine which event list to use: AI semantic search vs normal keyword search
   const baseEvents = (isAiMode && aiEvents.length > 0) ? aiEvents : allEvents;
@@ -238,6 +250,29 @@ export default function EventSearch() {
           </div>
         </div>
 
+        {/* AI search failed: keyword results are shown instead */}
+        {aiError && queryParam.trim() && (
+          <div
+            role="alert"
+            className="mb-6 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="text-xs md:text-sm app-text-main">
+              <p className="font-bold">{translate("ai.search.fallbackNotice")}</p>
+              <p className="mt-0.5 app-text-muted">{aiErrorMessage(aiError)}</p>
+            </div>
+            {aiError.retryable && (
+              <button
+                type="button"
+                onClick={() => setAiRetryTick((tick) => tick + 1)}
+                disabled={isAiSearching}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border app-border app-bg-card hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0 self-start sm:self-auto disabled:opacity-50"
+              >
+                {translate("ai.action.retry")}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* AI Semantic Search Banner */}
         {isAiMode && queryParam && (
           <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2">
@@ -248,11 +283,12 @@ export default function EventSearch() {
               <div>
                 <p className="text-xs md:text-sm font-bold app-text-main flex items-center gap-2">
                   <span>{translate("Đang hiển thị kết quả tìm kiếm bằng Trí tuệ Nhân tạo (Semantic AI Search)")}</span>
-                  {isAiSearching && <span className="text-[10px] text-blue-500 animate-pulse">({translate("Đang phân tích...")})</span>}
+                  {isAiSearching && <span role="status" className="text-[10px] text-blue-500 motion-safe:animate-pulse">({translate("Đang phân tích...")})</span>}
                 </p>
                 <p className="text-[11px] app-text-muted mt-0.5">
                   {translate("Hệ thống tự động phân tích ngữ nghĩa tự nhiên cho:")} <strong className="text-blue-600 dark:text-blue-400">"{queryParam}"</strong>
                 </p>
+                {aiDegraded && <p className="text-[11px] app-text-muted mt-0.5">{translate("ai.search.degraded")}</p>}
               </div>
             </div>
             <button
@@ -260,7 +296,7 @@ export default function EventSearch() {
               onClick={() => setIsAiMode(false)}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg border app-border app-bg-card hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
             >
-              {translate("Chuyển về tìm từ khóa thường")}
+              {translate("ai.search.keywordSwitch")}
             </button>
           </div>
         )}

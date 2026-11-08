@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiShield,
@@ -13,33 +13,28 @@ import {
 } from "react-icons/fi";
 import { aiApi } from "@/services/aiApi";
 import { toast } from "sonner";
+import { resolveAiError, aiErrorMessage } from "@/utils/aiErrors";
+import type { SslStatusResponse } from "@/types/ai";
 
-interface SslStatusData {
-  has_ssl: boolean;
-  domain: string;
-  protocol: string;
-  port: number;
-  status: string;
-  issuer: string;
-  remaining_days: number;
-  expire_date: string;
-  message: string;
-}
+type SslStatusData = SslStatusResponse;
 
 export const SslCertificateCard: React.FC = () => {
   const { t, i18n } = useTranslation();
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const labelRef = useRef(label);
+  useEffect(() => {
+    labelRef.current = label;
+  });
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [customDomain, setCustomDomain] = useState("");
   const [sslData, setSslData] = useState<SslStatusData | null>(null);
+  const [sslError, setSslError] = useState<string | null>(null);
+  const [lastDomain, setLastDomain] = useState<string | undefined>(undefined);
 
-  // check client connection protocol directly
-  const isClientHttps = typeof window !== "undefined" && window.location.protocol === "https:";
   const clientHost = typeof window !== "undefined" ? window.location.host : "localhost";
 
-  const fetchSslStatus = async (domainToCheck?: string) => {
-    setChecking(true);
+  const fetchSslStatus = useCallback(async (domainToCheck?: string): Promise<boolean> => {
     let clean = domainToCheck ? domainToCheck.trim() : "";
     if (!clean && typeof window !== "undefined" && window.location.hostname && window.location.hostname !== "localhost" && !window.location.hostname.startsWith("192.") && !window.location.hostname.startsWith("127.")) {
       clean = window.location.hostname;
@@ -52,41 +47,44 @@ export const SslCertificateCard: React.FC = () => {
     }
     try {
       const data = await aiApi.getSslStatus(clean || undefined);
-      if (data && typeof data === "object") {
-        setSslData(data);
-      } else {
-        throw new Error("No SSL response");
-      }
-    } catch {
-      // fallback to real client browser protocol detection
-      setSslData({
-        has_ssl: isClientHttps,
-        domain: clean || clientHost,
-        protocol: isClientHttps ? "HTTPS (TLS 1.3)" : "HTTP (Không mã hóa)",
-        port: isClientHttps ? 443 : Number(window.location.port) || 80,
-        status: isClientHttps ? "ACTIVE_VALID" : "DEV_HTTP_NO_SSL",
-        issuer: isClientHttps ? "Trình duyệt (Browser Trusted CA)" : "Chưa có SSL (Localhost / HTTP)",
-        remaining_days: isClientHttps ? 58 : 0,
-        expire_date: isClientHttps ? "Xem qua biểu tượng khóa trên thanh URL" : "N/A",
-        message: isClientHttps
-          ? "Đang kết nối qua giao thức HTTPS bảo mật."
-          : "Hệ thống đang chạy trên Localhost HTTP không có chứng chỉ SSL/TLS.",
-      });
+      setSslData(data);
+      setSslError(null);
+      return true;
+    } catch (err) {
+      // no made-up certificate: show the real failure and let the admin retry.
+      setSslData(null);
+      const info = resolveAiError(err);
+      setSslError(
+        info.kind === "rate_limited"
+          ? aiErrorMessage(info)
+          : labelRef.current("Không lấy được trạng thái chứng chỉ SSL/TLS từ máy chủ.", "Could not get the SSL/TLS certificate status from the server.")
+      );
+      return false;
     } finally {
+      setLastDomain(clean || undefined);
       setChecking(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSslStatus();
   }, []);
 
-  const handleRecheckSsl = () => {
-    fetchSslStatus(customDomain || undefined);
-    toast.info("Đang kiểm tra chứng chỉ SSL/TLS thực tế...");
+  useEffect(() => {
+    // initial load; state updates happen after the async work, not in the effect body
+    void Promise.resolve().then(() => fetchSslStatus());
+  }, [fetchSslStatus]);
+
+  const startCheck = (domain?: string) => {
+    setChecking(true);
+    return fetchSslStatus(domain);
   };
 
-  const hasSsl = sslData ? sslData.has_ssl : isClientHttps;
+  const handleRecheckSsl = () => {
+    toast.info(label("Đang kiểm tra chứng chỉ SSL/TLS thực tế...", "Checking the live SSL/TLS certificate..."));
+    void startCheck(customDomain || undefined);
+  };
+
+  const noData = label("Không có dữ liệu", "No data");
+  const hasSsl = sslData ? sslData.has_ssl === true : false;
+  const expired = sslData?.status === "EXPIRED";
+  const expiring = sslData?.status === "EXPIRING_SOON";
 
   return (
     <>
@@ -95,19 +93,42 @@ export const SslCertificateCard: React.FC = () => {
           <div className="flex items-start gap-3">
             <div
               className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                hasSsl
+                hasSsl && !expired && !expiring
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  : expired
+                    ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                    : !sslData && !checking
+                      ? "bg-slate-500/10 text-slate-600 dark:text-slate-300"
+                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
               }`}
             >
-              {hasSsl ? <FiLock className="w-5 h-5" /> : <FiAlertTriangle className="w-5 h-5" />}
+              {hasSsl && !expired ? <FiLock className="w-5 h-5" aria-hidden="true" /> : <FiAlertTriangle className="w-5 h-5" aria-hidden="true" />}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-bold app-text-main">
                   {label("Giám sát Chứng chỉ Bảo mật SSL/TLS", "SSL/TLS Security Certificate Monitoring")}
                 </h3>
-                {hasSsl ? (
+                {sslError ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/30">
+                    <FiAlertTriangle className="w-3 h-3" />
+                    {label("KHÔNG KIỂM TRA ĐƯỢC", "CHECK FAILED")}
+                  </span>
+                ) : !sslData ? (
+                  <span role="status" className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/30">
+                    {label("ĐANG KIỂM TRA...", "CHECKING...")}
+                  </span>
+                ) : expired ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                    <FiAlertTriangle className="w-3 h-3" />
+                    {label("ĐÃ HẾT HẠN", "EXPIRED")}
+                  </span>
+                ) : hasSsl && expiring ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    <FiAlertTriangle className="w-3 h-3" />
+                    {label("SẮP HẾT HẠN", "EXPIRING SOON")}
+                  </span>
+                ) : hasSsl ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                     <FiCheckCircle className="w-3 h-3" />
                     {label("HỢP LỆ (SECURE HTTPS)", "VALID (SECURE HTTPS)")}
@@ -115,15 +136,14 @@ export const SslCertificateCard: React.FC = () => {
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                     <FiAlertTriangle className="w-3 h-3" />
-                    {label("CHƯA BẬT SSL (HTTP LOCALHOST)", "SSL NOT ENABLED (HTTP LOCALHOST)")}
+                    {sslData?.status === "NO_SSL_OR_UNREACHABLE"
+                      ? label("KHÔNG CÓ SSL HOẶC KHÔNG KẾT NỐI ĐƯỢC", "NO SSL OR UNREACHABLE")
+                      : label("CHƯA BẬT SSL (HTTP LOCALHOST)", "SSL NOT ENABLED (HTTP LOCALHOST)")}
                   </span>
                 )}
               </div>
               <p className="text-xs app-text-muted mt-0.5">
-                {sslData?.message ||
-                  (hasSsl
-                    ? label("Đường truyền kết nối được mã hóa bằng giao thức HTTPS an toàn.", "Connection is securely encrypted with HTTPS protocol.")
-                    : label("Môi trường hiện tại đang chạy qua HTTP. Cần gắn tên miền và cài đặt SSL khi triển khai Production.", "Current environment is running on HTTP. Attach a domain and install SSL for Production."))}
+                {sslError ?? sslData?.message ?? noData}
               </p>
             </div>
           </div>
@@ -143,11 +163,25 @@ export const SslCertificateCard: React.FC = () => {
               disabled={checking}
               className="inline-flex items-center min-h-9 gap-1.5 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
             >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${checking ? "animate-spin" : ""}`} />
+              <FiRefreshCw className={`w-3.5 h-3.5 ${checking ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
               <span>{label("Kiểm tra lại", "Re-check")}</span>
             </button>
           </div>
         </div>
+
+        {sslError && (
+          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
+            <span>{sslError}</span>
+            <button
+              type="button"
+              onClick={() => { void startCheck(lastDomain); }}
+              disabled={checking}
+              className="px-2.5 py-1 rounded border border-rose-300 dark:border-rose-800 font-semibold cursor-pointer disabled:opacity-50"
+            >
+              {label("Thử lại", "Retry")}
+            </button>
+          </div>
+        )}
 
         {/* Certificate Details Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
@@ -156,10 +190,10 @@ export const SslCertificateCard: React.FC = () => {
               <FiShield className="w-3.5 h-3.5 text-blue-500" /> {label("Tên miền / Địa chỉ", "Domain / Address")}
             </span>
             <div className="text-xs font-mono font-bold app-text-main truncate">
-              {sslData?.domain || clientHost}
+              {sslData?.domain || lastDomain || clientHost}
             </div>
             <div className="text-[11px] app-text-muted">
-              {label("Cổng:", "Port:")} {sslData?.port || (isClientHttps ? 443 : 80)}
+              {label("Cổng:", "Port:")} {sslData?.port ?? noData}
             </div>
           </div>
 
@@ -168,10 +202,10 @@ export const SslCertificateCard: React.FC = () => {
               <FiKey className="w-3.5 h-3.5 text-purple-500" /> {label("Đơn vị cấp (Issuer)", "Issuer")}
             </span>
             <div className="text-xs font-bold app-text-main truncate">
-              {sslData?.issuer || (hasSsl ? "Trusted CA" : label("Chưa cấu hình", "Not configured"))}
+              {sslData?.issuer || (sslData ? label("Chưa cấu hình", "Not configured") : noData)}
             </div>
             <div className="text-[11px] app-text-muted">
-              {label("Giao thức:", "Protocol:")} {sslData?.protocol || (hasSsl ? "HTTPS" : "HTTP/1.1")}
+              {label("Giao thức:", "Protocol:")} {sslData?.protocol || noData}
             </div>
           </div>
 
@@ -181,15 +215,25 @@ export const SslCertificateCard: React.FC = () => {
             </span>
             <div
               className={`text-sm font-black ${
-                hasSsl
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-amber-600 dark:text-amber-400"
+                !sslData
+                  ? "app-text-muted"
+                  : hasSsl && !expired && !expiring
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : expired
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-amber-600 dark:text-amber-400"
               }`}
             >
-              {hasSsl ? `${sslData?.remaining_days || 0} ${label("ngày còn lại", "days left")}` : label("Chưa kích hoạt (0 ngày)", "Not activated (0 days)")}
+              {!sslData
+                ? noData
+                : hasSsl && typeof sslData.remaining_days === "number"
+                  ? expired
+                    ? label("Đã hết hạn", "Expired")
+                    : `${sslData.remaining_days} ${label("ngày còn lại", "days left")}`
+                  : label("Chưa kích hoạt", "Not activated")}
             </div>
             <div className="text-[11px] app-text-muted">
-              {label("Hết hạn:", "Expires:")} {sslData?.expire_date || "N/A"}
+              {label("Hết hạn:", "Expires:")} {sslData?.expire_date || noData}
             </div>
           </div>
 
@@ -204,7 +248,7 @@ export const SslCertificateCard: React.FC = () => {
                 onChange={(e) => setCustomDomain(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    fetchSslStatus(customDomain);
+                    startCheck(customDomain);
                   }
                 }}
                 placeholder={label("vd: haloticket.duckdns.org", "e.g. haloticket.duckdns.org")}
@@ -212,7 +256,7 @@ export const SslCertificateCard: React.FC = () => {
               />
               <button
                 type="button"
-                onClick={() => fetchSslStatus(customDomain)}
+                onClick={() => startCheck(customDomain)}
                 className="inline-flex items-center min-h-6.5 gap-2 px-3 text-xs font-semibold rounded-md border app-border app-bg-card hover:bg-slate-50 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer shadow-xs disabled:opacity-60"
               >
                 {label("Quét", "Scan")}

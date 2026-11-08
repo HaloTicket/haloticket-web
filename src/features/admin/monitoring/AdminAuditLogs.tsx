@@ -18,6 +18,11 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { CustomSelect } from "@/components/common/CustomSelect";
 import { aiApi } from "@/services/aiApi";
 import { toast } from "sonner";
+import { resolveAiError, aiErrorMessage } from "@/utils/aiErrors";
+
+const POLL_MS = 5000;
+const MAX_BACKOFF_MS = 60000;
+const MAX_LOGS = 500;
 
 export interface AuditLogItem {
   id: string;
@@ -25,9 +30,9 @@ export interface AuditLogItem {
   service: string;
   event: string;
   status: "HEALTHY" | "WARN" | "INFO" | "ERROR";
-  ipAddress?: string;
-  operator?: string;
-  endpoint?: string;
+  ipAddress?: string | null;
+  operator?: string | null;
+  endpoint?: string | null;
   details?: Record<string, unknown> | string;
 }
 
@@ -46,55 +51,89 @@ export function AdminAuditLogs() {
   const [pageSize, setPageSize] = useState(10);
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const timerRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failuresRef = useRef(0);
+  const [sourceStatus, setSourceStatus] = useState<"ok" | "empty" | "unavailable" | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // fetch real logs from backend
-  const fetchLogs = async (isInitial = false) => {
+  // fetch real logs from backend; returns true when the backend answered
+  const fetchLogs = async (isInitial = false): Promise<boolean> => {
     if (isInitial) setIsLoading(true);
     try {
       const data = await aiApi.getSystemLogs();
-      if (Array.isArray(data)) {
-        const mapped: AuditLogItem[] = data.map((item: any, idx: number) => ({
-          id: item.id || `LOG-${Date.now().toString().slice(-6)}-${idx}`,
-          time: item.time || new Date().toLocaleTimeString("vi-VN"),
-          service: item.service || "microservice",
-          event: item.event || "System event",
-          status: (item.status as any) || "HEALTHY",
-          ipAddress: item.ipAddress || "127.0.0.1",
-          operator: item.operator || "system",
-          endpoint: item.endpoint || "/api/v1/event",
+      const mapped: AuditLogItem[] = data.entries.map((item) => {
+        const status = item.status === "ERROR" || item.status === "WARN" ? item.status : "INFO";
+        const time = item.time || "";
+        const service = item.service || "";
+        const event = item.event || "";
+        return {
+          // Stable id: the backend id, else derived from the entry itself so polling never duplicates rows.
+          id: item.id || `${time}|${service}|${event}`,
+          time,
+          service,
+          event,
+          status,
+          ipAddress: item.ipAddress ?? null,
+          operator: item.operator ?? null,
+          endpoint: item.endpoint ?? null,
           details: item.details || item.event,
-        }));
+        };
+      });
 
-        setLogs((prev) => {
-          // merge unique logs
-          const existingIds = new Set(prev.map((l) => l.id));
-          const newItems = mapped.filter((m) => !existingIds.has(m.id));
-          return [...newItems, ...prev];
-        });
-      }
-    } catch {
-      // keep existing logs
+      setLogs((prev) => {
+        const incoming = new Map(mapped.map((m) => [m.id, m]));
+        const kept = prev.filter((l) => !incoming.has(l.id));
+        return [...mapped, ...kept].slice(0, MAX_LOGS);
+      });
+      setSourceStatus(data.source.status);
+      setFetchError(null);
+      failuresRef.current = 0;
+      return true;
+    } catch (err) {
+      // keep the rows we already have, but say that the refresh failed
+      failuresRef.current += 1;
+      const info = resolveAiError(err);
+      setFetchError(
+        info.kind === "rate_limited"
+          ? aiErrorMessage(info)
+          : label("Không tải được nhật ký từ máy chủ.", "Could not load logs from the server.")
+      );
+      return false;
     } finally {
       if (isInitial) setIsLoading(false);
     }
   };
 
-  // real-time polling timer (every 5 seconds)
+  // real-time polling: every 5 s, backing off after failures, paused while the tab is hidden
   useEffect(() => {
-    fetchLogs(true); // fetch immediately on mount with loading indicator
-    if (!isRealtime) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      fetchLogs(false);
-    }, 5000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+    let cancelled = false;
+    const schedule = () => {
+      if (cancelled || !isRealtime) return;
+      const delay = Math.min(POLL_MS * 2 ** failuresRef.current, MAX_BACKOFF_MS);
+      timerRef.current = setTimeout(tick, delay);
     };
+    const tick = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.hidden) {
+        schedule();
+        return;
+      }
+      await fetchLogs(false);
+      schedule();
+    };
+    const onVisibility = () => {
+      if (cancelled || !isRealtime || document.hidden) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      void tick();
+    };
+    void fetchLogs(true).then(schedule); // fetch immediately on mount with loading indicator
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRealtime]);
 
   // unique services
@@ -138,6 +177,11 @@ export function AdminAuditLogs() {
       return matchesSearch && matchesService && matchesStatus;
     });
   }, [logs, searchQuery, selectedService, filterMode]);
+
+  // operator / endpoint are only shown when the source really provides them
+  const showEndpoint = logs.some((l) => !!l.endpoint);
+  const showOperator = logs.some((l) => !!l.operator);
+  const columnCount = 6 + (showEndpoint ? 1 : 0) + (showOperator ? 1 : 0);
 
   const totalPages = Math.ceil(filteredLogs.length / pageSize) || 1;
   const paginatedLogs = useMemo(() => {
@@ -262,18 +306,46 @@ export function AdminAuditLogs() {
 
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               setIsLoading(true);
-              fetchLogs().finally(() => setIsLoading(false));
-              toast.success(label("Đã đồng bộ logs mới nhất!", "Synchronized latest logs!"));
+              const ok = await fetchLogs();
+              setIsLoading(false);
+              if (ok) toast.success(label("Đã đồng bộ logs mới nhất!", "Synchronized latest logs!"));
+              else toast.error(label("Không đồng bộ được logs. Vui lòng thử lại.", "Could not synchronize logs. Please try again."));
             }}
             disabled={isLoading}
             className="inline-flex items-center min-h-9 gap-1.5 px-3.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
           >
-            <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
             <span>{label("Làm mới", "Refresh")}</span>
           </button>
         </div>
+      </div>
+
+      {/* Real state of the log source and of the last refresh */}
+      <div aria-live="polite" className="space-y-2 empty:hidden">
+        {fetchError && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
+            <span>{fetchError}</span>
+            <button
+              type="button"
+              onClick={() => { void fetchLogs(); }}
+              className="px-2.5 py-1 rounded border border-rose-300 dark:border-rose-800 font-semibold cursor-pointer"
+            >
+              {label("Thử lại", "Retry")}
+            </button>
+          </div>
+        )}
+        {!fetchError && sourceStatus === "unavailable" && (
+          <div role="status" className="rounded-md border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+            {label("Nguồn log không khả dụng", "Log source unavailable")}
+          </div>
+        )}
+        {!fetchError && sourceStatus === "empty" && logs.length === 0 && (
+          <div role="status" className="rounded-md border app-border app-bg-subnav px-3 py-2 text-xs app-text-muted">
+            {label("Chưa có log", "No logs yet")}
+          </div>
+        )}
       </div>
 
       {/* Error & Warning Quick KPI Cards */}
@@ -468,8 +540,8 @@ export function AdminAuditLogs() {
                 <th className="py-3 px-4">{label("Thời gian", "Timestamp")}</th>
                 <th className="py-3 px-4">{label("Dịch vụ", "Service")}</th>
                 <th className="py-3 px-4">{label("Sự kiện / Lỗi chi tiết", "Event / Error Details")}</th>
-                <th className="py-3 px-4">{label("Endpoint", "Endpoint")}</th>
-                <th className="py-3 px-4">{label("Người thực hiện", "Operator")}</th>
+                {showEndpoint && <th className="py-3 px-4">{label("Endpoint", "Endpoint")}</th>}
+                {showOperator && <th className="py-3 px-4">{label("Người thực hiện", "Operator")}</th>}
                 <th className="py-3 px-4">{label("Trạng thái", "Status")}</th>
                 <th className="py-3 px-4 text-right">{label("Chi tiết", "Actions")}</th>
               </tr>
@@ -477,19 +549,31 @@ export function AdminAuditLogs() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
               {isLoading && logs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center app-text-muted">
-                    <FiRefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin text-blue-500" />
+                  <td colSpan={columnCount} className="py-12 text-center app-text-muted">
+                    <FiRefreshCw className="w-6 h-6 mx-auto mb-2 motion-safe:animate-spin text-blue-500" />
                     <p className="font-semibold text-xs">{label("Đang nạp nhật ký kiểm toán từ hệ thống...", "Loading audit logs from system...")}</p>
                   </td>
                 </tr>
               ) : paginatedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center app-text-muted">
+                  <td colSpan={columnCount} className="py-12 text-center app-text-muted">
                     <FiFileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <p className="font-semibold">{label("Không tìm thấy nhật ký phù hợp", "No matching audit logs found")}</p>
-                    <p className="text-[11px] mt-1">
-                      {label("Thử thay đổi bộ lọc tìm kiếm hoặc từ khóa để hiển thị kết quả.", "Try adjusting your search filters or keywords.")}
-                    </p>
+                    {logs.length === 0 ? (
+                      <p className="font-semibold">
+                        {fetchError
+                          ? label("Chưa tải được nhật ký", "Logs could not be loaded")
+                          : sourceStatus === "unavailable"
+                            ? label("Nguồn log không khả dụng", "Log source unavailable")
+                            : label("Chưa có log", "No logs yet")}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="font-semibold">{label("Không tìm thấy nhật ký phù hợp", "No matching audit logs found")}</p>
+                        <p className="text-[11px] mt-1">
+                          {label("Thử thay đổi bộ lọc tìm kiếm hoặc từ khóa để hiển thị kết quả.", "Try adjusting your search filters or keywords.")}
+                        </p>
+                      </>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -513,12 +597,16 @@ export function AdminAuditLogs() {
                         {log.event}
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 truncate max-w-[150px]">
-                      {log.endpoint || "N/A"}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap">
-                      {log.operator || "system"}
-                    </td>
+                    {showEndpoint && (
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500 truncate max-w-[150px]">
+                        {log.endpoint || "-"}
+                      </td>
+                    )}
+                    {showOperator && (
+                      <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap">
+                        {log.operator || "-"}
+                      </td>
+                    )}
                     <td className="py-3 px-4 whitespace-nowrap">
                       {getStatusBadge(log.status)}
                     </td>
@@ -591,11 +679,11 @@ export function AdminAuditLogs() {
               </div>
               <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-800/40 border app-border">
                 <span className="text-slate-500 block mb-1 font-semibold">{label("Người thực hiện (Operator)", "Operator")}</span>
-                <span className="font-mono font-bold app-text-main">{selectedLog.operator || "system"}</span>
+                <span className="font-mono font-bold app-text-main">{selectedLog.operator || "-"}</span>
               </div>
               <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-800/40 border app-border">
                 <span className="text-slate-500 block mb-1 font-semibold">{label("Địa chỉ IP", "IP Address")}</span>
-                <span className="font-mono font-bold app-text-main">{selectedLog.ipAddress || "127.0.0.1"}</span>
+                <span className="font-mono font-bold app-text-main">{selectedLog.ipAddress || "-"}</span>
               </div>
             </div>
 
