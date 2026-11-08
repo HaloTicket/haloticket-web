@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const getSystemHealth = vi.fn();
-const getAiHealth = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 
 vi.mock("@/services/aiApi", () => ({
   aiApi: {
     getSystemHealth: (...a: unknown[]) => getSystemHealth(...a),
-    getAiHealth: (...a: unknown[]) => getAiHealth(...a),
   },
 }));
 vi.mock("sonner", () => ({ toast: { success: (...a: unknown[]) => toastSuccess(...a), error: (...a: unknown[]) => toastError(...a), info: vi.fn() } }));
@@ -26,21 +24,11 @@ const service = (over: Record<string, unknown> = {}) => ({
   name: "Real Gateway", port: 8888, type: "Spring Cloud Gateway", status: "UP",
   uptime: null, latencyMs: 12, memoryUsage: null, cpuLoad: null, ...over,
 });
-const providers = {
-  providers: [
-    { name: "groq", configured: true, status: "ok", last_ok_at: "2026-11-07T10:00:00Z", last_error_code: null, ok_count: 5, fail_count: 1 },
-    { name: "openai", configured: false, status: "unknown", last_ok_at: null, last_error_code: null, ok_count: 0, fail_count: 0 },
-    { name: "gemini", configured: true, status: "down", last_ok_at: null, last_error_code: "AI_UNAVAILABLE", ok_count: 0, fail_count: 3 },
-  ],
-  probe: null,
-};
 
 beforeEach(() => {
   getSystemHealth.mockReset();
-  getAiHealth.mockReset();
   toastSuccess.mockReset();
   toastError.mockReset();
-  getAiHealth.mockResolvedValue(providers);
 });
 afterEach(() => cleanup());
 
@@ -95,36 +83,5 @@ describe("SystemHealth", () => {
     fireEvent.click(screen.getByRole("button", { name: /Kiểm tra ngay/ }));
     await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
     expect(toastSuccess).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows the AI providers card with real status and the quick check result", async () => {
-    getSystemHealth.mockResolvedValue([service()]);
-    render(<SystemHealth />);
-    const card = (await screen.findByRole("region", { name: "Nhà cung cấp AI" })) as HTMLElement;
-    await within(card).findByText("groq");
-    expect(within(card).getByText("Ổn định")).toBeTruthy();
-    expect(within(card).getByText("Chưa cấu hình")).toBeTruthy();
-    expect(within(card).getByText("Ngừng hoạt động")).toBeTruthy();
-    expect(within(card).getByText("AI_UNAVAILABLE")).toBeTruthy();
-
-    getAiHealth.mockResolvedValueOnce({ ...providers, probe: { status: "ok", checked_at: "2026-11-07T10:05:00Z", provider: "groq" } });
-    fireEvent.click(within(card).getByRole("button", { name: "Kiểm tra nhanh" }));
-    await within(card).findByText(/Kiểm tra nhanh thành công/);
-    expect(getAiHealth).toHaveBeenLastCalledWith(true);
-  });
-
-  it("shows an error and retry for the AI providers card, and a rate-limited quick check", async () => {
-    getSystemHealth.mockResolvedValue([service()]);
-    getAiHealth.mockRejectedValueOnce({ response: { status: 503, data: { code: "AI_UNAVAILABLE" } } });
-    render(<SystemHealth />);
-    const card = (await screen.findByRole("region", { name: "Nhà cung cấp AI" })) as HTMLElement;
-    await within(card).findByText(/Không tải được trạng thái nhà cung cấp AI/);
-    fireEvent.click(within(card).getByRole("button", { name: "Thử lại" }));
-    await within(card).findByText("groq");
-
-    getAiHealth.mockRejectedValueOnce({ response: { status: 429, data: { code: "AI_RATE_LIMITED" }, headers: { "retry-after": "20" } } });
-    fireEvent.click(within(card).getByRole("button", { name: "Kiểm tra nhanh" }));
-    await within(card).findByText(/20 giây/);
-    expect(within(card).getByText("groq")).toBeTruthy();
   });
 });

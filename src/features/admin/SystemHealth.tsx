@@ -16,7 +16,6 @@ import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminAuditLogs } from "./monitoring/AdminAuditLogs";
 import { UptimeMonitorSection } from "./monitoring/UptimeMonitorSection";
 import { SslCertificateCard } from "./monitoring/SslCertificateCard";
-import { AiProvidersCard } from "./monitoring/AiProvidersCard";
 import { AlertConfigModal } from "./monitoring/AlertConfigModal";
 import { aiApi } from "@/services/aiApi";
 import { toast } from "sonner";
@@ -65,7 +64,7 @@ export function SystemHealth() {
   };
 
   useEffect(() => {
-    void fetchSystemData();
+    queueMicrotask(() => void fetchSystemData());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -169,9 +168,6 @@ export function SystemHealth() {
 
       {/* SSL Certificate Monitoring Card */}
       <SslCertificateCard />
-
-      {/* AI providers (real status from the AI service) */}
-      <AiProvidersCard />
 
       {/* Uptime Monitors & SLA Chart */}
       {list.length > 0 && <UptimeMonitorSection services={list} />}
