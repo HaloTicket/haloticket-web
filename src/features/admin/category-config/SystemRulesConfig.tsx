@@ -15,12 +15,13 @@ export function SystemRulesConfig() {
 
   useEffect(() => {
     adminConfigApi.getSystemConfig().then(res => {
-      const data = (res as any)?.data || res;
+      type SystemConfig = { platformFee?: string; payoutHoldDays?: string | null; kycRequired?: string | null; maintenanceMode?: string | null };
+      const data = ((res as { data?: SystemConfig } | null)?.data || res) as SystemConfig | null;
       if (data && data.platformFee !== undefined) {
-        setPlatformFee(data.platformFee);
-        setPayoutHoldDays(data.payoutHoldDays);
-        setKycRequired(data.kycRequired);
-        setMaintenanceMode(data.maintenanceMode);
+        setPlatformFee((current) => data.platformFee ?? current);
+        setPayoutHoldDays((current) => data.payoutHoldDays ?? current); // the server may answer null: keep the field controlled
+        setKycRequired((current) => data.kycRequired ?? current);
+        setMaintenanceMode((current) => data.maintenanceMode ?? current);
       }
     }).catch(() => {}); // fallback to initial state if no backend
   }, []);
@@ -37,7 +38,7 @@ export function SystemRulesConfig() {
       toast.success(t("Cập nhật cấu hình thành công"), {
         description: t("Hệ thống đã ghi nhận các cấu hình mới.")
       });
-    } catch (error) {
+    } catch {
       toast.error(t("Lỗi cập nhật cấu hình"));
     } finally {
       setIsSaving(false);

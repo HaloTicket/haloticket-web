@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiSearch, FiCode, FiDatabase, FiLoader, FiAlertCircle, FiDownload, FiBookmark, FiPieChart, FiBarChart2 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { pickChartColumns } from '@/utils/chartColumns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend as RechartsLegend } from 'recharts';
 import { aiApi } from '@/services/aiApi';
 import type { AiAnalyzeResponse } from '@/types/ai';
 import { FiRefreshCw } from 'react-icons/fi';
 import { resolveAiError, aiErrorMessage } from '@/utils/aiErrors';
+import { toast } from 'sonner';
 
 interface AiQueryHistoryItem {
   id: string;
@@ -58,6 +60,7 @@ export const AdminAiAnalytics: React.FC = () => {
   const [errorRetryable, setErrorRetryable] = useState(false);
   const [showSchema, setShowSchema] = useState(false);
   const [chartTypeOverride, setChartTypeOverride] = useState<'bar'|'pie'|'line'|null>(null);
+  const [pinning, setPinning] = useState(false);
 
   const saveToHistory = (q: string, res: AiAnalyzeResponse | null) => {
     const newItem: AiQueryHistoryItem = {
@@ -144,17 +147,41 @@ export const AdminAiAnalytics: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handlePinDashboard = () => {
-    const event = new CustomEvent('toast-notification', {
-      detail: {
-        id: `pin-${Date.now()}`,
-        title: label("Đã ghim thành công", "Pinned successfully"),
-        message: label("Biểu đồ này đã được ghim ra màn hình chính (Admin Dashboard).", "This chart has been pinned to the Admin Dashboard."),
-        type: "success",
-        timestamp: new Date().toISOString()
-      }
-    });
-    window.dispatchEvent(event);
+  // the chart type the admin is looking at (same choice as renderChart), or a plain table when nothing can be drawn
+  const currentChartType = (rows: Record<string, unknown>[]): string => {
+    if (!rows.length) return 'table';
+    const columns = Object.keys(rows[0]);
+    if (columns.length < 2) return 'table';
+    const labelCol = columns.find(col => typeof rows[0][col] === 'string') || columns[0];
+    let numCols = columns.filter(col => typeof rows[0][col] === 'number');
+    if (numCols.length === 0) numCols = columns.filter(col => col !== labelCol && !isNaN(Number(rows[0][col])));
+    if (numCols.length === 0) return 'table';
+    return chartTypeOverride ?? ((rows.length <= 6 && numCols.length === 1) ? 'pie' : 'bar');
+  };
+
+  // pins the question, the checked SQL and a small snapshot for this admin; the server checks the SQL again
+  const handlePinDashboard = async () => {
+    if (!result?.generated_sql || pinning) {
+      if (!result?.generated_sql) toast.error(translate('ai.pin.nothing'));
+      return;
+    }
+    const rows = Array.isArray(result.data) ? result.data : [];
+    setPinning(true);
+    try {
+      await aiApi.createPin({
+        title: question.trim().slice(0, 80) || label('Báo cáo phân tích', 'Analysis report'),
+        question: question.trim(),
+        sql: result.generated_sql,
+        chart_type: currentChartType(rows),
+        snapshot: rows.slice(0, 50),
+      });
+      toast.success(translate('ai.pin.success'));
+    } catch (err) {
+      const info = resolveAiError(err);
+      toast.error(info.code === 'PIN_LIMIT' ? translate('ai.pin.limit') : translate('ai.pin.failed'), info.code === 'PIN_LIMIT' ? undefined : { description: aiErrorMessage(info) });
+    } finally {
+      setPinning(false);
+    }
   };
 
   const handleReset = () => {
@@ -200,20 +227,9 @@ export const AdminAiAnalytics: React.FC = () => {
 
   const renderChart = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return null;
-    const columns = Object.keys(data[0]);
-    if (columns.length < 2) return null; 
-
-    // Try to find a string/categorical column and a numeric column
-    const labelCol = columns.find(col => typeof data[0][col] === 'string') || columns[0];
-    let numCols = columns.filter(col => typeof data[0][col] === 'number');
-
-    if (numCols.length === 0) {
-       // attempt to parse numbers
-       numCols = columns.filter(col => col !== labelCol && !isNaN(Number(data[0][col])));
-    }
-
-    if (numCols.length === 0) return null; 
-
+    const picked = pickChartColumns(data);
+    if (!picked) return null;
+    const { labelCol, numCols } = picked;
     const valueCol = numCols[0];
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
@@ -244,17 +260,18 @@ export const AdminAiAnalytics: React.FC = () => {
         <ResponsiveContainer width="100%" height="100%">
           {activeChartType === 'pie' ? (
             <PieChart>
-              <Pie data={chartData} dataKey={valueCol} nameKey={labelCol} cx="50%" cy="50%" outerRadius={100} label>
-                {chartData.map((index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[(index as unknown as number) % COLORS.length]} />
+              <Pie data={chartData} dataKey={valueCol} nameKey={labelCol} cx="50%" cy="45%" outerRadius={90} label={(entry: { percent?: number }) => `${Math.round((entry.percent ?? 0) * 100)}%`}>
+                {chartData.map((_entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
+              <RechartsLegend />
               <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
             </PieChart>
           ) : activeChartType === 'line' ? (
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey={labelCol} tick={{fontSize: 12}} stroke="#94a3b8" />
+              <XAxis dataKey={labelCol} tick={{fontSize: 12}} stroke="#94a3b8" tickFormatter={(value: unknown) => { const text = String(value ?? ''); return text.length > 16 ? `${text.slice(0, 15)}…` : text; }} />
               <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
               <RechartsTooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
               <Line type="monotone" dataKey={valueCol} stroke="#8b5cf6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
@@ -262,7 +279,7 @@ export const AdminAiAnalytics: React.FC = () => {
           ) : (
             <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey={labelCol} tick={{fontSize: 12}} stroke="#94a3b8" />
+              <XAxis dataKey={labelCol} tick={{fontSize: 12}} stroke="#94a3b8" tickFormatter={(value: unknown) => { const text = String(value ?? ''); return text.length > 16 ? `${text.slice(0, 15)}…` : text; }} />
               <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
               <RechartsTooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
               <Bar dataKey={valueCol} fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -456,9 +473,11 @@ export const AdminAiAnalytics: React.FC = () => {
                 </div>
                 
                 {/* Pin to Dashboard feature */}
-                <button 
-                  onClick={handlePinDashboard}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 gradient-btn rounded-md text-[11px] font-bold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:-translate-y-0.5"
+                <button
+                  type="button"
+                  onClick={() => void handlePinDashboard()}
+                  disabled={pinning || !result.generated_sql}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 gradient-btn rounded-md text-[11px] font-bold shadow-md sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
                   title={label("Ghim Báo Cáo Này Ra Dashboard", "Pin this report to Dashboard")}
                 >
                   <FiBookmark className="w-3.5 h-3.5" />

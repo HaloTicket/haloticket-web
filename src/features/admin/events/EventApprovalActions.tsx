@@ -8,6 +8,14 @@ import { aiApi } from "@/services/aiApi";
 import { getAiErrorMessage } from "@/utils/aiErrors";
 import { FiZap, FiRefreshCw } from "react-icons/fi";
 import type { ApprovalEventItem } from "@/types";
+import type { AiRiskScoreResponse } from "@/types/ai";
+
+/** Reasons that count (found something, weight above 0), one per line; the plain `reasons` list is the fallback. */
+function reasonLines(score: AiRiskScoreResponse): string[] {
+  const items = (score.reason_items ?? []).filter((item) => item.status !== "not_assessed" && item.weight > 0 && item.message.trim());
+  if (items.length > 0) return items.map((item) => item.message.trim());
+  return (score.reasons ?? []).filter((reason) => reason.trim());
+}
 
 interface EventApprovalActionsProps {
   event: ApprovalEventItem;
@@ -53,6 +61,8 @@ export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsP
       } else {
         await eventApi.rejectEvent(event.id, reason, JSON.stringify({ flaggedFields, noteText: notes }));
       }
+      // best effort and never awaited: the decision is already saved, this only lets the AI suggestion be compared with it
+      void aiApi.recordRiskDecision(event.id, action === "approve" ? "APPROVED" : "REJECTED", action === "reject" ? reason : "");
       window.dispatchEvent(new CustomEvent("approval-events-updated"));
       toast.success(action === "approve" ? t("Đã phê duyệt sự kiện") : t("Đã từ chối sự kiện"));
       setDialog(null);
@@ -97,8 +107,9 @@ export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsP
                     setIsGeneratingAI(true);
                     try {
                       const score = await aiApi.analyzeRiskScore(event.id, event.title || "", event.description || "", event.organizerName || "");
-                      if (score.reasons && score.reasons.length > 0) {
-                        setReason(score.reasons.join("\n"));
+                      const lines = reasonLines(score);
+                      if (lines.length > 0) {
+                        setReason(lines.join("\n"));
                       } else {
                         setReason(t("Sự kiện có một số thông tin chưa đạt chuẩn theo quy định hệ thống. Vui lòng kiểm tra lại."));
                       }

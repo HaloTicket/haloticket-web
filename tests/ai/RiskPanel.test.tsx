@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 const analyzeRiskScore = vi.fn();
 const getApprovalEvents = vi.fn();
 
-vi.mock("@/services/aiApi", () => ({ aiApi: { analyzeRiskScore: (...a: unknown[]) => analyzeRiskScore(...a) } }));
+vi.mock("@/services/aiApi", () => ({ aiApi: { analyzeRiskScore: (...a: unknown[]) => analyzeRiskScore(...a), recordRiskDecision: vi.fn() } }));
 vi.mock("@/services/eventApi", () => ({ eventApi: { getApprovalEvents: (...a: unknown[]) => getApprovalEvents(...a), approveEvent: vi.fn(), rejectEvent: vi.fn() } }));
 vi.mock("@/services/ticketApi", () => ({ ticketApi: { getSeatLayoutByEventId: vi.fn().mockResolvedValue(null) } }));
 vi.mock("@/features/organizer/event-manage/components/seating/SeatCanvas", () => ({ SeatCanvas: () => null }));
@@ -34,8 +34,14 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+const full = {
+  risk_score: 55, risk_level: "MEDIUM", reasons: ["Có số điện thoại"], complete: true, ruleset_version: "1", assessed_at: "2026-11-08T10:00:00Z",
+  coverage: { rules: true, signals: { assessed: 6, total: 6, missing: [] }, ai: "ran" },
+  reason_items: [{ layer: "RULE", code: "contact_phone", severity: "HIGH", weight: 25, message: "Có số điện thoại", evidence: [{ field: "description", text: "Mô tả" }] }],
+};
+
 describe("EventApprovalDetail risk panel", () => {
-  it("shows 'Chưa chấm được' with a retry, never a green 0, and does not cache the failure", async () => {
+  it("shows 'Chưa chấm được' with a retry, never a green 0, and keeps nothing in the browser", async () => {
     analyzeRiskScore.mockRejectedValueOnce({ response: { status: 502, data: { code: "AI_GENERATION_FAILED" } } });
     renderPage();
     await screen.findByText("Chưa chấm được");
@@ -46,28 +52,50 @@ describe("EventApprovalDetail risk panel", () => {
     analyzeRiskScore.mockResolvedValueOnce({ risk_score: 72, risk_level: "HIGH", reasons: ["Mô tả mơ hồ"] });
     fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
     await screen.findByText("72");
-    expect(screen.getByText("Mô tả mơ hồ")).toBeTruthy();
+    expect(screen.getByText("Mô tả mơ hồ")).toBeTruthy(); // old contract (plain reasons) still renders
     expect(screen.queryByText("Chưa chấm được")).toBeNull();
-    expect(JSON.parse(localStorage.getItem("admin_risk_score_ev1") ?? "{}").risk_score).toBe(72);
+    expect(localStorage.getItem("admin_risk_score_ev1")).toBeNull();
+    expect(analyzeRiskScore).toHaveBeenLastCalledWith("ev1", "Đêm nhạc", "Mô tả", "BTC", { refresh: true });
   });
 
-  it("treats a response without a score as a failure and tolerates missing reasons", async () => {
+  it("treats a response without a score as a failure", async () => {
     analyzeRiskScore.mockResolvedValueOnce({ risk_level: "LOW" });
     renderPage();
     await screen.findByText("Chưa chấm được");
-    expect(localStorage.getItem("admin_risk_score_ev1")).toBeNull();
 
-    analyzeRiskScore.mockResolvedValueOnce({ risk_score: 0, risk_level: "LOW" });
+    analyzeRiskScore.mockResolvedValueOnce({ risk_score: 0, risk_level: "LOW", complete: true });
     fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
     await waitFor(() => expect(screen.queryByText("Chưa chấm được")).toBeNull());
-    expect(screen.getByText("0")).toBeTruthy(); // a real score of 0 is still shown
+    expect(screen.getByText("0")).toBeTruthy(); // a real, complete score of 0 is still shown
   });
 
-  it("ignores a cached failure left by an older build", async () => {
+  it("ignores a result an older build left in localStorage and asks the server", async () => {
     localStorage.setItem("admin_risk_score_ev1", JSON.stringify({ risk_score: 0, risk_level: "UNKNOWN", reasons: ["Xin lỗi, lỗi"] }));
-    analyzeRiskScore.mockResolvedValueOnce({ risk_score: 10, risk_level: "LOW", reasons: [] });
+    analyzeRiskScore.mockResolvedValueOnce({ risk_score: 10, risk_level: "LOW", reasons: [], complete: true });
     renderPage();
     await screen.findByText("10");
     expect(screen.queryByText("Xin lỗi, lỗi")).toBeNull();
+    expect(analyzeRiskScore).toHaveBeenCalledWith("ev1", "Đêm nhạc", "Mô tả", "BTC", { refresh: false });
+  });
+
+  it("shows the layered reasons, highlights the quoted text in the description and re-scores on request", async () => {
+    analyzeRiskScore.mockResolvedValueOnce(full);
+    renderPage();
+    await screen.findByText("Luật kiểm duyệt");
+    const mark = screen.getByTestId("event-description").querySelector("mark");
+    expect(mark?.textContent).toBe("Mô tả");
+    expect(screen.getByText(/Bộ luật v1/)).toBeTruthy();
+
+    analyzeRiskScore.mockResolvedValueOnce({ ...full, risk_score: 60, risk_level: "HIGH" });
+    fireEvent.click(screen.getByRole("button", { name: "Chấm lại" }));
+    await waitFor(() => expect(analyzeRiskScore).toHaveBeenCalledTimes(2));
+    expect(analyzeRiskScore).toHaveBeenLastCalledWith("ev1", "Đêm nhạc", "Mô tả", "BTC", { refresh: true });
+  });
+
+  it("says the rules could not be loaded instead of showing a score", async () => {
+    analyzeRiskScore.mockResolvedValueOnce({ ...full, coverage: { rules: false, signals: { assessed: 0, total: 6, missing: [] }, ai: "skipped" } });
+    renderPage();
+    await screen.findByText("Chưa chấm được");
+    expect(screen.getByText("Không nạp được bộ luật kiểm duyệt nên chưa thể chấm.")).toBeTruthy();
   });
 });

@@ -15,6 +15,8 @@ export interface AiSystemAction {
 export interface AiChatResponse {
   reply: string;
   system_actions: AiSystemAction[];
+  tools_used?: string[];
+  grounded?: boolean;
 }
 
 export interface AiChatMessage {
@@ -23,6 +25,8 @@ export interface AiChatMessage {
   text: string;
   hiddenContext?: string;
   actions?: AiSystemAction[];
+  toolsUsed?: string[];
+  grounded?: boolean;
   timestamp: Date;
 }
 
@@ -55,7 +59,6 @@ export interface OrganizerChatMessage {
 
 
 // AI foundation: response shapes (additive)
-
 export interface AiSearchMatch {
   event_id: string;
   score: number;
@@ -85,10 +88,137 @@ export interface AiSearchResponse {
   degraded?: boolean;
 }
 
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type RiskLayer = 'RULE' | 'SIGNAL' | 'AI';
+
+export interface RiskEvidence {
+  field: string;
+  start?: number;
+  end?: number;
+  text: string;
+}
+
+export interface RiskReasonItem {
+  layer: RiskLayer;
+  code: string;
+  severity?: string;
+  weight: number;
+  message: string;
+  status?: 'not_assessed';
+  evidence?: RiskEvidence[];
+  confidence?: string;
+}
+
+export interface RiskCoverage {
+  rules: boolean;
+  signals: { assessed: number; total: number; missing: string[] };
+  ai: 'ran' | 'failed' | 'skipped';
+}
+
+// Multi-layer assessment. The first three fields are the original contract; the rest is additive
 export interface AiRiskScoreResponse {
   risk_score: number;
-  risk_level: string;
+  risk_level: RiskLevel | string;
   reasons?: string[];
+  reason_items?: RiskReasonItem[];
+  ruleset_version?: string | null;
+  assessed_at?: string;
+  content_hash?: string;
+  coverage?: RiskCoverage;
+  complete?: boolean;
+  cached?: boolean;
+  stored?: boolean;
+  assessment_id?: number;
+  ai_layer?: string;
+  event_id?: string;
+}
+
+export interface RiskBatchResponse {
+  assessments: Record<string, AiRiskScoreResponse>;
+  missing: string[];
+}
+
+export interface RiskAgreementResponse {
+  days: number;
+  decided: number;
+  agree: number;
+  disagree: number;
+  neutral: number;
+  derived: number;
+  pending: number;
+  by_level: Record<RiskLevel, { APPROVED: number; REJECTED: number }>;
+}
+
+export interface DashboardKpis {
+  generated_at: string;
+  hash?: string;
+  pending_events: null | { total: number; pending: number; update_pending: number; by_risk: Record<'HIGH' | 'MEDIUM' | 'LOW' | 'UNASSESSED', number> };
+  live_events: number | null;
+  resale_pending: null | { count: number; oldest_hours: number | null };
+  transactions_7d: null | { days: { date: string; orders: number; revenue: number }[]; orders_total: number; revenue_total: number };
+  late_payments_open: number | null;
+  paid_without_tickets: number | null;
+  stock_discrepancies: number | null;
+  services: null | { up: number; total: number; down: string[] };
+  sources: Record<string, 'ok' | 'unavailable' | string>;
+}
+
+export interface DashboardSummaryResponse {
+  summary: string | null;
+  reason: string | null;
+  cached: boolean;
+  created_at: string;
+}
+
+export type AttentionType = 'HIGH_RISK_PENDING' | 'LATE_PAYMENT_OPEN' | 'PAID_WITHOUT_TICKETS' | 'RESALE_PENDING' | 'SERVICE_DOWN';
+export type AttentionPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM';
+
+export interface AttentionItem {
+  id: string;
+  type: AttentionType | string;
+  priority: AttentionPriority;
+  title: string;
+  evidence: Record<string, unknown>;
+  link: string;
+  since: string | null;
+}
+
+export interface AttentionResponse {
+  generated_at: string;
+  items: AttentionItem[];
+  sources: Record<string, 'ok' | 'unavailable' | string>;
+}
+
+export interface PinnedReport {
+  pin_id: string;
+  title: string;
+  question: string;
+  sql: string;
+  chart_type: string;
+  snapshot: Record<string, unknown>[] | null;
+  created_at: string;
+}
+
+export interface PinsResponse {
+  pins: PinnedReport[];
+  max: number;
+}
+
+export interface PinData {
+  pin_id: string;
+  title: string;
+  chart_type: string;
+  rows: Record<string, unknown>[];
+  live: boolean;
+  snapshot_at?: string;
+}
+
+export interface PinCreateInput {
+  title: string;
+  question: string;
+  sql: string;
+  chart_type: string;
+  snapshot?: Record<string, unknown>[];
 }
 
 export type AiProviderName = 'groq' | 'openai' | 'gemini';

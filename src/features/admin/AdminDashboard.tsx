@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
   FiCheckSquare,
-  FiTrendingUp,
   FiActivity,
   FiArrowUpRight,
   FiChevronRight,
@@ -19,8 +18,13 @@ import {
 import { eventApi } from "@/services/eventApi";
 import { venueApi } from "@/services/venueApi";
 import { aiApi } from "@/services/aiApi";
-import { marketplaceApi } from "@/services/marketplaceApi";
 import { getCachedUserProfile } from "@/services/userApi";
+import { getLocale } from "@/i18n";
+import { getAiErrorMessage } from "@/utils/aiErrors";
+import { DashboardKpiGrid, AgreementCard } from "@/features/admin/components/DashboardKpiGrid";
+import { AttentionFeed } from "@/features/admin/components/AttentionFeed";
+import { PinnedReports } from "@/features/admin/components/PinnedReports";
+import type { DashboardKpis, DashboardSummaryResponse } from "@/types/ai";
 
 interface PendingEventItem {
   id: string;
@@ -65,14 +69,15 @@ export const AdminDashboard: React.FC = () => {
   const profile = getCachedUserProfile();
   const adminName = profile?.fullName || profile?.email?.split("@")[0] || "Ban Quản Trị";
 
-  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  // KPI cards come from the server; the summary paragraph exists only after the admin asks for it
+  const [kpis, setKpis] = useState<DashboardKpis | null>(null);
+  const [kpiState, setKpiState] = useState<"loading" | "ready" | "error">("loading");
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [summaryState, setSummaryState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // real data states
   const [pendingEvents, setPendingEvents] = useState<PendingEventItem[]>([]);
-  const [resaleCap, setResaleCap] = useState<number>(20);
-  const [resaleListingsCount, setResaleListingsCount] = useState<number>(0);
-  const [servicesCount, setServicesCount] = useState<{ up: number; total: number } | null>(null);
   const [venuesCount, setVenuesCount] = useState<number>(0);
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(readActivityLogs);
 
@@ -92,35 +97,6 @@ export const AdminDashboard: React.FC = () => {
           poster: str(ev.bannerUrl) || str(ev.thumbnailUrl) || str(ev.posterImage) || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=600&q=80"
         }));
         setPendingEvents(mapped);
-      }
-
-      // resale cap & listings count
-      const savedCap = localStorage.getItem("haloticket_resale_cap_percentage");
-      if (savedCap && !isNaN(Number(savedCap))) {
-        setResaleCap(Number(savedCap));
-      }
-      try {
-        const resaleRes = await marketplaceApi.getResaleEvents();
-        if (Array.isArray(resaleRes)) {
-          const total = resaleRes.reduce((acc, ev) => acc + (ev.activeListings || 0), 0);
-          setResaleListingsCount(total);
-        }
-      } catch {
-        // fallback
-      }
-
-      // microservices Health
-      try {
-        const health = await aiApi.getSystemHealth();
-        // an empty list or an error is "no data", never a healthy 0/0.
-        if (Array.isArray(health) && health.length > 0) {
-          const up = health.filter((s) => s.status === "UP").length;
-          setServicesCount({ up, total: health.length });
-        } else {
-          setServicesCount(null);
-        }
-      } catch {
-        setServicesCount(null);
       }
 
       // venues count
@@ -146,85 +122,38 @@ export const AdminDashboard: React.FC = () => {
     });
   }, [loadDashboardData]);
 
-  // ai executive summary generation with cache to prevent excessive runs
-  const generateOrLoadAiSummary = useCallback((forceRefresh: boolean = false) => {
-    const isEn = i18n.language.startsWith("en");
-    const cacheKey = `admin_ai_executive_summary_${isEn ? "en" : "vi"}`;
-    const cachedSummary = localStorage.getItem(cacheKey);
-    const cachedTime = localStorage.getItem(`${cacheKey}_time`);
-
-    // use cached summary if less than 30 minutes old and not forced
-    if (!forceRefresh && cachedSummary && cachedTime && Date.now() - Number(cachedTime) < 30 * 60 * 1000) {
-      setAiSummary(cachedSummary);
-      setIsAiAnalyzing(false);
-      return;
+  const loadKpis = useCallback(async () => {
+    setKpiState("loading");
+    try {
+      setKpis(await aiApi.getDashboardKpis());
+      setKpiState("ready");
+    } catch (err) {
+      console.error("Failed to load dashboard KPIs:", err);
+      setKpiState("error");
     }
-
-    setIsAiAnalyzing(true);
-    setTimeout(() => {
-      const pendingCount = pendingEvents.length;
-      const healthStatus = !servicesCount
-        ? (isEn ? "has no status data available right now" : "hiện chưa có dữ liệu trạng thái")
-        : servicesCount.up === servicesCount.total
-          ? (isEn ? "operating completely stable (100% UP)" : "hoạt động hoàn toàn ổn định (100% UP)")
-          : (isEn ? `has ${servicesCount.total - servicesCount.up} services needing inspection` : `có ${servicesCount.total - servicesCount.up} dịch vụ cần kiểm tra`);
-
-      const summaryText = isEn
-        ? `Real-time system report: Currently **${pendingCount} events** are in the approval queue awaiting Admin review.\n\nSecondary resale price cap policy at **+${resaleCap}%** is active with **${resaleListingsCount} tickets** trading safely.\n\nMicroservices infrastructure is ${healthStatus}, database connections and notification channels are running smoothly. The system currently manages **${venuesCount} venues** with standardized seatmaps.`
-        : `Báo cáo hệ thống thời gian thực: Hiện tại có **${pendingCount} sự kiện** đang trong hàng đợi phê duyệt cần Admin kiểm duyệt.\n\nChính sách kiểm soát giá trần vé Resale ở mức **+${resaleCap}%** đang có hiệu lực với **${resaleListingsCount} vé** đang giao dịch an toàn trên sàn thứ cấp.\n\nHạ tầng Microservices ${healthStatus}, kết nối cơ sở dữ liệu và các kênh thông báo hoạt động thông suốt. Hệ thống hiện quản lý **${venuesCount} địa điểm** với đầy đủ sơ đồ ghế chuẩn hóa.`;
-
-      setAiSummary(summaryText);
-      localStorage.setItem(cacheKey, summaryText);
-      localStorage.setItem(`${cacheKey}_time`, String(Date.now()));
-      setIsAiAnalyzing(false);
-    }, 1000);
-  }, [i18n.language, pendingEvents.length, resaleCap, resaleListingsCount, servicesCount, venuesCount]);
+  }, []);
 
   useEffect(() => {
-    if (venuesCount < 0) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) generateOrLoadAiSummary(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [generateOrLoadAiSummary, venuesCount]);
+    queueMicrotask(() => { void loadKpis(); });
+  }, [loadKpis]);
+
+  const createSummary = async (refresh: boolean) => {
+    setSummaryState("loading");
+    setSummaryError(null);
+    try {
+      setSummary(await aiApi.getDashboardSummary(i18n.language.startsWith("en") ? "en" : "vi", refresh));
+      setSummaryState("ready");
+    } catch (err) {
+      setSummaryError(getAiErrorMessage(err));
+      setSummaryState("error");
+    }
+  };
+
+  const summaryTime = summary?.created_at && Number.isFinite(new Date(summary.created_at).getTime())
+    ? new Date(summary.created_at).toLocaleString(getLocale(), { dateStyle: "short", timeStyle: "short" })
+    : "";
 
   const statCards = [
-    {
-      id: "pending-events",
-      title: label("Sự kiện chờ duyệt", "Pending approval events"),
-      value: String(pendingEvents.length),
-      change: pendingEvents.length > 0 ? `${pendingEvents.length} ${label("yêu cầu mới", "new requests")}` : label("Hàng đợi sạch", "Queue empty"),
-      changeType: pendingEvents.length > 0 ? "warning" : "positive",
-      icon: <FiCheckSquare className="w-5 h-5 text-amber-500" />,
-      bg: "bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-900",
-      link: PATHS.ADMIN_EVENTS_APPROVAL,
-      badgeText: pendingEvents.length > 0 ? label("Cần xử lý ngay", "Action required") : label("Đã hoàn thành", "Completed")
-    },
-    {
-      id: "resale-cap",
-      title: label("Giá trần Bán vé lại (Resale)", "Resale Price Cap"),
-      value: `Max +${resaleCap}%`,
-      change: `${resaleListingsCount} ${label("vé đang giao dịch", "active listings")}`,
-      changeType: "positive",
-      icon: <FiTrendingUp className="w-5 h-5 text-emerald-500" />,
-      bg: "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900",
-      link: PATHS.ADMIN_RESALE_PRICE_CAP,
-      badgeText: label("Đang hoạt động", "Active")
-    },
-    {
-      id: "system-health",
-      title: label("Sức khỏe Microservices", "Microservices Health"),
-      value: servicesCount ? `${servicesCount.up}/${servicesCount.total} ${label("Dịch vụ", "Services")}` : "—",
-      change: !servicesCount ? label("Không có dữ liệu", "No data") : servicesCount.up === servicesCount.total ? label("Hệ thống UP (Clean)", "System UP (Clean)") : label("Cảnh báo dịch vụ", "Service Warning"),
-      changeType: servicesCount && servicesCount.up === servicesCount.total ? "positive" : "warning",
-      icon: <FiActivity className="w-5 h-5 text-indigo-500" />,
-      bg: "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-900",
-      link: PATHS.ADMIN_SYSTEM_HEALTH,
-      badgeText: !servicesCount ? label("Chưa rõ", "Unknown") : servicesCount.up === servicesCount.total ? label("Ổn định", "Stable") : label("Cần kiểm tra", "Needs check")
-    },
     {
       id: "venues-seatmaps",
       title: label("Địa điểm & SeatMap", "Venues & SeatMaps"),
@@ -261,46 +190,34 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => generateOrLoadAiSummary(true)}
-            disabled={isAiAnalyzing}
-            className="p-2 hover:bg-white/10 text-blue-200 hover:text-white rounded-lg transition-colors cursor-pointer border border-white/10 shrink-0"
-            title={translate("Làm mới tóm tắt AI")}
+            onClick={() => void createSummary(summaryState === "ready")}
+            disabled={summaryState === "loading"}
+            className="inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-xs font-bold text-blue-100 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-60"
           >
-            <FiRefreshCw className={`w-4 h-4 ${isAiAnalyzing ? "animate-spin" : ""}`} />
+            <FiRefreshCw className={`h-4 w-4 ${summaryState === "loading" ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
+            <span>{summaryState === "ready" ? translate("ai.dash.summary.recreate") : translate("ai.dash.summary.create")}</span>
           </button>
         </div>
 
-        {/* Combined Narrative & AI Live Summary */}
-        <div className="relative z-10 text-xs md:text-sm text-blue-100/90 space-y-2.5 leading-relaxed max-w-4xl">
-          {isAiAnalyzing ? (
-            <div className="flex items-center gap-2.5 text-sm text-blue-200 py-1">
-              <FiRefreshCw className="w-4 h-4 animate-spin text-blue-300" />
-              <span>{translate("Đang tổng hợp thông số hệ thống thời gian thực...")}</span>
+        {/* Summary: created only on request, and shown only when its figures match the KPI data */}
+        <div className="relative z-10 max-w-4xl space-y-2 text-xs leading-relaxed text-blue-100/90 md:text-sm" aria-live="polite">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-blue-300">{translate("ai.dash.summary.title")}</p>
+          {summaryState === "idle" ? (
+            <p>{translate("ai.dash.summary.hint")}</p>
+          ) : summaryState === "loading" ? (
+            <p role="status" className="flex items-center gap-2.5 py-1 text-blue-200"><FiRefreshCw className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />{translate("ai.dash.summary.loading")}</p>
+          ) : summaryState === "error" ? (
+            <div role="alert" className="space-y-1.5">
+              <p className="font-semibold text-rose-200">{translate("ai.dash.summary.failed")} {summaryError}</p>
+              <button type="button" onClick={() => void createSummary(false)} className="cursor-pointer rounded-md border border-white/30 px-3 py-1 font-bold text-white hover:bg-white/10">{translate("ai.action.retry")}</button>
             </div>
+          ) : summary?.summary ? (
+            <>
+              {summary.summary.split("\n\n").map((paragraph, index) => <p key={index} data-testid="summary-text">{paragraph}</p>)}
+              <p className="text-[11px] text-blue-300">{summary.cached ? translate("ai.dash.summary.cached", { time: summaryTime }) : translate("ai.dash.summary.fresh", { time: summaryTime })}</p>
+            </>
           ) : (
-            aiSummary?.split("\n\n").map((line, i) => (
-              <p key={i}>
-                {line.split("**").map((part, j) => {
-                  if (j % 2 === 1) {
-                    const text = part.toLowerCase();
-                    let colorClass = "text-amber-300 bg-amber-400/20 border-amber-400/30"; // default: sự kiện / events
-                    if (text.includes("%")) {
-                      colorClass = "text-emerald-300 bg-emerald-400/20 border-emerald-400/30"; // resale cap +18%
-                    } else if (text.includes("vé") || text.includes("ticket")) {
-                      colorClass = "text-cyan-300 bg-cyan-400/20 border-cyan-400/30"; // 0 vé / listings
-                    } else if (text.includes("địa điểm") || text.includes("venue")) {
-                      colorClass = "text-purple-300 bg-purple-400/20 border-purple-400/30"; // 13 địa điểm / venues
-                    }
-                    return (
-                      <strong key={j} className={`font-extrabold px-1.5 py-0.5 rounded border ${colorClass}`}>
-                        {part}
-                      </strong>
-                    );
-                  }
-                  return part;
-                })}
-              </p>
-            ))
+            <p role="note" className="text-amber-200">{translate("ai.dash.summary.unverified")}</p>
           )}
         </div>
 
@@ -312,13 +229,6 @@ export const AdminDashboard: React.FC = () => {
           >
             <FiCheckSquare className="w-4 h-4" />
             <span>{translate("Duyệt Sự kiện ngay")}</span>
-          </Link>
-          <Link
-            to={PATHS.ADMIN_RESALE_PRICE_CAP}
-            className="px-4 py-2 bg-white/10 hover:bg-white/15 text-blue-100 hover:text-white text-xs font-bold rounded-xl transition-all border border-white/10 flex items-center gap-2"
-          >
-            <FiTrendingUp className="w-4 h-4" />
-            <span>{translate("Cấu hình Giá trần")}</span>
           </Link>
           <Link
             to={PATHS.ADMIN_VENUES_MANAGEMENT}
@@ -337,8 +247,11 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Metric Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI cards straight from the system */}
+      <DashboardKpiGrid kpis={kpis} state={kpiState} onRetry={() => void loadKpis()} />
+
+      {/* Configuration cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {statCards.map((card) => (
           <Link
             key={card.id}
@@ -373,6 +286,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left 8 Cols: Real Pending Events Queue */}
         <div className="lg:col-span-8 space-y-6">
+          <AttentionFeed />
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
@@ -451,6 +365,7 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Right 4 Cols: Quick Actions & Recent Admin Activity Log */}
         <div className="lg:col-span-4 space-y-6">
+          <AgreementCard />
           {/* Quick Action Shortcuts */}
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
@@ -478,17 +393,6 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <FiLayers className="w-4 h-4 text-blue-500" />
                   <span>{translate("Quản lý Địa điểm & SeatMap")}</span>
-                </div>
-                <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-
-              <Link
-                to={PATHS.ADMIN_RESALE_PRICE_CAP}
-                className="w-full p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 hover:border-blue-500 transition-all flex items-center justify-between text-xs font-semibold app-text-main group cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <FiTrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span>{translate("Điều chỉnh Giá trần Vé Resale")}</span>
                 </div>
                 <FiChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -553,6 +457,8 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <PinnedReports />
     </div>
   );
 };

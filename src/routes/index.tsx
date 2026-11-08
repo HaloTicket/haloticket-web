@@ -550,10 +550,6 @@ export const router = createBrowserRouter([
         element: <EventApprovalDetail />,
       },
       {
-        path: PATHS.ADMIN_RESALE_PRICE_CAP,
-        element: <Navigate to={PATHS.ADMIN_EVENT_MANAGEMENT} replace />,
-      },
-      {
         path: PATHS.ADMIN_AI_ANALYTICS,
         element: <AdminAiAnalytics />,
       },

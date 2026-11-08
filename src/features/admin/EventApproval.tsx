@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
@@ -17,6 +17,9 @@ import {
   FiRefreshCw
 } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
+import { aiApi } from "@/services/aiApi";
+import { RiskBadge } from "@/features/admin/components/RiskBadge";
+import type { AiRiskScoreResponse } from "@/types/ai";
 import type { ApprovalEventItem } from "@/types";
 
 interface ApprovalTicket {
@@ -53,6 +56,8 @@ interface ApprovalEventRaw {
   [key: string]: unknown;
 }
 
+const RISK_CHUNK = 30;
+
 export const EventApproval: React.FC = () => {
   const { t: translate } = useTranslation();
 
@@ -70,6 +75,11 @@ export const EventApproval: React.FC = () => {
     PENDING: 0, UPDATE_PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: 0
   });
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [risk, setRisk] = useState<Record<string, AiRiskScoreResponse>>({});
+  const [riskState, setRiskState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [riskFilter, setRiskFilter] = useState<"all" | "HIGH" | "MEDIUM" | "LOW" | "incomplete">("all");
+  const [sortChoice, setSortChoice] = useState<"auto" | "risk" | "date">("auto");
+  const riskRequest = useRef(0);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ type, message });
@@ -135,7 +145,7 @@ export const EventApproval: React.FC = () => {
           tickets: (() => {
             const raw = Array.isArray(item.tickets) ? item.tickets : [];
             const seen = new Set<string>();
-            return raw.filter((t: any) => {
+            return raw.filter((t: { ticketTypeStatus?: string; status?: string; name?: string }) => {
               if (t.ticketTypeStatus === "HIDDEN" || t.status === "HIDDEN") return false;
               const nameKey = (t.name || "").trim().toLowerCase();
               if (!nameKey || seen.has(nameKey)) return false;
@@ -174,7 +184,7 @@ export const EventApproval: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, translate]);
+  }, [translate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -186,6 +196,38 @@ export const EventApproval: React.FC = () => {
       window.removeEventListener("approval-events-updated", loadApprovalEvents);
     };
   }, [loadApprovalEvents]);
+
+  // layer A+B risk of the waiting files (no model call). The server scores at most 30 files per request.
+  const loadRisk = useCallback(async (items: ApprovalEventItem[]) => {
+    const ids = items
+      .filter((item) => item.eventApprovalStatus === "PENDING" || item.eventApprovalStatus === "UPDATE_PENDING")
+      .map((item) => String(item.id));
+    const version = ++riskRequest.current;
+    if (ids.length === 0) {
+      setRisk({});
+      setRiskState("idle");
+      return;
+    }
+    setRiskState("loading");
+    try {
+      const merged: Record<string, AiRiskScoreResponse> = {};
+      for (let start = 0; start < ids.length; start += RISK_CHUNK) {
+        const batch = await aiApi.getRiskBatch(ids.slice(start, start + RISK_CHUNK));
+        Object.assign(merged, batch.assessments);
+        if (version !== riskRequest.current) return;
+      }
+      setRisk(merged);
+      setRiskState("ready");
+    } catch (err) {
+      console.error("Risk batch failed", err);
+      if (version !== riskRequest.current) return;
+      setRiskState("error"); // the list itself keeps working, only the badges are missing
+    }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => { void loadRisk(allEventsList); });
+  }, [allEventsList, loadRisk]);
 
   const filteredEvents = allEventsList.filter((item) => {
     const status = item.eventApprovalStatus || "PENDING";
@@ -210,8 +252,18 @@ export const EventApproval: React.FC = () => {
         matchesDate = eventDate.getMonth() === today.getMonth() && eventDate.getFullYear() === today.getFullYear();
       }
     }
-    return matchesTab && matchesQuery && matchesDate;
+    const assessment = risk[String(item.id)];
+    let matchesRisk = true;
+    if (riskFilter === "incomplete") matchesRisk = !assessment || assessment.complete === false;
+    else if (riskFilter !== "all") matchesRisk = assessment?.risk_level === riskFilter;
+    return matchesTab && matchesQuery && matchesDate && matchesRisk;
   });
+
+  const effectiveSort = sortChoice === "auto" ? (activeTab === "PENDING" ? "risk" : "date") : sortChoice;
+  if (effectiveSort === "risk") {
+    // highest score first; files without a score go last. Array.sort is stable, so equal scores keep the date order.
+    filteredEvents.sort((a, b) => (risk[String(b.id)]?.risk_score ?? -1) - (risk[String(a.id)]?.risk_score ?? -1));
+  }
 
   const totalPages = Math.ceil(filteredEvents.length / pageSize) || 1;
   const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -305,11 +357,42 @@ export const EventApproval: React.FC = () => {
               className="min-h-9 min-w-[220px] flex-[1_1_220px] rounded-md border app-border app-bg-card px-3 text-xs font-medium app-text-main placeholder:app-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
             />
             
+            <div className="w-44">
+              <CustomSelect
+                value={riskFilter}
+                onChange={(val) => {
+                  setRiskFilter(val as typeof riskFilter);
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: "all", label: translate("ai.risk.filter.all") },
+                  { value: "HIGH", label: translate("ai.risk.filter.high") },
+                  { value: "MEDIUM", label: translate("ai.risk.filter.medium") },
+                  { value: "LOW", label: translate("ai.risk.filter.low") },
+                  { value: "incomplete", label: translate("ai.risk.filter.incomplete") }
+                ]}
+              />
+            </div>
+
+            <div className="w-44">
+              <CustomSelect
+                value={effectiveSort}
+                onChange={(val) => {
+                  setSortChoice(val as "risk" | "date");
+                  setCurrentPage(1);
+                }}
+                options={[
+                  { value: "risk", label: translate("ai.risk.sort.risk") },
+                  { value: "date", label: translate("ai.risk.sort.default") }
+                ]}
+              />
+            </div>
+
             <div className="w-32">
               <CustomSelect
                 value={dateFilter}
                 onChange={(val) => {
-                  setDateFilter(val as any);
+                  setDateFilter(val as typeof dateFilter);
                   setCurrentPage(1);
                 }}
                 options={[
@@ -324,24 +407,32 @@ export const EventApproval: React.FC = () => {
         </div>
       </div>
 
+      {riskState === "error" && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <span>{translate("ai.risk.batchFailed")}</span>
+          <button type="button" onClick={() => void loadRisk(allEventsList)} className="cursor-pointer rounded-md border border-amber-400 px-2.5 py-1 font-bold hover:bg-amber-100 dark:hover:bg-amber-900/40">{translate("ai.action.retry")}</button>
+        </div>
+      )}
+
       {/* Events Approval List Table */}
       <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left text-xs table-fixed min-w-[1000px]">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 app-text-muted font-bold text-[11px] uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="py-3 px-4 w-[24%]">{translate("Sự kiện & BTC")}</th>
-                <th className="py-3 px-4 w-[18%]">{translate("Thể loại & Địa điểm")}</th>
-                <th className="py-3 px-4 w-[22%]">{translate("Thời gian diễn ra")}</th>
-                <th className="py-3 px-4 w-[11%]">{translate("Giá vé từ")}</th>
-                <th className="py-3 px-4 w-[14%] text-center">{translate("Trạng thái duyệt")}</th>
-                <th className="py-3 px-4 w-[11%] text-right">{translate("Thao tác Admin")}</th>
+                <th className="py-3 px-4 w-[22%]">{translate("Sự kiện & BTC")}</th>
+                <th className="py-3 px-4 w-[15%]">{translate("Thể loại & Địa điểm")}</th>
+                <th className="py-3 px-4 w-[17%]">{translate("Thời gian diễn ra")}</th>
+                <th className="py-3 px-4 w-[9%]">{translate("Giá vé từ")}</th>
+                <th className="py-3 px-4 w-[14%]">{translate("ai.risk.column")}</th>
+                <th className="py-3 px-4 w-[13%] text-center">{translate("Trạng thái duyệt")}</th>
+                <th className="py-3 px-4 w-[10%] text-right">{translate("Thao tác Admin")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {paginatedEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center app-text-muted">
+                  <td colSpan={7} className="py-12 text-center app-text-muted">
                     <FiCheckSquare className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-50" />
                     <p className="font-bold">{translate("Không tìm thấy yêu cầu sự kiện nào.")}</p>
                   </td>
@@ -388,6 +479,18 @@ export const EventApproval: React.FC = () => {
 
                       <td className="py-3.5 px-4 font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                         {item.minPrice ? `${item.minPrice.toLocaleString("vi-VN")} đ` : translate("Miễn phí")}
+                      </td>
+
+                      <td className="py-3.5 px-4" data-testid={`risk-cell-${item.id}`}>
+                        {status === "PENDING" || status === "UPDATE_PENDING" ? (
+                          riskState === "loading" && !risk[String(item.id)] ? (
+                            <span className="text-[11px] app-text-muted">{translate("ai.risk.batchLoading")}</span>
+                          ) : (
+                            <RiskBadge assessment={risk[String(item.id)] ?? null} showScore />
+                          )
+                        ) : (
+                          <span className="app-text-muted">—</span>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">

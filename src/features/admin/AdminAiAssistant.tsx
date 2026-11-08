@@ -22,6 +22,8 @@ interface ChatMessage {
   text: string;
   timestamp: Date;
   actionableEvents?: ActionableEvent[];
+  toolsUsed?: string[];
+  grounded?: boolean;
 }
 
 const normalizeMarkdown = (text: string) => {
@@ -165,6 +167,8 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
         sender: "ai",
         text: response.reply,
         actionableEvents,
+        toolsUsed: Array.isArray(response.tools_used) ? response.tools_used : undefined,
+        grounded: typeof response.grounded === "boolean" ? response.grounded : undefined,
         timestamp: new Date()
       }]);
     } catch (error) {
@@ -346,6 +350,14 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
                        </div>
                     )}
                   </div>
+                )}
+                {msg.sender === "ai" && msg.grounded === false && (
+                  <p role="note" data-testid="assistant-ungrounded" className="mt-2 text-[11px] font-medium app-text-muted">{t("ai.assist.ungrounded")}</p>
+                )}
+                {msg.sender === "ai" && msg.toolsUsed && msg.toolsUsed.length > 0 && (
+                  <p data-testid="assistant-tools" className="mt-2 text-[11px] app-text-muted">
+                    {t("ai.assist.toolsUsed", { tools: Array.from(new Set(msg.toolsUsed)).map((tool) => t(`ai.assist.tool.${tool}`, { defaultValue: tool })).join(", ") })}
+                  </p>
                 )}
                 <div className={`text-[10px] mt-2 ${msg.sender === "user" ? "text-blue-100 text-right" : "app-text-muted"}`}>
                   {msg.timestamp.toLocaleTimeString(i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN', { hour: '2-digit', minute: '2-digit' })}

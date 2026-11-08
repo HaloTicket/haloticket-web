@@ -24,6 +24,10 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { eventApi } from "@/services/eventApi";
 import { aiApi } from "@/services/aiApi";
 import { getAiErrorMessage } from "@/utils/aiErrors";
+import { RiskBadge } from "@/features/admin/components/RiskBadge";
+import { RiskReasonsPanel } from "@/features/admin/components/RiskReasonsPanel";
+import { evidenceQuotes, highlightEvidence } from "@/utils/riskHighlight";
+import type { AiRiskScoreResponse } from "@/types/ai";
 import { ticketApi } from "@/services/ticketApi";
 import type { SeatLayoutApiResponse } from "@/types";
 import { EventApprovalActions } from "./EventApprovalActions";
@@ -51,7 +55,7 @@ export function EventApprovalDetail() {
   const [event, setEvent] = useState<ApprovalEventRecord | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "missing">("loading");
   const [resolvedId, setResolvedId] = useState<string | undefined>();
-  const [riskScore, setRiskScore] = useState<{ risk_level: string, risk_score: number, reasons?: string[] } | null>(null);
+  const [riskScore, setRiskScore] = useState<AiRiskScoreResponse | null>(null);
   const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
   const [riskError, setRiskError] = useState<string | null>(null);
   const [collisionInfo, setCollisionInfo] = useState<{ hasCollision: boolean; conflictingEvent?: string; timeSlot?: string; message?: string } | null>(null);
@@ -214,28 +218,8 @@ export function EventApprovalDetail() {
       .join("");
   }, [rawDesc]);
 
-  // ai risk scoring with persistent caching per event
-  const runRiskAssessment = useCallback(async (targetEvent: ApprovalEventRecord, forceRefresh: boolean = false) => {
-    const cacheKey = `admin_risk_score_${targetEvent.id}`;
-    if (!forceRefresh) {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          // only a real score is ever served from cache (older builds may have cached failures).
-          if (parsed && typeof parsed.risk_score === "number" && parsed.risk_level !== "UNKNOWN") {
-            setRiskScore({ ...parsed, reasons: parsed.reasons ?? [] });
-            setRiskError(null);
-            setIsAnalyzingRisk(false);
-            return;
-          }
-          localStorage.removeItem(cacheKey);
-        } catch {
-          // ignore error and proceed
-        }
-      }
-    }
-
+  // multi-layer risk assessment; the server keeps the stored result for unchanged content, nothing is cached in the browser
+  const runRiskAssessment = useCallback(async (targetEvent: ApprovalEventRecord, refresh: boolean = false) => {
     setIsAnalyzingRisk(true);
     setRiskError(null);
     try {
@@ -243,17 +227,16 @@ export function EventApprovalDetail() {
         targetEvent.id,
         targetEvent.title || "",
         targetEvent.description || "",
-        targetEvent.organizerName || ""
+        targetEvent.organizerName || "",
+        { refresh }
       );
       if (!score || typeof score.risk_score !== "number" || !score.risk_level) {
         throw { response: { status: 502, data: { code: "AI_GENERATION_FAILED" } } };
       }
-      const valid = { ...score, reasons: score.reasons ?? [] };
-      setRiskScore(valid);
-      localStorage.setItem(cacheKey, JSON.stringify(valid));
+      setRiskScore(score);
     } catch (error) {
       console.error("Risk assessment failed:", error);
-      // Failures are shown, never cached and never rendered as a green 0.
+      // Failures are shown, never rendered as a green 0.
       setRiskScore(null);
       setRiskError(getAiErrorMessage(error));
     } finally {
@@ -288,80 +271,22 @@ export function EventApprovalDetail() {
         <main className="space-y-5 min-w-0">
           {(event.bannerUrl || event.posterImage) && <div className="overflow-hidden rounded-lg shadow-xs border app-border app-bg-card"><img src={event.bannerUrl || event.posterImage} alt="" className="h-52 w-full object-cover sm:h-64" /></div>}
           
-          {/* AI Risk Scoring Banner */}
-          <div className={`p-4 rounded-lg shadow-xs border flex flex-col sm:flex-row gap-4 items-start ${
-            isAnalyzingRisk || riskError ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" :
-            riskScore?.risk_level === "HIGH" ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50" :
-            riskScore?.risk_level === "MEDIUM" ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50" :
-            "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50"
-          }`}>
-            <div className="flex items-center justify-center w-14 h-14 rounded-full shrink-0 shadow-inner bg-white dark:bg-zinc-800 border border-slate-100 dark:border-slate-700">
-              {isAnalyzingRisk ? (
-                <FiRefreshCw className="w-6 h-6 text-blue-500 motion-safe:animate-spin" />
-              ) : riskError || !riskScore ? (
-                <span className="text-xl font-black text-slate-500" aria-hidden="true">?</span>
-              ) : (
-                <span className={`text-xl font-black ${
-                  riskScore?.risk_level === "HIGH" ? "text-rose-600" :
-                  riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
-                  "text-emerald-600"
-                }`}>
-                  {riskScore.risk_score}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold flex items-center gap-2">
-                  <FiShield className={`w-4 h-4 ${
-                    isAnalyzingRisk ? "text-blue-500" :
-                    riskError ? "text-slate-500" :
-                    riskScore?.risk_level === "HIGH" ? "text-rose-600" :
-                    riskScore?.risk_level === "MEDIUM" ? "text-amber-600" :
-                    "text-emerald-600"
-                  }`} />
-                  <span className="app-text-main">{t("AI Phân Tích Rủi Ro (Risk Scoring)")}</span>
-                  {!isAnalyzingRisk && riskScore && (
-                    <span className={`px-2 py-0.5 text-[10px] uppercase font-black rounded ${
-                      riskScore.risk_level === "HIGH" ? "bg-rose-600 text-white" :
-                      riskScore.risk_level === "MEDIUM" ? "bg-amber-500 text-white" :
-                      riskScore.risk_level === "UNKNOWN" ? "bg-slate-500 text-white" :
-                      "bg-emerald-500 text-white"
-                    }`}>
-                      {riskScore.risk_level}
-                    </span>
-                  )}
-                </h4>
-
-                {/* Refresh AI Analysis Button */}
-                <button
-                  type="button"
-                  onClick={() => event && runRiskAssessment(event, true)}
-                  disabled={isAnalyzingRisk}
-                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg border app-border app-bg-card hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                  title={t("Chạy lại phân tích rủi ro bằng AI")}
-                >
-                  <FiRefreshCw className={`w-3 h-3 ${isAnalyzingRisk ? "motion-safe:animate-spin" : ""}`} />
-                  <span>{t("Làm mới phân tích")}</span>
-                </button>
+          {/* Multi-layer risk assessment: AI only suggests, the admin decides */}
+          <div aria-busy={isAnalyzingRisk} className="rounded-lg border app-border app-bg-card p-4 shadow-xs">
+            {(isAnalyzingRisk && !riskScore) || (!riskError && !riskScore) ? (
+              <p role="status" className="flex items-center gap-2 text-xs app-text-muted">
+                <FiRefreshCw className="h-4 w-4 text-blue-500 motion-safe:animate-spin" aria-hidden="true" />
+                {t("ai.risk.analyzing")}
+              </p>
+            ) : riskError || !riskScore || riskScore.coverage?.rules === false ? (
+              <div role="alert" className="space-y-1.5 text-xs">
+                <p className="flex items-center gap-2 font-bold app-text-main"><RiskBadge assessment={null} /> {t("ai.risk.cannot")}</p>
+                <p className="app-text-muted">{riskError ?? t("ai.risk.rulesUnavailable")}</p>
+                <button type="button" onClick={() => event && runRiskAssessment(event, true)} disabled={isAnalyzingRisk} className="cursor-pointer rounded-lg border app-border app-bg-card px-2.5 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-950/40">{t("Thử lại")}</button>
               </div>
-
-              {isAnalyzingRisk ? (
-                <p role="status" className="text-xs app-text-muted">{t("Đang đánh giá theo tiêu chuẩn quy định nghiêm ngặt của HaloTicket...")}</p>
-              ) : riskError ? (
-                <div role="alert" className="text-xs space-y-1.5">
-                  <p className="font-bold app-text-main">{t("Chưa chấm được")}</p>
-                  <p className="app-text-muted">{riskError}</p>
-                  <button type="button" onClick={() => event && runRiskAssessment(event, true)} className="px-2.5 py-1 text-[11px] font-bold rounded-lg border app-border app-bg-card hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 cursor-pointer">{t("Thử lại")}</button>
-                </div>
-              ) : (
-                <ul className="text-xs app-text-muted list-disc list-inside space-y-0.5 pl-1">
-                  {(riskScore?.reasons ?? []).map((reason, idx) => (
-                    <li key={idx} className="leading-tight">{reason}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            ) : (
+              <RiskReasonsPanel assessment={riskScore} refreshing={isAnalyzingRisk} onRefresh={() => event && runRiskAssessment(event, true)} />
+            )}
           </div>
 
           <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
@@ -621,10 +546,16 @@ export function EventApprovalDetail() {
 
           <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3">
             <h2 className="text-lg font-bold app-text-main">{t("Nội dung mô tả chi tiết sự kiện")}</h2>
-            <div
-              className="prose dark:prose-invert max-w-none text-sm leading-relaxed app-text-main break-words whitespace-pre-line [&_img]:rounded-lg [&_img]:max-h-[500px] [&_img]:w-auto [&_img]:my-3 [&_video]:rounded-lg [&_video]:max-w-full [&_p]:mb-3"
-              dangerouslySetInnerHTML={{ __html: formattedDescription || t("Chưa cập nhật") }}
-            />
+            {rawDesc && !/<[a-z][\s\S]*>/i.test(rawDesc) ? (
+              <div className="max-w-none text-sm leading-relaxed app-text-main break-words whitespace-pre-line" data-testid="event-description">
+                {highlightEvidence(rawDesc, evidenceQuotes(riskScore?.reason_items))}
+              </div>
+            ) : (
+              <div
+                className="prose dark:prose-invert max-w-none text-sm leading-relaxed app-text-main break-words whitespace-pre-line [&_img]:rounded-lg [&_img]:max-h-[500px] [&_img]:w-auto [&_img]:my-3 [&_video]:rounded-lg [&_video]:max-w-full [&_p]:mb-3"
+                dangerouslySetInnerHTML={{ __html: formattedDescription || t("Chưa cập nhật") }}
+              />
+            )}
           </section>
 
           {Boolean(event.customQuestions?.length) && <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-3"><h2 className="text-lg font-bold app-text-main">{t("Câu hỏi đăng ký")}</h2><div className="divide-y divide-slate-100 dark:divide-slate-800/50">{event.customQuestions?.map((question, index) => <div key={typeof question.id === "string" ? question.id : index} className="py-3 text-sm"><p className="font-semibold app-text-main">{typeof question.title === "string" && question.title.trim() ? question.title : `${t("Câu hỏi")} ${index + 1}`}{question.isRequired === true ? ` · ${t("Bắt buộc")}` : ""}</p>{typeof question.description === "string" && question.description.trim() && <p className="app-text-muted">{question.description}</p>}</div>)}</div></section>}
