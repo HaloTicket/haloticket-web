@@ -44,6 +44,7 @@ const CODE_KIND: Record<string, AiErrorKind> = {
   AI_GENERATION_FAILED: "generation_failed",
   AI_UNAVAILABLE: "unavailable",
   AI_DB_NOT_CONFIGURED: "db_not_configured",
+  AI_DB_UNAVAILABLE: "unavailable",
 };
 
 const STATUS_KIND: Record<number, AiErrorKind> = {
