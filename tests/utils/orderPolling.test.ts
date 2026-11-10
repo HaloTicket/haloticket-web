@@ -66,3 +66,39 @@ describe("status badge", () => {
     expect(orderBadge("EXPIRED", false)).toBe("expired");
   });
 });
+
+import { parseReissueResponse, shouldAutoReissue, shouldRequestReissue } from "@/utils/orderPolling";
+
+describe("re-issue of the tickets of a paid order", () => {
+  it("reads each answer of the backend", () => {
+    expect(parseReissueResponse({ result: "REQUESTED" })).toEqual({ kind: "requested" });
+    expect(parseReissueResponse({ result: "ALREADY_ISSUED" })).toEqual({ kind: "already-issued" });
+    expect(parseReissueResponse({ result: "NOT_PAID" })).toEqual({ kind: "not-paid" });
+    expect(parseReissueResponse({ result: "TOO_SOON", retryAfterSeconds: 12.2 })).toEqual({ kind: "too-soon", retryAfterSeconds: 13 });
+  });
+
+  it("falls back to a safe wait for a missing or odd TOO_SOON delay and to 'unknown' for anything else", () => {
+    expect(parseReissueResponse({ result: "TOO_SOON" })).toEqual({ kind: "too-soon", retryAfterSeconds: 30 });
+    expect(parseReissueResponse({ result: "TOO_SOON", retryAfterSeconds: -4 })).toEqual({ kind: "too-soon", retryAfterSeconds: 30 });
+    for (const odd of [null, undefined, "REQUESTED", 7, [], {}, { result: "WHATEVER" }]) {
+      expect(parseReissueResponse(odd)).toEqual({ kind: "unknown" });
+    }
+  });
+
+  it("asks by itself once, only after the fast polling is over", () => {
+    expect(shouldAutoReissue(0, false)).toBe(false);
+    expect(shouldAutoReissue(TICKET_POLL_INTERVALS.length - 1, false)).toBe(false);
+    expect(shouldAutoReissue(TICKET_POLL_INTERVALS.length, false)).toBe(true);
+    expect(shouldAutoReissue(TICKET_POLL_INTERVALS.length + 3, true)).toBe(false);
+  });
+
+  it("a manual reload asks only for a paid order that still lacks tickets", () => {
+    expect(shouldRequestReissue("PAID", 0, 3)).toBe(true);
+    expect(shouldRequestReissue("CONFIRMED", 2, 3)).toBe(true);
+    expect(shouldRequestReissue("PAID", 3, 3)).toBe(false);
+    expect(shouldRequestReissue("PENDING", 0, 3)).toBe(false);
+    expect(shouldRequestReissue("CANCELLED", 0, 3)).toBe(false);
+    expect(shouldRequestReissue("PAID", 0, 0)).toBe(false);
+    expect(shouldRequestReissue(undefined, 0, 3)).toBe(false);
+  });
+});

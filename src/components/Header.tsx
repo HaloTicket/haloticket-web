@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { eventTargetOfNotification } from "@/utils/notificationLinks";
+import { notificationTarget } from "@/utils/notificationTarget";
 import { useTheme } from "@/hooks/useTheme";
 import SearchOverlayModal from "./SearchOverlayModal";
 import { addSearchHistory } from "@/utils/searchHistory";
@@ -754,26 +754,8 @@ function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
   const onClick = (item: NotificationItem) => {
     void markAsRead(item.id);
     clearToast();
-    if (item.type === "GIFT_INVITATION") {
-      const sagaId = item.message.match(/Mã lời mời: ([a-f0-9-]{36})/i)?.[1];
-      if (sagaId) {
-        navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
-        return;
-      }
-    }
-    if (item.type === "PAYOUT_APPROVED" || item.type === "PAYOUT_REQUESTED") {
-      navigate(PATHS.REPORTS);
-      return;
-    }
-    if (item.type === "EVENT_APPROVED" || item.type === "EVENT_UPDATE_APPROVED" || item.type === "EVENT_REJECTED") {
-      navigate(eventTargetOfNotification(item));
-      return;
-    }
-    if (item.type === "TICKETS_ISSUED" || item.type === "TICKET_ISSUED" || item.type === "RESALE_LISTING_ACTIVATED" || item.type === "RESALE_LISTING_FAILED") {
-      navigate(PATHS.MY_TICKETS);
-      return;
-    }
-    navigate(PATHS.MY_EVENTS);
+    const target = notificationTarget(item, "customer");
+    if (target) navigate(target);
   };
 
   return (

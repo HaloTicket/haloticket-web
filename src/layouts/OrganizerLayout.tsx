@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { eventTargetOfNotification } from "@/utils/notificationLinks";
+import { notificationTarget } from "@/utils/notificationTarget";
 import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
@@ -92,26 +92,8 @@ export const OrganizerLayout: React.FC = () => {
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
-    if (n.type === "GIFT_INVITATION") {
-      const sagaId = n.message.match(/Mã lời mời: ([a-f0-9-]{36})/i)?.[1];
-      if (sagaId) {
-        navigate(`${PATHS.GIFT_ACCEPT}?sagaId=${encodeURIComponent(sagaId)}`);
-        return;
-      }
-    }
-    if (n.type === "PAYOUT_APPROVED" || n.type === "PAYOUT_REQUESTED") {
-      navigate(PATHS.REPORTS);
-      return;
-    }
-    if (n.type === "EVENT_APPROVED" || n.type === "EVENT_UPDATE_APPROVED" || n.type === "EVENT_REJECTED") {
-      navigate(eventTargetOfNotification(n));
-      return;
-    }
-    if (n.type === "TICKETS_ISSUED" || n.type === "TICKET_ISSUED" || n.type === "RESALE_LISTING_ACTIVATED" || n.type === "RESALE_LISTING_FAILED") {
-      navigate(PATHS.MY_TICKETS);
-      return;
-    }
-    navigate(PATHS.MY_EVENTS);
+    const target = notificationTarget(n, "organizer");
+    if (target) navigate(target);
   };
 
   useEffect(() => {

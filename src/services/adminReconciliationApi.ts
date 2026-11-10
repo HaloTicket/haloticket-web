@@ -74,14 +74,23 @@ export const adminReconciliationApi = {
     axiosClient.post(`${base}/exceptions/${encodeURIComponent(id)}/resolve`, body) as unknown as Promise<PaymentExceptionItem>,
   getPaidWithoutTickets: (signal?: AbortSignal) =>
     axiosClient.get<{ items: PaidWithoutTicketsItem[]; total: number }>(`${base}/paid-without-tickets`, { signal }) as unknown as Promise<{ items: PaidWithoutTicketsItem[]; total: number }>,
-  /** Sends BOOKING_CONFIRMED again for a PAID order. Issuance is idempotent, so a second run never makes duplicate tickets. */
+  // sends BOOKING_CONFIRMED again for a PAID order. Issuance is idempotent, so a second run never makes duplicate tickets
   republishConfirmed: (bookingId: string) =>
     axiosClient.post(`/bookings/admin/${encodeURIComponent(bookingId)}/republish-confirmed`, null, { params: { dryRun: false } }) as unknown as Promise<{ message?: string }>,
+  // recomputes the stock of one ticket type from the tickets really issued. Answers the corrected row, or 409/422 with a code (e.g. INITIAL_QUANTITY_UNKNOWN)
+  fixStock: (ticketTypeId: string) =>
+    axiosClient.post(`${base}/stock/${encodeURIComponent(ticketTypeId)}/fix`) as unknown as Promise<StockDiscrepancyItem | null>,
   getStockDiscrepancies: (signal?: AbortSignal) =>
     axiosClient.get<{ items: StockDiscrepancyItem[] }>(`${base}/stock-discrepancies`, { signal }) as unknown as Promise<{ items: StockDiscrepancyItem[] }>,
 };
 
-/** True when the server said one of the sources behind the screen could not be read. */
+// the machine code of a failed request (e.g. INITIAL_QUANTITY_UNKNOWN), or null
+export function errorCodeOf(err: unknown): string | null {
+  const code = (err as { response?: { data?: { code?: unknown } } } | null)?.response?.data?.code;
+  return typeof code === "string" ? code : null;
+}
+
+// true when the server said one of the sources behind the screen could not be read.
 export function isSourceUnavailable(err: unknown): boolean {
   const data = (err as { response?: { data?: { code?: unknown; message?: unknown } } } | null)?.response?.data;
   return data?.code === RECONCILIATION_SOURCE_UNAVAILABLE || data?.message === RECONCILIATION_SOURCE_UNAVAILABLE;

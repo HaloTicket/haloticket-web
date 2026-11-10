@@ -52,3 +52,39 @@ export function orderBadge(status: string | undefined | null, confirming: boolea
   if (status === "EXPIRED") return "expired";
   return "other";
 }
+
+export type ReissueOutcome =
+  | { kind: "requested" }
+  | { kind: "already-issued" }
+  | { kind: "too-soon"; retryAfterSeconds: number }
+  | { kind: "not-paid" }
+  | { kind: "unknown" };
+
+// reads the answer of POST /bookings/by-code/{code}/reissue defensively: anything unexpected is "unknown"
+export function parseReissueResponse(raw: unknown): ReissueOutcome {
+  const result = raw && typeof raw === "object" ? (raw as { result?: unknown; retryAfterSeconds?: unknown }).result : undefined;
+  switch (result) {
+    case "REQUESTED":
+      return { kind: "requested" };
+    case "ALREADY_ISSUED":
+      return { kind: "already-issued" };
+    case "NOT_PAID":
+      return { kind: "not-paid" };
+    case "TOO_SOON": {
+      const seconds = Number((raw as { retryAfterSeconds?: unknown }).retryAfterSeconds);
+      return { kind: "too-soon", retryAfterSeconds: Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 30 };
+    }
+    default:
+      return { kind: "unknown" };
+  }
+}
+
+// the order page asks for a re-issue by itself once, when the fast polling is over and the tickets are still missing
+export function shouldAutoReissue(step: number, alreadyAsked: boolean): boolean {
+  return !alreadyAsked && ticketPollingIsLate(step);
+}
+
+// a manual 'Tải lại' asks for a re-issue only for a paid order that still lacks tickets; otherwise it just reloads
+export function shouldRequestReissue(status: string | undefined | null, issuedTickets: number, expectedTickets: number): boolean {
+  return isPaidStatus(status) && expectedTickets > 0 && issuedTickets < expectedTickets;
+}

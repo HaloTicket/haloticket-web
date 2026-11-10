@@ -179,20 +179,8 @@ export const AdminLayout: React.FC = () => {
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
-    let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;
-    const known = adminNotificationTarget(n);
-
-    if (known) {
-      targetPath = known;
-    } else if (n.type && n.type.includes("PAYOUT")) {
-      targetPath = PATHS.ADMIN_FINANCE;
-    } else if (n.message) {
-      const match = n.message.match(/EV_[a-zA-Z0-9_-]+/);
-      if (match) {
-        targetPath = `${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${match[0]}`;
-      }
-    }
-    navigate(targetPath);
+    const target = adminNotificationTarget(n);
+    if (target) navigate(target);
   };
 
 

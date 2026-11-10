@@ -47,6 +47,11 @@ export const bookingApi = {
     }
   },
 
+  // Asks for the tickets of a paid order to be issued again (owner only). Resolves with the raw answer; rejects on a request error
+  reissueByCode: async (bookingCode: string): Promise<unknown> => {
+    return axiosClient.post(`/bookings/by-code/${encodeURIComponent(bookingCode)}/reissue`);
+  },
+
   cancelBooking: async (bookingId: string): Promise<boolean> => {
     try {
       await axiosClient.post(`/bookings/${bookingId}/cancel`);

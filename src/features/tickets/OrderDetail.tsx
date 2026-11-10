@@ -25,7 +25,18 @@ import { eventApi } from "@/services/eventApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { PATHS } from "@/routes/paths";
 import { formatCurrency } from "@/utils/formatters";
-import { isClosedStatus, nextPollDelay, nextStepForBooking, orderBadge, ticketPollingIsLate } from "@/utils/orderPolling";
+import { toast } from "sonner";
+import {
+  isClosedStatus,
+  nextPollDelay,
+  nextStepForBooking,
+  orderBadge,
+  parseReissueResponse,
+  shouldAutoReissue,
+  shouldRequestReissue,
+  ticketPollingIsLate,
+  type ReissueOutcome,
+} from "@/utils/orderPolling";
 import type { BookingDetailResponse } from "@/types";
 import {
   type TicketItem,
@@ -57,6 +68,10 @@ export default function OrderDetail() {
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  // what the last request to issue the tickets again answered (shown inside the notices)
+  const [reissueNotice, setReissueNotice] = useState<string | null>(null);
+  const bookingCodeRef = useRef<string>("");
+  const autoReissuedRef = useRef(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
 
@@ -83,6 +98,7 @@ export default function OrderDetail() {
   }, []);
 
   const pollTicketsRef = useRef<(bookingId: string, expectedCount: number, step?: number) => Promise<void>>(async () => {});
+  const requestReissueRef = useRef<(silent: boolean) => Promise<ReissueOutcome | null>>(async () => null);
 
   // poll for tickets: fast first, then slowly in the background without any click
   const pollTickets = useCallback(
@@ -96,6 +112,10 @@ export default function OrderDetail() {
           return;
         }
         if (ticketPollingIsLate(step) && isMountedRef.current) setPollTimedOut(true);
+        if (shouldAutoReissue(step, autoReissuedRef.current)) {
+          autoReissuedRef.current = true; // once per page visit, silently
+          void requestReissueRef.current(true);
+        }
         pollTimerRef.current = setTimeout(() => {
           void pollTicketsRef.current(bookingId, expectedCount, step + 1);
         }, delay);
@@ -233,6 +253,7 @@ export default function OrderDetail() {
 
         if (!isMountedRef.current) return;
         setBooking(bookingInfo);
+        bookingCodeRef.current = bookingInfo.bookingCode || normalizedCode;
 
         // 2. fetch event information
         if (bookingInfo.eventId) {
@@ -306,11 +327,51 @@ export default function OrderDetail() {
     }
   }, []);
 
+  // asks the backend to issue the tickets of this paid order again (owner only, idempotent) and tells the customer the answer
+  const requestReissue = useCallback(
+    async (silent: boolean): Promise<ReissueOutcome | null> => {
+      const code = bookingCodeRef.current;
+      if (!code) return null;
+      try {
+        const outcome = parseReissueResponse(await bookingApi.reissueByCode(code));
+        if (!isMountedRef.current) return outcome;
+        if (outcome.kind === "requested") {
+          setReissueNotice(t("Đã gửi yêu cầu phát hành lại, vé sẽ xuất hiện trong ít phút."));
+        } else if (!silent && outcome.kind === "too-soon") {
+          setReissueNotice(t("Vui lòng thử lại sau {{seconds}} giây.", { seconds: outcome.retryAfterSeconds }));
+        } else if (!silent && outcome.kind === "not-paid") {
+          setReissueNotice(t("Đơn hàng chưa được ghi nhận thanh toán, nên chưa thể phát hành vé."));
+        }
+        return outcome;
+      } catch (err) {
+        console.warn("Reissue request failed:", err);
+        // never blocks the reload that follows
+        if (!silent) toast.warning(t("Chưa gửi được yêu cầu phát hành lại. Trang vẫn tải lại thông tin đơn hàng."));
+        return null;
+      }
+    },
+    [t]
+  );
+
+  // the 'Tải lại' of the late-tickets notice: ask for the issuance again, then reload the order and restart the polling
+  const reloadAndReissue = useCallback(async () => {
+    setRetrying(true);
+    try {
+      if (shouldRequestReissue(booking?.status, tickets.length, expectedTotalQuantity)) {
+        await requestReissueRef.current(false);
+      }
+      await loadOrderDataRef.current(true);
+    } finally {
+      if (isMountedRef.current) setRetrying(false);
+    }
+  }, [booking?.status, tickets.length, expectedTotalQuantity]);
+
   useEffect(() => {
     loadOrderDataRef.current = loadOrderData;
     pollBookingRef.current = pollBooking;
     pollTicketsRef.current = pollTickets;
-  }, [loadOrderData, pollBooking, pollTickets]);
+    requestReissueRef.current = requestReissue;
+  }, [loadOrderData, pollBooking, pollTickets, requestReissue]);
 
   // mount and unmount cleanup (do not re-fetch on window focus to avoid flicker on Alt+Tab)
   useEffect(() => {
@@ -463,6 +524,9 @@ export default function OrderDetail() {
                           total: expectedTotalQuantity,
                         })}
                       </p>
+                      {reissueNotice && (
+                        <p role="status" className="mt-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300">{reissueNotice}</p>
+                      )}
                     </div>
                   </div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -491,11 +555,14 @@ export default function OrderDetail() {
                           hotline: SUPPORT_HOTLINE,
                         })}
                       </p>
+                      {reissueNotice && (
+                        <p role="status" className="mt-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200">{reissueNotice}</p>
+                      )}
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => void reload()}
+                    onClick={() => void reloadAndReissue()}
                     disabled={retrying}
                     className="inline-flex shrink-0 items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-60"
                   >

@@ -226,7 +226,7 @@ describe("reissuing tickets for a paid order", () => {
     await waitFor(() => expect(api.republishConfirmed).toHaveBeenCalledWith("b-1"));
     await waitFor(() => expect(toasts.success).toHaveBeenCalled());
     await waitFor(() => expect(api.getPaidWithoutTickets).toHaveBeenCalledTimes(2));
-    expect(api.getSummary).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText("Đang phát hành lại…")).toBeTruthy(); // the row stays, summary is refreshed when the order leaves the list
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
