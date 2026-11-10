@@ -8,7 +8,8 @@ import { aiApi } from "@/services/aiApi";
 import { getAiErrorMessage } from "@/utils/aiErrors";
 import { FiZap, FiRefreshCw } from "react-icons/fi";
 import type { ApprovalEventItem } from "@/types";
-import type { AiRiskScoreResponse } from "@/types/ai";
+import type { AiRiskScoreResponse, RiskReasonItem } from "@/types/ai";
+import { FLAG_FIELDS, buildRejectionNotes, quotesFromRisk, type FlaggedQuote } from "@/utils/rejectionFeedback";
 
 /** Reasons that count (found something, weight above 0), one per line; the plain `reasons` list is the fallback. */
 function reasonLines(score: AiRiskScoreResponse): string[] {
@@ -20,23 +21,24 @@ function reasonLines(score: AiRiskScoreResponse): string[] {
 interface EventApprovalActionsProps {
   event: ApprovalEventItem;
   onSuccess: () => void;
+  riskItems?: RiskReasonItem[];
 }
 
-const FLAG_FIELDS = [
-  { id: "posterImage", label: "Poster & Banner" },
-  { id: "title", label: "Tên & Mô tả sự kiện" },
-  { id: "dates", label: "Thời gian diễn ra" },
-  { id: "tickets", label: "Danh sách Hạng vé" },
-  { id: "location", label: "Địa điểm sự kiện" },
-  { id: "paymentInfo", label: "Thông tin thanh toán / MST" },
-] as const;
-
-export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsProps) {
+export function EventApprovalActions({ event, onSuccess, riskItems }: EventApprovalActionsProps) {
   const { t } = useTranslation();
   const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
   const [reason, setReason] = useState<string>("");
   const [notes, setNotes] = useState("");
-  const [flaggedFields, setFlaggedFields] = useState<string[]>(["posterImage"]);
+  // sections and quotes start from the risk evidence and stay under the admin's control once touched
+  const candidateQuotes = quotesFromRisk(riskItems);
+  const hasEvidence = (riskItems ?? []).some((item) => item.status !== "not_assessed" && item.weight > 0 && (item.evidence?.length ?? 0) > 0);
+  const defaultFlags = candidateQuotes.length > 0 ? ["title"] : hasEvidence ? [] : ["posterImage"];
+  const [manualFlags, setManualFlags] = useState<string[] | null>(null);
+  const flaggedFields = manualFlags ?? defaultFlags;
+  const setFlaggedFields = (update: (current: string[]) => string[]) => setManualFlags(update(flaggedFields));
+  const [unchecked, setUnchecked] = useState<string[]>([]);
+  const quoteKey = (quote: FlaggedQuote) => `${quote.field}|${quote.text}`;
+  const sentQuotes = candidateQuotes.filter((quote) => !unchecked.includes(quoteKey(quote)));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -59,7 +61,7 @@ export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsP
       if (action === "approve") {
         await eventApi.approveEvent(event.id);
       } else {
-        await eventApi.rejectEvent(event.id, reason, JSON.stringify({ flaggedFields, noteText: notes }));
+        await eventApi.rejectEvent(event.id, reason, buildRejectionNotes(flaggedFields, notes, sentQuotes));
       }
       // best effort and never awaited: the decision is already saved, this only lets the AI suggestion be compared with it
       void aiApi.recordRiskDecision(event.id, action === "approve" ? "APPROVED" : "REJECTED", action === "reject" ? reason : "");
@@ -136,6 +138,29 @@ export function EventApprovalActions({ event, onSuccess }: EventApprovalActionsP
                   ))}
                 </div>
               </fieldset>
+              {candidateQuotes.length > 0 && (
+                <fieldset disabled={pending} className="space-y-2">
+                  <legend className="text-sm font-medium app-text-main">{t("Đoạn nội dung sẽ gửi kèm cho ban tổ chức")}</legend>
+                  <ul className="space-y-1">
+                    {candidateQuotes.map((quote) => (
+                      <li key={quoteKey(quote)}>
+                        <label className="flex min-h-11 items-start gap-2 text-sm app-text-main">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={!unchecked.includes(quoteKey(quote))}
+                            onChange={(change) => setUnchecked((current) => (change.target.checked ? current.filter((key) => key !== quoteKey(quote)) : [...current, quoteKey(quote)]))}
+                          />
+                          <span className="min-w-0 break-words">
+                            <span className="mr-2 text-[10px] font-bold uppercase opacity-70">{quote.field === "title" ? t("Tên sự kiện") : t("Mô tả")}</span>
+                            <q>{quote.text}</q>
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </fieldset>
+              )}
               <label className="block space-y-1 text-sm font-medium app-text-main">
                 <span>{t("Ghi chú cho Ban Tổ Chức")}</span>
                 <textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={pending} rows={3} className="w-full rounded-lg border app-border app-bg-card p-3 text-sm" />

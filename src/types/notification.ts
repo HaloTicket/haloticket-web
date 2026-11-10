@@ -6,4 +6,6 @@ export interface NotificationItem {
   message: string;
   readStatus?: boolean;
   createdAt?: string;
+  /** JSON text; event approval notifications carry {eventId, link, flaggedFields} (absent on older ones). */
+  variablesJson?: string | null;
 }

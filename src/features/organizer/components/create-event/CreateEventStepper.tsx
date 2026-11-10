@@ -1,17 +1,19 @@
 import { useTranslation } from "react-i18next";
 import React from "react";
-import { FiCheck, FiChevronRight } from "react-icons/fi";
+import { FiAlertCircle, FiCheck, FiChevronRight } from "react-icons/fi";
 
 interface CreateEventStepperProps {
   stepTitles: string[];
   currentStep: number;
   onStepClick: (stepNum: number) => void;
+  flaggedSteps?: number[];
 }
 
 export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
   stepTitles,
   currentStep,
-  onStepClick
+  onStepClick,
+  flaggedSteps = []
 }) => {
   const { t: translate } = useTranslation();
   return (
@@ -21,12 +23,14 @@ export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
           const stepNum = idx + 1;
           const isActive = currentStep === stepNum;
           const isCompleted = currentStep > stepNum;
+          const isFlagged = flaggedSteps.includes(stepNum);
 
           return (
             <button
               key={stTitle}
               type="button"
               onClick={() => onStepClick(stepNum)}
+              aria-current={isActive ? "step" : undefined}
               className={`flex items-center gap-2.5 whitespace-nowrap cursor-pointer transition-all ${
                 isActive
                   ? "text-blue-600 dark:text-blue-400 font-extrabold"
@@ -47,6 +51,12 @@ export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
                 {isCompleted ? <FiCheck className="w-4 h-4" /> : stepNum}
               </div>
               <span className="text-xs md:text-sm">{translate(stTitle)}</span>
+              {isFlagged && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white" title={translate("Cần chỉnh sửa")}>
+                  <FiAlertCircle className="h-3 w-3" aria-hidden="true" />
+                  <span>{translate("Cần chỉnh sửa")}</span>
+                </span>
+              )}
               {idx < stepTitles.length - 1 && (
                 <FiChevronRight className="w-4 h-4 text-zinc-300 dark:text-zinc-700 shrink-0 ml-2 hidden md:block" />
               )}

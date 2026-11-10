@@ -570,7 +570,7 @@ export function EventApprovalDetail() {
               </span>
             </div>
             <div className="p-5">
-              <EventApprovalActions key={event.id} event={event} onSuccess={() => navigate(listUrl)} />
+              <EventApprovalActions key={event.id} event={event} riskItems={riskScore?.reason_items} onSuccess={() => navigate(listUrl)} />
             </div>
           </section>
 

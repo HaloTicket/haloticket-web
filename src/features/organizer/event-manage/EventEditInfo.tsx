@@ -19,7 +19,8 @@ import { organizerApi } from "@/services/organizerApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { useParams } from "react-router-dom";
 import { formatDatetimeLocal } from "@/utils/formatters";
-import { FiRefreshCw, FiCheckCircle, FiInfo, FiAlertCircle } from "react-icons/fi";
+import { FiRefreshCw, FiCheckCircle, FiInfo, FiAlertCircle, FiArrowRightCircle } from "react-icons/fi";
+import { fieldsOnStep, flagLabel, flaggedStepsFor, parseRejectionNotes, quoteStatus, type FlaggedQuote } from "@/utils/rejectionFeedback";
 
 async function ensureS3Url(urlOrData: string | null | undefined, folder: string): Promise<string | null> {
   if (!urlOrData) return null;
@@ -164,6 +165,7 @@ export const EventEditInfo: React.FC = () => {
   const [rejectionReasonText, setRejectionReasonText] = useState<string>("");
   const [rejectionNotesText, setRejectionNotesText] = useState<string>("");
   const [rejectedFields, setRejectedFields] = useState<string[]>([]);
+  const [rejectedQuotes, setRejectedQuotes] = useState<FlaggedQuote[]>([]);
 
   // FORM STATE
   // step 1: event info
@@ -564,26 +566,18 @@ export const EventEditInfo: React.FC = () => {
 
         const loadedReason = ev.rejectionReason || "";
         const loadedNotesRaw = ev.rejectionNotes || "";
-        let loadedRejectedFields: string[] = [];
-        let noteTextParsed = loadedNotesRaw;
-
-        if (loadedNotesRaw && loadedNotesRaw.trim().startsWith("{")) {
-          try {
-            const parsed = JSON.parse(loadedNotesRaw);
-            if (Array.isArray(parsed.flaggedFields)) {
-              loadedRejectedFields = parsed.flaggedFields;
-            }
-            if (parsed.noteText) {
-              noteTextParsed = parsed.noteText;
-            }
-          } catch {
-            // ignore
-          }
-        }
+        const parsedNotes = parseRejectionNotes(loadedNotesRaw);
+        const loadedRejectedFields = parsedNotes.flaggedFields;
 
         setRejectionReasonText(loadedReason);
-        setRejectionNotesText(noteTextParsed);
+        setRejectionNotesText(parsedNotes.noteText);
         setRejectedFields(loadedRejectedFields);
+        setRejectedQuotes(parsedNotes.flaggedQuotes);
+        if (loadedStatus === "REJECTED") {
+          // open the wizard on the first section the admin marked, so the organiser lands on what has to change
+          const firstFlagged = flaggedStepsFor(loadedRejectedFields, loadedEnableQuestions)[0];
+          if (firstFlagged) setCurrentStep(firstFlagged);
+        }
 
         // update React Form States with authentic data from backend services
         setTitle(loadedTitle);
@@ -859,6 +853,10 @@ export const EventEditInfo: React.FC = () => {
     }
   };
 
+  const isRejected = eventStatus === "REJECTED";
+  const flaggedSteps = isRejected ? flaggedStepsFor(rejectedFields, enableCustomQuestions) : [];
+  const flaggedFieldsHere = isRejected ? fieldsOnStep(rejectedFields, currentStep, enableCustomQuestions) : [];
+  const quoteView = { title, description };
   const isLastStep = currentStep >= totalSteps;
   const isQuestionStep = enableCustomQuestions && currentStep === 4;
 
@@ -938,7 +936,7 @@ export const EventEditInfo: React.FC = () => {
             <span>{t("Sự kiện đã bị từ chối phê duyệt!")}</span>
           </div>
           {rejectionReasonText && (
-            <p className="text-xs font-semibold">
+            <p className="text-xs font-semibold whitespace-pre-line">
               <strong>{t("Lý do chính từ chối")}:</strong> {rejectionReasonText}
             </p>
           )}
@@ -955,6 +953,35 @@ export const EventEditInfo: React.FC = () => {
                   {f === "posterImage" ? t("Poster & Banner") : f === "title" ? t("Tên & Mô tả") : f === "dates" ? t("Thời gian") : f === "tickets" ? t("Danh sách Hạng vé") : f === "location" ? t("Địa điểm") : t("Thanh toán")}
                 </span>
               ))}
+              {flaggedSteps.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(flaggedSteps[0])}
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/50 bg-white/70 dark:bg-transparent text-rose-700 dark:text-rose-300 text-[11px] font-bold cursor-pointer hover:bg-rose-500/10"
+                >
+                  <FiArrowRightCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                  {t("Đi tới mục cần sửa")}
+                </button>
+              )}
+            </div>
+          )}
+          {rejectedQuotes.length > 0 && (
+            <div className="pt-2 border-t border-rose-500/20 text-xs space-y-1.5">
+              <p className="font-bold">{t("Đoạn nội dung cần sửa")}:</p>
+              <ul className="space-y-1.5">
+                {rejectedQuotes.map((quote) => {
+                  const status = quoteStatus(quote, quoteView);
+                  return (
+                    <li key={`${quote.field}|${quote.text}`} className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase opacity-70">{quote.field === "title" ? t("Tên sự kiện") : t("Mô tả")}</span>
+                      <q className="px-1.5 py-0.5 rounded bg-rose-500/15 font-semibold break-words">{quote.text}</q>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${status === "still" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
+                        {status === "still" ? t("Còn trong nội dung") : t("Đã sửa")}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
         </div>
@@ -965,7 +992,18 @@ export const EventEditInfo: React.FC = () => {
         stepTitles={stepTitles}
         currentStep={currentStep}
         onStepClick={(stepNum) => setCurrentStep(stepNum)}
+        flaggedSteps={flaggedSteps}
       />
+
+      {flaggedFieldsHere.length > 0 && (
+        <div role="note" className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs text-rose-700 dark:text-rose-300 space-y-1">
+          <p className="font-extrabold flex items-center gap-2">
+            <FiAlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+            {t("Admin đánh dấu mục này cần chỉnh sửa")}: {flaggedFieldsHere.map((id) => t(flagLabel(id))).join(", ")}
+          </p>
+          {rejectionNotesText && <p>{rejectionNotesText}</p>}
+        </div>
+      )}
 
       {/* Step 1: Event info (Includes Organizer Name, Info, Logo) */}
       {currentStep === 1 && (

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { eventTargetOfNotification } from "@/utils/notificationLinks";
 import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { getCachedUserProfile, userApi } from "@/services/userApi";
@@ -102,7 +103,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
       return;
     }
     if (n.type === "EVENT_APPROVED" || n.type === "EVENT_UPDATE_APPROVED" || n.type === "EVENT_REJECTED") {
-      navigate(PATHS.MY_EVENTS);
+      navigate(eventTargetOfNotification(n));
       return;
     }
     if (n.type === "TICKETS_ISSUED" || n.type === "TICKET_ISSUED" || n.type === "RESALE_LISTING_ACTIVATED" || n.type === "RESALE_LISTING_FAILED") {

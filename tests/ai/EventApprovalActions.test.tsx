@@ -95,4 +95,60 @@ describe("EventApprovalActions", () => {
     const textarea = (await screen.findByPlaceholderText("Nhập lý do từ chối (bắt buộc)...")) as HTMLTextAreaElement;
     await waitFor(() => expect(textarea.value).toBe("Lý do một\nLý do hai"));
   });
+
+  describe("quotes for the organiser", () => {
+    const items = [
+      { layer: "RULE", code: "prohibited_goods", weight: 60, message: "Bán hàng cấm.", evidence: [{ field: "description", text: "bán vũ khí" }, { field: "title", text: "Show vũ khí" }] },
+      { layer: "AI", code: "SCAM_PATTERN", weight: 20, message: "Lừa đảo.", evidence: [{ field: "description", text: "đặt cọc trước" }] },
+      { layer: "SIGNAL", code: "UNAVAILABLE:x", weight: 0, status: "not_assessed", message: "?", evidence: [{ field: "description", text: "không gửi" }] },
+    ] as never;
+
+    const openReject = async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Từ chối duyệt" }));
+      await screen.findByPlaceholderText("Nhập lý do từ chối (bắt buộc)...");
+    };
+    const confirmReject = async () => {
+      fireEvent.change(screen.getByPlaceholderText("Nhập lý do từ chối (bắt buộc)..."), { target: { value: "Lý do" } });
+      fireEvent.click(screen.getByRole("button", { name: "Xác nhận từ chối" }));
+      await waitFor(() => expect(rejectEvent).toHaveBeenCalled());
+      return JSON.parse(rejectEvent.mock.calls[0][2] as string);
+    };
+
+    it("sends only the quotes that stay checked and derives the sections from the evidence", async () => {
+      render(<EventApprovalActions event={event} riskItems={items} onSuccess={() => {}} />);
+      await openReject();
+      expect(screen.getByText("Đoạn nội dung sẽ gửi kèm cho ban tổ chức")).toBeTruthy();
+      expect(screen.queryByText("không gửi")).toBeNull(); // not assessed: never offered
+      fireEvent.click(screen.getByRole("checkbox", { name: /đặt cọc trước/ })); // the admin unchecks one
+      const notes = await confirmReject();
+      expect(notes.flaggedFields).toEqual(["title"]);
+      expect(notes.flaggedQuotes).toEqual([{ field: "description", text: "bán vũ khí" }, { field: "title", text: "Show vũ khí" }]);
+    });
+
+    it("keeps the admin's own choice of sections once they changed it", async () => {
+      render(<EventApprovalActions event={event} riskItems={items} onSuccess={() => {}} />);
+      await openReject();
+      fireEvent.click(screen.getByRole("checkbox", { name: "Poster & Banner" }));
+      fireEvent.click(screen.getByRole("checkbox", { name: "Tên & Mô tả sự kiện" }));
+      const notes = await confirmReject();
+      expect(notes.flaggedFields).toEqual(["posterImage"]);
+    });
+
+    it("without risk data the section is hidden and the notes keep their old shape", async () => {
+      render(<EventApprovalActions event={event} onSuccess={() => {}} />);
+      await openReject();
+      expect(screen.queryByText("Đoạn nội dung sẽ gửi kèm cho ban tổ chức")).toBeNull();
+      const notes = await confirmReject();
+      expect(notes).toEqual({ flaggedFields: ["posterImage"], noteText: "" });
+    });
+
+    it("with evidence that is not in the title or description it suggests no section by default and sends no quotes", async () => {
+      const onlySignal = [{ layer: "SIGNAL", code: "organizer_ekyc", weight: 15, message: "eKYC", evidence: [{ field: "organizer", text: "eKYC: PENDING" }] }] as never;
+      render(<EventApprovalActions event={event} riskItems={onlySignal} onSuccess={() => {}} />);
+      await openReject();
+      expect(screen.queryByText("Đoạn nội dung sẽ gửi kèm cho ban tổ chức")).toBeNull();
+      const notes = await confirmReject();
+      expect(notes).toEqual({ flaggedFields: [], noteText: "" });
+    });
+  });
 });

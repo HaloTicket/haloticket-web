@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { eventTargetOfNotification } from "@/utils/notificationLinks";
 import { useTheme } from "@/hooks/useTheme";
 import SearchOverlayModal from "./SearchOverlayModal";
 import { addSearchHistory } from "@/utils/searchHistory";
@@ -184,9 +185,10 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     adminConfigApi.getCategories().then(res => {
-      const cats = (res as any)?.data || res;
+      type HeaderCategory = { id: string; name: string; slug?: string; active?: boolean; status?: string };
+      const cats: unknown = (res as { data?: unknown } | null)?.data || res;
       if (Array.isArray(cats)) {
-        const dynamicCats = cats
+        const dynamicCats = (cats as HeaderCategory[])
           .filter(c => c.active && c.status !== "INACTIVE")
           .map(c => ({ label: c.name, path: `/category/${encodeURIComponent(c.slug?.trim() || c.id)}` }));
 
@@ -764,7 +766,7 @@ function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
       return;
     }
     if (item.type === "EVENT_APPROVED" || item.type === "EVENT_UPDATE_APPROVED" || item.type === "EVENT_REJECTED") {
-      navigate(PATHS.MY_EVENTS);
+      navigate(eventTargetOfNotification(item));
       return;
     }
     if (item.type === "TICKETS_ISSUED" || item.type === "TICKET_ISSUED" || item.type === "RESALE_LISTING_ACTIVATED" || item.type === "RESALE_LISTING_FAILED") {

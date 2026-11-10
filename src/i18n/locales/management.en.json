@@ -2733,5 +2733,13 @@
   "Số đang giữ lớn hơn số còn lại": "Held quantity is larger than the remaining quantity",
   "Số còn lại lớn hơn số phát hành": "Remaining quantity is larger than the quantity issued",
   "Có điểm bất thường khác, hãy kiểm tra hạng vé này": "Another irregularity was found, please check this ticket type",
+  "Cần chỉnh sửa": "Needs changes",
+  "Đi tới mục cần sửa": "Go to the section to fix",
+  "Đoạn nội dung cần sửa": "Passages to fix",
+  "Mô tả": "Description",
+  "Còn trong nội dung": "Still in the content",
+  "Đã sửa": "Fixed",
+  "Admin đánh dấu mục này cần chỉnh sửa": "The admin marked this section as needing changes",
+  "Đoạn nội dung sẽ gửi kèm cho ban tổ chức": "Passages that will be sent to the organiser",
   "Chưa chấm được": "Not scored yet"
 }
