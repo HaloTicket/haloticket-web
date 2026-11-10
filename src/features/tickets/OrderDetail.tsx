@@ -25,6 +25,7 @@ import { eventApi } from "@/services/eventApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { PATHS } from "@/routes/paths";
 import { formatCurrency } from "@/utils/formatters";
+import { isClosedStatus, nextPollDelay, nextStepForBooking, orderBadge, ticketPollingIsLate } from "@/utils/orderPolling";
 import type { BookingDetailResponse } from "@/types";
 import {
   type TicketItem,
@@ -37,8 +38,7 @@ import {
 } from "./MyTickets";
 import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
 
-// polling interval schedule: 2s for first 10s (5 x 2s), then backed off up to ~40s
-const POLL_INTERVALS = [2000, 2000, 2000, 2000, 2000, 3000, 4000, 5000, 6000, 6000, 6000];
+const SUPPORT_HOTLINE = "1900.6408";
 
 export default function OrderDetail() {
   const { t } = useTranslation();
@@ -53,8 +53,10 @@ export default function OrderDetail() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
 
-  // polling timeout
+  // polling timeout (tickets are late) and the window in which a PENDING order is waiting for the payment gateway
   const [pollTimedOut, setPollTimedOut] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
 
@@ -80,10 +82,24 @@ export default function OrderDetail() {
     }
   }, []);
 
-  // poll for tickets function
+  const pollTicketsRef = useRef<(bookingId: string, expectedCount: number, step?: number) => Promise<void>>(async () => {});
+
+  // poll for tickets: fast first, then slowly in the background without any click
   const pollTickets = useCallback(
     async (bookingId: string, expectedCount: number, step = 0) => {
       if (!isMountedRef.current) return;
+
+      const scheduleNext = () => {
+        const delay = nextPollDelay("tickets", step);
+        if (delay === null) {
+          stopPolling();
+          return;
+        }
+        if (ticketPollingIsLate(step) && isMountedRef.current) setPollTimedOut(true);
+        pollTimerRef.current = setTimeout(() => {
+          void pollTicketsRef.current(bookingId, expectedCount, step + 1);
+        }, delay);
+      };
 
       try {
         const rawTickets = await ticketApi.getMyTickets();
@@ -101,36 +117,54 @@ export default function OrderDetail() {
         // if all tickets have been issued, stop polling
         if (matchingRaw.length >= expectedCount && expectedCount > 0) {
           stopPolling();
+          setPollTimedOut(false);
           return;
         }
-
-        // check if there are more steps in schedule
-        if (step < POLL_INTERVALS.length) {
-          const nextInterval = POLL_INTERVALS[step];
-          pollTimerRef.current = setTimeout(() => {
-            pollTickets(bookingId, expectedCount, step + 1);
-          }, nextInterval);
-        } else {
-          // reached timeout (~40s) without all tickets
-          if (isMountedRef.current) {
-            stopPolling();
-            setPollTimedOut(true);
-          }
-        }
+        scheduleNext();
       } catch (err) {
         console.warn("Polling tickets error:", err);
-        // continue polling next step without showing error toast
-        if (step < POLL_INTERVALS.length && isMountedRef.current) {
-          pollTimerRef.current = setTimeout(() => {
-            pollTickets(bookingId, expectedCount, step + 1);
-          }, POLL_INTERVALS[step]);
-        } else if (isMountedRef.current) {
-          stopPolling();
-          setPollTimedOut(true);
-        }
+        // keep going on the same schedule without showing an error toast
+        if (isMountedRef.current) scheduleNext();
       }
     },
     [stopPolling]
+  );
+
+  const loadOrderDataRef = useRef<(isManualReload?: boolean) => Promise<void>>(async () => {});
+  const pollBookingRef = useRef<(bookingCode: string, step: number) => Promise<void>>(async () => {});
+
+  // while the order is PENDING: read it again until the payment is confirmed, then continue with the tickets
+  const pollBooking = useCallback(
+    async (bookingCode: string, step: number) => {
+      if (!isMountedRef.current) return;
+      const delay = nextPollDelay("booking", step);
+      const again = () => {
+        if (!isMountedRef.current) return;
+        if (delay === null) {
+          setConfirming(false);
+          return;
+        }
+        pollTimerRef.current = setTimeout(() => void pollBookingRef.current(bookingCode, step + 1), delay);
+      };
+      try {
+        const latest = await bookingApi.getBookingByCode(bookingCode);
+        if (!isMountedRef.current) return;
+        if (latest && latest.status !== "PENDING") {
+          if (isClosedStatus(latest.status)) {
+            setBooking((current) => (current ? { ...current, status: latest.status } : latest));
+            setConfirming(false);
+            return;
+          }
+          await loadOrderDataRef.current(true); // paid: full reload, which starts the ticket polling
+          return;
+        }
+        again();
+      } catch (err) {
+        console.warn("Polling order error:", err);
+        again();
+      }
+    },
+    []
   );
 
   // main loader for order data
@@ -143,6 +177,7 @@ export default function OrderDetail() {
       setError(null);
       if (isManualReload) {
         setPollTimedOut(false);
+        stopPolling();
       }
 
       try {
@@ -228,15 +263,19 @@ export default function OrderDetail() {
           0
         );
 
-        // 5. check if we need to poll for issuance
-        const isPaid = bookingInfo.status === "PAID" || bookingInfo.status === "CONFIRMED";
-        if (isPaid && hydrated.length < totalExpected) {
+        // 5. what to do next: a PENDING order is waiting for the gateway to confirm the payment (the webhook is asynchronous),
+        // a paid order with too few tickets is waiting for issuance
+        stopPolling();
+        const next = nextStepForBooking(bookingInfo.status, hydrated.length, totalExpected);
+        if (next === "poll-tickets") {
+          setConfirming(false);
           setPollTimedOut(false);
-          // start polling
-          stopPolling();
           pollTickets(bookingInfo.id, totalExpected, 0);
+        } else if (next === "poll-booking") {
+          setConfirming(true);
+          void pollBookingRef.current(bookingInfo.bookingCode || normalizedCode, 0);
         } else {
-          stopPolling();
+          setConfirming(false);
         }
 
         // 6. get user profile customer name
@@ -258,11 +297,26 @@ export default function OrderDetail() {
     [normalizedCode, pollTickets, stopPolling, t]
   );
 
+  const reload = useCallback(async () => {
+    setRetrying(true);
+    try {
+      await loadOrderDataRef.current(true);
+    } finally {
+      if (isMountedRef.current) setRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOrderDataRef.current = loadOrderData;
+    pollBookingRef.current = pollBooking;
+    pollTicketsRef.current = pollTickets;
+  }, [loadOrderData, pollBooking, pollTickets]);
+
   // mount and unmount cleanup (do not re-fetch on window focus to avoid flicker on Alt+Tab)
   useEffect(() => {
     isMountedRef.current = true;
     window.scrollTo(0, 0);
-    loadOrderData();
+    queueMicrotask(() => void loadOrderData());
 
     return () => {
       isMountedRef.current = false;
@@ -292,11 +346,12 @@ export default function OrderDetail() {
   }, [booking?.createdAt]);
 
   // showtime information from event showtimes
+  const bookingShowtimeId = booking?.showtimeId;
   const showtimeInfo = useMemo(() => {
-    if (!eventData || !booking?.showtimeId) return null;
+    if (!eventData || !bookingShowtimeId) return null;
     const showtimes = Array.isArray(eventData.showtimes) ? (eventData.showtimes as Array<{ id?: string; startTime?: string; endTime?: string }>) : [];
-    return showtimes.find((st) => st.id === booking.showtimeId);
-  }, [eventData, booking?.showtimeId]);
+    return showtimes.find((st) => st.id === bookingShowtimeId);
+  }, [eventData, bookingShowtimeId]);
 
   const eventStartTime = showtimeInfo?.startTime || (eventData?.startTime as string | undefined);
   const formattedEventTime = formatEventTime(eventStartTime);
@@ -355,6 +410,41 @@ export default function OrderDetail() {
           </div>
         ) : (
           <>
+            {/* ── WAITING FOR THE PAYMENT GATEWAY TO CONFIRM ── */}
+            {booking.status === "PENDING" && confirming && (
+              <div role="status" className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent p-5 sm:p-6 shadow-xs dark:border-blue-900 dark:from-blue-950/40">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <FiRefreshCw className="w-5 h-5 animate-spin motion-reduce:animate-none" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{t("Đang xác nhận thanh toán…")}</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {t("Hệ thống đang chờ cổng thanh toán xác nhận giao dịch. Trang sẽ tự cập nhật, bạn không cần tải lại.")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {booking.status === "PENDING" && !confirming && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900/50">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    {t("Đơn hàng này chưa được xác nhận thanh toán. Nếu bạn đã thanh toán, hãy nhấn 'Kiểm tra lại' sau ít phút.")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void reload()}
+                    disabled={retrying}
+                    className="inline-flex shrink-0 items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    <FiRefreshCw className={`w-3.5 h-3.5 ${retrying ? "animate-spin motion-reduce:animate-none" : ""}`} />
+                    <span>{t("Kiểm tra lại")}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ── ISSUING / POLLING STATUS BANNER ── */}
             {isIssuingTickets && !pollTimedOut && (
               <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent p-5 sm:p-6 shadow-xs dark:border-blue-900 dark:from-blue-950/40">
@@ -396,16 +486,20 @@ export default function OrderDetail() {
                         {t("Thanh toán đã được ghi nhận, vé sẽ xuất hiện trong ít phút")}
                       </h2>
                       <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-0.5">
-                        {t("Hệ thống đang hoàn tất xử lý vé qua hàng đợi. Bạn có thể nhấn 'Tải lại' hoặc quay lại sau mà không cần thao tác gì thêm.")}
+                        {t("Thanh toán của đơn {{code}} đã được ghi nhận và vé đang được phát hành; trang vẫn tự kiểm tra, bạn không cần làm gì thêm. Nếu sau vài phút vẫn chưa thấy vé, vui lòng liên hệ hotline {{hotline}} và cung cấp mã đơn {{code}}.", {
+                          code: booking.bookingCode,
+                          hotline: SUPPORT_HOTLINE,
+                        })}
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => loadOrderData(true)}
-                    className="inline-flex shrink-0 items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                    onClick={() => void reload()}
+                    disabled={retrying}
+                    className="inline-flex shrink-0 items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-60"
                   >
-                    <FiRefreshCw className="w-3.5 h-3.5" />
+                    <FiRefreshCw className={`w-3.5 h-3.5 ${retrying ? "animate-spin motion-reduce:animate-none" : ""}`} />
                     <span>{t("Tải lại")}</span>
                   </button>
                 </div>
@@ -436,32 +530,55 @@ export default function OrderDetail() {
                   <div>
                     {/* Status & Badges row */}
                     <div className="flex flex-wrap items-center gap-2.5 mb-3">
-                      {booking.status === "PAID" || booking.status === "CONFIRMED" ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          <FiCheckCircle className="w-3.5 h-3.5" />
-                          {t("Đã thanh toán")}
-                        </span>
-                      ) : booking.status === "PENDING" ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          <FiClock className="w-3.5 h-3.5" />
-                          {t("Chờ thanh toán")}
-                        </span>
-                      ) : booking.status === "CANCELLED" ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                          <FiAlertCircle className="w-3.5 h-3.5" />
-                          {t("Đã hủy")}
-                        </span>
-                      ) : booking.status === "EXPIRED" ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">
-                          <FiClock className="w-3.5 h-3.5" />
-                          {t("Đã hết hạn")}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                          <FiRefreshCw className="w-3.5 h-3.5" />
-                          {t("Đã hoàn tiền")}
-                        </span>
-                      )}
+                      {(() => {
+                        const badge = orderBadge(booking.status, confirming);
+                        if (badge === "paid") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <FiCheckCircle className="w-3.5 h-3.5" />
+                              {t("Đã thanh toán")}
+                            </span>
+                          );
+                        }
+                        if (badge === "confirming") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                              <FiRefreshCw className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none" />
+                              {t("Đang xác nhận thanh toán")}
+                            </span>
+                          );
+                        }
+                        if (badge === "pending") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <FiClock className="w-3.5 h-3.5" />
+                              {t("Chờ thanh toán")}
+                            </span>
+                          );
+                        }
+                        if (badge === "cancelled") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                              <FiAlertCircle className="w-3.5 h-3.5" />
+                              {t("Đã hủy")}
+                            </span>
+                          );
+                        }
+                        if (badge === "expired") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">
+                              <FiClock className="w-3.5 h-3.5" />
+                              {t("Đã hết hạn")}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                            <FiRefreshCw className="w-3.5 h-3.5" />
+                            {t("Đã hoàn tiền")}
+                          </span>
+                        );
+                      })()}
 
                       {tickets.length > 0 && <StatusBadge status={tickets[0].status} />}
                       <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">

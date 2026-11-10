@@ -26,5 +26,19 @@
   "tickets.quantity.issued": "Tickets issued",
   "tickets.quantity.soldHeldInfo": "Sold: {{sold}} · Held: {{held}}",
   "tickets.quantity.belowSoldHeld": "Issued tickets for \"{{name}}\" cannot be below {{min}} (sold {{sold}} + held {{held}}).",
-  "tickets.quantity.belowSoldHeldServer": "Cannot lower \"{{name}}\" to this amount: sold {{sold}}, held {{held}}, minimum {{min}}. Your input is kept."
+  "tickets.quantity.belowSoldHeldServer": "Cannot lower \"{{name}}\" to this amount: sold {{sold}}, held {{held}}, minimum {{min}}. Your input is kept.",
+  "Sao chép mã thanh toán": "Copy payment reference",
+  "Chưa có mã thanh toán": "No payment reference yet",
+  "không rõ tên": "name unknown",
+  "Phát hành lại vé": "Reissue tickets",
+  "Đang gửi…": "Sending…",
+  "Đã gửi yêu cầu phát hành lại vé. Vé sẽ xuất hiện sau ít phút nếu không còn lỗi.": "The reissue request was sent. The tickets will appear in a few minutes if nothing else is wrong.",
+  "Không thể phát hành lại vé. Vui lòng thử lại.": "Could not reissue the tickets. Please try again.",
+  "Gửi lại yêu cầu phát hành vé cho đơn {{code}}. Việc này an toàn: vé đã có sẽ không bị tạo trùng.": "Send the ticket issuance request again for order {{code}}. This is safe: tickets that already exist are not duplicated.",
+  "Nếu vé vẫn không xuất hiện sau ít phút, nguyên nhân còn nằm ở dữ liệu hạng vé hoặc kho; hãy xem chi tiết lỗi ở tab 'Cần xử lý'.": "If the tickets still do not appear after a few minutes, the cause is in the ticket type or stock data; read the error detail in the 'Cần xử lý' tab.",
+  "Đang xác nhận thanh toán…": "Confirming your payment…",
+  "Hệ thống đang chờ cổng thanh toán xác nhận giao dịch. Trang sẽ tự cập nhật, bạn không cần tải lại.": "We are waiting for the payment gateway to confirm the transaction. This page updates by itself, you do not need to reload it.",
+  "Đơn hàng này chưa được xác nhận thanh toán. Nếu bạn đã thanh toán, hãy nhấn 'Kiểm tra lại' sau ít phút.": "This order has not been confirmed as paid. If you have paid, press 'Check again' in a few minutes.",
+  "Đang xác nhận thanh toán": "Confirming payment",
+  "Thanh toán của đơn {{code}} đã được ghi nhận và vé đang được phát hành; trang vẫn tự kiểm tra, bạn không cần làm gì thêm. Nếu sau vài phút vẫn chưa thấy vé, vui lòng liên hệ hotline {{hotline}} và cung cấp mã đơn {{code}}.": "The payment for order {{code}} is recorded and your tickets are being issued; this page keeps checking by itself. If you still do not see them after a few minutes, please call the hotline {{hotline}} and give the order code {{code}}."
 }

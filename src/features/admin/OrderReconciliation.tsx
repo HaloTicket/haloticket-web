@@ -13,6 +13,7 @@ import {
   type PaidWithoutTicketsItem,
   type PaymentExceptionItem,
   type PaymentExceptionPage,
+  type ReconciliationContext,
   type ReconciliationSummary,
   type StockDiscrepancyItem,
 } from "@/services/adminReconciliationApi";
@@ -20,8 +21,55 @@ import {
 type TabId = "exceptions" | "paid" | "stock";
 type ListState<T> = { status: "loading" } | { status: "error"; unavailable: boolean } | { status: "ready"; data: T };
 
-// ids are shortened on screen (a UUID keeps its first 8 characters); no emails or other personal data are shown
+// ids are shortened on screen (a UUID keeps its first 8 characters). Customer name, e-mail and phone are shown to administrators because reconciling a payment means contacting the buyer.
 const shortId = (id?: string | null) => (!id ? "-" : id.length > 12 ? `${id.slice(0, 8)}…` : id);
+const DASH = "—";
+const present = (value?: string | null) => (typeof value === "string" && value.trim() ? value.trim() : null);
+
+// name (bold), e-mail and phone, each on its own line; a missing part is a dash
+function CustomerCell({ item }: { item: ReconciliationContext }) {
+  return (
+    <div className="min-w-40 space-y-0.5" data-testid="customer-cell">
+      <p className="font-bold wrap-break-words">{present(item.customerName) ?? DASH}</p>
+      <p className="text-[11px] app-text-muted break-all">{present(item.customerEmail) ?? DASH}</p>
+      <p className="text-[11px] app-text-muted tabular-nums">{present(item.customerPhone) ?? DASH}</p>
+    </div>
+  );
+}
+
+// a long exception text is clamped to a few lines with a toggle.
+function ClampedText({ text }: { text?: string | null }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const value = present(text);
+  if (!value) return <>{DASH}</>;
+  const long = value.length > 120;
+  return (
+    <div>
+      <p className={`wrap-break-words ${open || !long ? "" : "line-clamp-3"}`}>{value}</p>
+      {long && (
+        <button type="button" className="mt-1 text-[11px] font-bold underline app-text-brand cursor-pointer" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? t("Thu gọn") : t("Xem thêm")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// short payment reference that copies the full id.
+function CopyRef({ value }: { value?: string | null }) {
+  const { t } = useTranslation();
+  if (!value) return null;
+  const copy = () => {
+    void navigator.clipboard?.writeText(value).then(() => toast.success(t("Đã sao chép")), () => undefined);
+  };
+  return (
+    <button type="button" onClick={copy} title={t("Sao chép mã thanh toán")} aria-label={`${t("Sao chép mã thanh toán")} ${shortId(value)}`}
+      className="font-mono text-[11px] app-text-muted underline decoration-dotted cursor-pointer hover:app-text-main">
+      {shortId(value)}
+    </button>
+  );
+}
 
 // loads one list with an AbortController; reload() fetches again. Errors are kept (never shown as an empty list).
 function useReconciliationList<T>(load: (signal: AbortSignal) => Promise<T>, deps: unknown[]) {
@@ -119,6 +167,8 @@ export default function OrderReconciliation() {
   const [refunded, setRefunded] = useState(false);
   const [noteError, setNoteError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [republishing, setRepublishing] = useState<PaidWithoutTicketsItem | null>(null);
+  const [republishBusy, setRepublishBusy] = useState(false);
 
   const summary = useReconciliationList<ReconciliationSummary>((signal) => adminReconciliationApi.getSummary(signal), []);
   const exceptions = useReconciliationList<PaymentExceptionPage>((signal) => adminReconciliationApi.getExceptions({ status: exStatus, page, size }, signal), [exStatus, page, size]);
@@ -147,6 +197,22 @@ export default function OrderReconciliation() {
       toast.error(t("Không thể xử lý mục này. Vui lòng thử lại."));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmRepublish = async () => {
+    if (!republishing || republishBusy) return;
+    setRepublishBusy(true);
+    try {
+      await adminReconciliationApi.republishConfirmed(republishing.bookingId);
+      toast.success(t("Đã gửi yêu cầu phát hành lại vé. Vé sẽ xuất hiện sau ít phút nếu không còn lỗi."));
+      setRepublishing(null);
+      paid.reload();
+      summary.reload();
+    } catch {
+      toast.error(t("Không thể phát hành lại vé. Vui lòng thử lại."));
+    } finally {
+      setRepublishBusy(false);
     }
   };
 
@@ -258,23 +324,32 @@ export default function OrderReconciliation() {
           <ListBody state={exceptions.state} reload={exceptions.reload} isEmpty={(d) => d.items.length === 0}>
             {(data) => (
               <div className="space-y-4">
-                <TableShell label={t("Thanh toán cần xử lý")} minWidth="min-w-[1000px]">
+                <TableShell label={t("Thanh toán cần xử lý")} minWidth="min-w-[1180px]">
                   <thead>
                     <tr className={headRow}>
-                      {[t("Đơn"), t("Thanh toán"), t("Loại"), t("Số tiền"), t("Cổng"), t("Trạng thái"), t("Chi tiết"), t("Tạo lúc")].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
+                      {[t("Đơn"), t("Khách hàng"), t("Thanh toán"), t("Loại"), t("Số tiền"), t("Cổng"), t("Trạng thái"), t("Chi tiết"), t("Tạo lúc")].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
                       <th scope="col" className={`${th} text-right`}><span className="sr-only">{t("Thao tác")}</span></th>
                     </tr>
                   </thead>
                   <tbody className={tbody}>
                     {data.items.map((item) => (
                       <tr key={item.id} className={bodyRow}>
-                        <td className={`${td} font-bold`}>{item.bookingCode || shortId(item.bookingId)}</td>
-                        <td className={`${td} font-mono text-[11px] app-text-muted`}>{shortId(item.paymentId)}</td>
+                        <td className={td}>
+                          <p className="font-bold">{item.bookingCode || shortId(item.bookingId)}</p>
+                          {present(item.eventTitle) && <p className="mt-0.5 max-w-50 wrap-break-words text-[11px]  app-text-muted">{t("Sự kiện")}: {present(item.eventTitle)}</p>}
+                        </td>
+                        <td className={td}><CustomerCell item={item} /></td>
+                        <td className={td}>
+                          <div className="space-y-0.5">
+                            <p className="font-semibold">{present(item.paymentMethod) ?? DASH}</p>
+                            {item.paymentId ? <CopyRef value={item.paymentId} /> : <p className="text-[11px] app-text-muted">{t("Chưa có mã thanh toán")}</p>}
+                          </div>
+                        </td>
                         <td className={`${td} font-semibold`}>{kindLabel(item.kind)}</td>
                         <td className={`${td} whitespace-nowrap font-bold text-blue-600 dark:text-blue-400 tabular-nums`}>{money(item.amount)}</td>
                         <td className={td}>{item.provider ? <Badge tone="slate">{item.provider}</Badge> : "-"}</td>
                         <td className={`${td} whitespace-nowrap`}><Badge tone={statusTone(item.status)}>{statusLabel(item.status)}</Badge></td>
-                        <td className={`${td} max-w-[260px] break-words text-[11px] app-text-muted`}>{item.detail || "-"}</td>
+                        <td className={`${td} max-w-70 text-[11px] app-text-muted`}><ClampedText text={item.detail} /></td>
                         <td className={`${td} whitespace-nowrap text-[11px]`}>{time(item.createdAt)}</td>
                         <td className={`${td} text-right whitespace-nowrap`}>
                           {item.status === "OPEN" && (
@@ -297,10 +372,11 @@ export default function OrderReconciliation() {
         {tab === "paid" && (
           <ListBody state={paid.state} reload={paid.reload} isEmpty={(d) => d.items.length === 0}>
             {(data: { items: PaidWithoutTicketsItem[]; total: number }) => (
-              <TableShell label={t("Đơn đã thanh toán nhưng thiếu vé")} minWidth="min-w-[720px]">
+              <TableShell label={t("Đơn đã thanh toán nhưng thiếu vé")} minWidth="min-w-[1080px]">
                 <thead>
                   <tr className={headRow}>
-                    {[t("Đơn"), t("Vé dự kiến"), t("Vé đã phát hành"), t("Còn thiếu"), t("Đã thanh toán cách đây")].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
+                    {[t("Đơn"), t("Khách hàng"), t("Thanh toán"), t("Vé dự kiến"), t("Vé đã phát hành"), t("Còn thiếu"), t("Đã thanh toán cách đây")].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
+                    <th scope="col" className={`${th} text-right`}><span className="sr-only">{t("Thao tác")}</span></th>
                   </tr>
                 </thead>
                 <tbody className={tbody}>
@@ -308,11 +384,25 @@ export default function OrderReconciliation() {
                     const missing = Math.max(0, item.expectedTickets - item.issuedTickets);
                     return (
                       <tr key={item.bookingId} className={bodyRow}>
-                        <td className={`${td} font-bold`}>{item.bookingCode || shortId(item.bookingId)}</td>
+                        <td className={td}>
+                          <p className="font-bold">{item.bookingCode || shortId(item.bookingId)}</p>
+                          <p className="mt-0.5 max-w-50 wrap-break-words text-[11px] app-text-muted">{t("Sự kiện")}: {present(item.eventTitle) ?? DASH}</p>
+                        </td>
+                        <td className={td}><CustomerCell item={item} /></td>
+                        <td className={td}>
+                          <p className="font-semibold">{present(item.paymentMethod) ?? DASH}</p>
+                          <p className="mt-0.5 whitespace-nowrap font-bold text-blue-600 dark:text-blue-400 tabular-nums">{money(item.amount)}</p>
+                        </td>
                         <td className={`${td} tabular-nums`}>{item.expectedTickets}</td>
                         <td className={`${td} tabular-nums`}>{item.issuedTickets}</td>
                         <td className={td}><Badge tone="rose">{t("Thiếu {{count}} vé", { count: missing })}</Badge></td>
                         <td className={`${td} whitespace-nowrap`}>{minutesText(item.minutesSincePaid)}</td>
+                        <td className={`${td} text-right whitespace-nowrap`}>
+                          <button type="button" onClick={() => setRepublishing(item)} className="px-3 py-1.5 min-h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 active:scale-95">
+                            <FiRefreshCw aria-hidden="true" className="w-3.5 h-3.5" />
+                            <span>{t("Phát hành lại vé")}</span>
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -339,10 +429,10 @@ export default function OrderReconciliation() {
               };
               const notes = (item: StockDiscrepancyItem) => (item.note ? item.note.split(";").map((c) => c.trim()).filter(Boolean) : []);
               return (
-                <TableShell label={t("Hạng vé lệch kho")} minWidth="min-w-[1100px]">
+                <TableShell label={t("Hạng vé lệch kho")} minWidth="min-w-[1240px]">
                   <thead>
                     <tr className={headRow}>
-                      {[t("Hạng vé"), t("Phát hành"), t("Còn lại"), t("Đang giữ"), t("Vé đã phát hành"), t("Phiếu giữ chỗ"), t("Chênh lệch"), t("Ghi chú")].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
+                      {[t("Sự kiện"), t("Hạng vé"), t("Phát hành"), t("Còn lại"), t("Đang giữ"), t("Vé đã phát hành"), t("Phiếu giữ chỗ"), t("Chênh lệch"), t("Ghi chú")].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody className={tbody}>
@@ -351,9 +441,14 @@ export default function OrderReconciliation() {
                       const noteCodes = notes(item);
                       return (
                         <tr key={item.ticketTypeId} className={bodyRow}>
+                          <td className={`${td} max-w-55`}>
+                            {present(item.eventTitle)
+                              ? <p className="font-bold wrap-break-words">{present(item.eventTitle)}</p>
+                              : <p className="font-semibold app-text-muted">{t("không rõ tên")}</p>}
+                            <p className="mt-0.5 text-[11px] app-text-muted"><span className="font-mono">{shortId(item.eventId)}</span></p>
+                          </td>
                           <td className={td}>
                             <p className="font-bold">{item.name || shortId(item.ticketTypeId)}</p>
-                            <p className="mt-0.5 text-[11px] app-text-muted">{t("Sự kiện")} <span className="font-mono">{shortId(item.eventId)}</span></p>
                           </td>
                           <td className={`${td} tabular-nums`}>{typeof item.initial === "number" ? n(item.initial) : <span className="app-text-muted">{t("Chưa ghi nhận")}</span>}</td>
                           <td className={`${td} tabular-nums`}>{n(item.remaining)}</td>
@@ -365,7 +460,7 @@ export default function OrderReconciliation() {
                               ? <Badge tone="emerald">{t("Khớp")}</Badge>
                               : <div className="flex flex-col items-start gap-1">{diffs.map((d) => <Badge key={d.text} tone={d.tone}>{d.text}</Badge>)}</div>}
                           </td>
-                          <td className={`${td} max-w-[280px] text-[11px] app-text-muted`}>
+                          <td className={`${td} max-w-70 text-[11px] app-text-muted`}>
                             {noteCodes.length === 0 ? "-" : <ul className="space-y-1">{noteCodes.map((c) => <li key={c}>{noteLabel(c)}</li>)}</ul>}
                           </td>
                         </tr>
@@ -378,6 +473,23 @@ export default function OrderReconciliation() {
           </ListBody>
         )}
       </div>
+
+      {republishing && (
+        <AdminConfirmModal
+          title={t("Phát hành lại vé")}
+          subtitle={t("Gửi lại yêu cầu phát hành vé cho đơn {{code}}. Việc này an toàn: vé đã có sẽ không bị tạo trùng.", { code: republishing.bookingCode || shortId(republishing.bookingId) })}
+          confirmText={republishBusy ? t("Đang gửi…") : t("Phát hành lại vé")}
+          cancelText={t("Hủy bỏ")}
+          isDanger={false}
+          pending={republishBusy}
+          onClose={() => { if (!republishBusy) setRepublishing(null); }}
+          onConfirm={confirmRepublish}
+        >
+          <p className="text-sm app-text-main">
+            {t("Nếu vé vẫn không xuất hiện sau ít phút, nguyên nhân còn nằm ở dữ liệu hạng vé hoặc kho; hãy xem chi tiết lỗi ở tab 'Cần xử lý'.")}
+          </p>
+        </AdminConfirmModal>
+      )}
 
       {resolving && (
         <AdminConfirmModal

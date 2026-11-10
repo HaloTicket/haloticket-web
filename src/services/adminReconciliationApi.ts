@@ -1,13 +1,23 @@
 import axiosClient from "@/services/axiosClient";
 
-/** A count is null when its source could not be read: show "unknown", never 0. */
+// a count is null when its source could not be read: show "unknown", never 0
 export interface ReconciliationSummary {
   openExceptions: number | null;
   paidWithoutTickets: number | null;
   stockDiscrepancies: number | null;
 }
 
-export interface PaymentExceptionItem {
+// who paid, how, and for which event. Every field can be missing: the screen shows a dash.
+export interface ReconciliationContext {
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  paymentMethod?: string | null;
+  eventId?: string | null;
+  eventTitle?: string | null;
+}
+
+export interface PaymentExceptionItem extends ReconciliationContext {
   id: string;
   bookingId?: string | null;
   bookingCode?: string | null;
@@ -25,9 +35,11 @@ export interface PaymentExceptionItem {
 
 export interface PaymentExceptionPage { items: PaymentExceptionItem[]; total: number; page: number; size: number }
 
-export interface PaidWithoutTicketsItem {
+export interface PaidWithoutTicketsItem extends ReconciliationContext {
   bookingId: string;
   bookingCode?: string | null;
+  paidAt?: string | null;
+  amount?: number | null;
   expectedTickets: number;
   issuedTickets: number;
   minutesSincePaid: number;
@@ -46,6 +58,7 @@ export interface StockDiscrepancyItem {
   diffStockVsIssued?: number | null;
   diffHeldVsReservations?: number | null;
   note?: string | null;
+  eventTitle?: string | null;
 }
 
 export const RECONCILIATION_SOURCE_UNAVAILABLE = "RECONCILIATION_SOURCE_UNAVAILABLE";
@@ -61,6 +74,9 @@ export const adminReconciliationApi = {
     axiosClient.post(`${base}/exceptions/${encodeURIComponent(id)}/resolve`, body) as unknown as Promise<PaymentExceptionItem>,
   getPaidWithoutTickets: (signal?: AbortSignal) =>
     axiosClient.get<{ items: PaidWithoutTicketsItem[]; total: number }>(`${base}/paid-without-tickets`, { signal }) as unknown as Promise<{ items: PaidWithoutTicketsItem[]; total: number }>,
+  /** Sends BOOKING_CONFIRMED again for a PAID order. Issuance is idempotent, so a second run never makes duplicate tickets. */
+  republishConfirmed: (bookingId: string) =>
+    axiosClient.post(`/bookings/admin/${encodeURIComponent(bookingId)}/republish-confirmed`, null, { params: { dryRun: false } }) as unknown as Promise<{ message?: string }>,
   getStockDiscrepancies: (signal?: AbortSignal) =>
     axiosClient.get<{ items: StockDiscrepancyItem[] }>(`${base}/stock-discrepancies`, { signal }) as unknown as Promise<{ items: StockDiscrepancyItem[] }>,
 };

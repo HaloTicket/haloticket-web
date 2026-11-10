@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { adminNotificationTarget } from "@/utils/adminNotificationTarget";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
@@ -179,8 +180,11 @@ export const AdminLayout: React.FC = () => {
     await markAsRead(n.id);
     clearToast();
     let targetPath = PATHS.ADMIN_EVENTS_APPROVAL;
-    
-    if (n.type && n.type.includes("PAYOUT")) {
+    const known = adminNotificationTarget(n);
+
+    if (known) {
+      targetPath = known;
+    } else if (n.type && n.type.includes("PAYOUT")) {
       targetPath = PATHS.ADMIN_FINANCE;
     } else if (n.message) {
       const match = n.message.match(/EV_[a-zA-Z0-9_-]+/);

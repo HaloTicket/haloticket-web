@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   getSummary: vi.fn(),
   getExceptions: vi.fn(),
   resolveException: vi.fn(),
+  republishConfirmed: vi.fn(),
   getPaidWithoutTickets: vi.fn(),
   getStockDiscrepancies: vi.fn(),
 }));
@@ -138,6 +139,111 @@ describe("OrderReconciliation", () => {
     const dialog = await screen.findByRole("alertdialog");
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  });
+});
+
+const withContext = {
+  customerName: "Trần Vũ", customerEmail: "vu@example.com", customerPhone: "0901234567",
+  paymentMethod: "VIETQR", eventId: "ev-1", eventTitle: "Tinh Hà Say Hi Concert",
+};
+
+describe("who paid, how and for which event", () => {
+  it("shows customer, payment method and event in the exceptions tab, and a dash for what is missing", async () => {
+    api.getExceptions.mockResolvedValue(page([
+      { ...exception, ...withContext, detail: "Ticket issuance failed" },
+      { ...exception, id: "2", bookingCode: "HT-1002", paymentId: null as unknown as string, provider: null as unknown as string },
+    ]));
+    render(<OrderReconciliation />);
+    await screen.findByText("HT-1001");
+    expect(screen.getByRole("columnheader", { name: "Khách hàng" })).toBeTruthy();
+    expect(screen.getByText("Trần Vũ")).toBeTruthy();
+    expect(screen.getByText("vu@example.com")).toBeTruthy();
+    expect(screen.getByText("0901234567")).toBeTruthy();
+    expect(screen.getByText("VIETQR")).toBeTruthy();
+    expect(screen.getByText(/Tinh Hà Say Hi Concert/)).toBeTruthy();
+    expect(screen.getByText("99999999…")).toBeTruthy(); // the payment reference, shortened
+    expect(screen.getByText("Chưa có mã thanh toán")).toBeTruthy(); // second row has none
+    const cells = screen.getAllByTestId("customer-cell");
+    expect(cells).toHaveLength(2);
+    expect(within(cells[1]).getAllByText("—")).toHaveLength(3); // name, e-mail and phone are all missing
+  });
+
+  it("clamps a long exception text behind 'Xem thêm'", async () => {
+    const detail = "Ticket issuance failed after all retries: " + "x".repeat(300);
+    api.getExceptions.mockResolvedValue(page([{ ...exception, detail }]));
+    render(<OrderReconciliation />);
+    await screen.findByText("HT-1001");
+    const toggle = screen.getByRole("button", { name: "Xem thêm" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Thu gọn" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("shows customer, event, payment and amount for an order without tickets", async () => {
+    api.getPaidWithoutTickets.mockResolvedValue({ items: [{ bookingId: "b-1", bookingCode: "HT-2", expectedTickets: 3, issuedTickets: 0, minutesSincePaid: 12, amount: 8400, ...withContext }], total: 1 });
+    render(<OrderReconciliation />);
+    await screen.findByText("HT-1001");
+    fireEvent.click(screen.getByRole("tab", { name: /Đơn thiếu vé/ }));
+    await screen.findByText("HT-2");
+    expect(screen.getByText("Trần Vũ")).toBeTruthy();
+    expect(screen.getByText("VIETQR")).toBeTruthy();
+    expect(screen.getByText(/8\.400/)).toBeTruthy();
+    expect(screen.getByText(/Tinh Hà Say Hi Concert/)).toBeTruthy();
+    expect(screen.getByText("Thiếu 3 vé")).toBeTruthy();
+  });
+
+  it("shows the event name for a stock discrepancy, or 'không rõ tên' with the short id", async () => {
+    const row = { ticketTypeId: "t-1", eventId: "dddddddd-1111-2222-3333-444444444444", name: "VIP", initial: 10, remaining: 10, held: 0, issued: 1, heldByReservations: 0, diffStockVsIssued: 1, diffHeldVsReservations: 0, note: null };
+    api.getStockDiscrepancies.mockResolvedValue({ items: [{ ...row, eventTitle: "Tinh Hà Say Hi Concert" }, { ...row, ticketTypeId: "t-2", name: "GA", eventTitle: null }] });
+    render(<OrderReconciliation />);
+    await screen.findByText("HT-1001");
+    fireEvent.click(screen.getByRole("tab", { name: /Lệch kho/ }));
+    await screen.findByText("VIP");
+    expect(screen.getByRole("columnheader", { name: "Sự kiện" })).toBeTruthy();
+    expect(screen.getByText("Tinh Hà Say Hi Concert")).toBeTruthy();
+    expect(screen.getByText("không rõ tên")).toBeTruthy();
+    expect(screen.getAllByText("dddddddd…")).toHaveLength(2);
+  });
+});
+
+describe("reissuing tickets for a paid order", () => {
+  const paidRow = { bookingId: "b-1", bookingCode: "HT-2", expectedTickets: 2, issuedTickets: 0, minutesSincePaid: 12 };
+
+  async function openDialog() {
+    api.getPaidWithoutTickets.mockResolvedValue({ items: [paidRow], total: 1 });
+    render(<OrderReconciliation />);
+    await screen.findByText("HT-1001");
+    fireEvent.click(screen.getByRole("tab", { name: /Đơn thiếu vé/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Phát hành lại vé" }));
+    return screen.findByRole("alertdialog");
+  }
+
+  it("asks first, then republishes, toasts and refreshes both lists", async () => {
+    api.republishConfirmed.mockResolvedValue({ message: "SUCCESS" });
+    const dialog = await openDialog();
+    expect(api.republishConfirmed).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Phát hành lại vé" }));
+    await waitFor(() => expect(api.republishConfirmed).toHaveBeenCalledWith("b-1"));
+    await waitFor(() => expect(toasts.success).toHaveBeenCalled());
+    await waitFor(() => expect(api.getPaidWithoutTickets).toHaveBeenCalledTimes(2));
+    expect(api.getSummary).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("keeps the dialog and shows an error toast when it fails", async () => {
+    api.republishConfirmed.mockRejectedValue(new Error("x"));
+    const dialog = await openDialog();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Phát hành lại vé" }));
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled());
+    expect(toasts.success).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+  });
+
+  it("does nothing when the dialog is cancelled", async () => {
+    const dialog = await openDialog();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Hủy bỏ" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(api.republishConfirmed).not.toHaveBeenCalled();
   });
 });
 

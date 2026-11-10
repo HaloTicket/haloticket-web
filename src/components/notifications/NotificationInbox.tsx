@@ -48,7 +48,7 @@ function localizedType(type: string, label: (vi: string, en: string) => string) 
 function itemIcon(type: string) {
   const value = type.toLowerCase();
   if (value.includes("event") || value.includes("calendar")) return FiCalendar;
-  if (value.includes("alert") || value.includes("warning") || value.includes("error")) return FiAlertCircle;
+  if (value.includes("alert") || value.includes("warning") || value.includes("error") || value.includes("exception")) return FiAlertCircle;
   return FiBell;
 }
 
@@ -93,7 +93,7 @@ export function NotificationInbox({
   const filtered = useMemo(() => notifications.filter((item) => {
     if (readFilter === "unread" && !isUnread(item)) return false;
     const type = item.type.toLowerCase();
-    const group = /alert|warning|error/.test(type) ? "alert" : /event|calendar/.test(type) ? "event" : "system";
+    const group = /alert|warning|error|exception/.test(type) ? "alert" : /event|calendar/.test(type) ? "event" : "system";
     if (typeFilter !== "all" && group !== typeFilter) return false;
     const needle = query.trim().toLowerCase();
     return !needle || `${item.title} ${item.message} ${item.type}`.toLowerCase().includes(needle);
