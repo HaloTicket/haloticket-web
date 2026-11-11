@@ -107,12 +107,24 @@ export interface RiskReasonItem {
   status?: 'not_assessed';
   evidence?: RiskEvidence[];
   confidence?: string;
+  /** The organiser signals share one capped budget: this one was cut (its weight is what was actually counted). */
+  capped?: boolean;
 }
 
 export interface RiskCoverage {
   rules: boolean;
   signals: { assessed: number; total: number; missing: string[] };
   ai: 'ran' | 'failed' | 'skipped';
+  /** Model flags dropped because a rule had already scored the same words. */
+  ai_overlap_dropped?: number;
+  ai_meta?: {
+    prompt_version?: string;
+    model?: string;
+    flags_proposed?: number;
+    /** Second reading of the flags: ran, failed (flags kept) or skipped (no flags to check). */
+    verify?: 'ran' | 'failed' | 'skipped';
+    verify_removed?: string[];
+  };
 }
 
 // Multi-layer assessment. The first three fields are the original contract; the rest is additive

@@ -79,6 +79,7 @@ export function RiskReasonsPanel({ assessment, onRefresh, refreshing = false }: 
                     <p className="mt-0.5 font-mono text-[10px] app-text-muted">
                       {item.code}
                       {!muted && item.weight > 0 ? ` · +${item.weight}` : ""}
+                      {!muted && item.capped ? ` · ${t("ai.risk.capped")}` : ""}
                     </p>
                     {!muted && (item.evidence ?? []).length > 0 && (
                       <ul className="mt-1 space-y-0.5" aria-label={t("ai.risk.evidence")}>
@@ -101,6 +102,11 @@ export function RiskReasonsPanel({ assessment, onRefresh, refreshing = false }: 
         {coverage && (
           <p>{t("ai.risk.coverage", { assessed: coverage.signals.assessed, total: coverage.signals.total, ai: t(`ai.risk.ai.${coverage.ai}`) })}</p>
         )}
+        {coverage?.ai_meta?.verify === "ran" && (coverage.ai_meta.verify_removed ?? []).length > 0 && (
+          <p data-testid="risk-verify-removed">{t("ai.risk.verifyRemoved", { count: coverage.ai_meta.verify_removed?.length ?? 0 })}</p>
+        )}
+        {coverage?.ai_meta?.verify === "failed" && <p data-testid="risk-verify-failed">{t("ai.risk.verifyFailed")}</p>}
+        {(coverage?.ai_overlap_dropped ?? 0) > 0 && <p data-testid="risk-overlap-dropped">{t("ai.risk.overlapDropped", { count: coverage?.ai_overlap_dropped ?? 0 })}</p>}
         <p>
           {[assessment.ruleset_version ? t("ai.risk.ruleset", { version: assessment.ruleset_version }) : null, time ? t("ai.risk.assessedAt", { time }) : null, assessment.cached ? t("ai.risk.cached") : null]
             .filter(Boolean)

@@ -111,6 +111,24 @@ describe("RiskReasonsPanel", () => {
     expect(screen.getByTestId("risk-ai-chip")).toBeTruthy();
   });
 
+  it("tells the reviewer when the second reading removed flags, when it failed, when flags overlapped a rule, and which reasons were capped", () => {
+    const rich: AiRiskScoreResponse = {
+      ...assessment,
+      coverage: { ...coverage("ran"), ai_overlap_dropped: 2, ai_meta: { prompt_version: "risk-c-v2", verify: "ran", verify_removed: ["SCAM_PATTERN"] } },
+      reason_items: [{ layer: "SIGNAL", code: "organizer_history_rejected", severity: "HIGH", weight: 3, capped: true, message: "Lịch sử bị từ chối.", evidence: [] }],
+    };
+    const { rerender } = render(<RiskReasonsPanel assessment={rich} onRefresh={() => {}} />);
+    expect(screen.getByTestId("risk-verify-removed").textContent).toBe("Lần đọc thứ hai loại 1 cờ AI không đúng loại vi phạm.");
+    expect(screen.getByTestId("risk-overlap-dropped").textContent).toContain("2 cờ AI trùng với luật");
+    expect(screen.getByText(/đã tính trần chung/)).toBeTruthy();
+    rerender(<RiskReasonsPanel assessment={{ ...rich, coverage: { ...coverage("ran"), ai_meta: { verify: "failed" } } }} onRefresh={() => {}} />);
+    expect(screen.getByTestId("risk-verify-failed")).toBeTruthy();
+    expect(screen.queryByTestId("risk-verify-removed")).toBeNull();
+    rerender(<RiskReasonsPanel assessment={assessment} onRefresh={() => {}} />);
+    expect(screen.queryByTestId("risk-verify-failed")).toBeNull();
+    expect(screen.queryByTestId("risk-overlap-dropped")).toBeNull();
+  });
+
   it("calls onRefresh from 'Chấm lại' and disables it while refreshing", () => {
     const onRefresh = vi.fn();
     const { rerender } = render(<RiskReasonsPanel assessment={assessment} onRefresh={onRefresh} />);
