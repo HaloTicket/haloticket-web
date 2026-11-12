@@ -1,1321 +1,348 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { 
-  FiCheckCircle, 
-  FiDollarSign, 
-  FiClock, 
-  FiAlertTriangle, 
-  FiSearch,
-  FiCheck, 
-  FiLoader, 
-  FiSliders, 
-  FiSave, 
-  FiShield, 
-  FiRefreshCw,
-  FiCopy,
-  FiExternalLink,
-  FiInfo,
-  FiDownload,
-  FiChevronDown,
-  FiChevronUp,
-  FiCalendar,
-  FiRotateCcw,
-  FiEye,
-  FiFileText
-} from "react-icons/fi";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { AdminStatCard } from "@/components/admin/AdminStatCard";
-import { CustomSelect } from "@/components/common/CustomSelect";
-import { TablePagination } from "@/components/common/TablePagination";
-import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
+import { useEffect, useMemo, useState } from "react";
+import { FiArrowLeft, FiCalendar, FiCheck, FiCheckCircle, FiClock, FiRefreshCw, FiSearch, FiShield, FiUser } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { normalizePayoutFilter, payoutStatusGroup, payoutStatusGroups, type PayoutStatusGroup } from "@/utils/payoutStatusGroups";
 import { payoutApi } from "@/services/payoutApi";
+import type { AdminPayoutDetail, AdminPayoutRow } from "@/types";
+import { FinanceOverview } from "@/features/admin/finance/FinanceOverview";
+import { useSearchParams } from "react-router-dom";
+import * as Dialog from "@radix-ui/react-dialog";
 import { eventApi } from "@/services/eventApi";
-import { organizerApi } from "@/services/organizerApi";
-import { userApi, getCachedUserProfile } from "@/services/userApi";
-import { adminConfigApi } from "@/services/adminConfigApi";
-import type { PayoutResponse } from "@/types";
+import type { EventApiData } from "@/types";
+
+type FinanceTab = "overview" | "requests";
+type StatusFilter = "ALL" | PayoutStatusGroup;
+
+const tabs: { id: FinanceTab; label: string }[] = [
+  { id: "overview", label: "Tổng quan" },
+  { id: "requests", label: "Yêu cầu rút tiền" },
+];
+
+const statusLabels: Record<string, string> = {
+  PENDING: "Chờ duyệt",
+  APPROVED: "Đã duyệt · chờ xử lý",
+  PROCESSING: "Đang xử lý",
+  COMPLETED: "Hoàn tất",
+  FAILED: "Thất bại",
+  NEEDS_VERIFICATION: "Cần xác minh",
+  REJECTED: "Từ chối",
+  CANCELLED: "Đã hủy",
+  DISPUTE: "Tạm giữ để kiểm tra",
+};
+
+const money = (value: number | string | undefined) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? `${amount.toLocaleString("vi-VN")} ₫` : "—";
+};
+
+const dateTime = (value?: string) => value ? new Date(value).toLocaleString("vi-VN") : "—";
+const requestTypeLabel = (type?: string) => type === "ADVANCE" ? "Tạm ứng (cũ)" : "Rút tiền";
+
+function FinanceDialog({ title, subtitle, icon, onClose, pending, children }: { title: string; subtitle: string; icon: React.ReactNode; onClose: () => void; pending: boolean; children: React.ReactNode }) {
+  return <Dialog.Root open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
+    <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-[9998] bg-[#101c48]/45 backdrop-blur-sm" />
+      <Dialog.Content onEscapeKeyDown={(event) => { if (pending) event.preventDefault(); }} onPointerDownOutside={(event) => { if (pending) event.preventDefault(); }} className="finance-theme fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-[#dce6f8] bg-white p-5 text-[#101c48] shadow-2xl focus:outline-none sm:p-6" aria-describedby="finance-dialog-description">
+        <div className="mb-5 flex items-start gap-3 border-b border-[#dce6f8] pb-4"><span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#edf3ff] text-[#005cff]">{icon}</span><div><Dialog.Title className="text-lg font-bold text-[#101c48]">{title}</Dialog.Title><Dialog.Description id="finance-dialog-description" className="mt-1 text-sm text-slate-600">{subtitle}</Dialog.Description></div></div>
+        {children}
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>;
+}
+
+function eventPosterUrl(event?: EventApiData) {
+  return [event?.posterImage, event?.bannerUrl, event?.thumbnailUrl].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+function StatusBadge({ status, grouped = false }: { status: string; grouped?: boolean }) {
+  if (grouped) status = payoutStatusGroup(status);
+  const color = status === "COMPLETED" ? "text-emerald-700 bg-emerald-50" :
+    status === "PENDING" ? "text-orange-800 bg-orange-50" :
+      status === "PROCESSING" ? "text-[#31416e] bg-[#edf3ff]" :
+        ["DISPUTE", "NEEDS_VERIFICATION", "FAILED"].includes(status) ? "text-rose-700 bg-rose-50" : "text-slate-700 bg-slate-100";
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${color}`}>{(grouped ? payoutStatusGroups[status as PayoutStatusGroup] : statusLabels[status]) || status}</span>;
+}
+
+function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminPayoutRow; event?: EventApiData; onBack: () => void; onRefresh: () => void }) {
+  const [payout, setPayout] = useState<AdminPayoutDetail | AdminPayoutRow>(row);
+  const [detailLoading, setDetailLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [holdReason, setHoldReason] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [showHold, setShowHold] = useState(false);
+  const [showApprove, setShowApprove] = useState(false);
+  const [showReject, setShowReject] = useState(false);
+  const [transactionReference, setTransactionReference] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState("");
+  const [showRecordTransfer, setShowRecordTransfer] = useState(false);
+  const [accountVerificationReference, setAccountVerificationReference] = useState("");
+  const [verifyingAccount, setVerifyingAccount] = useState(false);
+  useEffect(() => {
+    let active = true;
+    payoutApi.getAdminPayout(row.id).then((detail) => { if (active) setPayout(detail); })
+      .catch(() => { if (active) toast.error("Không tải được chi tiết đầy đủ; đang hiển thị dữ liệu danh sách."); })
+      .finally(() => { if (active) setDetailLoading(false); });
+    return () => { active = false; };
+  }, [row.id]);
+  const snapshot = payout.accountSnapshot;
+  const eventName = payout.eventName || event?.title || "Tên sự kiện chưa có";
+  const poster = eventPosterUrl(event);
+  const checks = "checks" in payout ? payout.checks || [] : [];
+  const account = snapshot || (payout.bankNameSnapshot || payout.accountHolderSnapshot || payout.maskedAccountNumber ? {
+    bankName: payout.bankNameSnapshot || "",
+    accountHolder: payout.accountHolderSnapshot || "",
+    accountNumberMasked: payout.maskedAccountNumber || "",
+  } : undefined);
+  const canApprove = payout.status === "PENDING" && (payout.allowedActions?.includes("APPROVE") ?? true);
+  const canHold = payout.status === "PENDING" && (payout.allowedActions?.includes("DISPUTE") ?? true);
+
+  const approve = async () => {
+    setBusy(true);
+    try {
+      const updated = await payoutApi.approvePayout(payout.id);
+      toast.success(updated.status === "APPROVED" ? "Đã duyệt yêu cầu. Yêu cầu đang chờ xử lý." : "Trạng thái yêu cầu đã được cập nhật.");
+      setPayout(current => ({ ...current, ...updated, allowedActions: ["RECORD_TRANSFER"] }));
+      setShowApprove(false);
+      onRefresh();
+    } catch {
+      toast.error("Không thể duyệt yêu cầu. Có thể yêu cầu đã được xử lý; dữ liệu đã được tải lại.");
+      onRefresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hold = async () => {
+    if (!holdReason.trim()) return;
+    setBusy(true);
+    try {
+      await payoutApi.disputePayout(payout.id, holdReason.trim());
+      toast.success("Đã tạm giữ yêu cầu để kiểm tra.");
+      onRefresh();
+      onBack();
+    } catch {
+      toast.error("Không thể tạm giữ yêu cầu. Dữ liệu đã được tải lại.");
+      onRefresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reject = async () => {
+    if (!rejectReason.trim()) return;
+    setBusy(true);
+    try {
+      await payoutApi.rejectAdminPayout(payout.id, rejectReason.trim());
+      toast.success("Đã từ chối yêu cầu.");
+      onRefresh();
+      onBack();
+    } catch {
+      toast.error("Không thể từ chối yêu cầu. Có thể yêu cầu đã được xử lý.");
+      onRefresh();
+    } finally { setBusy(false); }
+  };
+
+  const recordTransfer = async () => {
+    if (!transactionReference.trim()) return;
+    if (receiptUrl.trim()) {
+      try { new URL(receiptUrl); } catch { toast.error("Biên nhận cần là một liên kết hợp lệ."); return; }
+    }
+    setBusy(true);
+    try {
+      await payoutApi.recordAdminDisbursement(payout.id, { reference: transactionReference.trim(), transferredAt: new Date().toISOString(), receiptUrl: receiptUrl.trim() || undefined });
+      toast.success("Đã ghi nhận giao dịch chuyển thủ công thành công.");
+      onRefresh();
+      onBack();
+    } catch {
+      toast.error("Không thể ghi nhận giao dịch. Kiểm tra tham chiếu và trạng thái trước khi thử lại.");
+      onRefresh();
+    } finally { setBusy(false); }
+  };
+
+  const verifyAccount = async () => {
+    if (!accountVerificationReference.trim()) return;
+    setVerifyingAccount(true);
+    try {
+      await payoutApi.verifyAdminPayoutAccount(payout.organizerUserId, accountVerificationReference.trim());
+      toast.success("Đã lưu tham chiếu xác minh tài khoản theo kết quả kiểm tra của bạn.");
+      setPayout((current) => ({ ...current, payoutAccountVerified: true }));
+      setAccountVerificationReference("");
+      onRefresh();
+    } catch {
+      toast.error("Không thể ghi nhận xác minh tài khoản. Kiểm tra quyền và mã tham chiếu.");
+    } finally { setVerifyingAccount(false); }
+  };
+
+  return <section className="space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm font-semibold text-[#005cff] hover:text-[#31416e]"><FiArrowLeft /> Quay lại hàng đợi</button>
+      <div className="flex flex-wrap items-center gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mã yêu cầu</span><code className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-[#101c48]">{payout.id}</code><StatusBadge status={payout.status} /></div>
+    </div>
+    <div className="rounded-2xl border app-border app-bg-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b app-border pb-4">
+          <div className="flex items-center gap-3">{poster && <img src={poster} alt="" className="h-14 w-14 rounded-lg object-cover" />}<div><h2 className="text-xl font-bold app-text-main">{eventName}</h2><p className="mt-1 text-sm text-slate-500">{requestTypeLabel(payout.requestType)} · gửi {dateTime(payout.createdAt)}</p>{detailLoading && <p className="mt-1 text-xs text-slate-400">Đang tải chi tiết…</p>}</div></div>
+        <div className="text-right"><div className="text-xs text-slate-500">Số tiền yêu cầu</div><div className="text-2xl font-bold text-emerald-700">{money(payout.netAmount)}</div></div>
+      </div>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+        <div className="space-y-5">
+          <div className="rounded-xl border app-border p-4">
+            <h3 className="font-semibold app-text-main">Thông tin yêu cầu</h3>
+            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+              <div><dt className="text-slate-500">Sự kiện</dt><dd className="mt-1 font-medium app-text-main">{eventName}</dd></div>
+              <div><dt className="text-slate-500">Mã sự kiện</dt><dd className="mt-1 break-all font-medium app-text-main">{payout.eventId || "—"}</dd></div>
+              <div><dt className="text-slate-500">Ban tổ chức</dt><dd className="mt-1 break-all font-medium app-text-main">{payout.organizerUserId || "—"}</dd></div>
+              <div><dt className="text-slate-500">Gửi lúc</dt><dd className="mt-1 font-medium app-text-main">{dateTime(payout.createdAt)}</dd></div>
+            </dl>
+          </div>
+          <div className="rounded-xl border app-border p-4">
+            <h3 className="font-semibold app-text-main">Lịch sử trạng thái</h3>
+            {payout.timeline?.length ? <ol className="mt-3 space-y-3">{payout.timeline.map((entry, index) => <li key={`${entry.occurredAt}-${index}`} className="flex gap-3 text-sm"><FiClock className="mt-0.5 shrink-0 text-slate-400" /><div><div className="font-medium app-text-main">{statusLabels[entry.status] || entry.status}</div><div className="text-xs text-slate-500">{dateTime(entry.occurredAt)}{entry.publicMessage ? ` · ${entry.publicMessage}` : ""}</div></div></li>)}</ol> : <p className="mt-2 text-sm text-slate-500">Chưa có lịch sử trạng thái.</p>}
+          </div>
+        </div>
+        <aside className="space-y-4">
+          <div className="rounded-xl border app-border bg-white p-4">
+            <h3 className="font-semibold app-text-main">Tài khoản nhận theo yêu cầu</h3>
+            {account ? <dl className="mt-3 space-y-2 text-sm"><div><dt className="text-slate-500">Ngân hàng</dt><dd className="font-medium app-text-main">{account.bankName || "—"}</dd></div><div><dt className="text-slate-500">Chủ tài khoản</dt><dd className="font-medium app-text-main">{account.accountHolder || "—"}</dd></div><div><dt className="text-slate-500">Số tài khoản</dt><dd className="font-mono font-medium app-text-main">{account.accountNumberMasked || "—"}</dd></div></dl> : <p className="mt-2 text-sm text-slate-500">Chưa có thông tin tài khoản nhận gắn với yêu cầu này.</p>}
+            {payout.payoutAccountVerified === true && <p className="mt-3 text-sm font-semibold text-emerald-700">Tài khoản đã được xác minh.</p>}
+            {payout.payoutAccountVerified === false && <div className="mt-4 space-y-2 border-t app-border pt-3"><p className="text-xs text-amber-800">Sau khi kiểm tra tài khoản qua kênh ngân hàng, lưu mã tham chiếu xác minh.</p><label className="block text-xs font-semibold app-text-main">Mã tham chiếu xác minh<input value={accountVerificationReference} onChange={(event) => setAccountVerificationReference(event.target.value)} className="mt-1 w-full rounded-lg border app-border bg-transparent px-3 py-2 text-sm font-normal" /></label><button disabled={verifyingAccount || !accountVerificationReference.trim()} onClick={verifyAccount} className="rounded-lg bg-[#005cff] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{verifyingAccount ? "Đang lưu…" : "Ghi nhận đã xác minh"}</button></div>}
+          </div>
+          <section className="rounded-xl border app-border bg-white p-4" aria-labelledby="payout-checklist-title">
+            <h3 id="payout-checklist-title" className="font-semibold app-text-main">Điều kiện từ dữ liệu yêu cầu</h3>
+            {checks.length > 0 ? <ul className="mt-3 space-y-2">{checks.map((check) => <li key={check.code} className="flex items-start gap-2 text-sm"><FiCheckCircle className={`mt-0.5 shrink-0 ${check.passed ? "text-emerald-600" : "text-orange-600"}`} /><span><span className="font-medium app-text-main">{check.label}</span><span className="ml-2 text-xs text-slate-500">{check.passed ? "Đạt" : "Chưa đạt"}</span>{check.detail && <span className="mt-0.5 block text-xs text-slate-500">{check.detail}</span>}</span></li>)}</ul> : <p className="mt-2 text-sm text-slate-500">Chưa có thông tin điều kiện cho yêu cầu này.</p>}
+            {payout.payoutAccountVerified !== undefined && <div className="mt-3 flex items-center gap-2 border-t app-border pt-3 text-sm"><FiCheckCircle className={payout.payoutAccountVerified ? "text-emerald-600" : "text-orange-600"} /><span className="app-text-main">Tài khoản nhận: {payout.payoutAccountVerified ? "đã xác minh" : "chưa xác minh"}</span></div>}
+          </section>
+          <section className="rounded-xl border border-[#d7efe5] bg-[#effaf7] p-4" aria-labelledby="payout-finance-title">
+            <h3 id="payout-finance-title" className="font-semibold app-text-main">Tổng quan khoản chi</h3>
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between gap-4"><dt>Doanh thu ghi nhận</dt><dd>{money(payout.grossAmount)}</dd></div>
+              <div className="flex justify-between gap-4"><dt>Phí nền tảng</dt><dd>{money(payout.platformFee)}</dd></div>
+              <div className="flex justify-between gap-4 border-t border-[#d7efe5] pt-2"><dt>Số tiền chuyển</dt><dd className="font-bold text-emerald-700">{money(payout.netAmount)}</dd></div>
+            </dl>
+          </section>
+          {(payout.disputeReason || payout.publicReason || ("rejectionReason" in payout && payout.rejectionReason)) && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><div className="font-semibold">Lý do xử lý</div><p className="mt-1">{payout.disputeReason || payout.publicReason || ("rejectionReason" in payout ? payout.rejectionReason : "")}</p></div>}
+          {canApprove && <button disabled={busy} onClick={() => setShowApprove(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#005cff] px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"><FiCheck /> Phê duyệt yêu cầu</button>}
+          {canHold && !showHold && <button disabled={busy} onClick={() => setShowHold(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300 px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"><FiShield /> Tạm giữ để kiểm tra</button>}
+          {canHold && showHold && <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4"><label htmlFor="hold-reason" className="block text-sm font-semibold text-amber-950">Lý do tạm giữ <span className="text-rose-600">*</span></label><textarea id="hold-reason" value={holdReason} onChange={(event) => setHoldReason(event.target.value)} rows={3} className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-sm text-slate-900" /><div className="flex gap-2"><button disabled={busy || !holdReason.trim()} onClick={hold} className="rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Xác nhận tạm giữ</button><button onClick={() => setShowHold(false)} className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-900">Hủy</button></div></div>}
+          {canApprove && !showReject && <button disabled={busy} onClick={() => setShowReject(true)} className="inline-flex w-full items-center justify-center rounded-xl border border-rose-300 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Từ chối yêu cầu</button>}
+          {canApprove && showReject && <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4"><label htmlFor="reject-reason" className="block text-sm font-semibold text-rose-950">Lý do từ chối <span className="text-rose-600">*</span></label><textarea id="reject-reason" value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} rows={3} className="w-full rounded-lg border border-rose-200 bg-white p-2.5 text-sm text-slate-900" /><div className="flex gap-2"><button disabled={busy || !rejectReason.trim()} onClick={reject} className="rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Xác nhận từ chối</button><button disabled={busy} onClick={() => setShowReject(false)} className="rounded-lg border border-rose-300 px-3 py-2 text-sm font-semibold text-rose-900">Hủy</button></div></div>}
+          {payout.status === "APPROVED" && <div className="rounded-xl border border-[#dce6f8] bg-[#edf3ff] p-4 text-sm text-[#31416e]"><div className="font-semibold">Đã duyệt · chờ xử lý</div><p className="mt-1">Sau khi chuyển tại ngân hàng, nhập mã giao dịch để xác nhận.</p></div>}
+          {(payout.status === "PROCESSING" || payout.status === "APPROVED") && <button disabled={busy} onClick={() => setShowRecordTransfer(true)} className="w-full rounded-xl bg-[#005cff] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Xác nhận chuyển tiền</button>}
+          {payout.status === "COMPLETED" && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><div className="font-semibold">Giao dịch đã được ghi nhận</div><p className="mt-1">Mã tham chiếu: {payout.transferReference || payout.transactionReference || "Chưa có dữ liệu"}</p><p>Thời điểm: {dateTime(payout.transferredAt)}</p>{(payout.transferReceiptUrl || payout.receiptUrl) && <a href={payout.transferReceiptUrl || payout.receiptUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block underline">Xem biên nhận</a>}</div>}
+          {payout.status === "NEEDS_VERIFICATION" && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"><div className="font-semibold">Cần xác minh</div><p className="mt-1">Chưa có thao tác tra cứu giao dịch được hỗ trợ trong giao diện này.</p></div>}
+          {payout.allowedActions && payout.allowedActions.length === 0 && <p className="text-xs text-slate-500">Không có thao tác khả dụng cho trạng thái yêu cầu này.</p>}
+        </aside>
+      </div>
+    </div>
+    {canApprove && showApprove && <FinanceDialog title="Phê duyệt yêu cầu rút tiền" subtitle="Kiểm tra yêu cầu và tài khoản nhận trước khi duyệt. Việc duyệt không chuyển tiền." icon={<FiCheck />} onClose={() => setShowApprove(false)} pending={busy}>
+      <div className="space-y-4">
+        <div className="rounded-xl bg-[#f2f6ff] p-4"><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sự kiện</div><div className="mt-1 font-semibold app-text-main">{eventName}</div><div className="mt-1 text-xs text-slate-500">Mã yêu cầu {payout.id} · {requestTypeLabel(payout.requestType)}</div><div className="mt-3 flex items-end justify-between gap-3"><span className="text-sm text-slate-600">Số tiền ròng yêu cầu</span><strong className="text-xl text-emerald-700">{money(payout.netAmount)}</strong></div></div>
+        <div className="rounded-xl border app-border p-4"><h3 className="font-semibold app-text-main">Tài khoản ngân hàng đã yêu cầu</h3>{account ? <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3"><div><span className="block text-xs text-slate-500">Ngân hàng</span><span className="font-medium app-text-main">{account.bankName || "—"}</span></div><div><span className="block text-xs text-slate-500">Chủ tài khoản</span><span className="font-medium app-text-main">{account.accountHolder || "—"}</span></div><div><span className="block text-xs text-slate-500">Số tài khoản</span><span className="font-mono font-medium app-text-main">{account.accountNumberMasked || "—"}</span></div></div> : <p className="mt-2 text-sm text-slate-500">Chưa có thông tin tài khoản nhận gắn với yêu cầu này.</p>}<p className={`mt-3 text-sm font-semibold ${payout.payoutAccountVerified ? "text-emerald-700" : "text-orange-700"}`}>{payout.payoutAccountVerified ? "Tài khoản đã xác minh" : "Trạng thái xác minh chưa được xác nhận"}</p></div>
+        <div className="flex justify-end gap-2 border-t app-border pt-4"><button type="button" disabled={busy} onClick={() => setShowApprove(false)} className="rounded-lg border app-border px-4 py-2.5 text-sm font-semibold app-text-main">Hủy</button><button type="button" disabled={busy} onClick={() => void approve()} className="rounded-lg bg-[#005cff] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy ? "Đang lưu…" : "Xác nhận phê duyệt"}</button></div>
+      </div>
+    </FinanceDialog>}
+    {showRecordTransfer && <FinanceDialog title="Ghi nhận kết quả chuyển tiền" subtitle="Chỉ xác nhận sau khi ngân hàng báo giao dịch thành công. Việc lưu sẽ cập nhật yêu cầu thành hoàn tất." icon={<FiCheckCircle />} onClose={() => setShowRecordTransfer(false)} pending={busy}>
+      <div className="space-y-4"><div className="rounded-xl bg-[#f2f6ff] p-4"><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{eventName}</div><div className="mt-1 text-xs text-slate-500">Mã yêu cầu {payout.id}</div><div className="mt-3 flex items-end justify-between"><span className="text-sm text-slate-600">Số tiền ròng</span><strong className="text-xl text-emerald-700">{money(payout.netAmount)}</strong></div></div><div className="rounded-xl border app-border p-4"><h3 className="font-semibold app-text-main">Tài khoản đã ghi trong yêu cầu</h3><p className="mt-2 text-sm app-text-main">{account ? `${account.bankName || "Ngân hàng chưa có dữ liệu"} · ${account.accountHolder || "Chủ tài khoản chưa có dữ liệu"} · ${account.accountNumberMasked || "Số tài khoản chưa có dữ liệu"}` : "Chưa có thông tin tài khoản nhận."}</p></div><label htmlFor="transfer-reference" className="block text-sm font-semibold app-text-main">Mã giao dịch ngân hàng <span className="text-rose-600">*</span><input id="transfer-reference" value={transactionReference} onChange={(event) => setTransactionReference(event.target.value)} className="mt-1 w-full rounded-lg border app-border bg-white px-3 py-2.5 text-sm font-normal" /></label><label htmlFor="transfer-receipt" className="block text-sm font-semibold app-text-main">Liên kết biên nhận (không bắt buộc)<input id="transfer-receipt" type="url" value={receiptUrl} onChange={(event) => setReceiptUrl(event.target.value)} placeholder="https://…" className="mt-1 w-full rounded-lg border app-border bg-white px-3 py-2.5 text-sm font-normal" /></label><div className="flex justify-end gap-2 border-t app-border pt-4"><button type="button" disabled={busy} onClick={() => setShowRecordTransfer(false)} className="rounded-lg border app-border px-4 py-2.5 text-sm font-semibold app-text-main">Hủy</button><button type="button" disabled={busy || !transactionReference.trim()} onClick={() => void recordTransfer()} className="rounded-lg bg-[#005cff] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy ? "Đang ghi nhận…" : "Xác nhận đã chuyển"}</button></div></div>
+    </FinanceDialog>}
+  </section>;
+}
 
 export function PaymentMonitoring() {
-  const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED' | 'DISPUTE'>('PENDING');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterGross, setFilterGross] = useState('ALL');
-  const [filterDate, setFilterDate] = useState('ALL');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState<FinanceTab>(() => {
+    const requested = searchParams.get("tab");
+    return requested === "overview" ? requested : "requests";
+  });
+  const [payouts, setPayouts] = useState<AdminPayoutRow[]>([]);
+  const [eventsById, setEventsById] = useState<Record<string, EventApiData>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusFilter>(normalizePayoutFilter(searchParams.get("status")));
+  const [query, setQuery] = useState(searchParams.get("q") || "");
+  const [fromDate, setFromDate] = useState(searchParams.get("from") || "");
+  const [toDate, setToDate] = useState(searchParams.get("to") || "");
+  const [minAmount, setMinAmount] = useState(searchParams.get("min") || "");
+  const [maxAmount, setMaxAmount] = useState(searchParams.get("max") || "");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [payoutModalOpen, setPayoutModalOpen] = useState(false);
-  const [selectedPayout, setSelectedPayout] = useState<PayoutResponse | null>(null);
-  const [allPayouts, setAllPayouts] = useState<PayoutResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
-  const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
-  const [eventTitles, setEventTitles] = useState<Record<string, string>>({});
-
-  // dispute modal state
-  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
-  const [targetDisputePayout, setTargetDisputePayout] = useState<PayoutResponse | null>(null);
-  const [disputeReason, setDisputeReason] = useState('');
-  const [isDisputing, setIsDisputing] = useState(false);
-
-  // platform fee configuration collapsible & state
-  const [isFeeConfigExpanded, setIsFeeConfigExpanded] = useState(false);
-  const [primaryTotalFee, setPrimaryTotalFee] = useState<number>(5.0);
-  const [primaryGatewayFee, setPrimaryGatewayFee] = useState<number>(1.5);
-  const [primaryPlatformFee, setPrimaryPlatformFee] = useState<number>(3.5);
-  const [primaryFeePayer, setPrimaryFeePayer] = useState<'ORGANIZER_DEDUCT' | 'BUYER_PAYS'>('ORGANIZER_DEDUCT');
-  const [isSavingFee, setIsSavingFee] = useState(false);
-
-  // load fee configuration on mount
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try { setPayouts(await payoutApi.getAdminPayoutQueue()); }
+    catch { setError("Không thể tải yêu cầu tài chính. Vui lòng thử lại."); }
+    finally { setLoading(false); }
+  };
   useEffect(() => {
-    const saved = localStorage.getItem("haloticket_fee_config");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.primaryTotalFee) setPrimaryTotalFee(parsed.primaryTotalFee);
-        if (parsed.primaryGatewayFee) setPrimaryGatewayFee(parsed.primaryGatewayFee);
-        if (parsed.primaryPlatformFee) setPrimaryPlatformFee(parsed.primaryPlatformFee);
-        if (parsed.primaryFeePayer) setPrimaryFeePayer(parsed.primaryFeePayer);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    adminConfigApi.getSystemConfig().then(res => {
-      const data = (res as any)?.data || res;
-      if (data && data.platformFee) {
-        const feeNum = parseFloat(data.platformFee);
-        if (!isNaN(feeNum)) {
-          setPrimaryTotalFee(feeNum);
-          setPrimaryPlatformFee(Math.max(0, Number((feeNum - primaryGatewayFee).toFixed(1))));
-        }
-      }
-    }).catch(() => {});
+    let active = true;
+    payoutApi.getAdminPayoutQueue().then((data) => {
+      if (active) setPayouts(data);
+    }).catch(() => {
+      if (active) setError("Không thể tải yêu cầu tài chính. Vui lòng thử lại.");
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
-  const handleSaveFeeConfig = async () => {
-    setIsSavingFee(true);
-    try {
-      const config = {
-        primaryTotalFee,
-        primaryGatewayFee,
-        primaryPlatformFee,
-        primaryFeePayer,
-      };
-      localStorage.setItem("haloticket_fee_config", JSON.stringify(config));
-
-      await adminConfigApi.updateSystemConfig({
-        platformFee: primaryTotalFee.toString()
-      }).catch(() => {});
-
-      toast.success(t("Đã cập nhật cấu hình % hoa hồng sơ cấp thành công!"));
-    } catch (error) {
-      toast.error(t("Không thể lưu cấu hình phí."));
-    } finally {
-      setIsSavingFee(false);
-    }
-  };
-
-  const fetchAllPayouts = async () => {
-    try {
-      setIsLoading(true);
-      const data = await payoutApi.getAllAdminPayouts();
-      setAllPayouts(data || []);
-
-      // fetch public events to resolve real event titles
-      try {
-        const events = await eventApi.getAllEvents();
-        if (Array.isArray(events) && events.length > 0) {
-          const map: Record<string, string> = {};
-          events.forEach((ev: any) => {
-            if (ev.id && ev.title) map[ev.id] = ev.title;
-          });
-          setEventTitles(prev => ({ ...map, ...prev }));
-        }
-      } catch {
-        // continue
-      }
-
-      // fetch organizer display names
-      const uniqueIds = Array.from(new Set((data || []).map(p => p.organizerUserId).filter(Boolean)));
-      uniqueIds.forEach(async (id) => {
-        const cachedUser = getCachedUserProfile();
-        if (cachedUser && (cachedUser.id === id || cachedUser.keycloakId === id)) {
-          setOrganizerNames(prev => ({ ...prev, [id]: cachedUser.fullName }));
-          return;
-        }
-
-        try {
-          const profile = await organizerApi.getOrganizerProfile(id);
-          const organizerName = profile?.name;
-          if (organizerName) {
-            setOrganizerNames(prev => ({ ...prev, [id]: organizerName }));
-            return;
-          }
-        } catch {
-          // continue
-        }
-
-        try {
-          const publicUser = await userApi.getUserByKeycloakId(id);
-          const fullName = publicUser?.fullName;
-          if (fullName) {
-            setOrganizerNames(prev => ({ ...prev, [id]: fullName }));
-            return;
-          }
-        } catch {
-          // fallback
-        }
-
-        setOrganizerNames(prev => ({ ...prev, [id]: id }));
-      });
-    } catch (error) {
-      toast.error(t("Không thể tải danh sách lệnh đối soát."));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchAllPayouts();
+    let active = true;
+    eventApi.getAllEvents().then((events) => {
+      if (active) setEventsById(Object.fromEntries(events.map((event) => [String(event.id), event])));
+    }).catch(() => undefined);
+    return () => { active = false; };
   }, []);
 
-  // bank Account details for payout settlement
-  const [payoutBankInfo, setPayoutBankInfo] = useState<{
-    accountHolder: string;
-    accountNumber: string;
-    bankName: string;
-    bankBranch?: string;
-  } | null>(null);
-  const [isLoadingBank, setIsLoadingBank] = useState(false);
-
-  const getVietQRBankCode = (bankName: string) => {
-    const lower = (bankName || "").toLowerCase();
-    if (lower.includes("vietcombank") || lower.includes("vcb")) return "vcb";
-    if (lower.includes("techcombank") || lower.includes("tcb")) return "tcb";
-    if (lower.includes("mbbank") || lower.includes("mb")) return "mb";
-    if (lower.includes("bidv")) return "bidv";
-    if (lower.includes("vietinbank") || lower.includes("ctg")) return "vietinbank";
-    if (lower.includes("acb")) return "acb";
-    if (lower.includes("vpbank") || lower.includes("vpb")) return "vpbank";
-    if (lower.includes("tpbank") || lower.includes("tpb")) return "tpbank";
-    return "mb";
-  };
+  const selected = payouts.find((payout) => payout.id === selectedId) || null;
+  const filtered = useMemo(() => payouts.filter((payout) => {
+    if (status !== "ALL" && payoutStatusGroup(payout.status) !== status) return false;
+    const text = `${payout.id} ${payout.eventName || ""} ${payout.eventId} ${payout.organizerUserId}`.toLocaleLowerCase();
+    if (query.trim() && !text.includes(query.trim().toLocaleLowerCase())) return false;
+    const createdAt = new Date(payout.createdAt).getTime();
+    if (fromDate && createdAt < new Date(`${fromDate}T00:00:00`).getTime()) return false;
+    if (toDate && createdAt > new Date(`${toDate}T23:59:59.999`).getTime()) return false;
+    const amount = Number(payout.netAmount);
+    if (minAmount && amount < Number(minAmount)) return false;
+    if (maxAmount && amount > Number(maxAmount)) return false;
+    return true;
+  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()), [payouts, query, status, fromDate, toDate, minAmount, maxAmount]);
 
   useEffect(() => {
-    if (!selectedPayout) {
-      setPayoutBankInfo(null);
-      return;
-    }
-    const loadBank = async () => {
-      setIsLoadingBank(true);
+    const next = new URLSearchParams();
+    if (status !== "ALL") next.set("status", status);
+    if (query) next.set("q", query);
+    if (fromDate) next.set("from", fromDate);
+    if (toDate) next.set("to", toDate);
+    if (minAmount) next.set("min", minAmount);
+    if (maxAmount) next.set("max", maxAmount);
+    if (tab !== "requests") next.set("tab", tab);
+    setSearchParams(next, { replace: true });
+  }, [status, query, fromDate, toDate, minAmount, maxAmount, tab, setSearchParams]);
 
-      // fetch from payment-service payout accounts
-      try {
-        const res = await organizerApi.getPayoutAccount(selectedPayout.organizerUserId);
-        if (res && (res.accountNumber || res.accountHolder)) {
-          setPayoutBankInfo({
-            accountHolder: ((res.accountHolder || res.bankAccountHolder || organizerNames[selectedPayout.organizerUserId] || "") as string).toUpperCase(),
-            accountNumber: (res.accountNumber || res.bankAccountNumber || "") as string,
-            bankName: (res.bankName || "") as string,
-            bankBranch: (res.bankBranch || "") as string,
-          });
-          setIsLoadingBank(false);
-          return;
-        }
-      } catch {
-        // continue
-      }
+  const setActiveTab = (next: FinanceTab) => { setTab(next); setSelectedId(null); };
 
-      setPayoutBankInfo(null);
-      setIsLoadingBank(false);
-    };
-    loadBank();
-  }, [selectedPayout, organizerNames]);
+  return <div className="finance-theme space-y-6 bg-[#f2f6ff] px-4 py-5 text-[#101c48] sm:px-6 lg:px-8 [&_.app-bg-card]:!bg-white [&_.app-border]:!border-[#dce6f8] [&_.app-text-main]:!text-[#101c48]">
+    <header><h1 className="text-2xl font-bold app-text-main">Quản lý tài chính</h1><p className="mt-1 text-sm text-slate-500">Theo dõi yêu cầu thanh toán và trạng thái xử lý từ dữ liệu hệ thống.</p></header>
+    <nav aria-label="Các mục tài chính" className="flex gap-1 overflow-x-auto border-b app-border">{tabs.map((item) => <button key={item.id} onClick={() => setActiveTab(item.id)} className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold ${tab === item.id ? "border-[#005cff] text-[#005cff]" : "border-transparent text-slate-500 hover:text-slate-800"}`}>{item.label}</button>)}</nav>
 
-  const handleApprove = async () => {
-    if (!selectedPayout) return;
-    try {
-      setIsApproving(true);
-      await payoutApi.approvePayout(selectedPayout.id);
-      const shortId = selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0] : selectedPayout.id.slice(0, 8);
-      toast.success(`${t("Phê duyệt thành công mã")} ${shortId}. ${t("Đã giải ngân cho BTC.")}`);
-      setPayoutModalOpen(false);
-      setSelectedPayout(null);
-      fetchAllPayouts();
-      window.dispatchEvent(new Event("approval-events-updated"));
-    } catch {
-      toast.error(t("Có lỗi xảy ra khi phê duyệt lệnh."));
-    } finally {
-      setIsApproving(false);
-    }
-  };
-
-  const handleOpenDispute = (payout: PayoutResponse) => {
-    setTargetDisputePayout(payout);
-    setDisputeReason("Cần rà soát và đối chiếu thêm số liệu vé hoàn của sự kiện trước khi thanh toán.");
-    setDisputeModalOpen(true);
-  };
-
-  const handleConfirmDispute = async () => {
-    if (!targetDisputePayout) return;
-    try {
-      setIsDisputing(true);
-      await payoutApi.disputePayout(targetDisputePayout.id, disputeReason);
-      toast.success(t("Đã chuyển lệnh đối soát sang trạng thái Tranh chấp / Tạm hoãn."));
-      setDisputeModalOpen(false);
-      setTargetDisputePayout(null);
-      fetchAllPayouts();
-    } catch {
-      toast.error(t("Không thể cập nhật trạng thái tranh chấp."));
-    } finally {
-      setIsDisputing(false);
-    }
-  };
-
-  const handleReopenPayout = async (payoutId: string) => {
-    try {
-      await payoutApi.reopenPayout(payoutId);
-      toast.success(t("Đã mở lại lệnh đối soát (Chuyển về Chờ duyệt)."));
-      fetchAllPayouts();
-    } catch {
-      toast.error(t("Không thể mở lại lệnh đối soát."));
-    }
-  };
-
-  // base status lists
-  const pendingPayouts = allPayouts.filter(p => p.status === 'PENDING');
-  const completedPayouts = allPayouts.filter(p => p.status === 'COMPLETED');
-  const disputePayouts = allPayouts.filter(p => p.status === 'DISPUTE');
-
-  // universal Filter & Search function
-  const filterList = (list: PayoutResponse[]) => {
-    return list.filter(p => {
-      // 1. search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const orgName = (organizerNames[p.organizerUserId] || "").toLowerCase();
-        const evName = (eventTitles[p.eventId] || p.eventId).toLowerCase();
-        const matchId = p.id.toLowerCase().includes(q);
-        const matchEvent = evName.includes(q) || p.eventId.toLowerCase().includes(q);
-        const matchOrg = orgName.includes(q);
-        if (!matchId && !matchEvent && !matchOrg) return false;
-      }
-
-      // 2. gross revenue range filter
-      if (filterGross === 'UNDER_100M' && p.grossAmount >= 100_000_000) return false;
-      if (filterGross === '100M_500M' && (p.grossAmount < 100_000_000 || p.grossAmount > 500_000_000)) return false;
-      if (filterGross === 'ABOVE_500M' && p.grossAmount <= 500_000_000) return false;
-
-      // 3. date filter
-      if (filterDate !== 'ALL') {
-        const date = new Date(p.createdAt);
-        const now = new Date();
-        if (filterDate === 'TODAY') {
-          if (date.toDateString() !== now.toDateString()) return false;
-        } else if (filterDate === 'WEEK') {
-          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          if (date < oneWeekAgo) return false;
-        } else if (filterDate === 'MONTH') {
-          const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          if (date < oneMonthAgo) return false;
-        }
-      }
-
-      return true;
-    });
-  };
-
-  // sort newest first
-  const filteredPending = filterList(pendingPayouts).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  const filteredCompleted = filterList(completedPayouts).sort((a, b) => new Date(b.transferredAt || b.createdAt || 0).getTime() - new Date(a.transferredAt || a.createdAt || 0).getTime());
-  const filteredDispute = filterList(disputePayouts).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
-  // current tab items & pagination
-  const currentTabItems = activeTab === 'PENDING' ? filteredPending : activeTab === 'COMPLETED' ? filteredCompleted : filteredDispute;
-  const totalPages = Math.ceil(currentTabItems.length / pageSize) || 1;
-  const paginatedItems = currentTabItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // stats calculation
-  const totalGross = allPayouts.reduce((sum, p) => sum + p.grossAmount, 0);
-  const totalEscrow = pendingPayouts.reduce((sum, p) => sum + p.netAmount, 0);
-  const totalPaid = completedPayouts.reduce((sum, p) => sum + p.netAmount, 0);
-  const totalFee = allPayouts.reduce((sum, p) => sum + p.platformFee, 0);
-
-  // dynamic Cash Flow percentages
-  const escrowPercent = totalGross > 0 ? Math.round((totalEscrow / totalGross) * 100) : 0;
-  const paidPercent = totalGross > 0 ? Math.round((totalPaid / totalGross) * 100) : 0;
-  const feePercent = totalGross > 0 ? Math.max(0, 100 - escrowPercent - paidPercent) : 0;
-
-  const stats = [
-    { title: t("Tổng Doanh Thu (Gross)"), value: `${totalGross.toLocaleString('vi-VN')}đ`, subtext: t("Tổng tiền vé bán được"), icon: <FiDollarSign className="w-4 h-4 text-emerald-500" />, iconBgColor: "bg-emerald-500/10", valueColor: "text-emerald-600 dark:text-emerald-400" },
-    { title: t("Tiền Tạm Giữ (Escrow)"), value: `${totalEscrow.toLocaleString('vi-VN')}đ`, subtext: `${t("Chưa giải ngân")}: ${escrowPercent}%`, icon: <FiClock className="w-4 h-4 text-amber-500" />, iconBgColor: "bg-amber-500/10", valueColor: "text-amber-600 dark:text-amber-400" },
-    { title: t("Tổng Hoa Hồng (Net Rev)"), value: `${totalFee.toLocaleString('vi-VN')}đ`, subtext: `${t("Doanh thu ròng sàn")}: ${feePercent}%`, icon: <FiCheckCircle className="w-4 h-4 text-blue-500" />, iconBgColor: "bg-blue-500/10", valueColor: "text-blue-600 dark:text-blue-400" },
-    { title: t("Lệnh Chờ Duyệt"), value: pendingPayouts.length.toString(), subtext: t("Cần kế toán xử lý"), icon: <FiAlertTriangle className="w-4 h-4 text-rose-500" />, iconBgColor: "bg-rose-500/10", valueColor: "text-rose-600 dark:text-rose-400" },
-  ];
-
-  const [isExporting, setIsExporting] = useState(false);
-
-  // export Excel (.xlsx) function
-  const handleExportExcel = async () => {
-    if (currentTabItems.length === 0) {
-      toast.error(t("Không có dữ liệu để xuất báo cáo."));
-      return;
-    }
-
-    try {
-      setIsExporting(true);
-      const XLSX = await import("xlsx");
-      
-      const exportData = currentTabItems.map((item, idx) => {
-        const displayEvent = eventTitles[item.eventId] || item.eventId;
-        const org = organizerNames[item.organizerUserId] || "Ban Tổ Chức Halo";
-        const statusLabel = item.status === 'COMPLETED' ? t("Đã thanh toán") : item.status === 'DISPUTE' ? t("Tranh chấp") : t("Chờ duyệt");
-        const created = new Date(item.createdAt).toLocaleString("vi-VN");
-        const transferred = item.transferredAt ? new Date(item.transferredAt).toLocaleString("vi-VN") : "---";
-
-        return {
-          "STT": idx + 1,
-          [t("Mã đối soát")]: item.id,
-          [t("Tên sự kiện")]: displayEvent,
-          [t("Ban tổ chức")]: org,
-          [t("Tổng thu (Gross) VNĐ")]: item.grossAmount,
-          [t("Phí nền tảng VNĐ")]: item.platformFee,
-          [t("Thực nhận (Net) VNĐ")]: item.netAmount,
-          [t("Trạng thái")]: statusLabel,
-          [t("Ngày tạo")]: created,
-          [t("Ngày hoàn tất")]: transferred,
-        };
-      });
-
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-
-      // auto column widths
-      worksheet["!cols"] = [
-        { wch: 6 },  // STT
-        { wch: 22 }, // Mã đối soát
-        { wch: 38 }, // Tên sự kiện
-        { wch: 28 }, // Ban tổ chức
-        { wch: 20 }, // Tổng thu
-        { wch: 18 }, // Phí nền tảng
-        { wch: 20 }, // Thực nhận
-        { wch: 16 }, // Trạng thái
-        { wch: 22 }, // Ngày tạo
-        { wch: 22 }, // Ngày hoàn tất
-      ];
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "DoiSoat");
-
-      const nowStr = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(workbook, `HaloTicket_BaoCao_DoiSoat_${activeTab}_${nowStr}.xlsx`);
-      toast.success(t("Đã xuất file báo cáo Excel (.xlsx) thành công!"));
-    } catch (err) {
-      console.error("Export Excel error:", err);
-      toast.error(t("Có lỗi xảy ra khi xuất file Excel."));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  // export CSV function with UTF-8 BOM
-  const handleExportCSV = () => {
-    if (currentTabItems.length === 0) {
-      toast.error(t("Không có dữ liệu để xuất báo cáo."));
-      return;
-    }
-    
-    const headers = [
-      t("Mã đối soát"),
-      t("Tên sự kiện"),
-      t("Ban tổ chức"),
-      t("Tổng thu (Gross) VNĐ"),
-      t("Phí nền tảng VNĐ"),
-      t("Thực nhận (Net) VNĐ"),
-      t("Trạng thái"),
-      t("Ngày tạo"),
-      t("Ngày hoàn tất")
-    ];
-
-    const rows = currentTabItems.map(item => {
-      const displayEvent = eventTitles[item.eventId] || item.eventId;
-      const org = organizerNames[item.organizerUserId] || "Ban Tổ Chức Halo";
-      const statusLabel = item.status === 'COMPLETED' ? t("Đã thanh toán") : item.status === 'DISPUTE' ? t("Tranh chấp") : t("Chờ duyệt");
-      const created = new Date(item.createdAt).toLocaleString("vi-VN");
-      const transferred = item.transferredAt ? new Date(item.transferredAt).toLocaleString("vi-VN") : "---";
-
-      return [
-        `"${item.id}"`,
-        `"${displayEvent.replace(/"/g, '""')}"`,
-        `"${org.replace(/"/g, '""')}"`,
-        item.grossAmount,
-        item.platformFee,
-        item.netAmount,
-        `"${statusLabel}"`,
-        `"${created}"`,
-        `"${transferred}"`
-      ].join(",");
-    });
-
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const nowStr = new Date().toISOString().slice(0, 10);
-    a.href = url;
-    a.download = `HaloTicket_BaoCao_DoiSoat_${activeTab}_${nowStr}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success(t("Đã xuất file báo cáo đối soát thành công!"));
-  };
-
-  return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title={t("Quản Lý Tài Chính & Đối Soát")}
-        description={t("Giám sát dòng tiền vào (Gross), tiền ký quỹ (Escrow), doanh thu nền tảng và phê duyệt các lệnh thanh toán (Payout) cho Ban tổ chức.")}
-        actions={
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Export Dropdown (Excel & CSV) */}
-            <div className="relative group">
-              <button 
-                type="button"
-                disabled={isExporting}
-                className="inline-flex items-center min-h-9.5 gap-2 px-3 text-xs font-semibold rounded-md border app-border app-bg-card hover:bg-slate-50 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer shadow-xs disabled:opacity-60"
-                title={t("Xuất danh sách đối soát")}
-              >
-                <FiDownload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>{isExporting ? t("Đang xuất…") : t("Xuất báo cáo")}</span>
-                <FiChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-              <div className="absolute top-10 right-0 z-30 hidden min-w-44 rounded-lg border app-border app-bg-card p-1.5 shadow-xl group-focus-within:block group-hover:block animate-in fade-in duration-150">
-                <button
-                  type="button"
-                  onClick={handleExportExcel}
-                  className="flex items-center gap-2 min-h-9.5 w-full rounded-md px-2.5 text-left text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
-                >
-                  <FiFileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>{t("Xuất Excel (.xlsx)")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExportCSV}
-                  className="flex items-center gap-2 min-h-8.5 w-full rounded-md px-2.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <FiDownload className="w-4 h-4 text-slate-500" />
-                  <span>{t("Xuất CSV (.csv)")}</span>
-                </button>
-              </div>
-            </div>
-            <button 
-              onClick={fetchAllPayouts}
-              className="inline-flex items-center min-h-9 gap-1.5 px-3.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer shadow-xs"
-            >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              <span>{t("Làm mới dữ liệu")}</span>
-            </button>
+    {selected && tab === "requests" ? <DetailPanel key={selected.id} payout={selected} event={eventsById[selected.eventId]} onBack={() => setSelectedId(null)} onRefresh={() => { void load(); }} /> : <>
+      {tab === "overview" && <FinanceOverview onOpenQueue={(nextStatus) => { setStatus(payoutStatusGroup(nextStatus)); setTab("requests"); }} />}
+      {tab === "requests" && <section className="overflow-hidden rounded-2xl border app-border bg-white">
+        <div className="flex flex-col gap-3 border-b app-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><div><h2 className="text-lg font-bold app-text-main">Yêu cầu rút tiền</h2><p className="mt-1 text-sm text-slate-500">{filtered.length} kết quả phù hợp</p></div><button onClick={() => void load()} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-lg border app-border px-3 py-2 text-sm font-semibold app-text-main disabled:opacity-50"><FiRefreshCw className={loading ? "animate-spin" : ""} /> Làm mới</button></div>
+        <div className="border-b app-border px-4 pt-3"><div className="flex flex-wrap gap-1" role="tablist" aria-label="Lọc theo trạng thái">{[{ key: "ALL", label: "Tất cả", count: payouts.length }, { key: "PENDING", label: statusLabels.PENDING, count: payouts.filter((item) => item.status === "PENDING").length }, { key: "PROCESSING", label: payoutStatusGroups.PROCESSING, count: payouts.filter((item) => payoutStatusGroup(item.status) === "PROCESSING").length }, { key: "COMPLETED", label: payoutStatusGroups.COMPLETED, count: payouts.filter((item) => item.status === "COMPLETED").length }].map((item) => <button type="button" role="tab" aria-selected={status === item.key} key={item.key} onClick={() => setStatus(item.key as StatusFilter)} className={`border-b-2 px-3 py-2 text-xs font-semibold ${status === item.key ? "border-[#005cff] text-[#005cff]" : "border-transparent text-slate-500 hover:text-[#101c48]"}`}><span>{item.label}</span><span className={`ml-2 rounded-full px-1.5 py-0.5 ${status === item.key ? "bg-[#edf3ff] text-[#005cff]" : "bg-slate-100 text-slate-600"}`}>{item.count}</span></button>)}</div></div>
+        <div className="border-b app-border p-4">
+          <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_200px_auto]">
+            <label className="min-w-0 text-xs text-slate-500 sm:col-span-2 xl:col-span-1">Tìm yêu cầu<div className="relative mt-1"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input aria-label="Tìm yêu cầu" value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm mã, sự kiện, BTC" className="h-11 w-full rounded-lg border app-border bg-white pl-9 pr-3 text-sm app-text-main" /></div></label>
+            <label className="text-xs text-slate-500">Trạng thái<select aria-label="Lọc trạng thái yêu cầu" value={status} onChange={event => setStatus(event.target.value as StatusFilter)} className="mt-1 h-11 w-full rounded-lg border app-border bg-white px-3 text-sm app-text-main"><option value="ALL">Tất cả trạng thái</option>{Object.entries(payoutStatusGroups).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+            <button type="button" onClick={() => { setStatus("ALL"); setQuery(""); setFromDate(""); setToDate(""); setMinAmount(""); setMaxAmount(""); }} className="h-11 rounded-lg border app-border px-3 text-sm font-semibold text-[#005cff] hover:bg-blue-50">Xóa bộ lọc</button>
           </div>
-        }
-      />
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s, idx) => (
-          <AdminStatCard key={idx} {...s} />
-        ))}
-      </div>
-
-      {/* Biểu đồ Dòng Tiền Ký Quỹ Tính Toán Động 100% */}
-      <div className="app-bg-card border app-border rounded-xl shadow-xs p-5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 dark:bg-blue-500/10 rounded-bl-full blur-2xl pointer-events-none"></div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <h3 className="font-bold text-sm app-text-main flex items-center gap-2">
-            <FiDollarSign className="w-4 h-4 text-emerald-500" />
-            {t("Cơ Cấu Dòng Tiền Toàn Hệ Thống (Platform Cash Flow)")}
-          </h3>
-          <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
-            * {t("Phí nền tảng sơ cấp mặc định")}: {primaryTotalFee}% ({t("Cổng TT")}: {primaryGatewayFee}% | Net: {primaryPlatformFee}%)
-          </span>
+          <details className="mt-3 text-sm"><summary className="w-fit cursor-pointer py-1 text-xs font-semibold text-[#005cff]">Bộ lọc nâng cao</summary><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[{ label: "Từ ngày", type: "date", value: fromDate, set: setFromDate }, { label: "Đến ngày", type: "date", value: toDate, set: setToDate }, { label: "Từ tiền", type: "number", value: minAmount, set: setMinAmount }, { label: "Đến tiền", type: "number", value: maxAmount, set: setMaxAmount }].map(field => <label key={field.label} className="text-xs text-slate-500">{field.label}<input aria-label={field.label} type={field.type} min={field.type === "number" ? "0" : undefined} value={field.value} onChange={event => field.set(event.target.value)} className="mt-1 h-11 w-full rounded-lg border app-border bg-white px-3 text-sm app-text-main" /></label>)}</div></details>
         </div>
-
-        {/* Dynamic Progress Bar */}
-        <div className="flex h-3.5 w-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border app-border shadow-inner">
-          <div 
-            className="bg-gradient-to-r from-amber-400 to-amber-500 relative group cursor-pointer transition-all duration-500 hover:brightness-110" 
-            style={{ width: `${escrowPercent}%` }}
-          >
-            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-800 text-white text-[10px] font-bold rounded shadow-lg transition-opacity whitespace-nowrap z-10">
-              {t("Tạm giữ (Escrow)")}: {escrowPercent}% ({totalEscrow.toLocaleString('vi-VN')}đ)
-            </div>
-          </div>
-          <div 
-            className="bg-gradient-to-r from-emerald-400 to-emerald-500 relative group cursor-pointer transition-all duration-500 hover:brightness-110" 
-            style={{ width: `${paidPercent}%` }}
-          >
-            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-800 text-white text-[10px] font-bold rounded shadow-lg transition-opacity whitespace-nowrap z-10">
-              {t("Đã giải ngân")}: {paidPercent}% ({totalPaid.toLocaleString('vi-VN')}đ)
-            </div>
-          </div>
-          <div 
-            className="bg-gradient-to-r from-blue-500 to-indigo-500 relative group cursor-pointer transition-all duration-500 hover:brightness-110" 
-            style={{ width: `${feePercent}%` }}
-          >
-            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 right-0 px-2.5 py-1 bg-slate-800 text-white text-[10px] font-bold rounded shadow-lg transition-opacity whitespace-nowrap z-10">
-              {t("Hoa hồng (Net)")}: {feePercent}% ({totalFee.toLocaleString('vi-VN')}đ)
-            </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-6 mt-4 flex-wrap text-[11px]">
-          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300">
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div> 
-            {t("Đang tạm giữ (Escrow)")}: <span className="font-mono text-amber-600 dark:text-amber-400">{escrowPercent}% ({totalEscrow.toLocaleString('vi-VN')}đ)</span>
-          </div>
-          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div> 
-            {t("Đã giải ngân (Payout)")}: <span className="font-mono text-emerald-600 dark:text-emerald-400">{paidPercent}% ({totalPaid.toLocaleString('vi-VN')}đ)</span>
-          </div>
-          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div> 
-            {t("Hoa hồng nền tảng (Net Rev)")}: <span className="font-mono text-blue-600 dark:text-blue-400">{feePercent}% ({totalFee.toLocaleString('vi-VN')}đ)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Cấu Hình & Bóc Tách % Phí Nền Tảng (Collapsible Card Tinh Tế) */}
-      <div className="app-bg-card border app-border rounded-xl shadow-xs transition-all overflow-hidden">
-        <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 app-bg-subnav">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-600 text-white">
-              {t("Thị Trường Sơ Cấp")}
-            </span>
-            <div className="flex items-center gap-2">
-              <FiSliders className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <h3 className="font-bold text-sm app-text-main">
-                {t("Cơ Chế Bóc Tách % Phí Nền Tảng")}
-              </h3>
-            </div>
-            <span className="text-xs text-slate-500 font-medium hidden md:inline">
-              • {t("Tổng thu")}: <strong className="app-text-main">{primaryTotalFee}%</strong> ({t("Cổng TT")}: {primaryGatewayFee}% | Net: {primaryPlatformFee}%)
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {isFeeConfigExpanded && (
-              <button 
-                type="button"
-                disabled={isSavingFee}
-                onClick={handleSaveFeeConfig}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-              >
-                <FiSave className="w-3.5 h-3.5" />
-                <span>{isSavingFee ? t("Đang lưu...") : t("Lưu Cấu Hình")}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsFeeConfigExpanded(!isFeeConfigExpanded)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 border app-border rounded-lg bg-white dark:bg-zinc-800 text-xs font-semibold app-text-main hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-            >
-              <span>{isFeeConfigExpanded ? t("Thu gọn") : t("Tùy chỉnh tỷ lệ")}</span>
-              {isFeeConfigExpanded ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-
-        {isFeeConfigExpanded && (
-          <div className="p-5 border-t app-border space-y-4 animate-in fade-in duration-200">
-            <p className="text-xs app-text-muted">
-              {t("Minh bạch cơ cấu phân bổ giữa phí cổng thanh toán đối tác và doanh thu ròng của HaloTicket cho thị trường vé sơ cấp.")}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 1. Tổng phí thu */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border app-border space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("Tổng Phí Thu")}</label>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                    {t("Khuyến nghị")}: 5% – 6%
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="number" 
-                    step="0.1" 
-                    min="1" 
-                    max="20"
-                    value={primaryTotalFee}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setPrimaryTotalFee(val);
-                      setPrimaryPlatformFee(Math.max(0, Number((val - primaryGatewayFee).toFixed(1))));
-                    }}
-                    className="w-full text-base font-black p-2 rounded-lg border app-border app-text-main bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  />
-                  <span className="text-sm font-bold app-text-muted">%</span>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  {t("Tính trên tổng giá trị đơn hàng vé mới.")}
-                </p>
-              </div>
-
-              {/* 2. Cổng thanh toán */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border app-border space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("Cổng Thanh Toán Đối Tác")}</label>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                    1.5% – 2.0%
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="number" 
-                    step="0.1" 
-                    min="0.5" 
-                    max="5"
-                    value={primaryGatewayFee}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setPrimaryGatewayFee(val);
-                      setPrimaryPlatformFee(Math.max(0, Number((primaryTotalFee - val).toFixed(1))));
-                    }}
-                    className="w-full text-base font-black p-2 rounded-lg border app-border app-text-main bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  />
-                  <span className="text-sm font-bold app-text-muted">%</span>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  {t("Chi trả trực tiếp VNPAY / VietQR / SePay.")}
-                </p>
-              </div>
-
-              {/* 3. Doanh thu ròng HaloTicket */}
-              <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-900/20 border border-blue-200/80 dark:border-blue-800/80 space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">{t("Doanh Thu Ròng (Net Rev)")}</label>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                    3.5% – 4.0%
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-full text-base font-black p-2 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400">
-                    {primaryPlatformFee}%
-                  </div>
-                  <span className="text-sm font-bold app-text-muted">%</span>
-                </div>
-                <p className="text-[11px] text-blue-600/80 dark:text-blue-300/80">
-                  {t("Phần giữ lại sau khi đối soát trừ chi phí cổng TT.")}
-                </p>
-              </div>
-            </div>
-
-            {/* Collection Method */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/30 border app-border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-              <div className="space-y-1">
-                <span className="font-bold text-slate-600 dark:text-slate-300 text-[11px] block">{t("Hình thức thu phí:")}</span>
-                <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="primaryFeePayer" 
-                      checked={primaryFeePayer === 'ORGANIZER_DEDUCT'}
-                      onChange={() => setPrimaryFeePayer('ORGANIZER_DEDUCT')}
-                      className="text-blue-600"
-                    />
-                    <span className="font-medium text-slate-700 dark:text-slate-200">{t("Trừ thẳng vào tiền quyết toán trả về BTC sau sự kiện (Mặc định)")}</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="primaryFeePayer" 
-                      checked={primaryFeePayer === 'BUYER_PAYS'}
-                      onChange={() => setPrimaryFeePayer('BUYER_PAYS')}
-                      className="text-blue-600"
-                    />
-                    <span className="font-medium text-slate-700 dark:text-slate-200">{t("Cho phép BTC cấu hình 'Người mua chịu phí' (Buyer pays fee)")}</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 shrink-0 font-medium">
-                <FiShield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>{t("Sự kiện miễn phí: 0% (Hỗ trợ cộng đồng & sinh viên)")}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main Content Area */}
-      <div className="app-bg-card border app-border rounded-xl shadow-xs overflow-hidden flex flex-col">
-        {/* Tabs with Badges */}
-        <div className="flex items-center border-b app-border px-2 pt-2 overflow-x-auto no-scrollbar">
-          <button 
-            onClick={() => { setActiveTab('PENDING'); setCurrentPage(1); }}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer shrink-0 ${activeTab === 'PENDING' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-          >
-            <span>{t("Chờ Đối Soát")}</span>
-            <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold transition-all ${
-              activeTab === 'PENDING' 
-                ? 'bg-amber-500 text-white shadow-xs' 
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}>
-              {pendingPayouts.length}
-            </span>
-          </button>
-          
-          <button 
-            onClick={() => { setActiveTab('COMPLETED'); setCurrentPage(1); }}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer shrink-0 ${activeTab === 'COMPLETED' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-          >
-            <span>{t("Đã Thanh Toán")}</span>
-            <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold transition-all ${
-              activeTab === 'COMPLETED' 
-                ? 'bg-emerald-500 text-white shadow-xs' 
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}>
-              {completedPayouts.length}
-            </span>
-          </button>
-
-          <button 
-            onClick={() => { setActiveTab('DISPUTE'); setCurrentPage(1); }}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer shrink-0 ${activeTab === 'DISPUTE' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-          >
-            <FiAlertTriangle className="w-3.5 h-3.5" />
-            <span>{t("Tranh chấp / Hoàn tiền")}</span>
-            <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold transition-all ${
-              activeTab === 'DISPUTE' 
-                ? 'bg-rose-500 text-white shadow-xs' 
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}>
-              {disputePayouts.length}
-            </span>
-          </button>
-        </div>
-
-        {/* Toolbar: Search & Gross Filter & Date Filter */}
-        <div className="p-4 border-b app-border flex flex-col sm:flex-row items-center justify-between gap-4 app-bg-subnav">
-          <div className="relative w-full sm:w-72">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder={t("Tìm tên sự kiện, mã đối soát, BTC...")}
-              className="w-full pl-9 pr-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-[#1E1E20] focus:bg-white dark:focus:bg-[#171719] outline-none focus:border-blue-500 transition-colors app-text-main" 
-            />
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Filter by Gross revenue range */}
-            <div className="w-44">
-              <CustomSelect 
-                options={[
-                  { value: 'ALL', label: t('Tất cả mức thu') },
-                  { value: 'UNDER_100M', label: t('< 100 triệu') },
-                  { value: '100M_500M', label: t('100 - 500 triệu') },
-                  { value: 'ABOVE_500M', label: t('> 500 triệu') }
-                ]}
-                value={filterGross}
-                onChange={(val) => { setFilterGross(val); setCurrentPage(1); }}
-                placeholder={t("Khoảng Tổng thu")}
-              />
-            </div>
-
-            {/* Filter by Date */}
-            <div className="w-36">
-              <CustomSelect 
-                options={[
-                  { value: 'ALL', label: t('Mọi thời gian') },
-                  { value: 'TODAY', label: t('Hôm nay') },
-                  { value: 'WEEK', label: t('Tuần này') },
-                  { value: 'MONTH', label: t('Tháng này') }
-                ]}
-                value={filterDate}
-                onChange={(val) => { setFilterDate(val); setCurrentPage(1); }}
-                placeholder={t("Thời gian")}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Table Area */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/40 border-b app-border text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="px-4 py-3">{t("Mã đối soát")}</th>
-                <th className="px-4 py-3">{t("Sự kiện & BTC")}</th>
-                <th className="px-4 py-3 text-right">{t("Tổng thu (Gross)")}</th>
-                <th className="px-4 py-3 text-right">{t("Phí nền tảng")}</th>
-                <th className="px-4 py-3 text-right">{t("Thực nhận (Net Payout)")}</th>
-                <th className="px-4 py-3 text-center">{t("Thao tác")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-xs app-text-main font-medium">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500 text-sm">
-                    <FiLoader className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    {t("Đang tải dữ liệu...")}
-                  </td>
-                </tr>
-              ) : paginatedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500 text-sm">
-                    {searchQuery || filterGross !== 'ALL' || filterDate !== 'ALL'
-                      ? t("Không tìm thấy lệnh đối soát nào phù hợp với bộ lọc.")
-                      : (activeTab === 'PENDING' ? t("Không có lệnh chờ đối soát nào.") : activeTab === 'COMPLETED' ? t("Không có lệnh đã thanh toán nào.") : t("Chưa có dữ liệu tranh chấp hoặc hoàn tiền."))}
-                  </td>
-                </tr>
-              ) : (
-                paginatedItems.map(item => {
-                  const displayCode = item.id.includes('-') ? item.id.split('-')[0] : item.id.slice(0, 8);
-                  const organizerDisplay = organizerNames[item.organizerUserId] || "Ban Tổ Chức Halo";
-                  const eventDisplay = eventTitles[item.eventId] || item.eventId;
-
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      {/* Mã đối soát */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span 
-                            className={`font-mono font-bold truncate max-w-[120px] ${
-                              item.status === 'COMPLETED' 
-                                ? 'text-emerald-600 dark:text-emerald-400' 
-                                : item.status === 'DISPUTE'
-                                ? 'text-rose-600 dark:text-rose-400'
-                                : 'text-blue-600 dark:text-blue-400'
-                            }`} 
-                            title={item.id}
-                          >
-                            {displayCode}
-                          </span>
-                          {item.status === 'PENDING' && (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-100 dark:border-amber-900/30 shrink-0">
-                              <span className="relative flex h-1.5 w-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-                              </span>
-                              {t("Chờ duyệt")}
-                            </span>
-                          )}
-                          {item.status === 'COMPLETED' && (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-100 dark:border-emerald-900/30 shrink-0">
-                              <FiCheckCircle className="w-3 h-3" />
-                              {t("Đã thanh toán")}
-                            </span>
-                          )}
-                          {item.status === 'DISPUTE' && (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold border border-rose-100 dark:border-rose-900/30 shrink-0">
-                              <FiAlertTriangle className="w-3 h-3" />
-                              {t("Tranh chấp")}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-500 font-medium">
-                          {item.status === 'COMPLETED' 
-                            ? `${t("Hoàn tất")}: ${new Date(item.transferredAt || item.updatedAt).toLocaleDateString('vi-VN')}`
-                            : `${t("Tạo lúc")}: ${new Date(item.createdAt).toLocaleDateString('vi-VN')}`}
-                        </p>
-                      </td>
-
-                      {/* Sự kiện & Tên Ban Tổ Chức (Hiển thị Tên Sự Kiện Rõ Ràng) */}
-                      <td className="px-4 py-4 max-w-xs">
-                        <div className="flex items-center gap-1.5 mb-1 min-w-0">
-                          <FiCalendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate" title={eventDisplay}>
-                            {eventDisplay}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-600 dark:text-slate-300 uppercase shrink-0">
-                            {organizerDisplay.substring(0, 1)}
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[220px]" title={organizerDisplay}>
-                            {organizerDisplay}
-                          </p>
-                        </div>
-
-                        {/* Dispute reason if flagged */}
-                        {item.status === 'DISPUTE' && item.disputeReason && (
-                          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-1 rounded border border-rose-200 dark:border-rose-900/50 font-medium">
-                            <FiAlertTriangle className="w-3 h-3 shrink-0" />
-                            <span className="truncate" title={item.disputeReason}>
-                              {item.disputeReason}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Tổng thu */}
-                      <td className="px-4 py-3 text-right">
-                        <p className="font-semibold text-slate-800 dark:text-slate-200">{item.grossAmount.toLocaleString('vi-VN')}đ</p>
-                      </td>
-
-                      {/* Phí nền tảng */}
-                      <td className="px-4 py-3 text-right text-rose-600 dark:text-rose-400 font-medium">
-                        <p>-{item.platformFee.toLocaleString('vi-VN')}đ</p>
-                        <p className="text-[10px] opacity-75">{t("Cắt")} {primaryTotalFee}%</p>
-                      </td>
-
-                      {/* Thực nhận */}
-                      <td className="px-4 py-4 text-right">
-                        {item.status === 'PENDING' ? (
-                          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 inline-block text-right min-w-[120px]">
-                            <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm mb-0.5">{item.netAmount.toLocaleString('vi-VN')}đ</p>
-                            <p className="text-[9px] font-bold text-emerald-700/60 dark:text-emerald-400/60 uppercase">{t("Net Transfer")}</p>
-                          </div>
-                        ) : (
-                          <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">{item.netAmount.toLocaleString('vi-VN')}đ</p>
-                        )}
-                      </td>
-
-                      {/* Thao tác */}
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                          {item.status === 'PENDING' && (
-                            <>
-                              <button 
-                                onClick={() => { setSelectedPayout(item); setPayoutModalOpen(true); }}
-                                className="inline-flex items-center min-h-8 gap-1.5 px-3 text-[11px] font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer shadow-xs"
-                              >
-                                <FiCheck className="w-3.5 h-3.5" /> 
-                                <span>{t("Duyệt Payout")}</span>
-                              </button>
-                              <button 
-                                onClick={() => handleOpenDispute(item)}
-                                className="inline-flex items-center min-h-9.5 gap-1 px-3 text-[11px] font-medium rounded-md border border-amber-300 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors cursor-pointer"
-                                title={t("Tạm hoãn và chuyển sang Tranh chấp để rà soát")}
-                              >
-                                <FiAlertTriangle className="w-3 h-3" />
-                                <span>{t("Tạm hoãn")}</span>
-                              </button>
-                            </>
-                          )}
-
-                          {item.status === 'COMPLETED' && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center min-h-8 gap-1 px-2.5 text-[11px] font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 select-none">
-                                <FiCheck className="w-3.5 h-3.5" /> {t("Đã Duyệt")}
-                              </span>
-                              <button
-                                onClick={() => { setSelectedPayout(item); setPayoutModalOpen(true); }}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                                title={t("Xem chi tiết & mã QR")}
-                              >
-                                <FiEye className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-
-                          {item.status === 'DISPUTE' && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center min-h-8 gap-1 px-2 text-[11px] font-bold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 select-none">
-                                <FiAlertTriangle className="w-3.5 h-3.5" /> {t("Đang giữ")}
-                              </span>
-                              <button
-                                onClick={() => handleReopenPayout(item.id)}
-                                className="inline-flex items-center min-h-8 gap-1 px-2.5 text-[11px] font-semibold rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
-                                title={t("Mở lại lệnh đối soát sang Chờ duyệt")}
-                              >
-                                <FiRotateCcw className="w-3 h-3" />
-                                <span>{t("Mở lại")}</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Table Pagination */}
-        <div className="p-4 border-t app-border">
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={currentTabItems.length}
-            pageSize={pageSize}
-            onPageChange={(page) => setCurrentPage(page)}
-            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-          />
-        </div>
-      </div>
-
-      {/* Confirmation Modal for Payout Approval */}
-      {payoutModalOpen && selectedPayout && (
-        <AdminConfirmModal
-          onClose={() => setPayoutModalOpen(false)}
-          onConfirm={selectedPayout.status === 'PENDING' ? handleApprove : () => setPayoutModalOpen(false)}
-          title={selectedPayout.status === 'PENDING' ? t("Duyệt & Giải Ngân Lệnh Tất Toán (Payout)") : t("Chi Tiết Lệnh Đối Soát Đã Hoàn Tất")}
-          subtitle={`${t("Phê duyệt lệnh đối soát")} #${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()} • ${t("Giải ngân quỹ Escrow sang tài khoản Ban tổ chức")}`}
-          confirmText={selectedPayout.status === 'PENDING' ? (isApproving ? t("Đang xử lý...") : t("Xác nhận đã chuyển & Hoàn tất")) : t("Đóng")}
-          cancelText={selectedPayout.status === 'PENDING' ? t("Đóng") : undefined}
-          isDanger={false}
-          pending={isApproving}
-          maxWidth="max-w-4xl"
-        >
-          <div className="mt-4 space-y-4">
-            {/* Event Name & Verification Badge */}
-            <div className="p-3 rounded-xl border border-blue-200/70 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/30 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <FiCalendar className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block">
-                    {t("Sự kiện đối soát")}
-                  </span>
-                  <strong className="text-sm font-bold app-text-main truncate block">
-                    {eventTitles[selectedPayout.eventId] || selectedPayout.eventId}
-                  </strong>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase bg-emerald-600 text-white shrink-0 flex items-center gap-1 shadow-2xs">
-                <FiCheckCircle className="w-3.5 h-3.5" />
-                {t("Escrow Hợp Lệ")}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              {/* Left Column: Beneficiary & Financial breakdown (7 cols) */}
-              <div className="lg:col-span-7 space-y-3.5">
-                {/* Beneficiary Box */}
-                <div className="p-4 rounded-xl border app-border bg-slate-50/70 dark:bg-slate-800/40 space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between border-b app-border pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                        {t("Tài khoản thụ hưởng BTC (Bước 5)")}
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
-                      Napas 24/7
-                    </span>
-                  </div>
-
-                  {isLoadingBank ? (
-                    <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-                      <FiLoader className="w-4 h-4 animate-spin text-blue-500" /> {t("Đang tải thông tin tài khoản ngân hàng...")}
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5 text-xs">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">{t("Chủ tài khoản:")}</span>
-                          <strong className="app-text-main font-bold text-sm block truncate" title={payoutBankInfo?.accountHolder}>
-                            {payoutBankInfo?.accountHolder || t("Đang cập nhật")}
-                          </strong>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-0.5">{t("Ngân hàng:")}</span>
-                          <strong className="app-text-main font-bold text-sm block truncate" title={payoutBankInfo?.bankName}>
-                            {payoutBankInfo?.bankName || t("Chưa thiết lập")}
-                            {payoutBankInfo?.bankBranch ? ` (${payoutBankInfo.bankBranch})` : ""}
-                          </strong>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-1">{t("Số tài khoản:")}</span>
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-zinc-900 border app-border">
-                          <span className="font-mono font-black text-base text-blue-600 dark:text-blue-400 tracking-wider">
-                            {payoutBankInfo?.accountNumber || "---"}
-                          </span>
-                          <button 
-                            type="button" 
-                            onClick={() => {
-                              if (payoutBankInfo?.accountNumber) {
-                                navigator.clipboard.writeText(payoutBankInfo.accountNumber);
-                                toast.success(t("Đã sao chép số tài khoản!"));
-                              }
-                            }}
-                            className="px-2.5 py-1 text-xs font-medium hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-800/60 flex items-center gap-1.5 cursor-pointer transition-colors"
-                            title={t("Sao chép STK")}
-                          >
-                            <FiCopy className="w-3.5 h-3.5" />
-                            <span>{t("Sao chép")}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Financial Settlement Breakdown */}
-                <div className="p-4 rounded-xl border app-border bg-slate-50/70 dark:bg-slate-800/40 space-y-2.5 shadow-2xs">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
-                    {t("Bóc tách đối soát tài chính")}
-                  </span>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                      <span>{t("Doanh thu bán vé (Gross):")}</span>
-                      <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedPayout.grossAmount.toLocaleString('vi-VN')}đ
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                      <span>
-                        {t("Phí nền tảng khấu trừ")}
-                        {selectedPayout.grossAmount > 0 && selectedPayout.platformFee 
-                          ? ` (${((selectedPayout.platformFee / selectedPayout.grossAmount) * 100).toFixed(0)}%)` 
-                          : ""}:
-                      </span>
-                      <span className="font-mono font-semibold text-rose-500">
-                        -{(selectedPayout.platformFee || 0).toLocaleString('vi-VN')}đ
-                      </span>
-                    </div>
-                    <div className="pt-2 border-t app-border flex items-center justify-between">
-                      <span className="font-bold app-text-main text-sm">{t("Thực nhận giải ngân (Net Payout):")}</span>
-                      <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-lg">
-                        {selectedPayout.netAmount.toLocaleString('vi-VN')}đ
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transfer Note (Memo) */}
-                <div className="p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wide">
-                      {t("Nội dung chuyển khoản (Memo)")}
-                    </span>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-500">{t("Bắt buộc để khớp lệnh")}</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white dark:bg-zinc-900 border app-border font-mono text-xs flex items-center justify-between font-bold">
-                    <span className="text-slate-800 dark:text-slate-200 select-all truncate">
-                      HALOTICKET PAYOUT {selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()}
-                    </span>
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        const note = `HALOTICKET PAYOUT ${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()}`;
-                        navigator.clipboard.writeText(note);
-                        toast.success(t("Đã sao chép nội dung chuyển khoản!"));
-                      }}
-                      className="px-2 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-600 dark:text-slate-300 flex items-center gap-1 cursor-pointer transition-colors shrink-0 ml-2"
-                      title={t("Sao chép nội dung CK")}
-                    >
-                      <FiCopy className="w-3.5 h-3.5" />
-                      <span>{t("Sao chép")}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Large VietQR Card (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col items-center">
-                {isLoadingBank ? (
-                  <div className="w-full h-64 rounded-2xl border app-border bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-xs text-slate-400">
-                    <FiLoader className="w-5 h-5 animate-spin mr-2" /> {t("Đang tải thông tin thanh toán...")}
-                  </div>
-                ) : payoutBankInfo?.accountNumber ? (
-                  <div className="w-full p-4 rounded-2xl border app-border bg-white dark:bg-zinc-900 shadow-md flex flex-col items-center text-center">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-xs font-black tracking-wide text-emerald-600 dark:text-emerald-400 uppercase">
-                        {t("Mã VietQR Napas 24/7")}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
-                        {t("Chuẩn SePay")}
-                      </span>
-                    </div>
-
-                    {/* Large Crisp QR Container */}
-                    <div className="w-64 h-64 sm:w-72 sm:h-72 bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center relative group overflow-hidden">
-                      <img 
-                        src={`https://img.vietqr.io/image/${getVietQRBankCode(payoutBankInfo.bankName)}-${payoutBankInfo.accountNumber}-compact2.png?amount=${selectedPayout.netAmount}&addInfo=HALOTICKET%20PAYOUT%20${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()}&accountName=${encodeURIComponent(payoutBankInfo.accountHolder)}`}
-                        alt="VietQR Payout"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-
-                    <div className="mt-2.5 space-y-1 w-full">
-                      <div className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-base">
-                        {selectedPayout.netAmount.toLocaleString('vi-VN')} đ
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                        {t("Mở App ngân hàng bất kỳ để quét mã chuyển nhanh 24/7. Số tiền và nội dung đối soát tự động điền chính xác 100%.")}
-                      </p>
-                      <a 
-                        href={`https://img.vietqr.io/image/${getVietQRBankCode(payoutBankInfo.bankName)}-${payoutBankInfo.accountNumber}-compact2.png?amount=${selectedPayout.netAmount}&addInfo=HALOTICKET%20PAYOUT%20${selectedPayout.id.includes('-') ? selectedPayout.id.split('-')[0].toUpperCase() : selectedPayout.id.slice(0, 8).toUpperCase()}&accountName=${encodeURIComponent(payoutBankInfo.accountHolder)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline pt-1 cursor-pointer"
-                      >
-                        <FiExternalLink className="w-3 h-3" />
-                        <span>{t("Mở ảnh QR kích thước gốc")}</span>
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full h-64 rounded-2xl border app-border bg-slate-50 dark:bg-zinc-800/40 flex flex-col items-center justify-center text-xs text-slate-400 p-6 text-center">
-                    <FiAlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
-                    <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">{t("Chưa có thông tin tài khoản ngân hàng")}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 max-w-xs">{t("Ban tổ chức chưa cung cấp thông tin tài khoản để tạo mã VietQR.")}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bottom Explanation Alert */}
-            <div className="p-3 rounded-xl border border-blue-200/60 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2.5">
-              <FiInfo className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">
-                {t('Số tiền giải ngân được trích trực tiếp từ quỹ Escrow (Ký quỹ giữ tiền) sang tài khoản Ban tổ chức. Sau khi kế toán chuyển tiền thành công, nhấn')} <strong>"{t('Xác nhận đã chuyển & Hoàn tất')}"</strong> {t('để cập nhật trạng thái lệnh sang')} <strong>{t('Đã thanh toán')}</strong> {t('và gửi biên lai đối soát cho BTC.')}
-              </p>
-            </div>
-          </div>
-        </AdminConfirmModal>
-      )}
-
-      {/* Modal Tạm Hoãn & Chuyển Sang Tranh Chấp */}
-      {disputeModalOpen && targetDisputePayout && (
-        <AdminConfirmModal
-          onClose={() => setDisputeModalOpen(false)}
-          onConfirm={handleConfirmDispute}
-          title={t("Tạm Hoãn Đối Soát & Chuyển Sang Tranh Chấp")}
-          subtitle={`${t("Lệnh đối soát")} #${targetDisputePayout.id} • ${t("Tạm dừng giải ngân để rà soát chứng từ hoặc giải quyết khiếu nại")}`}
-          confirmText={isDisputing ? t("Đang lưu...") : t("Xác nhận tạm hoãn")}
-          cancelText={t("Hủy bỏ")}
-          isDanger={true}
-          pending={isDisputing}
-          maxWidth="max-w-lg"
-        >
-          <div className="mt-4 space-y-3 text-xs">
-            <div className="p-3 rounded-lg border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-200">
-              <span className="font-bold flex items-center gap-1.5 mb-1">
-                <FiAlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                {t("Cảnh báo đóng băng quỹ giải ngân")}
-              </span>
-              <p className="leading-relaxed">
-                {t("Lệnh này sẽ được chuyển sang tab 'Tranh chấp / Hoàn tiền'. Quỹ Escrow")} <strong>{targetDisputePayout.netAmount.toLocaleString('vi-VN')}đ</strong> {t("sẽ tiếp tục được bảo toàn tại HaloTicket cho đến khi Admin mở lại.")}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                {t("Lý do tạm hoãn / khiếu nại:")} <span className="text-rose-500">*</span>
-              </label>
-              <textarea
-                value={disputeReason}
-                onChange={(e) => setDisputeReason(e.target.value)}
-                rows={3}
-                placeholder={t("Nhập lý do tạm hoãn hoặc yêu cầu kiểm tra (vé hoàn, hủy sự kiện, khiếu nại khách hàng)...")}
-                className="w-full p-2.5 rounded-lg border app-border app-bg-card app-text-main text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-              />
-            </div>
-          </div>
-        </AdminConfirmModal>
-      )}
-    </div>
-  );
+        {error && <div role="alert" className="m-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error} <button onClick={() => void load()} className="ml-2 underline">Thử lại</button></div>}
+        {!loading && filtered.length > 0 && <div className="hidden grid-cols-[130px_minmax(260px,1.8fr)_140px_150px_150px_80px] gap-3 border-b border-[#edf2fa] bg-[#f7faff] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid"><span>Mã yêu cầu</span><span>Sự kiện &amp; BTC</span><span className="text-right">Số tiền</span><span>Ngày gửi</span><span>Trạng thái</span><span className="text-right">Xem</span></div>}
+        {loading ? <div className="p-12 text-center text-sm text-slate-500">Đang tải dữ liệu…</div> : filtered.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">Không có yêu cầu phù hợp.</div> : <div className="divide-y divide-[#edf2fa]">{filtered.map((payout) => <article key={payout.id} className="grid grid-cols-2 gap-x-3 gap-y-3 px-4 py-3 hover:bg-[#f8fbff] lg:grid-cols-[130px_minmax(260px,1.8fr)_140px_150px_150px_80px] lg:items-center lg:gap-3 lg:px-5"><div className="col-start-1 row-start-1 min-w-0 lg:col-auto lg:row-auto"><code title={payout.id} className="block max-w-[118px] truncate text-xs font-semibold text-[#101c48]">{payout.id}</code><span className="mt-1 block text-xs text-slate-500">{requestTypeLabel(payout.requestType)}</span></div><div className="col-span-2 col-start-1 row-start-2 flex min-w-0 items-center gap-3 lg:col-span-1 lg:col-start-auto lg:row-auto"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#edf3ff] text-[#005cff]">{eventPosterUrl(eventsById[payout.eventId]) ? <img src={eventPosterUrl(eventsById[payout.eventId])} alt="" loading="lazy" className="h-full w-full object-cover" /> : <FiCalendar aria-hidden="true" />}</div><div className="min-w-0"><div className="truncate font-semibold app-text-main">{payout.eventName || eventsById[payout.eventId]?.title || "Tên sự kiện chưa có"}</div><div className="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-slate-500"><FiUser className="shrink-0" /><span className="truncate">{payout.organizerUserId}</span></div></div></div><div className="col-start-2 row-start-1 text-right lg:col-auto lg:row-auto lg:text-right"><div className="text-xs text-slate-500 lg:hidden">Số tiền</div><div className="font-bold text-emerald-700">{money(payout.netAmount)}</div></div><div className="col-start-1 row-start-3 text-xs text-slate-500 lg:col-auto lg:row-auto">{dateTime(payout.createdAt)}</div><div className="col-start-2 row-start-3 lg:col-auto lg:row-auto"><StatusBadge status={payout.status} grouped /></div><button onClick={() => setSelectedId(payout.id)} className="col-span-2 col-start-1 row-start-4 rounded-lg border border-[#bdd0f8] bg-white px-4 py-2 text-sm font-semibold text-[#005cff] hover:bg-[#edf3ff] lg:col-span-1 lg:col-start-auto lg:row-auto lg:justify-self-end">Xem</button></article>)}</div>}
+        <div className="border-t app-border px-5 py-3 text-xs text-slate-500">Số tài khoản đầy đủ và ghi chú nội bộ không hiển thị trong danh sách.</div>
+      </section>}
+    </>}
+  </div>;
 }
 
 export default PaymentMonitoring;

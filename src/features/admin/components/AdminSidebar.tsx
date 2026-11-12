@@ -23,8 +23,8 @@ export const adminNavGroups: AdminNavGroup[] = [
   { id: "users", path: PATHS.ADMIN_USER_MANAGEMENT, label: "Quản lý người dùng", english: "User management", icon: FiUsers, description: "Tra cứu tài khoản theo vai trò và trạng thái.", items: [
     { path: PATHS.ADMIN_USER_MANAGEMENT, label: "Quản lý người dùng", english: "User management", icon: FiUsers, description: "Quản lý tất cả người dùng trên hệ thống." },
   ] },
-  { id: "finance", path: PATHS.ADMIN_FINANCE, label: "Tài chính & Đối soát", english: "Finance & Payouts", icon: FiDollarSign, description: "Thanh toán, hoàn tiền và đối soát cho nhà tổ chức.", items: [
-    { path: PATHS.ADMIN_FINANCE, label: "Quản lý tài chính", english: "Finance management", icon: FiDollarSign, description: "Quản lý tất cả giao dịch, hoàn tiền và đối soát." },
+  { id: "finance", path: PATHS.ADMIN_FINANCE, label: "Tài chính & Rút tiền", english: "Finance & Payouts", icon: FiDollarSign, description: "Thanh toán, hoàn tiền và chi trả cho nhà tổ chức.", items: [
+    { path: PATHS.ADMIN_FINANCE, label: "Quản lý tài chính", english: "Finance management", icon: FiDollarSign, description: "Quản lý giao dịch, hoàn tiền và yêu cầu rút tiền." },
   ] },
   { id: "content", path: PATHS.ADMIN_CONTENT, label: "Quản lý nội dung", english: "Content management", icon: FiLayout, description: "Tổ chức nội dung hiển thị trên nền tảng HaloTicket.", items: [
     { path: PATHS.ADMIN_HOMEPAGE_CONTENT, label: "Nội dung & Ads", english: "Content & Advertising", icon: FiLayout, description: "Quản lý nội dung trang chủ và banner." },
