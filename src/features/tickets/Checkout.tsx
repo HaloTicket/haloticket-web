@@ -232,58 +232,30 @@ export default function Checkout() {
   }, []);
 
   // voucher & discount state
-  const [vouchers, setVouchers] = useState<any[]>([]);
   const [voucherInput, setVoucherInput] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [voucherError, setVoucherError] = useState<string>("");
 
-  useEffect(() => {
-    if (!activeEventId) return;
-    let isMounted = true;
-    async function loadVouchers() {
-      try {
-        const fetchedVouchers = await eventApi.getVouchersByEventId(activeEventId as string);
-        if (isMounted) setVouchers(fetchedVouchers);
-      } catch (err) {
-        console.warn("Failed to load vouchers", err);
-      }
-    }
-    loadVouchers();
-    return () => {
-      isMounted = false;
-    };
-  }, [activeEventId]);
-
   const subtotalAmount = order.totalAmount ?? ((order.price || 0) * (order.quantity || 1));
   const finalTotal = Math.max(0, subtotalAmount - discountAmount);
 
-  const handleApplyVoucher = () => {
+  const handleApplyVoucher = async () => {
     const code = voucherInput.trim().toUpperCase();
     if (!code) return;
 
-    const matchedVoucher = vouchers.find(v => v.code === code && (v.status === "ACTIVE" || v.isActive === true));
-    if (!matchedVoucher) {
+    // the server finds the voucher by the typed code (the public list hides codes) and decides again when the order is created
+    const matchedVoucher = activeEventId ? await eventApi.lookupVoucher(activeEventId, code) : null;
+    if (!matchedVoucher || !(matchedVoucher.status === "ACTIVE" || matchedVoucher.isActive === true)) {
       setVoucherError(t("Mã khuyến mãi không hợp lệ hoặc đã hết hạn."));
       showToast("error", t("Mã khuyến mãi không hợp lệ."));
       return;
     }
 
-    // check date validity
-    const now = new Date().getTime();
-    if (matchedVoucher.startDate && new Date(matchedVoucher.startDate).getTime() > now) {
-      setVoucherError(t("Mã khuyến mãi chưa có hiệu lực."));
-      showToast("error", t("Mã khuyến mãi chưa có hiệu lực."));
-      return;
-    }
-    if (matchedVoucher.endDate && new Date(matchedVoucher.endDate).getTime() < now) {
-      setVoucherError(t("Mã khuyến mãi đã hết hạn."));
-      showToast("error", t("Mã khuyến mãi đã hết hạn."));
-      return;
-    }
+    // dates, quantity left and per-order limits are checked by the server when the order is created
 
     // check showtime applicability
-    if (matchedVoucher.applyScope === "SPECIFIC_SHOWTIMES") {
+    if (matchedVoucher.applyScope === "LIMITED_SHOWTIMES") {
       if (!activeShowtimeId || !matchedVoucher.applicableShowtimes?.includes(activeShowtimeId)) {
         setVoucherError(t("Mã khuyến mãi không áp dụng cho suất diễn này."));
         showToast("error", t("Mã khuyến mãi không áp dụng cho suất diễn này."));
@@ -293,7 +265,7 @@ export default function Checkout() {
 
     let discount = 0;
     if (matchedVoucher.discountType === "PERCENTAGE") {
-      discount = Math.round(subtotalAmount * (matchedVoucher.discountValue / 100));
+      discount = Math.round(subtotalAmount * ((matchedVoucher.discountValue ?? 0) / 100));
     } else {
       discount = matchedVoucher.discountValue || 0;
     }
@@ -557,7 +529,7 @@ export default function Checkout() {
       console.error("Payment error:", err);
       setIsRecipientModalOpen(false);
       const resolved = resolveCheckoutError(err);
-      showToast("error", t(resolved.key));
+      showToast("error", resolved.detail ?? t(resolved.key));
       if (resolved.backToSelection) {
         localStorage.removeItem("haloticket_pending_order");
         navigate(`/events/${activeEventId}/select-ticket`);

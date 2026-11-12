@@ -32,7 +32,6 @@ import type {
 import { SeatCanvas } from "./components/seating/SeatCanvas";
 import { TierManagerModal } from "./components/seating/TierManagerModal";
 import { AttendeePreview } from "./components/seating/AttendeePreview";
-import { PRESET_TEMPLATES } from "@/mock/presetTemplates";
 import {
   DEFAULT_CANVAS_SETTINGS,
   generateSeatMapSVG,
@@ -268,12 +267,11 @@ export const EventSeatingAssigner: React.FC = () => {
             });
             setZones(syncedZones);
           } else {
-            // fallback template layout only if no draft exists anywhere
-            const sample = PRESET_TEMPLATES[0];
-            setZones(safeClone(sample.zones || {}));
-            setSeats(safeClone(sample.seats || []));
-            setStages(safeClone(sample.stages || []));
-            setStructures(safeClone(sample.structures || []));
+            // no draft or seatmap configured: keep empty layout, do NOT load mock preset templates
+            setZones({});
+            setSeats([]);
+            setStages([]);
+            setStructures([]);
           }
         }
       } catch (err) {
@@ -607,7 +605,20 @@ export const EventSeatingAssigner: React.FC = () => {
               </div>
 
               <div className="w-full min-h-[550px] overflow-hidden rounded-xl border app-border">
-                <SeatCanvas
+                {Object.keys(zones).length === 0 && seats.length === 0 && stages.length === 0 ? (
+                  <div className="w-full min-h-[550px] flex flex-col items-center justify-center p-8 text-center app-bg-main space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                      <FiLayers className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1.5 max-w-sm">
+                      <h4 className="text-sm font-bold app-text-main">{t("Chưa thiết kế sơ đồ ghế")}</h4>
+                      <p className="text-xs app-text-muted leading-relaxed">
+                        {t("Sự kiện này chưa có sơ đồ chỗ ngồi hoặc khu vực vé. Vui lòng vào mục Sơ đồ ghế để thiết kế hoặc sử dụng vé tự do (GA).")}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <SeatCanvas
                   seats={seats}
                   stages={stages}
                   structures={structures}
@@ -641,6 +652,7 @@ export const EventSeatingAssigner: React.FC = () => {
                   onToggleFullscreen={handleToggleFullscreen}
                   onCanvasClickPosition={() => { }}
                 />
+                )}
               </div>
             </div>
 
@@ -753,7 +765,20 @@ export const EventSeatingAssigner: React.FC = () => {
               </div>
 
               <div className="w-full min-h-[550px] overflow-hidden rounded-xl border app-border">
-                <SeatCanvas
+                {Object.keys(zones).length === 0 && seats.length === 0 && stages.length === 0 ? (
+                  <div className="w-full min-h-[550px] flex flex-col items-center justify-center p-8 text-center app-bg-main space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+                      <FiEye className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1.5 max-w-sm">
+                      <h4 className="text-sm font-bold app-text-main">{t("Chưa thiết kế sơ đồ ghế")}</h4>
+                      <p className="text-xs app-text-muted leading-relaxed">
+                        {t("Sự kiện chưa có sơ đồ ghế để xem trước chế độ mua vé của khán giả.")}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <SeatCanvas
                   seats={seats}
                   stages={stages}
                   structures={structures}
@@ -797,6 +822,7 @@ export const EventSeatingAssigner: React.FC = () => {
                   onToggleFullscreen={handleToggleFullscreen}
                   onCanvasClickPosition={() => { }}
                 />
+                )}
               </div>
             </div>
 

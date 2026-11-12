@@ -42,4 +42,5 @@ export interface VoucherCreateData {
   applicableShowtimes?: string[];
   startDate: string;
   endDate: string;
+  status?: "DRAFT" | "ACTIVE" | "INACTIVE" | "EXPIRED";
 }

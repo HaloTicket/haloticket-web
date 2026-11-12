@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import type { VoucherItem } from "@/types/voucher";
 import type { EventApiData, MemberItem, MemberInvitationPreview, MemberInvitationAcceptResult } from "@/types";
 import { parseEventSaveFailure } from "@/utils/eventSaveErrors";
 export type { EventApiData };
@@ -140,6 +141,14 @@ export const eventApi = {
     return axiosClient.patch(`/events/${id}/approve`);
   },
 
+  revertApproval: async (id: string, reason?: string): Promise<unknown> => {
+    return axiosClient.patch(`/events/${id}/revert-approval`, { reason });
+  },
+
+  cancelApprovalRequest: async (id: string): Promise<unknown> => {
+    return axiosClient.patch(`/events/${id}/cancel-approval-request`);
+  },
+
   rejectEvent: async (id: string, reason: string, notes?: string): Promise<unknown> => {
     return axiosClient.patch(`/events/${id}/reject`, { reason, notes });
   },
@@ -152,6 +161,16 @@ export const eventApi = {
     } catch (err) {
       console.warn("Failed to get vouchers:", err);
       return [];
+    }
+  },
+
+  // the voucher a buyer typed: returned only when it has been released, so unreleased codes stay hidden
+  lookupVoucher: async (eventId: string, code: string): Promise<VoucherItem | null> => {
+    try {
+      const response = await axiosClient.get(`/events/${eventId}/vouchers/lookup`, { params: { code } });
+      return (response as unknown as VoucherItem) ?? null;
+    } catch {
+      return null;
     }
   },
 

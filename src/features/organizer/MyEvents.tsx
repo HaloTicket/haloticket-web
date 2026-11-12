@@ -14,10 +14,12 @@ import {
   FiGrid,
   FiEdit3,
   FiAlertTriangle,
-  FiLoader
+  FiLoader,
+  FiRotateCcw
 } from "react-icons/fi";
 import PendingApprovalModal from "./components/PendingApprovalModal";
 import EkycRequiredModal from "./components/create-event/EkycRequiredModal";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { eventApi } from "@/services/eventApi";
 import { organizerApi } from "@/services/organizerApi";
 import { userApi, getCachedUserProfile } from "@/services/userApi";
@@ -70,6 +72,9 @@ export const MyEvents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MyEventTab>("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [selectedPendingEvent, setSelectedPendingEvent] = useState<OrganizerEventItem | null>(null);
+  const [cancellingEvent, setCancellingEvent] = useState<OrganizerEventItem | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [showEkycModal, setShowEkycModal] = useState(false);
   const [eventsList, setEventsList] = useState<OrganizerEventItem[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -90,31 +95,52 @@ export const MyEvents: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // bumped to read the list again after the organiser takes a review request back
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
+    let active = true;
     const fetchEvents = async () => {
-      setIsLoading(true);
       try {
         const user = await userApi.getProfile();
+        if (!active) return;
         setCurrentUser(user);
 
-        let orgProf = null;
         if (user && user.id) {
-          orgProf = await organizerApi.getOrganizerProfile(user.id);
-          setMyOrganizerProfile(orgProf);
+          const orgProf = await organizerApi.getOrganizerProfile(user.id);
+          if (active) setMyOrganizerProfile(orgProf);
         }
 
         const data = await eventApi.getAllEvents();
-        if (Array.isArray(data)) {
+        if (active && Array.isArray(data)) {
           setEventsList(data);
         }
       } catch (err) {
         console.error("Failed to load events from backend:", err);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     };
     fetchEvents();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  const handleCancelApproval = async () => {
+    if (!cancellingEvent?.id) return;
+    setIsCancelling(true);
+    try {
+      await eventApi.cancelApprovalRequest(cancellingEvent.id);
+      setCancellingEvent(null);
+      setShowPendingModal(false);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      console.error("Failed to cancel approval request:", err);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const isMyEvent = (ev: OrganizerEventItem): boolean => {
     const user = currentUser || getCachedUserProfile();
@@ -180,8 +206,9 @@ export const MyEvents: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
   const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const handleActionClick = () => {
-    if (activeTab === "pending") {
+  const handleActionClick = (ev?: OrganizerEventItem) => {
+    if (activeTab === "pending" || ev?.eventApprovalStatus === "PENDING" || ev?.eventApprovalStatus === "UPDATE_PENDING") {
+      if (ev) setSelectedPendingEvent(ev);
       setShowPendingModal(true);
     }
   };
@@ -381,7 +408,7 @@ export const MyEvents: React.FC = () => {
                       <>
                         <button
                           type="button"
-                          onClick={handleActionClick}
+                          onClick={() => handleActionClick(ev)}
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
                         >
                           <FiPieChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -390,7 +417,7 @@ export const MyEvents: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={handleActionClick}
+                          onClick={() => handleActionClick(ev)}
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
                         >
                           <FiUsers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -399,7 +426,7 @@ export const MyEvents: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={handleActionClick}
+                          onClick={() => handleActionClick(ev)}
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer"
                         >
                           <FiFileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -408,7 +435,7 @@ export const MyEvents: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={handleActionClick}
+                          onClick={() => handleActionClick(ev)}
                           className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold app-text-muted hover:app-text-main transition-colors cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
                         >
                           <FiGrid className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -422,6 +449,18 @@ export const MyEvents: React.FC = () => {
                           <FiEdit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           <span>{ev.eventApprovalStatus === "DRAFT" || ev.eventStatus === "DRAFT" ? translate("Tiếp tục tạo nháp") : translate("Chỉnh sửa")}</span>
                         </Link>
+
+                        {ev.eventApprovalStatus === "PENDING" && (
+                          <button
+                            type="button"
+                            onClick={() => setCancellingEvent(ev)}
+                            className="py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer"
+                            title={translate("Hủy yêu cầu duyệt")}
+                          >
+                            <FiRotateCcw className="w-4 h-4" />
+                            <span>{translate("Hủy duyệt")}</span>
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -444,8 +483,34 @@ export const MyEvents: React.FC = () => {
 
       {/* Modal Popup: Sự Kiện Đang Chờ Duyệt */}
       {showPendingModal && (
-        <PendingApprovalModal onClose={() => setShowPendingModal(false)} />
+        <PendingApprovalModal
+          onClose={() => setShowPendingModal(false)}
+          onCancelApproval={
+            selectedPendingEvent
+              ? () => {
+                  setCancellingEvent(selectedPendingEvent);
+                  setShowPendingModal(false);
+                }
+              : undefined
+          }
+        />
       )}
+
+      {/* Confirmation Modal: Hoàn tác yêu cầu duyệt */}
+      <ConfirmModal
+        isOpen={Boolean(cancellingEvent)}
+        title={translate("Hủy yêu cầu duyệt sự kiện")}
+        message={translate(
+          'Bạn có chắc chắn muốn hủy yêu cầu duyệt cho sự kiện "{{title}}"? Sự kiện sẽ được chuyển về trạng thái Bản nháp để bạn có thể tiếp tục chỉnh sửa.',
+          { title: cancellingEvent?.title || "" }
+        )}
+        confirmText={translate("Hủy yêu cầu")}
+        cancelText={translate("Đóng")}
+        type="warning"
+        isLoading={isCancelling}
+        onConfirm={handleCancelApproval}
+        onCancel={() => setCancellingEvent(null)}
+      />
 
       {/* Modal Popup: Yêu cầu xác thực eKYC */}
       <EkycRequiredModal isOpen={showEkycModal} onClose={() => setShowEkycModal(false)} />

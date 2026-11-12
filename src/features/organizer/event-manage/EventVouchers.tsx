@@ -149,6 +149,30 @@ export const EventVouchers: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // trigger publish confirm modal
+  const promptPublishVoucher = (voucher: VoucherItem) => {
+    setConfirmState({
+      isOpen: true,
+      title: t("Xác nhận phát hành voucher"),
+      message: `${t("Bạn có chắc chắn muốn phát hành mã voucher")} "${voucher.code}" (${voucher.title})? ${t("Sau khi phát hành, người mua vé có thể áp dụng mã này khi đặt vé.")}`,
+      type: "primary",
+      action: async () => {
+        try {
+          const updated = await voucherApi.updateVoucher(voucher.id, { status: "ACTIVE" });
+          if (updated) {
+            setVouchers((prev) =>
+              prev.map((v) => (v.id === voucher.id ? { ...v, status: "ACTIVE", isActive: true } : v))
+            );
+          }
+          showToast(`${t("Đã phát hành mã voucher")} "${voucher.code}" ${t("thành công!")}`, "success");
+        } catch (err) {
+          console.error("Failed to publish voucher:", err);
+          showToast(isForbiddenError(err) ? t("Bạn không có quyền thực hiện thao tác này") : t("Phát hành voucher thất bại"), "error");
+        }
+      },
+    });
+  };
+
   // trigger status toggle confirm modal
   const promptToggleStatus = (voucher: VoucherItem) => {
     const nextStatusText = voucher.isActive ? t("TẮT") : t("BẬT");
@@ -378,8 +402,9 @@ export const EventVouchers: React.FC = () => {
                   <th className="py-3.5 px-6 rounded-l-xl">{t("Tên chương trình khuyến mãi")}</th>
                   <th className="py-3.5 px-4">{t("Mã voucher")}</th>
                   <th className="py-3.5 px-4 text-center">{t("Mức giảm")}</th>
+                  <th className="py-3.5 px-4 text-center">{t("Đã dùng / Tổng vé")}</th>
                   <th className="py-3.5 px-6 text-center">{t("Thời gian áp dụng")}</th>
-                  <th className="py-3.5 px-4 text-center">{t("Trạng thái hoạt động")}</th>
+                  <th className="py-3.5 px-4 text-center">{t("Trạng thái")}</th>
                   <th className="py-3.5 px-6 text-right rounded-r-xl">{t("Hành động")}</th>
                 </tr>
               </thead>
@@ -410,15 +435,30 @@ export const EventVouchers: React.FC = () => {
                         {isDiscountPercent ? `${val} %` : `${val.toLocaleString()} đ`}
                       </td>
 
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-extrabold text-xs app-text-main">
+                            {v.usedCount ?? 0} / {v.applyTicketLimitType === "LIMITED" && v.ticketLimitCount ? v.ticketLimitCount : "∞"}
+                          </span>
+                          {v.applyTicketLimitType === "LIMITED" && v.ticketLimitCount && (
+                            <span className="text-[10px] app-text-muted mt-0.5">
+                              {t("Còn lại")}: {Math.max(0, v.ticketLimitCount - (v.usedCount ?? 0))}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="py-4 px-6 text-center space-y-1">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                            v.isActive
+                            v.status === "DRAFT"
+                              ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                              : v.isActive
                               ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                               : "bg-slate-500/10 text-slate-400 border-slate-500/20"
                           }`}
                         >
-                          {v.isActive ? t("Đang diễn ra") : t("Tắt hoạt động")}
+                          {v.status === "DRAFT" ? t("Bản nháp (Chưa phát hành)") : v.isActive ? t("Đang diễn ra") : t("Tắt hoạt động")}
                         </span>
                         <div className="text-[11px] app-text-muted font-medium">
                           {v.startDate || "N/A"} - {v.endDate || "N/A"}
@@ -426,20 +466,30 @@ export const EventVouchers: React.FC = () => {
                       </td>
 
                       <td className="py-4 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => promptToggleStatus(v)}
-                          className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer inline-block align-middle ${
-                            v.isActive ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
-                          }`}
-
-                        >
-                          <div
-                            className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                              v.isActive ? "translate-x-5" : "translate-x-0"
+                        {v.status === "DRAFT" ? (
+                          <button
+                            type="button"
+                            onClick={() => promptPublishVoucher(v)}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            title={t("Phát hành voucher")}
+                          >
+                            {t("Phát hành")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => promptToggleStatus(v)}
+                            className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer inline-block align-middle ${
+                              v.isActive ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
                             }`}
-                          />
-                        </button>
+                          >
+                            <div
+                              className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                                v.isActive ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        )}
                       </td>
 
                       <td className="py-4 px-6 text-right rounded-r-xl">

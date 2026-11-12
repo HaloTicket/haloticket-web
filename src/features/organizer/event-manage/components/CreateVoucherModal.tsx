@@ -125,7 +125,14 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
       const scope = initialVoucher.applyScope || "ALL";
       setApplyScope(scope);
       setShowShowtimePicker(scope === "LIMITED_SHOWTIMES");
-      setSelectedShowtimes(initialVoucher.applicableShowtimes || []);
+
+      // match either by showtime.id or showtime.label
+      const rawSelected = initialVoucher.applicableShowtimes || [];
+      const normalizedIds = rawSelected.map((item) => {
+        const found = availableShowtimes.find((st) => st.id === item || st.label === item);
+        return found ? found.id : item;
+      });
+      setSelectedShowtimes(normalizedIds);
       setTerms(initialVoucher.terms || "");
 
       if (initialVoucher.startDate) {
@@ -150,15 +157,15 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
       setTerms("");
       setShowShowtimePicker(false);
     }
-  }, [initialVoucher, isOpen]);
+  }, [initialVoucher, isOpen, availableShowtimes]);
 
   if (!isOpen) return null;
 
-  const toggleShowtimeSelection = (showtimeLabel: string) => {
+  const toggleShowtimeSelection = (showtimeId: string) => {
     setSelectedShowtimes((prev) => {
-      const updated = prev.includes(showtimeLabel)
-        ? prev.filter((s) => s !== showtimeLabel)
-        : [...prev, showtimeLabel];
+      const updated = prev.includes(showtimeId)
+        ? prev.filter((s) => s !== showtimeId)
+        : [...prev, showtimeId];
       if (errors.selectedShowtimes && updated.length > 0) {
         setErrors((e) => ({ ...e, selectedShowtimes: undefined }));
       }
@@ -847,7 +854,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                         setSelectedShowtimes(
                           selectedShowtimes.length === showtimeList.length
                             ? []
-                            : showtimeList.map((s) => s.label)
+                            : showtimeList.map((s) => s.id)
                         )
                       }
                       className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
@@ -858,11 +865,11 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                     {showtimeList.map((st) => {
-                      const isSelected = selectedShowtimes.includes(st.label);
+                      const isSelected = selectedShowtimes.includes(st.id);
                       return (
                         <div
                           key={st.id}
-                          onClick={() => toggleShowtimeSelection(st.label)}
+                          onClick={() => toggleShowtimeSelection(st.id)}
                           className={`p-3 rounded-xl border text-xs font-medium cursor-pointer transition-all flex items-center justify-between ${
                             isSelected
                               ? "border-blue-600 bg-blue-600/10 text-blue-600 dark:text-blue-400 font-bold"
@@ -899,6 +906,48 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
             >
               {t("Hủy")}
             </button>
+            {!isEditMode && (
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (!validateForm()) return;
+                  setIsSubmitting(true);
+                  try {
+                    const payload: VoucherCreateData = {
+                      creationMode,
+                      title: title.trim(),
+                      code: code.toUpperCase().trim(),
+                      codePrefix: codePrefix.toUpperCase().trim(),
+                      bulkCount: Number(bulkCount),
+                      terms: terms.trim(),
+                      discountType,
+                      discountValue: Number(discountValue),
+                      applyTicketLimitType,
+                      ticketLimitCount: applyTicketLimitType === "LIMITED" ? Number(ticketLimitCount) : 99999,
+                      maxOrdersPerBuyer: Number(maxOrdersPerBuyer),
+                      minTicketsPerOrder: Number(minTicketsPerOrder),
+                      maxTicketsPerOrder: Number(maxTicketsPerOrder),
+                      applyScope,
+                      applicableShowtimes: applyScope === "LIMITED_SHOWTIMES" ? selectedShowtimes : [],
+                      startDate: startDate.replace("T", " "),
+                      endDate: endDate.replace("T", " "),
+                      status: "DRAFT",
+                    };
+                    await onSave(payload);
+                    onClose();
+                  } catch (err) {
+                    console.error("Error saving draft voucher:", err);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold app-text-main hover:bg-slate-500/10 border app-border transition-all cursor-pointer disabled:opacity-50"
+              >
+                {t("Lưu bản nháp")}
+              </button>
+            )}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -909,8 +958,8 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 : isEditMode
                 ? t("Lưu thay đổi")
                 : creationMode === "BULK"
-                ? `${t("Tạo")} ${bulkCount} voucher`
-                : t("Tạo voucher")}
+                ? `${t("Tạo & Phát hành")} ${bulkCount} voucher`
+                : t("Tạo & Phát hành ngay")}
             </button>
           </div>
         </form>

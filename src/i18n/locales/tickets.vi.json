@@ -14,6 +14,7 @@
   "tickets.error.invalidOrder": "Thông tin vé hoặc ghế trong đơn không hợp lệ. Vui lòng quay lại chọn lại vé.",
   "tickets.error.seatCountMismatch": "Số ghế đã chọn không khớp với số lượng vé. Vui lòng quay lại chọn lại ghế.",
   "tickets.error.bookingCreateFailed": "Không thể tạo đơn hàng. Vui lòng thử lại.",
+  "tickets.error.voucherRefused": "Mã giảm giá không áp dụng được cho đơn này.",
   "tickets.error.unknown": "Đã xảy ra lỗi trong quá trình xử lý thanh toán. Vui lòng thử lại; nếu vẫn lỗi hãy liên hệ hỗ trợ.",
   "tickets.sync.warningTitle": "Hạng vé chưa đồng bộ",
   "tickets.sync.warningBody": "Sự kiện đã lưu nhưng hạng vé chưa được đồng bộ sang hệ thống bán vé. Hãy đồng bộ lại để khách có thể mua vé.",

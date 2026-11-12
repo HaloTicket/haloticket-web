@@ -14,6 +14,7 @@
   "tickets.error.invalidOrder": "The tickets or seats in this order are not valid. Please go back and choose again.",
   "tickets.error.seatCountMismatch": "The number of selected seats does not match the ticket quantity. Please go back and choose your seats again.",
   "tickets.error.bookingCreateFailed": "We could not create the order. Please try again.",
+  "tickets.error.voucherRefused": "This voucher cannot be used on this order.",
   "tickets.error.unknown": "Something went wrong while processing your payment. Please try again; contact support if it keeps happening.",
   "tickets.sync.warningTitle": "Ticket types not synced",
   "tickets.sync.warningBody": "The event was saved but its ticket types have not been synced to the ticketing system. Sync again so customers can buy tickets.",

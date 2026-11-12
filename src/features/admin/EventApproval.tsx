@@ -197,10 +197,10 @@ export const EventApproval: React.FC = () => {
     };
   }, [loadApprovalEvents]);
 
-  // layer A+B risk of the waiting files (no model call). The server scores at most 30 files per request.
+  // layer A+B risk of all events in the view (no model call). The server scores at most 30 files per request.
   const loadRisk = useCallback(async (items: ApprovalEventItem[]) => {
     const ids = items
-      .filter((item) => item.eventApprovalStatus === "PENDING" || item.eventApprovalStatus === "UPDATE_PENDING")
+      .filter((item) => item.id)
       .map((item) => String(item.id));
     const version = ++riskRequest.current;
     if (ids.length === 0) {
@@ -482,14 +482,10 @@ export const EventApproval: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4" data-testid={`risk-cell-${item.id}`}>
-                        {status === "PENDING" || status === "UPDATE_PENDING" ? (
-                          riskState === "loading" && !risk[String(item.id)] ? (
-                            <span className="text-[11px] app-text-muted">{translate("ai.risk.batchLoading")}</span>
-                          ) : (
-                            <RiskBadge assessment={risk[String(item.id)] ?? null} showScore />
-                          )
+                        {riskState === "loading" && !risk[String(item.id)] ? (
+                          <span className="text-[11px] app-text-muted">{translate("ai.risk.batchLoading")}</span>
                         ) : (
-                          <span className="app-text-muted">—</span>
+                          <RiskBadge assessment={risk[String(item.id)] ?? null} showScore />
                         )}
                       </td>
 

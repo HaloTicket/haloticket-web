@@ -26,7 +26,7 @@ interface EventApprovalActionsProps {
 
 export function EventApprovalActions({ event, onSuccess, riskItems }: EventApprovalActionsProps) {
   const { t } = useTranslation();
-  const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
+  const [dialog, setDialog] = useState<"approve" | "reject" | "revert" | null>(null);
   const [reason, setReason] = useState<string>("");
   const [notes, setNotes] = useState("");
   // sections and quotes start from the risk evidence and stay under the admin's control once touched
@@ -44,6 +44,7 @@ export function EventApprovalActions({ event, onSuccess, riskItems }: EventAppro
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const pendingRef = useRef(false);
   const actionable = event.eventApprovalStatus === "PENDING" || event.eventApprovalStatus === "UPDATE_PENDING";
+  const isApproved = event.eventApprovalStatus === "APPROVED";
 
   const close = () => {
     if (pendingRef.current) return;
@@ -60,13 +61,17 @@ export function EventApprovalActions({ event, onSuccess, riskItems }: EventAppro
     try {
       if (action === "approve") {
         await eventApi.approveEvent(event.id);
+        void aiApi.recordRiskDecision(event.id, "APPROVED", "");
+        toast.success(t("Đã phê duyệt sự kiện"));
+      } else if (action === "revert") {
+        await eventApi.revertApproval(event.id, reason || t("Hoàn tác phê duyệt nhầm"));
+        toast.success(t("Đã hoàn tác phê duyệt, đưa sự kiện về trạng thái chờ duyệt"));
       } else {
         await eventApi.rejectEvent(event.id, reason, buildRejectionNotes(flaggedFields, notes, sentQuotes));
+        void aiApi.recordRiskDecision(event.id, "REJECTED", reason);
+        toast.success(t("Đã từ chối sự kiện"));
       }
-      // best effort and never awaited: the decision is already saved, this only lets the AI suggestion be compared with it
-      void aiApi.recordRiskDecision(event.id, action === "approve" ? "APPROVED" : "REJECTED", action === "reject" ? reason : "");
       window.dispatchEvent(new CustomEvent("approval-events-updated"));
-      toast.success(action === "approve" ? t("Đã phê duyệt sự kiện") : t("Đã từ chối sự kiện"));
       setDialog(null);
       onSuccess();
     } catch {
@@ -80,26 +85,53 @@ export function EventApprovalActions({ event, onSuccess, riskItems }: EventAppro
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" disabled={!actionable} onClick={() => { setError(false); setDialog("reject"); }} className="min-h-11 rounded-lg border app-border px-4 text-sm font-semibold text-rose-600 disabled:opacity-50 dark:text-rose-400">
-          {t("Từ chối duyệt")}
-        </button>
-        <button type="button" disabled={!actionable} onClick={() => { setError(false); setDialog("approve"); }} className="min-h-11 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-          {event.eventApprovalStatus === "UPDATE_PENDING" ? t("Phê duyệt cập nhật") : t("Phê duyệt sự kiện")}
-        </button>
-        {!actionable && <span className="text-sm app-text-muted">{t("Hồ sơ này không còn chờ duyệt.")}</span>}
+        {actionable && (
+          <>
+            <button type="button" onClick={() => { setError(false); setDialog("reject"); }} className="min-h-11 rounded-lg border app-border px-4 text-sm font-semibold text-rose-600 disabled:opacity-50 dark:text-rose-400 cursor-pointer">
+              {t("Từ chối duyệt")}
+            </button>
+            <button type="button" onClick={() => { setError(false); setDialog("approve"); }} className="min-h-11 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer">
+              {event.eventApprovalStatus === "UPDATE_PENDING" ? t("Phê duyệt cập nhật") : t("Phê duyệt sự kiện")}
+            </button>
+          </>
+        )}
+        {isApproved && (
+          <button type="button" onClick={() => { setError(false); setReason(""); setDialog("revert"); }} className="min-h-11 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-600 hover:bg-amber-500/20 dark:text-amber-400 cursor-pointer">
+            {t("Hoàn tác phê duyệt")}
+          </button>
+        )}
+        {!actionable && !isApproved && <span className="text-sm app-text-muted">{t("Hồ sơ này không còn chờ duyệt.")}</span>}
       </div>
 
       {dialog && (
         <AdminConfirmModal
-          title={dialog === "approve" ? t("Xác nhận phê duyệt sự kiện") : t("Từ chối duyệt sự kiện")}
+          title={dialog === "approve" ? t("Xác nhận phê duyệt sự kiện") : dialog === "revert" ? t("Xác nhận hoàn tác phê duyệt") : t("Từ chối duyệt sự kiện")}
           subtitle={event.title}
-          confirmText={dialog === "approve" ? t("Xác nhận phê duyệt") : t("Xác nhận từ chối")}
-          isDanger={false}
+          confirmText={dialog === "approve" ? t("Xác nhận phê duyệt") : dialog === "revert" ? t("Xác nhận hoàn tác") : t("Xác nhận từ chối")}
+          isDanger={dialog === "revert"}
           pending={pending}
           dismissible={!pending}
           onClose={close}
           onConfirm={confirm}
         >
+          {dialog === "revert" && (
+            <div className="space-y-4">
+              <p className="text-sm app-text-muted">
+                {t("Hành động này sẽ chuyển trạng thái sự kiện từ ĐÃ PHÊ DUYỆT về CHỜ DUYỆT. Ban tổ chức sẽ được thông báo để kiểm tra lại thông tin.")}
+              </p>
+              <label className="block space-y-2 text-sm font-medium app-text-main">
+                <span>{t("Lý do hoàn tác phê duyệt")}</span>
+                <textarea
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  disabled={pending}
+                  rows={3}
+                  placeholder={t("Nhập lý do thu hồi phê duyệt (ví dụ: Phê duyệt nhầm, cần bổ sung giấy phép)...")}
+                  className="min-h-11 w-full rounded-lg border app-border app-bg-card p-3 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                />
+              </label>
+            </div>
+          )}
           {dialog === "reject" && (
             <div className="space-y-4">
               <label className="block space-y-2 text-sm font-medium app-text-main">

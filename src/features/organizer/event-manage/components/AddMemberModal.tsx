@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FiLoader, FiX } from "react-icons/fi";
+import { FiLoader, FiX, FiShield } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import type { MemberRole } from "@/types";
+import { CustomSelect } from "@/components/common/CustomSelect";
 import { describeInvitationFailure } from "../memberInvitationErrors";
 
 type InvitableRole = Exclude<MemberRole, "OWNER">;
@@ -81,7 +82,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
             onClick={onClose}
             disabled={sending}
             aria-label={t("members.invitation.add.close")}
-            className="p-1 rounded-lg app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors disabled:opacity-50"
+            className="p-1 rounded-lg app-text-muted hover:app-text-main hover:bg-slate-500/10 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <FiX className="w-5 h-5" />
           </button>
@@ -106,20 +107,17 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
           </div>
 
           <div>
-            <label htmlFor="add-member-role" className="block text-xs font-semibold app-text-main mb-1.5">
+            <label id="add-member-role-label" className="block text-xs font-semibold app-text-main mb-1.5">
               {t("Thêm vai trò *")}
             </label>
-            <select
-              id="add-member-role"
+            <CustomSelect
               value={role}
               disabled={sending}
-              onChange={(e) => setRole(e.target.value as InvitableRole)}
-              className="w-full px-4 py-2.5 rounded-xl app-bg-main border app-border app-text-main text-sm focus:outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/40"
-            >
-              {roles.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
+              onChange={(val) => setRole(val as InvitableRole)}
+              options={roles}
+              icon={<FiShield className="w-4 h-4 text-blue-500" />}
+              className="w-full [&>button]:py-2.5 [&>button]:rounded-xl [&>button]:app-bg-main [&>button]:text-sm"
+            />
           </div>
 
           <div role="alert" aria-live="assertive">
@@ -135,14 +133,14 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
               type="button"
               onClick={onClose}
               disabled={sending}
-              className="px-4 py-2 rounded-xl text-xs font-bold app-text-muted hover:app-text-main app-bg-main border app-border transition-all disabled:opacity-50"
+              className="px-4 py-2 rounded-xl text-xs font-bold app-text-muted hover:app-text-main app-bg-main border app-border transition-all disabled:opacity-50 cursor-pointer"
             >
               {t("Hủy")}
             </button>
             <button
               type="submit"
               disabled={sending}
-              className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-70"
+              className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
             >
               {sending && <FiLoader className="w-4 h-4 motion-safe:animate-spin" aria-hidden="true" />}
               {sending ? t("members.invitation.add.sending") : t("members.invitation.add.submit")}

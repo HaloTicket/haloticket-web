@@ -62,3 +62,17 @@ describe("checkout error mapping", () => {
     expect(i18n.t("tickets.error.unknown", { lng: "en" })).toMatch(/Something went wrong/);
   });
 });
+
+describe("a refused voucher", () => {
+  it("keeps the sentence the server wrote for the buyer", () => {
+    const err = { response: { data: { code: "VOUCHER_NOT_APPLICABLE", message: "Mã giảm giá đã hết lượt sử dụng." } } };
+    const resolved = resolveCheckoutError(err);
+    expect(resolved.key).toBe("tickets.error.voucherRefused");
+    expect(resolved.detail).toBe("Mã giảm giá đã hết lượt sử dụng.");
+    expect(resolved.backToSelection).toBe(false);
+  });
+
+  it("falls back to the generic text when the server sent only the code", () => {
+    expect(resolveCheckoutError({ response: { data: { code: "VOUCHER_NOT_APPLICABLE" } } }).detail).toBeUndefined();
+  });
+});

@@ -19,7 +19,8 @@ import { organizerApi } from "@/services/organizerApi";
 import { getCachedUserProfile } from "@/services/userApi";
 import { useParams } from "react-router-dom";
 import { formatDatetimeLocal } from "@/utils/formatters";
-import { FiRefreshCw, FiCheckCircle, FiInfo, FiAlertCircle, FiArrowRightCircle } from "react-icons/fi";
+import { FiRefreshCw, FiCheckCircle, FiInfo, FiAlertCircle, FiArrowRightCircle, FiRotateCcw } from "react-icons/fi";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { fieldsOnStep, flagLabel, flaggedStepsFor, parseRejectionNotes, quoteStatus, type FlaggedQuote } from "@/utils/rejectionFeedback";
 
 async function ensureS3Url(urlOrData: string | null | undefined, folder: string): Promise<string | null> {
@@ -161,6 +162,8 @@ export const EventEditInfo: React.FC = () => {
 
   // EVENT STATUS & INITIAL SNAPSHOT (For change detection)
   const [eventStatus, setEventStatus] = useState<string>("PENDING");
+  const [showCancelApprovalModal, setShowCancelApprovalModal] = useState(false);
+  const [isCancellingApproval, setIsCancellingApproval] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState<string>("");
   const [rejectionReasonText, setRejectionReasonText] = useState<string>("");
   const [rejectionNotesText, setRejectionNotesText] = useState<string>("");
@@ -853,6 +856,22 @@ export const EventEditInfo: React.FC = () => {
     }
   };
 
+  const handleCancelApproval = async () => {
+    if (!eventId) return;
+    setIsCancellingApproval(true);
+    try {
+      await eventApi.cancelApprovalRequest(eventId);
+      setEventStatus("DRAFT");
+      setShowCancelApprovalModal(false);
+      showToast(t("Đã hủy yêu cầu duyệt thành công. Sự kiện đã chuyển về trạng thái Bản nháp."), "success");
+    } catch (err) {
+      console.error("Failed to cancel approval request:", err);
+      showToast(t("Hủy yêu cầu duyệt thất bại, vui lòng thử lại."), "error");
+    } finally {
+      setIsCancellingApproval(false);
+    }
+  };
+
   const isRejected = eventStatus === "REJECTED";
   const flaggedSteps = isRejected ? flaggedStepsFor(rejectedFields, enableCustomQuestions) : [];
   const flaggedFieldsHere = isRejected ? fieldsOnStep(rejectedFields, currentStep, enableCustomQuestions) : [];
@@ -915,6 +934,18 @@ export const EventEditInfo: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+          {eventStatus === "PENDING" && (
+            <button
+              type="button"
+              disabled={isSubmitting || isCancellingApproval}
+              onClick={() => setShowCancelApprovalModal(true)}
+              className="px-4 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-2"
+            >
+              <FiRotateCcw className="w-4 h-4" />
+              <span>{t("Hủy yêu cầu duyệt")}</span>
+            </button>
+          )}
+
           {/* Always available Update Button */}
           <button
             type="button"
@@ -1137,6 +1168,22 @@ export const EventEditInfo: React.FC = () => {
 
       {/* Success submitted modal */}
       {isSubmitted && <SuccessSubmittedModal title={title} />}
+
+      {/* Confirmation Modal: Hoàn tác yêu cầu duyệt */}
+      <ConfirmModal
+        isOpen={showCancelApprovalModal}
+        title={t("Hủy yêu cầu duyệt sự kiện")}
+        message={t(
+          'Bạn có chắc chắn muốn hủy yêu cầu duyệt cho sự kiện "{{title}}"? Sự kiện sẽ được chuyển về trạng thái Bản nháp để bạn có thể tiếp tục chỉnh sửa.',
+          { title: title || "" }
+        )}
+        confirmText={t("Hủy yêu cầu duyệt")}
+        cancelText={t("Đóng")}
+        type="warning"
+        isLoading={isCancellingApproval}
+        onConfirm={handleCancelApproval}
+        onCancel={() => setShowCancelApprovalModal(false)}
+      />
     </div>
   );
 };
