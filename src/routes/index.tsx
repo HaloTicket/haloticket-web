@@ -47,6 +47,7 @@ import EkycVerification from "@/features/ekyc/EkycVerification";
 import CreateEvent from "@/features/organizer/CreateEvent";
 import MyEvents from "@/features/organizer/MyEvents";
 import OrganizerFinance from "@/features/organizer/OrganizerFinance";
+import WithdrawalDetail from "@/features/organizer/finance/WithdrawalDetail";
 import OrganizerTerms from "@/features/organizer/OrganizerTerms";
 
 // Event Management Portal Feature
@@ -392,8 +393,12 @@ export const router = createBrowserRouter([
         element: <OrganizerFinance />,
       },
       {
+        path: "/organizer/finance/withdrawals/:id",
+        element: <WithdrawalDetail />,
+      },
+      {
         path: "/organizer/reports",
-        element: <Navigate to={PATHS.FINANCE} replace />,
+        element: <Navigate to={PATHS.REPORTS} replace />,
       },
       {
         path: PATHS.TERMS,

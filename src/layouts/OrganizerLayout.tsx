@@ -99,7 +99,7 @@ export const OrganizerLayout: React.FC = () => {
       }
     }
     if (n.type === "PAYOUT_APPROVED" || n.type === "PAYOUT_REQUESTED") {
-      navigate(PATHS.REPORTS);
+      navigate(`${PATHS.FINANCE}?tab=history`);
       return;
     }
     if (n.type === "EVENT_APPROVED" || n.type === "EVENT_UPDATE_APPROVED" || n.type === "EVENT_REJECTED") {
@@ -144,15 +144,15 @@ export const OrganizerLayout: React.FC = () => {
   ).toUpperCase();
 
 
-  const sidebarItems = [
+  const sidebarItems: { label: string; path: string; search?: string; icon: React.ReactNode }[] = [
     {
       label: "Sự kiện của tôi",
       path: "/organizer/my-events",
       icon: <FiStar className="w-4 h-4 shrink-0" />,
     },
     {
-      label: "Doanh thu & Đối soát",
-      path: "/organizer/finance",
+      label: "Doanh thu & Rút tiền",
+      path: PATHS.FINANCE,
       icon: <FiFolder className="w-4 h-4 shrink-0" />,
     },
     {
@@ -164,7 +164,9 @@ export const OrganizerLayout: React.FC = () => {
 
   const getHeaderTitle = () => {
     if (location.pathname === "/organizer/my-events") return "Sự kiện của tôi";
-    if (location.pathname === "/organizer/finance" || location.pathname === "/organizer/reports") return "Doanh thu & Đối soát";
+    if (location.pathname === "/organizer/finance" || location.pathname === "/organizer/reports") {
+      return "Doanh thu & Rút tiền";
+    }
     if (location.pathname === "/organizer/terms") return "Điều khoản cho Ban tổ chức";
     if (location.pathname === "/organizer/create-event") return "Tạo sự kiện";
     return "Organizer Center";
@@ -204,11 +206,11 @@ export const OrganizerLayout: React.FC = () => {
           {/* Navigation Links */}
           <nav className="space-y-1.5">
             {sidebarItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path || (item.path === PATHS.FINANCE && location.pathname.startsWith(`${PATHS.FINANCE}/withdrawals/`));
               return (
                 <Link
                   key={item.label}
-                  to={item.path}
+                  to={item.search ? { pathname: item.path, search: item.search } : item.path}
                   onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
                     ? "bg-blue-600 text-white shadow-sm"
@@ -376,7 +378,7 @@ export const OrganizerLayout: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors"
                     >
                       <LuChartColumn className="w-4 h-4 text-indigo-500 shrink-0" />
-                      <span>{translate("Doanh thu & Đối soát")}</span>
+                      <span>{translate("Doanh thu & Rút tiền")}</span>
                     </Link>
 
                     <Link
