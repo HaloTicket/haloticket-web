@@ -2,6 +2,7 @@ import "@/i18n";
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './finance-theme.css'
 import { initializeBrowserAuth } from '@/services/authBootstrap'
 import { getKeycloakSession } from '@/services/keycloakSession'
 import { userApi } from '@/services/userApi'

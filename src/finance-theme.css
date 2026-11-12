@@ -1,0 +1,52 @@
+/* Shared palette for finance screens and their portalled dialogs. */
+.finance-theme {
+  --bg-page: #f2f6ff;
+  --bg-card: #fff;
+  --bg-secondary: #f7faff;
+  --text-main: #101c48;
+  --text-muted: #62769c;
+  --border-color: #e2ebf7;
+  --border: #e2ebf7;
+  color: var(--text-main);
+  background-color: var(--bg-page);
+  accent-color: #005cff;
+}
+.finance-theme .app-bg-card { background-color: #fff; }
+.finance-theme.app-bg-card { background-color: #fff; }
+.finance-theme .app-border { border-color: #e2ebf7; }
+.finance-theme .app-text-main { color: #101c48; }
+.finance-theme .app-text-muted,
+.finance-theme .text-slate-500,
+.finance-theme .text-slate-600 { color: #62769c; }
+.finance-theme .text-slate-900 { color: #101c48; }
+.finance-theme h1, .finance-theme h2, .finance-theme h3 { color: #101c48; }
+.finance-theme .bg-blue-600 { background-color: #005cff; }
+.finance-theme .text-blue-600, .finance-theme .text-blue-700 { color: #005cff; }
+.finance-theme .border-blue-600, .finance-theme .border-blue-500 { border-color: #005cff; }
+.finance-theme .bg-blue-50 { background-color: #eef5ff; }
+.finance-theme .text-green-700, .finance-theme .text-emerald-700,
+.finance-theme .text-emerald-600, .finance-theme .finance-money { color: #00a976; }
+.finance-theme .bg-green-50, .finance-theme .bg-emerald-50 { background-color: #e8faf3; }
+.finance-theme .text-amber-700, .finance-theme .text-orange-600 { color: #ed8a00; }
+.finance-theme .bg-amber-50, .finance-theme .bg-orange-50 { background-color: #fff5e6; }
+.finance-theme :is(input, select, textarea) {
+  border-color: #dce7f5;
+  background-color: #fff;
+  color: #101c48;
+}
+.finance-theme :is(input, select, textarea):focus-visible {
+  outline: 2px solid #005cff;
+  outline-offset: 2px;
+}
+.finance-theme thead { background-color: #f5f9ff; color: #62769c; }
+.finance-theme tbody tr { border-color: #edf2fa; }
+.finance-theme .divide-y > :not(:last-child) { border-color: #edf2fa; }
+.finance-theme tbody tr:hover { background-color: #f8fbff; }
+.finance-theme button { transition: background-color .15s, border-color .15s, color .15s; }
+.finance-theme button.bg-blue-600:hover:not(:disabled) { background-color: #004ee1; }
+.finance-theme button:disabled { cursor: not-allowed; }
+.finance-theme .finance-panel { background: #fff; border: 1px solid #e2ebf7; border-radius: 12px; }
+.finance-theme .finance-total { background: #effaf7; border-color: #dbf1e8; }
+@media (prefers-reduced-motion: reduce) {
+  .finance-theme button { transition: none; }
+}

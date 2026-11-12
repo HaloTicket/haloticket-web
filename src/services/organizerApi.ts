@@ -1,15 +1,44 @@
 import axiosClient from "./axiosClient";
 import type { OrganizerProfileData } from "@/types";
+import type { PayoutAccount } from "@/types";
+import { userApi } from "@/services/userApi";
+
+const normalizePayoutAccount = (account: PayoutAccount): PayoutAccount => {
+  const accountNumber = account.accountNumber || "";
+  return {
+    ...account,
+    accountNumberMasked: account.accountNumberMasked || (accountNumber ? `••••${accountNumber.slice(-4)}` : ""),
+    verified: account.verified ?? account.isVerified ?? false,
+    version: account.version ?? account.accountVersion,
+  };
+};
 
 export const organizerApi = {
+  /** Finance flows must read the verified account from the server, never browser drafts. */
+  getPayoutAccountFromServer: async (): Promise<PayoutAccount | null> => {
+    const profile = await userApi.getProfile();
+    const userId = profile?.id || profile?.keycloakId;
+    if (!userId) throw new Error("Không xác định được tài khoản người tổ chức.");
+    const response = (await axiosClient.get(`/payments/organizer-payout-account/${encodeURIComponent(userId)}`)) as unknown as PayoutAccount | null;
+    if (!response) return null;
+    return normalizePayoutAccount(response);
+  },
+
+  /** Finance flows use this strict variant so failed persistence stays visible. */
+  savePayoutAccountForFinance: async (data: Record<string, unknown>): Promise<PayoutAccount> => {
+    const response: unknown = await axiosClient.post("/payments/organizer-payout-account", data);
+    if (!response || typeof response !== "object") throw new Error("Invalid payout account response");
+    return normalizePayoutAccount(response as PayoutAccount);
+  },
   // fetch organizer profile for pre-filling create event form or settings
   getOrganizerProfile: async (userId?: string): Promise<OrganizerProfileData | null> => {
     try {
       const url = userId ? `/events/organizer-profile?userId=${encodeURIComponent(userId)}` : "/events/organizer-profile";
       const response: unknown = await axiosClient.get(url);
       return response as OrganizerProfileData;
-    } catch (err: any) {
-      if (err?.response?.status !== 403) {
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status !== 403) {
         console.warn("Failed to fetch organizer profile:", err);
       }
       return null;
