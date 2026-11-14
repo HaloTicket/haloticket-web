@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { FiEye, FiLock, FiUnlock, FiRefreshCw, FiUser, FiUsers, FiShield, FiX, FiCheck } from "react-icons/fi";
+import { FiEye, FiLock, FiUnlock, FiRefreshCw, FiUser, FiUsers, FiUserPlus, FiShield, FiX, FiCheck } from "react-icons/fi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminDataState } from "@/components/admin/AdminDataState";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
 import { useTranslation } from "react-i18next";
 import { adminUserApi } from "@/services/adminUserApi";
 import type { AdminUserListItem } from "@/types";
@@ -12,6 +13,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 import { CustomSelect } from "@/components/common/CustomSelect";
+import { CreateUserModal } from "./users/CreateUserModal";
+import { adminUserErrorMessage } from "./users/adminUserErrors";
+import { ASSIGNABLE_ROLES, ROLE_HINT, ROLE_LABEL } from "./users/roleOptions";
+
+const ROLE_TABS = ["ALL", "CUSTOMER", "ORGANIZER", "STAFF", "ADMIN"] as const;
+type RoleTab = (typeof ROLE_TABS)[number];
 
 const getTabStyle = (isActive: boolean) => {
   return isActive 
@@ -45,12 +52,19 @@ export default function AdminUserManagement() {
   const [sortParam, setSortParam] = useState("newest");
 
   // counts for tabs
-  const [counts, setCounts] = useState({ ALL: 0, CUSTOMER: 0, ORGANIZER: 0, ADMIN: 0 });
+  const [counts, setCounts] = useState<Record<RoleTab, number>>({ ALL: 0, CUSTOMER: 0, ORGANIZER: 0, STAFF: 0, ADMIN: 0 });
 
   // role assigning state
   const [editingRolesFor, setEditingRolesFor] = useState<AdminUserListItem | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isUpdatingRoles, setIsUpdatingRoles] = useState(false);
+  const [confirmingRoles, setConfirmingRoles] = useState(false);
+
+  // lock / unlock confirmation, and the account-creation dialog
+  const [statusChange, setStatusChange] = useState<{ user: AdminUserListItem; next: "ACTIVE" | "INACTIVE" } | null>(null);
+  const [statusReason, setStatusReason] = useState("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -67,29 +81,8 @@ export default function AdminUserManagement() {
       setTotalPages(res.totalPages || 1);
       setTotalItems(res.totalElements || 0);
 
-      // fetch counts for all tabs concurrently
-      if (page === 1) {
-        const countPromises = (["ALL", "CUSTOMER", "ORGANIZER", "ADMIN"] as const).map(async (r) => {
-          try {
-            const cRes = await adminUserApi.getUsers({
-              query: query.trim() || undefined,
-              status: statusFilter !== "ALL" ? statusFilter : undefined,
-              role: r !== "ALL" ? r : undefined,
-              size: 1
-            });
-            return { role: r, count: cRes.totalElements || 0 };
-          } catch {
-            return { role: r, count: 0 };
-          }
-        });
-        const countsArray = await Promise.all(countPromises);
-        const newCounts = { ALL: 0, CUSTOMER: 0, ORGANIZER: 0, ADMIN: 0 };
-        countsArray.forEach(c => newCounts[c.role as keyof typeof newCounts] = c.count);
-        setCounts(newCounts);
-      }
-
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(t("Lỗi tải danh sách người dùng."));
     } finally {
@@ -97,17 +90,48 @@ export default function AdminUserManagement() {
     }
   }, [query, statusFilter, roleFilter, sortParam, page, pageSize, t]);
 
+  // one request for every tab count (before: one list request per role)
+  const loadStats = useCallback(async () => {
+    try {
+      const stats = await adminUserApi.getStats();
+      setCounts({
+        ALL: stats.total,
+        CUSTOMER: stats.byRole.CUSTOMER ?? 0,
+        ORGANIZER: stats.byRole.ORGANIZER ?? 0,
+        STAFF: stats.byRole.STAFF ?? 0,
+        ADMIN: stats.byRole.ADMIN ?? 0,
+      });
+    } catch {
+      // the tab badges just stay as they were; the list itself still loads
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const askStatusChange = (user: AdminUserListItem, next: "ACTIVE" | "INACTIVE") => {
+    setStatusReason("");
+    setStatusChange({ user, next });
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusChange) return;
+    setIsUpdatingStatus(true);
     try {
-      await adminUserApi.updateUserStatus(id, newStatus);
-      toast.success(newStatus === "ACTIVE" ? t("Đã mở khóa tài khoản thành công!") : t("Đã khóa tài khoản thành công!"));
+      await adminUserApi.updateUserStatus(statusChange.user.id, statusChange.next, statusChange.next === "INACTIVE" ? statusReason.trim() || undefined : undefined);
+      toast.success(statusChange.next === "ACTIVE" ? t("Đã mở khóa tài khoản thành công!") : t("Đã khóa tài khoản thành công!"));
+      setStatusChange(null);
       fetchUsers();
+      loadStats();
     } catch (err) {
-      toast.error(t("Không thể cập nhật trạng thái tài khoản."));
+      toast.error(adminUserErrorMessage(err, t, t("Không thể cập nhật trạng thái tài khoản.")));
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -117,11 +141,14 @@ export default function AdminUserManagement() {
     try {
       await adminUserApi.updateUserRoles(editingRolesFor.id, selectedRoles);
       toast.success(t("Phân quyền tài khoản thành công!"));
+      setConfirmingRoles(false);
       setEditingRolesFor(null);
       fetchUsers();
+      loadStats();
     } catch (err) {
       console.error(err);
-      toast.error(t("Lỗi khi phân quyền tài khoản."));
+      setConfirmingRoles(false);
+      toast.error(adminUserErrorMessage(err, t, t("Lỗi khi phân quyền tài khoản.")));
     } finally {
       setIsUpdatingRoles(false);
     }
@@ -132,6 +159,12 @@ export default function AdminUserManagement() {
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
   };
+
+  const originalRoles = editingRolesFor?.roles ?? [];
+  const rolesChanged = !!editingRolesFor
+    && (selectedRoles.length !== originalRoles.length || selectedRoles.some((r) => !originalRoles.includes(r)));
+  const removesAdmin = originalRoles.includes("ADMIN") && !selectedRoles.includes("ADMIN");
+  const roleName = (role: string) => (role in ROLE_LABEL ? t(ROLE_LABEL[role as keyof typeof ROLE_LABEL]) : role);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -153,21 +186,31 @@ export default function AdminUserManagement() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={fetchUsers}
-            className="p-2 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
-            title={t("Tải lại dữ liệu")}
-          >
-            <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-blue-600" : ""}`} />
-            <span>{t("Làm mới")}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
+            >
+              <FiUserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>{t("Thêm người dùng")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { fetchUsers(); loadStats(); }}
+              className="p-2 bg-slate-50 dark:bg-slate-800/80 text-app-text-main rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold"
+              title={t("Tải lại dữ liệu")}
+            >
+              <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-blue-600" : ""}`} />
+              <span>{t("Làm mới")}</span>
+            </button>
+          </div>
         </div>
 
         {/* Tab Filters */}
         <div className="flex flex-col xl:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 app-bg-subnav p-1 rounded-lg border border-slate-200 dark:border-slate-800 w-full xl:w-auto flex-wrap overflow-x-auto no-scrollbar">
-            {(["ALL", "CUSTOMER", "ORGANIZER", "ADMIN"] as const).map((tab) => (
+            {ROLE_TABS.map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -177,7 +220,7 @@ export default function AdminUserManagement() {
                 }}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${getTabStyle(roleFilter === tab)}`}
               >
-                {tab === "ALL" ? t("Tất cả") : tab === "CUSTOMER" ? t("Khách hàng") : tab === "ORGANIZER" ? t("Ban tổ chức") : t("Admin")}
+                {tab === "ALL" ? t("Tất cả") : tab === "ADMIN" ? t("Admin") : t(ROLE_LABEL[tab])}
                 <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black ${getBadgeStyle(tab)}`}>
                   {counts[tab]}
                 </span>
@@ -297,11 +340,11 @@ export default function AdminUserManagement() {
                           <FiShield className="w-3.5 h-3.5" />
                         </button>
                         {user.status === "ACTIVE" ? (
-                          <button title={t("Khóa")} onClick={() => handleUpdateStatus(user.id, "INACTIVE")} className="inline-flex h-7 w-7 items-center justify-center rounded bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-colors">
+                          <button title={t("Khóa")} onClick={() => askStatusChange(user, "INACTIVE")} className="inline-flex h-7 w-7 items-center justify-center rounded bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-colors">
                             <FiLock className="w-3.5 h-3.5" />
                           </button>
                         ) : (
-                          <button title={t("Mở khóa")} onClick={() => handleUpdateStatus(user.id, "ACTIVE")} className="inline-flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 transition-colors">
+                          <button title={t("Mở khóa")} onClick={() => askStatusChange(user, "ACTIVE")} className="inline-flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 transition-colors">
                             <FiUnlock className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -354,7 +397,7 @@ export default function AdminUserManagement() {
               <div className="pt-2">
                 <p className="text-xs font-semibold app-text-muted mb-3 uppercase tracking-wider">{t("Chọn vai trò")}</p>
                 <div className="space-y-2">
-                  {(["CUSTOMER", "ORGANIZER", "ADMIN"] as const).map(role => (
+                  {ASSIGNABLE_ROLES.map(role => (
                     <label key={role} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedRoles.includes(role) ? "border-blue-500 bg-blue-50/50 dark:bg-blue-500/10" : "app-border hover:app-bg-subnav"}`}>
                       <input 
                         type="checkbox" 
@@ -364,10 +407,10 @@ export default function AdminUserManagement() {
                       />
                       <div className="flex-1">
                         <div className={`text-[13px] font-bold ${selectedRoles.includes(role) ? 'text-blue-600 dark:text-blue-400' : 'app-text-main'}`}>
-                          {role === "CUSTOMER" ? t("Khách hàng") : role === "ORGANIZER" ? t("Ban tổ chức") : t("Admin quản trị")}
+                          {t(ROLE_LABEL[role])}
                         </div>
                         <div className={`text-[11px] mt-0.5 ${selectedRoles.includes(role) ? 'text-blue-600/80 dark:text-blue-400/80' : 'app-text-muted'}`}>
-                          {role === "CUSTOMER" ? t("Mua vé, tham gia sự kiện.") : role === "ORGANIZER" ? t("Tạo và quản lý sự kiện.") : t("Toàn quyền quản trị hệ thống.")}
+                          {t(ROLE_HINT[role])}
                         </div>
                       </div>
                     </label>
@@ -381,8 +424,8 @@ export default function AdminUserManagement() {
                 {t("Hủy")}
               </button>
               <button 
-                onClick={handleSaveRoles} 
-                disabled={isUpdatingRoles || selectedRoles.length === 0}
+                onClick={() => setConfirmingRoles(true)} 
+                disabled={isUpdatingRoles || selectedRoles.length === 0 || !rolesChanged}
                 className="px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isUpdatingRoles ? <FiRefreshCw className="animate-spin" /> : <FiCheck />}
@@ -391,6 +434,68 @@ export default function AdminUserManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {showCreate && (
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setPage(1); fetchUsers(); loadStats(); }}
+        />
+      )}
+
+      {statusChange && (
+        <AdminConfirmModal
+          title={statusChange.next === "ACTIVE" ? t("Mở khóa tài khoản?") : t("Khóa tài khoản?")}
+          subtitle={statusChange.user.email}
+          confirmText={statusChange.next === "ACTIVE" ? t("Mở khóa") : t("Khóa tài khoản")}
+          cancelText={t("Hủy")}
+          isDanger={statusChange.next === "INACTIVE"}
+          pending={isUpdatingStatus}
+          onClose={() => setStatusChange(null)}
+          onConfirm={confirmStatusChange}
+          maxWidth="max-w-md"
+        >
+          <p className="text-sm app-text-main">
+            {statusChange.next === "ACTIVE"
+              ? t("Người dùng này sẽ đăng nhập và sử dụng hệ thống trở lại.")
+              : t("Người dùng này sẽ không dùng được tài khoản cho đến khi được mở khóa. Thao tác được ghi vào nhật ký quản trị.")}
+          </p>
+          {statusChange.next === "INACTIVE" && (
+            <div className="mt-4">
+              <label htmlFor="status-reason" className="mb-1 block text-xs font-bold app-text-main">{t("Lý do (không bắt buộc)")}</label>
+              <textarea
+                id="status-reason"
+                value={statusReason}
+                maxLength={500}
+                onChange={(e) => setStatusReason(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border app-border app-bg-card px-3 py-2 text-sm app-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+              />
+            </div>
+          )}
+        </AdminConfirmModal>
+      )}
+
+      {editingRolesFor && confirmingRoles && (
+        <AdminConfirmModal
+          title={t("Xác nhận đổi vai trò?")}
+          subtitle={editingRolesFor.email}
+          confirmText={t("Lưu thay đổi")}
+          cancelText={t("Hủy")}
+          isDanger={removesAdmin}
+          pending={isUpdatingRoles}
+          onClose={() => setConfirmingRoles(false)}
+          onConfirm={handleSaveRoles}
+          maxWidth="max-w-md"
+        >
+          <dl className="space-y-2 text-sm">
+            <div className="flex gap-2"><dt className="w-16 shrink-0 app-text-muted">{t("Hiện tại")}</dt><dd className="font-semibold app-text-main">{originalRoles.map(roleName).join(", ") || "-"}</dd></div>
+            <div className="flex gap-2"><dt className="w-16 shrink-0 app-text-muted">{t("Sau khi lưu")}</dt><dd className="font-semibold app-text-main">{selectedRoles.map(roleName).join(", ")}</dd></div>
+          </dl>
+          {removesAdmin && (
+            <p className="mt-3 text-xs font-medium text-red-600 dark:text-red-400">{t("Tài khoản này sẽ mất quyền quản trị.")}</p>
+          )}
+        </AdminConfirmModal>
       )}
     </div>
   );

@@ -1,4 +1,7 @@
 import axiosClient from "./axiosClient";
+import type { AnalyticsRange, EventAnalyticsQuery } from "@/types/eventAnalytics";
+import { describeDevice } from "@/utils/deviceInfo";
+import type { CheckinLookupItem, CheckinPage, CheckinSummary } from "@/types/checkin";
 import type { VoucherItem } from "@/types/voucher";
 import type { EventApiData, MemberItem, MemberInvitationPreview, MemberInvitationAcceptResult } from "@/types";
 import { parseEventSaveFailure } from "@/utils/eventSaveErrors";
@@ -261,11 +264,17 @@ export const eventApi = {
       return null;
     }
   },
-  getEventAnalytics: async (eventId: string, timeRange: "24h" | "30d" = "30d"): Promise<any> => {
+  // A string is the rolling window (24h, 7d, 30d); an object adds a custom from-to period and the comparison with the period before.
+  getEventAnalytics: async (eventId: string, query: AnalyticsRange | EventAnalyticsQuery = "30d"): Promise<any> => {
     try {
-      const response = await axiosClient.get(`/events/${eventId}/analytics`, {
-        params: { timeRange }
-      });
+      const q: EventAnalyticsQuery = typeof query === "string" ? { timeRange: query } : query;
+      const params: Record<string, string | boolean> = { timeRange: q.timeRange ?? "30d" };
+      if (q.from && q.to) {
+        params.from = q.from;
+        params.to = q.to;
+      }
+      if (q.compare) params.compare = true;
+      const response = await axiosClient.get(`/events/${eventId}/analytics`, { params });
       return response.data || response;
     } catch (err) {
       console.error("Failed to get event analytics:", err);
@@ -320,13 +329,35 @@ export const eventApi = {
     }
   },
 
+  /** Entered / total for the door, per showtime and ticket type. Door staff may read it. */
+  getCheckinSummary: async (eventId: string): Promise<CheckinSummary> => {
+    const response = (await axiosClient.get(`/tickets/checkin/events/${eventId}/summary`)) as unknown as CheckinSummary;
+    return response;
+  },
+
+  /** The people who entered, one server page at a time (page counts from 0), newest first. */
+  getCheckinPage: async (eventId: string, params: { showtimeId?: string; page?: number; size?: number } = {}): Promise<CheckinPage> => {
+    const response = (await axiosClient.get(`/tickets/checkin/events/${eventId}/page`, {
+      params: { page: params.page ?? 0, size: params.size ?? 20, ...(params.showtimeId ? { showtimeId: params.showtimeId } : {}) },
+    })) as unknown as CheckinPage;
+    return response;
+  },
+
+  /** Finds tickets by a fragment of the ticket code, order id, seat or ticket type (the server needs at least two characters). */
+  searchCheckinTickets: async (eventId: string, q: string, params: { showtimeId?: string; limit?: number } = {}): Promise<CheckinLookupItem[]> => {
+    const response = (await axiosClient.get(`/tickets/checkin/events/${eventId}/search`, {
+      params: { q, limit: params.limit ?? 20, ...(params.showtimeId ? { showtimeId: params.showtimeId } : {}) },
+    })) as unknown as CheckinLookupItem[];
+    return Array.isArray(response) ? response : [];
+  },
+
   checkinTicket: async (eventId: string, qrCodeHash: string, showtimeId?: string): Promise<any> => {
     try {
       const response = await axiosClient.post(`/tickets/checkin`, {
         eventId,
         qrCodeHash,
         showtimeId: showtimeId || null,
-        deviceInfo: 'Web Browser',
+        deviceInfo: describeDevice(),
         staffAssignmentId: 'web-admin-session'
       });
       return response;

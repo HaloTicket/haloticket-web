@@ -1,5 +1,5 @@
 import axiosClient from "./axiosClient";
-import type { Category, Banner, EventSection, SystemConfig } from "@/types/adminConfig";
+import type { Category, Banner, EventSection } from "@/types/adminConfig";
 
 export const adminConfigApi = {
   // category
@@ -7,10 +7,8 @@ export const adminConfigApi = {
   addCategory: (data: Partial<Category>) => axiosClient.post<Category>("/events/categories", data),
   updateCategory: (id: string, data: Partial<Category>) => axiosClient.put<Category>(`/events/categories/${id}`, data),
   deleteCategory: (id: string) => axiosClient.delete(`/events/categories/${id}`),
-
-  // system config
-  getSystemConfig: () => axiosClient.get<SystemConfig>("/events/admin/config/system-config"),
-  updateSystemConfig: (data: Partial<SystemConfig>) => axiosClient.put<SystemConfig>("/events/admin/config/system-config", data),
+  // the new display order: category ids from first to last
+  reorderCategories: (ids: string[]) => axiosClient.put<Category[]>("/events/categories/order", ids),
 
   // homepage config (banners)
   getBanners: () => axiosClient.get<Banner[]>("/events/admin/config/homepage/banners"),

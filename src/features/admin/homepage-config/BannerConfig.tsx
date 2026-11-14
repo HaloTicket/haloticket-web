@@ -70,10 +70,10 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
     if (!file) return;
     try {
       setIsUploading(true);
-      const res = (await mediaApi.uploadImage(file, "banners")) as any;
+      const res = (await mediaApi.uploadImage(file, "banners")) as { url?: string; data?: { url?: string } };
       setFormData(prev => ({ ...prev, imageUrl: res.url || res.data?.url || "" }));
       toast.success(t("Tải ảnh lên thành công"));
-    } catch (error) {
+    } catch {
       toast.error(t("Lỗi tải ảnh lên"));
     } finally {
       setIsUploading(false);
@@ -81,8 +81,20 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
   };
 
   const handleSaveBanner = () => {
-    if (!formData.title) {
+    if (!formData.title?.trim()) {
       toast.error(t("Vui lòng nhập tên/tiêu đề banner"));
+      return;
+    }
+    if (!formData.imageUrl?.trim()) {
+      toast.error(t("Banner cần có ảnh: nhập URL hoặc tải ảnh lên."));
+      return;
+    }
+    if (!/^https?:\/\//i.test(formData.imageUrl.trim()) && !formData.imageUrl.startsWith("/")) {
+      toast.error(t("Đường dẫn ảnh phải bắt đầu bằng http(s)://"));
+      return;
+    }
+    if (formData.linkUrl?.trim() && !/^(https?:\/\/|\/)/i.test(formData.linkUrl.trim())) {
+      toast.error(t("Liên kết phải bắt đầu bằng http(s):// hoặc /"));
       return;
     }
     
@@ -90,7 +102,7 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
     if (editingBanner) {
       newBanners = newBanners.map(b => b.id === editingBanner.id ? { ...b, ...formData } as Banner : b);
     } else {
-      newBanners.push({ ...formData, id: `BN_${Date.now()}` } as Banner);
+      newBanners.push({ ...formData, id: `BN_${crypto.randomUUID()}` } as Banner);
     }
     onChange(newBanners);
     setIsModalOpen(false);

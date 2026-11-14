@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import {
   FiZoomIn,
@@ -12,21 +13,212 @@ import {
   FiMaximize2,
   FiMinimize2,
   FiGrid,
+  FiHelpCircle,
+  FiMaximize,
   FiTarget,
   FiRotateCcw as FiUndo,
   FiRotateCw as FiRedo,
 } from 'react-icons/fi';
 import type { Seat, StageElement, StructureElement, ZoneBlock, SeatCanvasProps } from '@/types/seating';
 import { isSeatInsideZone, reassignSeatZones } from '@/utils/seatMapHelpers';
+import {
+  clampZoom,
+  fitZoom,
+  isTypingTarget,
+  neighborSeatId,
+  pinchZoom,
+  zoomAtPoint,
+  type ArrowDirection,
+} from '../../seatMapEditing';
+import { MiniMap } from './MiniMap';
+
+const EMPTY_STATUS_MAP: Record<string, string> = {};
+const EMPTY_CART: Seat[] = [];
+const ARROW_KEYS: Record<string, ArrowDirection> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+// above this many seats the minimap is shown: a big map no longer fits the viewport
+const MINIMAP_SEAT_THRESHOLD = 400;
+
+// Props the studio can add on top of SeatCanvasProps. All optional, so the other screens that embed the canvas
+// (customer seat picker, admin venue designer...) behave exactly as before.
+export interface SeatCanvasExtraProps {
+  /** Shows a message to the user (the studio passes its toast). Without it the canvas falls back to window.alert. */
+  onNotify?: (type: 'success' | 'error' | 'warning' | 'info', text: string) => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onDuplicate?: () => void;
+  /** Moves the selection by (dx, dy); the canvas commits the history shortly after the last arrow key press. */
+  onNudge?: (dx: number, dy: number) => void;
+  onShowShortcuts?: () => void;
+  /** Scrolls an element into view (the pre-publish check panel). `nonce` makes the same target repeatable. */
+  focusRequest?: { kind: 'seat' | 'zone'; id: string; nonce: number } | null;
+}
+
+interface SeatNodeProps {
+  seat: Seat;
+  zoneName: string;
+  zoneColor: string;
+  zoneShape: string;
+  zonePrice: number;
+  isSelected: boolean;
+  isCartItem: boolean;
+  statusFromMap?: string;
+  isAttendeeMode: boolean;
+  tabIndex: number;
+  t: TFunction;
+  onPointerDown: (e: React.PointerEvent, seat: Seat) => void;
+  onActivate: (seat: Seat, multi: boolean) => void;
+  onArrow: (seat: Seat, direction: ArrowDirection) => void;
+  onFocusSeat: (seatId: string) => void;
+}
+
+// One seat. Memoised: a zoom, a hover or a selection elsewhere re-renders only the seats whose own props changed.
+const SeatNode = memo(function SeatNode({
+  seat,
+  zoneName,
+  zoneColor,
+  zoneShape,
+  zonePrice,
+  isSelected,
+  isCartItem,
+  statusFromMap,
+  isAttendeeMode,
+  tabIndex,
+  t,
+  onPointerDown,
+  onActivate,
+  onArrow,
+  onFocusSeat,
+}: SeatNodeProps) {
+  const isMaintenance = seat.status === 'maintenance';
+  const isBlocked = seat.status === 'blocked';
+  const isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
+  const isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
+  const isAccessible = seat.status === 'accessible';
+
+  // Shape Styling
+  const rawShape = seat.shape || zoneShape || 'rounded';
+  const seatShape = rawShape === 'circle' || rawShape === 'square' ? rawShape : 'rounded';
+  const shapeClass = seatShape === 'circle' ? 'rounded-full' : seatShape === 'square' ? 'rounded-xs' : 'rounded-lg';
+
+  const statusLabel = isCartItem
+    ? t('Đã chọn')
+    : isSold
+      ? t('Đã bán')
+      : isHolding
+        ? t('Đang giữ')
+        : isMaintenance
+          ? t('Bảo trì')
+          : isBlocked
+            ? t('Đã khóa')
+            : isAccessible
+              ? t('Dành cho người khuyết tật')
+              : t('Còn trống');
+  const ariaLabel = `${t('Ghế')} ${seat.row}${seat.number} – ${statusLabel}, ${zoneName}`;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onActivate(seat, e.shiftKey);
+    } else if (ARROW_KEYS[e.key]) {
+      e.preventDefault();
+      e.stopPropagation();
+      onArrow(seat, ARROW_KEYS[e.key]);
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={tabIndex}
+      aria-label={ariaLabel}
+      aria-pressed={isAttendeeMode ? isCartItem : isSelected}
+      data-seat-id={seat.id}
+      onPointerDown={(e) => onPointerDown(e, seat)}
+      onKeyDown={handleKeyDown}
+      onFocus={() => onFocusSeat(seat.id)}
+      className={`absolute w-8.5 h-8.5 ${shapeClass} font-mono text-[11px] font-extrabold flex items-center justify-center transition-transform duration-75 group shadow-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-400 ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : (isSold || isHolding) ? 'cursor-not-allowed' : 'cursor-pointer'
+        } ${isCartItem
+          ? 'bg-emerald-500 text-white ring-4 ring-emerald-400 scale-125 z-40 shadow-xl'
+          : isMaintenance
+            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/80 ring-1 ring-rose-500/40'
+            : isSold
+              ? 'bg-slate-700 text-slate-400 border border-slate-600 opacity-60 cursor-not-allowed'
+              : isBlocked
+                ? 'bg-slate-800 text-slate-500 border border-slate-700'
+                : isHolding
+                  ? 'bg-amber-500 text-white border-2 border-amber-300 ring-2 ring-amber-400/80 animate-pulse'
+                  : isAccessible
+                    ? 'bg-purple-600/30 text-purple-300 border border-purple-500 shadow-sm'
+                    : 'text-white border-2 border-white/90 shadow-md'
+        } ${isSelected
+          ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-900 scale-125 z-30 shadow-2xl'
+          : ''
+        }`}
+      style={{
+        left: `${seat.x}px`,
+        top: `${seat.y}px`,
+        backgroundColor:
+          !isCartItem && !isMaintenance && !isSold && !isBlocked && !isHolding && !isAccessible
+            ? (seat.color || zoneColor || '#3b82f6')
+            : undefined,
+        transform: seat.rotation ? `rotate(${seat.rotation}deg)` : undefined,
+      }}
+    >
+      {isCartItem ? (
+        <FiUserCheck className="w-4 h-4 text-white" />
+      ) : isMaintenance ? (
+        <FiTool className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+      ) : isBlocked ? (
+        <FiLock className="w-3.5 h-3.5 text-slate-400" />
+      ) : isHolding ? (
+        <span className="text-[9px] font-black">GIỮ</span>
+      ) : isSold ? (
+        'X'
+      ) : (
+        seat.number
+      )}
+
+      {/* Tooltip: on hover and, for keyboard users, on focus */}
+      <div className="absolute bottom-full mb-2 hidden group-hover:flex group-focus-visible:flex flex-col items-center z-50 pointer-events-none">
+        <div className="px-3 py-1.5 bg-slate-950 text-white text-[11px] rounded-xl shadow-2xl border border-slate-700 whitespace-nowrap space-y-0.5">
+          <div className="font-extrabold flex items-center gap-1.5">
+            <span>{t("Ghế")} {seat.row}-{seat.number}</span>
+            {isHolding && (
+              <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-mono">
+                {t("ĐANG GIỮ VÉ (15p)")}
+              </span>
+            )}
+            {isSold && (
+              <span className="px-1.5 py-0.2 rounded bg-slate-600 text-white text-[9px] font-mono">
+                {t("ĐÃ BÁN")}
+              </span>
+            )}
+          </div>
+          <div className="text-slate-300">
+            {zoneName} -{' '}
+            <span className="font-mono text-emerald-400 font-bold">
+              {zonePrice.toLocaleString('vi-VN')} đ
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400 font-mono">
+            X: {seat.x}px | Y: {seat.y}px ({seat.rotation || 0}°)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 // studio canvas interactive seating map component
-export const SeatCanvas: React.FC<SeatCanvasProps> = ({
+export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   seats,
   stages,
   structures,
   zones,
   tiers,
-  canvasSettings: _canvasSettings,
+  canvasSettings,
   selectedSeatIds,
   setSelectedSeatIds,
   selectedStageId,
@@ -47,18 +239,70 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
   canRedo,
   onCommitHistory,
   isAttendeeMode = false,
-  attendeeCart = [],
+  attendeeCart: attendeeCartProp,
   onToggleAttendeeSeat,
   onSelectZoneAttendee,
   isFullscreen = false,
   onToggleFullscreen,
   onCanvasClickPosition,
-  seatStatusMap = {},
+  seatStatusMap: seatStatusMapProp,
+  onNotify,
+  onCopy,
+  onPaste,
+  onDuplicate,
+  onNudge,
+  onShowShortcuts,
+  focusRequest,
 }) => {
   const { t } = useTranslation();
+  const seatStatusMap = seatStatusMapProp ?? EMPTY_STATUS_MAP;
+  const attendeeCart = attendeeCartProp ?? EMPTY_CART;
+  // the studio passes its toast; the other screens that embed this canvas keep the browser alert
+  const notify = (type: 'success' | 'error' | 'warning' | 'info', text: string) => {
+    if (onNotify) onNotify(type, text);
+    else window.alert(text);
+  };
   const getZonePrice = (zone?: ZoneBlock | Partial<ZoneBlock>) => zone?.price ?? tiers?.find((t) => t.id === zone?.tierId)?.price ?? 0;
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [gridSnap, setGridSnap] = useState<boolean>(true);
+
+  // zoom, pan and touch state
+  const zoomRef = useRef<number>(100);
+  const pendingScrollRef = useRef<{ left: number; top: number } | null>(null);
+  const [handMode, setHandMode] = useState<boolean>(false);
+  const [spaceDown, setSpaceDown] = useState<boolean>(false);
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const panRef = useRef<{ pointerId: number; startX: number; startY: number; left: number; top: number } | null>(null);
+  const touchPointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{ startDistance: number; startZoom: number; lastMid: { x: number; y: number } } | null>(null);
+  const nudgeTimerRef = useRef<number | null>(null);
+  // the seat that holds the single tab stop of the seats (roving tabindex)
+  const [roverId, setRoverId] = useState<string | null>(null);
+  const [viewport, setViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
+
+  const zoneList = useMemo(
+    () => (!zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>)),
+    [zones]
+  );
+  const selectedSeatIdSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
+  const cartIdSet = useMemo(() => new Set(attendeeCart.map((s) => s.id)), [attendeeCart]);
+  // seat count and sold/held count per zone, recomputed only when the seats, zones or statuses change
+  const zoneStats = useMemo(() => {
+    const stats = new Map<string, { count: number; soldOrHeld: number }>();
+    for (const zone of zoneList) {
+      let count = 0;
+      let soldOrHeld = 0;
+      for (const s of seats) {
+        if (s.zoneId === zone.id || isSeatInsideZone(s, zone)) {
+          count += 1;
+          const st = seatStatusMap[s.id] || s.status;
+          if (st === 'sold' || st === 'SOLD' || st === 'HELD' || st === 'HOLDING') soldOrHeld += 1;
+        }
+      }
+      stats.set(zone.id, { count, soldOrHeld });
+    }
+    return stats;
+  }, [zoneList, seats, seatStatusMap]);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
@@ -221,20 +465,65 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     }
   }, [isFullscreen, isAttendeeMode]);
 
-  // Mouse wheel interaction: Ctrl+Wheel to Zoom, Shift+Wheel to Scroll Horizontally
+  // keeps the pointer's content point still while the zoom changes: the scroll position is computed here and
+  // applied after the zoomed render (useLayoutEffect below). `pan` moves the view too (two-finger gesture).
+  const applyZoom = (next: number, pointer?: { x: number; y: number }, pan?: { dx: number; dy: number }) => {
+    const container = canvasRef.current;
+    if (!container) return;
+    const current = zoomRef.current;
+    const target = clampZoom(next);
+    const base = pendingScrollRef.current ?? { left: container.scrollLeft, top: container.scrollTop };
+    const scroll = { left: Math.max(0, base.left - (pan?.dx ?? 0)), top: Math.max(0, base.top - (pan?.dy ?? 0)) };
+    if (target === current) {
+      if (pan) {
+        if (pendingScrollRef.current) pendingScrollRef.current = scroll;
+        else {
+          container.scrollLeft = scroll.left;
+          container.scrollTop = scroll.top;
+        }
+      }
+      return;
+    }
+    pendingScrollRef.current = zoomAtPoint({
+      zoom: current,
+      nextZoom: target,
+      pointer: pointer ?? { x: container.clientWidth / 2, y: container.clientHeight / 2 },
+      scroll,
+    });
+    zoomRef.current = target;
+    setZoomLevel(target);
+  };
+  const applyZoomRef = useRef(applyZoom);
+  useEffect(() => {
+    applyZoomRef.current = applyZoom;
+  });
+
+  const flushPendingScroll = () => {
+    const el = canvasRef.current;
+    const pending = pendingScrollRef.current;
+    if (el && pending) {
+      el.scrollLeft = pending.left;
+      el.scrollTop = pending.top;
+    }
+    pendingScrollRef.current = null;
+  };
+  useLayoutEffect(() => {
+    zoomRef.current = zoomLevel;
+    flushPendingScroll();
+  }, [zoomLevel]);
+
+  // Mouse wheel interaction: Ctrl+Wheel zooms around the pointer, Shift+Wheel scrolls horizontally
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
 
-    let rafId: number | null = null;
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY < 0 ? 10 : -10;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          setZoomLevel((prev) => Math.min(Math.max(prev + delta, 40), 200));
-        });
+        const rect = container.getBoundingClientRect();
+        // a mouse wheel notch (deltaY 100) is one 10% step; a trackpad pinch sends many small deltas
+        const step = Math.sign(-e.deltaY) * Math.min(15, Math.max(2, Math.abs(e.deltaY) * 0.1));
+        applyZoomRef.current(zoomRef.current + step, { x: e.clientX - rect.left, y: e.clientY - rect.top });
       } else if (e.shiftKey) {
         e.preventDefault();
         container.scrollLeft += e.deltaY;
@@ -244,7 +533,52 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
       container.removeEventListener('wheel', handleWheel);
-      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  // Two-finger pinch and pan on touch screens, and dragging the view in hand mode
+  useEffect(() => {
+    const handleMove = (e: PointerEvent) => {
+      const container = canvasRef.current;
+      if (!container) return;
+      if (e.pointerType === 'touch' && touchPointers.current.has(e.pointerId)) {
+        touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const pinch = pinchRef.current;
+        if (pinch && touchPointers.current.size >= 2) {
+          const [a, b] = Array.from(touchPointers.current.values());
+          const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+          const rect = container.getBoundingClientRect();
+          const pan = { dx: mid.x - pinch.lastMid.x, dy: mid.y - pinch.lastMid.y };
+          pinch.lastMid = mid;
+          applyZoomRef.current(
+            pinchZoom(pinch.startZoom, pinch.startDistance, Math.hypot(a.x - b.x, a.y - b.y)),
+            { x: mid.x - rect.left, y: mid.y - rect.top },
+            pan
+          );
+          return;
+        }
+      }
+      const pan = panRef.current;
+      if (pan && e.pointerId === pan.pointerId) {
+        container.scrollLeft = pan.left - (e.clientX - pan.startX);
+        container.scrollTop = pan.top - (e.clientY - pan.startY);
+      }
+    };
+    const handleEnd = (e: PointerEvent) => {
+      touchPointers.current.delete(e.pointerId);
+      if (touchPointers.current.size < 2) pinchRef.current = null;
+      if (panRef.current && e.pointerId === panRef.current.pointerId) {
+        panRef.current = null;
+        setIsPanning(false);
+      }
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleEnd);
+    window.addEventListener('pointercancel', handleEnd);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleEnd);
+      window.removeEventListener('pointercancel', handleEnd);
     };
   }, []);
 
@@ -335,28 +669,28 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     };
   }, [zoomLevel, seats, stages, structures, zones, setSelectedSeatIds, setSelectedStageId, setSelectedStructureId, setSelectedZoneId, onCommitHistory, onUpdateSeats]);
 
-  // global keyboard listener for Ctrl+Z, Ctrl+Y, Delete, Backspace
+  useEffect(
+    () => () => {
+      if (nudgeTimerRef.current) window.clearTimeout(nudgeTimerRef.current);
+    },
+    []
+  );
+
+  // global keyboard listener: undo/redo/delete, and in the editor copy/paste/duplicate, select all, Esc, nudge, Space-to-pan, '?'
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        document.activeElement?.tagName === 'INPUT' ||
-        document.activeElement?.tagName === 'TEXTAREA' ||
-        document.activeElement?.tagName === 'SELECT'
-      ) {
-        return;
-      }
+      if (isTypingTarget(document.activeElement)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
 
       // Ctrl + Z (Undo)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      if (mod && key === 'z' && !e.shiftKey) {
         e.preventDefault();
         if (canUndo && onUndo) onUndo();
       }
 
       // Ctrl + Y or Ctrl + Shift + Z (Redo)
-      if (
-        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
-        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
-      ) {
+      if ((mod && key === 'y') || (mod && e.shiftKey && key === 'z')) {
         e.preventDefault();
         if (canRedo && onRedo) onRedo();
       }
@@ -369,16 +703,123 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
           onCommitHistory?.();
         }
       }
+
+      if (isAttendeeMode) return;
+      const hasSelection = selectedSeatIds.length > 0 || Boolean(selectedStageId || selectedStructureId || selectedZoneId);
+      const active = document.activeElement as HTMLElement | null;
+      const onSeat = Boolean(active?.closest?.('[data-seat-id]'));
+
+      if (mod && key === 'c') {
+        if (hasSelection && onCopy) {
+          e.preventDefault();
+          onCopy();
+        }
+      } else if (mod && key === 'v') {
+        if (onPaste) {
+          e.preventDefault();
+          onPaste();
+        }
+      } else if (mod && key === 'd') {
+        if (hasSelection && onDuplicate) {
+          e.preventDefault(); // Ctrl+D would bookmark the page
+          onDuplicate();
+        }
+      } else if (mod && key === 'a') {
+        e.preventDefault();
+        setSelectedSeatIds(seats.filter((s) => !s.hidden).map((s) => s.id));
+        setSelectedStageId(null);
+        setSelectedStructureId(null);
+        setSelectedZoneId?.(null);
+      } else if (e.key === 'Escape') {
+        setSelectedSeatIds([]);
+        setSelectedStageId(null);
+        setSelectedStructureId(null);
+        setSelectedZoneId?.(null);
+        setHandMode(false);
+      } else if (e.key === '?') {
+        onShowShortcuts?.();
+      } else if (e.key === ' ' && !e.repeat) {
+        // Space held = temporary hand tool, unless focus sits on a seat or a button (Space activates those)
+        const free = !active || active === document.body || active.id === 'canvas-workspace';
+        if (free) {
+          e.preventDefault();
+          setSpaceDown(true);
+        }
+      } else if (ARROW_KEYS[e.key] && !mod && !onSeat && hasSelection && onNudge) {
+        e.preventDefault();
+        const grid = canvasSettings?.gridSize || 5;
+        const step = grid * (e.shiftKey ? 10 : 1);
+        const dir = ARROW_KEYS[e.key];
+        onNudge(dir === 'left' ? -step : dir === 'right' ? step : 0, dir === 'up' ? -step : dir === 'down' ? step : 0);
+        // one history step per burst of key presses
+        if (nudgeTimerRef.current) window.clearTimeout(nudgeTimerRef.current);
+        nudgeTimerRef.current = window.setTimeout(() => onCommitHistory?.(), 350);
+      }
     };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') setSpaceDown(false);
+    };
+    const handleBlur = () => setSpaceDown(false);
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedSeatIds, selectedStageId, selectedStructureId, selectedZoneId, onDeleteSelected, onUndo, onRedo, canUndo, canRedo, onCommitHistory]);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [
+    selectedSeatIds,
+    selectedStageId,
+    selectedStructureId,
+    selectedZoneId,
+    onDeleteSelected,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+    onCommitHistory,
+    isAttendeeMode,
+    seats,
+    canvasSettings,
+    onCopy,
+    onPaste,
+    onDuplicate,
+    onNudge,
+    onShowShortcuts,
+    setSelectedSeatIds,
+    setSelectedStageId,
+    setSelectedStructureId,
+    setSelectedZoneId,
+  ]);
 
   // zoom handlers
-  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 15, 200));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 15, 40));
-  const handleResetZoom = () => setZoomLevel(100);
+  const handleZoomIn = () => applyZoom(zoomRef.current + 15);
+  const handleZoomOut = () => applyZoom(zoomRef.current - 15);
+  const handleResetZoom = () => applyZoom(100);
+
+  // fit the whole map in the viewport (can go below the 40% the buttons stop at)
+  const fitToScreen = () => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const bbox = getBoundingBox();
+    const next = fitZoom({
+      viewport: { width: el.clientWidth, height: el.clientHeight },
+      content: { width: bbox.width, height: bbox.height },
+    });
+    const scale = next / 100;
+    pendingScrollRef.current = {
+      left: Math.max(0, ((bbox.minX + bbox.maxX) / 2) * scale - el.clientWidth / 2),
+      top: Math.max(0, ((bbox.minY + bbox.maxY) / 2) * scale - el.clientHeight / 2),
+    };
+    if (next === zoomRef.current) {
+      flushPendingScroll();
+      return;
+    }
+    zoomRef.current = next;
+    setZoomLevel(next);
+  };
 
   // helper to store initial positions for unified dragging
   const createInitialMap = (
@@ -447,24 +888,52 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     }
   };
 
+  // what a click (or Enter) on a seat does in the attendee preview
+  const handleAttendeeSeat = (seat: Seat) => {
+    const statusFromMap = seatStatusMap ? seatStatusMap[seat.id] : undefined;
+    const isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
+    const isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
+    const isBlocked = seat.status === 'blocked' || seat.status === 'maintenance';
+
+    if (isSold) {
+      notify('warning', t("Ghế này đã được bán."));
+    } else if (isHolding) {
+      notify('warning', t("Ghế này đang được người khác giữ hoặc chờ thanh toán, vui lòng thử lại sau ít phút."));
+    } else if (isBlocked) {
+      notify('warning', t("Ghế này hiện đang bị khóa."));
+    } else if (onToggleAttendeeSeat) {
+      onToggleAttendeeSeat(seat);
+    }
+  };
+
+  // keyboard activation of a seat (Enter or Space): same effect as a click without dragging
+  const activateSeat = (seat: Seat, multi: boolean) => {
+    if (isAttendeeMode) {
+      handleAttendeeSeat(seat);
+      return;
+    }
+    setSelectedSeatIds(
+      multi
+        ? selectedSeatIds.includes(seat.id)
+          ? selectedSeatIds.filter((id) => id !== seat.id)
+          : [...selectedSeatIds, seat.id]
+        : [seat.id]
+    );
+  };
+
+  // arrow keys on a focused seat move the focus to the nearest seat in that direction
+  const moveSeatFocus = (seat: Seat, direction: ArrowDirection) => {
+    const nextId = neighborSeatId(seats, seat.id, direction);
+    if (!nextId) return;
+    const node = canvasRef.current?.querySelector<HTMLElement>(`[data-seat-id="${nextId.replace(/["\\]/g, '\\$&')}"]`);
+    node?.focus();
+  };
+
   // pointer down for seats
   const handlePointerDownSeat = (e: React.PointerEvent, seat: Seat) => {
     if (isAttendeeMode) {
       e.stopPropagation();
-      const statusFromMap = seatStatusMap ? seatStatusMap[seat.id] : undefined;
-      const isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
-      const isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
-      const isBlocked = seat.status === 'blocked' || seat.status === 'maintenance';
-
-      if (isSold) {
-        alert(t("Ghế này đã được bán."));
-      } else if (isHolding) {
-        alert(t("Ghế này đang được người khác giữ hoặc chờ thanh toán, vui lòng thử lại sau ít phút."));
-      } else if (isBlocked) {
-        alert(t("Ghế này hiện đang bị khóa."));
-      } else if (onToggleAttendeeSeat) {
-        onToggleAttendeeSeat(seat);
-      }
+      handleAttendeeSeat(seat);
       return;
     }
 
@@ -992,6 +1461,106 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
     }
   };
 
+  // The memoised seats need handlers with a stable identity: they call the latest closures through a ref.
+  const seatHandlersRef = useRef({ pointerDown: handlePointerDownSeat, activate: activateSeat, arrow: moveSeatFocus });
+  useEffect(() => {
+    seatHandlersRef.current = { pointerDown: handlePointerDownSeat, activate: activateSeat, arrow: moveSeatFocus };
+  });
+  const onSeatPointerDown = useCallback((e: React.PointerEvent, seat: Seat) => seatHandlersRef.current.pointerDown(e, seat), []);
+  const onSeatActivate = useCallback((seat: Seat, multi: boolean) => seatHandlersRef.current.activate(seat, multi), []);
+  const onSeatArrow = useCallback((seat: Seat, direction: ArrowDirection) => seatHandlersRef.current.arrow(seat, direction), []);
+  const onSeatFocus = useCallback((seatId: string) => setRoverId(seatId), []);
+  const roverSeatId = roverId && seats.some((s) => s.id === roverId) ? roverId : (selectedSeatIds[0] ?? seats[0]?.id ?? null);
+
+  // two fingers: pinch to zoom and pan. One finger or a mouse in hand mode (or with Space held): drag the view.
+  const handleContainerPointerDownCapture = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touchPointers.current.size === 2) {
+        // the first finger may have started a marquee or a drag: drop it
+        isSelectingMarquee.current = false;
+        selectionBoxRef.current = null;
+        setSelectionBox(null);
+        draggingRef.current = null;
+        const [a, b] = Array.from(touchPointers.current.values());
+        pinchRef.current = {
+          startDistance: Math.hypot(a.x - b.x, a.y - b.y),
+          startZoom: zoomRef.current,
+          lastMid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+        };
+        e.stopPropagation();
+        return;
+      }
+      if (touchPointers.current.size > 2) {
+        e.stopPropagation();
+        return;
+      }
+    }
+    if (!isAttendeeMode && (handMode || spaceDown) && canvasRef.current) {
+      e.stopPropagation();
+      panRef.current = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        left: canvasRef.current.scrollLeft,
+        top: canvasRef.current.scrollTop,
+      };
+      setIsPanning(true);
+    }
+  };
+
+  // scroll an element into view on request (the pre-publish check panel)
+  useEffect(() => {
+    if (!focusRequest) return;
+    const el = canvasRef.current;
+    if (!el) return;
+    let x: number | undefined;
+    let y: number | undefined;
+    if (focusRequest.kind === 'seat') {
+      const target = seats.find((s) => s.id === focusRequest.id);
+      x = target?.x;
+      y = target?.y;
+    } else {
+      const target = zones[focusRequest.id];
+      if (target) {
+        x = (target.x ?? 0) + (target.width ?? 0) / 2;
+        y = (target.y ?? 0) + (target.height ?? 0) / 2;
+      }
+    }
+    if (x === undefined || y === undefined) return;
+    const scale = zoomRef.current / 100;
+    el.scrollTo({
+      left: Math.max(0, x * scale - el.clientWidth / 2),
+      top: Math.max(0, y * scale - el.clientHeight / 2),
+      behavior: 'smooth',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.nonce]);
+
+  // the minimap follows the scroll position, but only while it is shown
+  const showMiniMap = !isAttendeeMode && seats.length >= MINIMAP_SEAT_THRESHOLD;
+  useEffect(() => {
+    if (!showMiniMap) return;
+    const el = canvasRef.current;
+    if (!el) return;
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() =>
+        setViewport({ left: el.scrollLeft, top: el.scrollTop, width: el.clientWidth, height: el.clientHeight })
+      );
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [showMiniMap]);
+  const miniBox = useMemo(() => (showMiniMap ? getBoundingBox() : null), [showMiniMap, seats, zones, stages, structures]);
+
   return (
     <div
       className={`relative flex-1 w-full app-bg-card border app-border rounded-2xl flex flex-col justify-between overflow-hidden shadow-xs transition-all ${isFullscreen ? 'h-full min-h-0 rounded-xl border-none' : 'h-full min-h-0'
@@ -1087,6 +1656,43 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
           >
             <FiTarget className="w-4 h-4" />
           </button>
+          <button
+            type="button"
+            onClick={fitToScreen}
+            className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
+            title={t("Vừa màn hình")}
+            aria-label={t("Vừa màn hình")}
+          >
+            <FiMaximize className="w-4 h-4" />
+          </button>
+          {!isAttendeeMode && (
+            <>
+              <button
+                type="button"
+                onClick={() => setHandMode((prev) => !prev)}
+                aria-pressed={handMode}
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${handMode
+                  ? 'bg-blue-600 text-white border-blue-500'
+                  : 'app-bg-main app-border app-text-muted hover:app-text-main'
+                  }`}
+                title={t("Chế độ bàn tay: kéo để di chuyển khung nhìn (giữ Phím cách để dùng tạm)")}
+                aria-label={t("Chế độ bàn tay")}
+              >
+                <FiMove className="w-4 h-4" />
+              </button>
+              {onShowShortcuts && (
+                <button
+                  type="button"
+                  onClick={onShowShortcuts}
+                  className="p-2 rounded-xl app-bg-main border app-border app-text-muted hover:app-text-main transition-colors cursor-pointer"
+                  title={t("Phím tắt (?)")}
+                  aria-label={t("Phím tắt")}
+                >
+                  <FiHelpCircle className="w-4 h-4" />
+                </button>
+              )}
+            </>
+          )}
 
           {/* Full-Screen Studio Expand Toggle */}
           {!isAttendeeMode && (
@@ -1108,7 +1714,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
       {/* Top Legend Bar */}
       <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b app-border bg-slate-500/5 text-xs app-text-muted font-semibold z-10">
         <span className="text-[11px] font-black uppercase app-text-sub tracking-wider">{t("Khu vực:")}</span>
-        {(!zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>)).map((z) => (
+        {zoneList.map((z) => (
           <div
             key={z.id}
             onClick={() => onSelectZoneAttendee?.(z)}
@@ -1133,7 +1739,8 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="relative flex-1 w-full min-h-0 overflow-auto app-bg-main p-8 transition-all select-none touch-none"
+        onPointerDownCapture={handleContainerPointerDownCapture}
+        className={`relative flex-1 w-full min-h-0 overflow-auto app-bg-main p-8 transition-all select-none touch-none ${!isAttendeeMode && (handMode || spaceDown) ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
         style={{
           backgroundImage: gridSnap
             ? 'radial-gradient(circle, rgba(148, 163, 184, 0.22) 1px, transparent 1px)'
@@ -1159,7 +1766,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
           )}
 
           {/* 0. Zone Area Container Boxes (Interactive & Draggable/Resizable/Rotatable) */}
-          {(!zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>)).map((zone) => {
+          {zoneList.map((zone) => {
             if (!zone.x || !zone.y || !zone.width || !zone.height) return null;
             const isSelected = selectedZoneId === zone.id;
 
@@ -1182,17 +1789,13 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
 
             // Fill Opacity
             const fillOpacity = zone.fillOpacity ?? 0.25;
-            const zoneSeats = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone));
-            const zoneSeatsCount = zoneSeats.length;
+            const zoneStat = zoneStats.get(zone.id) ?? { count: 0, soldOrHeld: 0 };
+            const zoneSeatsCount = zoneStat.count;
 
             let isZoneSoldOut = false;
             if (isAttendeeMode) {
               if (zoneSeatsCount > 0) {
-                const soldOrHeld = zoneSeats.filter((s) => {
-                  const st = seatStatusMap[s.id] || s.status;
-                  return st === 'sold' || st === 'SOLD' || st === 'HELD' || st === 'HOLDING';
-                }).length;
-                if (soldOrHeld === zoneSeatsCount) {
+                if (zoneStat.soldOrHeld === zoneSeatsCount) {
                   isZoneSoldOut = true;
                 }
               } else {
@@ -1401,114 +2004,48 @@ export const SeatCanvas: React.FC<SeatCanvasProps> = ({
             );
           })}
 
-          {/* 3. Seats (Supporting Circle / Square / Rounded Shapes) */}
+          {/* 3. Seats (memoised: a zoom, a hover or a selection elsewhere does not re-render every seat) */}
           {seats.map((seat) => {
-            const zone: ZoneBlock = zones[seat.zoneId] || {
-              id: seat.zoneId || 'standard',
-              name: 'Standard',
-              color: '#3b82f6',
-              price: 0,
-              shape: 'rounded',
-            };
-            const isSelected = selectedSeatIds.includes(seat.id);
-            const isCartItem = attendeeCart.some((s) => s.id === seat.id);
-
-            const statusFromMap = seatStatusMap ? seatStatusMap[seat.id] : undefined;
-            let isMaintenance = seat.status === 'maintenance';
-            let isBlocked = seat.status === 'blocked';
-            let isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
-            let isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
-            let isAccessible = seat.status === 'accessible';
-
-            // Shape Styling
-            const rawShape = seat.shape || zone.shape || 'rounded';
-            const seatShape = rawShape === 'circle' || rawShape === 'square' ? rawShape : 'rounded';
-            const shapeClass =
-              seatShape === 'circle'
-                ? 'rounded-full'
-                : seatShape === 'square'
-                  ? 'rounded-xs'
-                  : 'rounded-lg';
-
+            const zone = zones[seat.zoneId];
             return (
-              <div
+              <SeatNode
                 key={seat.id}
-                onPointerDown={(e) => handlePointerDownSeat(e, seat)}
-                className={`absolute w-8.5 h-8.5 ${shapeClass} font-mono text-[11px] font-extrabold flex items-center justify-center transition-transform duration-75 group shadow-xs ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : (isSold || isHolding) ? 'cursor-not-allowed' : 'cursor-pointer'
-                  } ${isCartItem
-                    ? 'bg-emerald-500 text-white ring-4 ring-emerald-400 scale-125 z-40 shadow-xl'
-                    : isMaintenance
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/80 ring-1 ring-rose-500/40'
-                      : isSold
-                        ? 'bg-slate-700 text-slate-400 border border-slate-600 opacity-60 cursor-not-allowed'
-                        : isBlocked
-                          ? 'bg-slate-800 text-slate-500 border border-slate-700'
-                          : isHolding
-                            ? 'bg-amber-500 text-white border-2 border-amber-300 ring-2 ring-amber-400/80 animate-pulse'
-                            : isAccessible
-                              ? 'bg-purple-600/30 text-purple-300 border border-purple-500 shadow-sm'
-                              : 'text-white border-2 border-white/90 shadow-md'
-                  } ${isSelected
-                    ? 'ring-4 ring-white ring-offset-2 ring-offset-slate-900 scale-125 z-30 shadow-2xl'
-                    : ''
-                  }`}
-                style={{
-                  left: `${seat.x}px`,
-                  top: `${seat.y}px`,
-                  backgroundColor:
-                    !isCartItem && !isMaintenance && !isSold && !isBlocked && !isHolding && !isAccessible
-                      ? (seat.color || zone.color || '#3b82f6')
-                      : undefined,
-                  transform: seat.rotation ? `rotate(${seat.rotation}deg)` : undefined,
-                }}
-              >
-                {isCartItem ? (
-                  <FiUserCheck className="w-4 h-4 text-white" />
-                ) : isMaintenance ? (
-                  <FiTool className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-                ) : isBlocked ? (
-                  <FiLock className="w-3.5 h-3.5 text-slate-400" />
-                ) : isHolding ? (
-                  <span className="text-[9px] font-black">GIỮ</span>
-                ) : isSold ? (
-                  'X'
-                ) : (
-                  seat.number
-                )}
-
-                {/* Tooltip Hover */}
-                <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
-                  <div className="px-3 py-1.5 bg-slate-950 text-white text-[11px] rounded-xl shadow-2xl border border-slate-700 whitespace-nowrap space-y-0.5">
-                    <div className="font-extrabold flex items-center gap-1.5">
-                      <span>{t("Ghế")} {seat.row}-{seat.number}</span>
-                      {isHolding && (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-500 text-white text-[9px] font-mono">
-                          {t("ĐANG GIỮ VÉ (15p)")}
-                        </span>
-                      )}
-                      {isSold && (
-                        <span className="px-1.5 py-0.2 rounded bg-slate-600 text-white text-[9px] font-mono">
-                          {t("ĐÃ BÁN")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-slate-300">
-                      {zone.name} -{' '}
-                      <span className="font-mono text-emerald-400 font-bold">
-                        {getZonePrice(zone).toLocaleString('vi-VN')} đ
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-mono">
-                      X: {seat.x}px | Y: {seat.y}px ({seat.rotation || 0}°)
-                    </div>
-                  </div>
-                </div>
-              </div>
+                seat={seat}
+                zoneName={zone?.name ?? 'Standard'}
+                zoneColor={zone?.color ?? '#3b82f6'}
+                zoneShape={(zone?.shape as string | undefined) ?? 'rounded'}
+                zonePrice={zone ? getZonePrice(zone) : 0}
+                isSelected={selectedSeatIdSet.has(seat.id)}
+                isCartItem={cartIdSet.has(seat.id)}
+                statusFromMap={seatStatusMap[seat.id]}
+                isAttendeeMode={isAttendeeMode}
+                tabIndex={seat.id === roverSeatId ? 0 : -1}
+                t={t}
+                onPointerDown={onSeatPointerDown}
+                onActivate={onSeatActivate}
+                onArrow={onSeatArrow}
+                onFocusSeat={onSeatFocus}
+              />
             );
           })}
         </div>
       </div>
 
+      {showMiniMap && miniBox && (
+        <MiniMap
+          seats={seats}
+          stages={stages}
+          zones={zones}
+          viewportWidth={viewport.width}
+          viewportHeight={viewport.height}
+          scrollLeft={viewport.left}
+          scrollTop={viewport.top}
+          canvasWidth={Math.max(1300, miniBox.maxX + 60)}
+          canvasHeight={Math.max(900, miniBox.maxY + 60)}
+          zoomLevel={zoomLevel}
+          onNavigate={(left, top) => canvasRef.current?.scrollTo({ left: Math.max(0, left), top: Math.max(0, top) })}
+        />
+      )}
     </div>
   );
 };
