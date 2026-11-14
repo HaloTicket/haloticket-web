@@ -6,6 +6,8 @@ export interface Category {
   status?: string;
   eventCount: number;
   imageUrl: string;
+  description?: string;
+  sortOrder?: number;
 }
 
 export interface Banner {
@@ -32,11 +34,4 @@ export interface EventSection {
   
   // artists
   artistDisplayType?: "auto" | "manual";
-}
-
-export interface SystemConfig {
-  platformFee: string;
-  payoutHoldDays: string;
-  kycRequired: string;
-  maintenanceMode: string;
 }

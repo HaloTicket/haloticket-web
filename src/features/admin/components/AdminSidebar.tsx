@@ -29,7 +29,7 @@ export const adminNavGroups: AdminNavGroup[] = [
   ] },
   { id: "content", path: PATHS.ADMIN_CONTENT, label: "Quản lý nội dung", english: "Content management", icon: FiLayout, description: "Tổ chức nội dung hiển thị trên nền tảng HaloTicket.", items: [
     { path: PATHS.ADMIN_HOMEPAGE_CONTENT, label: "Nội dung & Ads", english: "Content & Advertising", icon: FiLayout, description: "Quản lý nội dung trang chủ và banner." },
-    { path: PATHS.ADMIN_EVENT_CATEGORIES, label: "Danh mục và cấu hình", english: "Event categories", icon: FiGrid, description: "Quản lý cấu trúc danh mục và nhóm sự kiện." },
+    { path: PATHS.ADMIN_EVENT_CATEGORIES, label: "Danh mục sự kiện", english: "Event categories", icon: FiGrid, description: "Thêm, sắp xếp, ẩn hiện các danh mục sự kiện." },
   ] },
   { id: "ai", path: PATHS.ADMIN_AI, label: "AI hỗ trợ quản trị", english: "AI administration support", icon: FiZap, description: "Tra cứu, phát hiện bất thường và đề xuất dựa trên dữ liệu.", items: [
     { path: PATHS.ADMIN_AI_ANALYTICS, label: "Phân tích & đề xuất", english: "Analysis & recommendations", icon: FiBarChart2, description: "Phân tích câu hỏi quản trị và xem gợi ý có nguồn đối chiếu." },

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiSave, FiMonitor, FiSmartphone, FiChevronLeft, FiChevronRight, FiImage, FiLayout, FiStar, FiGlobe } from "react-icons/fi";
+import { FiSave, FiMonitor, FiSmartphone, FiChevronLeft, FiChevronRight, FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { BannerConfig } from "./homepage-config/BannerConfig";
@@ -148,73 +148,95 @@ function HomepageLivePreview({
   );
 }
 
+const DEFAULT_SECTIONS: EventSection[] = [
+  { id: "SEC_1", title: "Nghệ sĩ nổi bật", type: "featured", limit: 8 },
+  { id: "SEC_2", title: "Sự kiện đặc biệt", type: "upcoming", limit: 8 },
+  { id: "SEC_3", title: "Sự kiện xu hướng", type: "trending", limit: 8 },
+  { id: "SEC_4", title: "Sàn Nhượng Vé Chính Thức", type: "resale", limit: 4 },
+  { id: "SEC_5", title: "Theo thể loại: Nhạc sống", type: "categories", limit: 4 },
+  { id: "SEC_6", title: "Theo thể loại: Sân khấu & Nghệ thuật", type: "categories", limit: 4 },
+  { id: "SEC_7", title: "Theo thể loại: Hội thảo & Workshop", type: "categories", limit: 4 },
+  { id: "SEC_8", title: "Theo thể loại: Tham quan & Trải nghiệm", type: "categories", limit: 4 },
+  { id: "SEC_9", title: "Theo thể loại: Thể thao & Thể loại khác", type: "categories", limit: 4 },
+  { id: "SEC_10", title: "Điểm đến thú vị", type: "locations", limit: 4 },
+];
+
+/** The message the backend sent, so a failed save says why. */
+function apiErrorMessage(error: unknown, fallback: string): string {
+  const e = error as { response?: { status?: number; data?: { message?: string; error?: string; detail?: string } } };
+  const body = e.response?.data;
+  const text = body?.message || body?.detail || body?.error;
+  if (text) return text;
+  if (e.response?.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
+  return fallback;
+}
+
 export function HomepageConfig() {
   const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  const [banners, setBanners] = useState<Banner[]>([
-    { id: "BN_1", title: "Khuyến mãi Hè Rực Rỡ", imageUrl: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800", active: true },
-    { id: "BN_2", title: "Live Concert The Eras Tour", imageUrl: "https://images.unsplash.com/photo-1470229722913-7c092fb13809?w=800", active: true },
-  ]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [sections, setSections] = useState<EventSection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [usingTemplate, setUsingTemplate] = useState(false);
 
-  const [sections, setSections] = useState<EventSection[]>([
-    { id: "SEC_1", title: "Nghệ sĩ nổi bật", type: "featured", limit: 8 },
-    { id: "SEC_2", title: "Sự kiện đặc biệt", type: "upcoming", limit: 8 },
-    { id: "SEC_3", title: "Sự kiện xu hướng", type: "trending", limit: 8 },
-    { id: "SEC_4", title: "Sàn Nhượng Vé Chính Thức", type: "resale", limit: 4 },
-    { 
-      id: "SEC_5", title: "Ads GreenSM", type: "ads", limit: 1,
-      adsSubtitle: "GREEN SM | HaloTicket",
-      adsDescription: "Áp dụng cho dịch vụ Taxi Xanh khi di chuyển đến các sự kiện",
-      adsButtonText: "Nhận ưu đãi"
-    },
-    { id: "SEC_6", title: "Theo thể loại: Nhạc sống", type: "categories", limit: 4 },
-    { id: "SEC_7", title: "Theo thể loại: Sân khấu & Nghệ thuật", type: "categories", limit: 4 },
-    { 
-      id: "SEC_8", title: "Ads VIB", type: "ads", limit: 1,
-      adsSubtitle: "VIB | HALOTICKET",
-      adsDescription: "Mua vé Idol cực hời khi thanh toán bằng thẻ VIB Platinum",
-      adsButtonText: "Mở thẻ ngay"
-    },
-    { id: "SEC_9", title: "Theo thể loại: Hội thảo & Workshop", type: "categories", limit: 4 },
-    { id: "SEC_10", title: "Theo thể loại: Tham quan & Trải nghiệm", type: "categories", limit: 4 },
-    { 
-      id: "SEC_11", title: "Ads ShopeePay", type: "ads", limit: 1,
-      adsSubtitle: "SPayLater | ShopeePay",
-      adsDescription: "Khi thanh toán bằng Ví ShopeePay hoặc SPayLater - Mua Trước Trả Sau",
-      adsButtonText: "Nhận voucher"
-    },
-    { id: "SEC_12", title: "Theo thể loại: Thể thao & Thể loại khác", type: "categories", limit: 4 },
-    { id: "SEC_13", title: "Điểm đến thú vị", type: "locations", limit: 4 },
-  ]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    adminConfigApi.getBanners().then(res => {
-      const data = Array.isArray(res) ? res : res?.data;
-      if (data?.length) setBanners(data);
-    }).catch(() => {});
-    
-    adminConfigApi.getEventSections().then(res => {
-      const data = Array.isArray(res) ? res : res?.data;
-      // If backend returns less than 5 items, it's likely the old mock config.
-      // Ignore it so the initial 13-item default config is used.
-      if (data && data.length > 4) {
-        setSections(data);
-      }
-    }).catch(() => {});
-  }, []);
+    let alive = true;
+    Promise.all([adminConfigApi.getBanners(), adminConfigApi.getEventSections()])
+      .then(([bannerRes, sectionRes]) => {
+        if (!alive) return;
+        const bannerData = Array.isArray(bannerRes) ? bannerRes : (bannerRes as { data?: Banner[] } | null)?.data;
+        const sectionData = Array.isArray(sectionRes) ? sectionRes : (sectionRes as { data?: EventSection[] } | null)?.data;
+        setBanners(Array.isArray(bannerData) ? bannerData : []);
+        if (Array.isArray(sectionData) && sectionData.length > 0) {
+          setSections(sectionData); // whatever is saved is shown as it is, however few sections
+          setUsingTemplate(false);
+        } else {
+          setSections(DEFAULT_SECTIONS); // nothing saved yet: start from the template, published only when the admin saves
+          setUsingTemplate(true);
+        }
+        setLoadError(null);
+      })
+      .catch((error) => {
+        if (alive) setLoadError(apiErrorMessage(error, "Không tải được cấu hình trang chủ."));
+      })
+      .finally(() => {
+        if (alive) setIsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [reloadKey]);
+
+  const retry = () => {
+    setIsLoading(true);
+    setLoadError(null);
+    setReloadKey((k) => k + 1);
+  };
 
   const handleSave = async () => {
+    const missingImage = banners.find((b) => !b.imageUrl);
+    if (missingImage) {
+      toast.error(t("Banner \"{{title}}\" chưa có ảnh.", { title: missingImage.title }));
+      return;
+    }
     setIsSaving(true);
+    let savedBanners = false;
     try {
-      await adminConfigApi.updateBanners(banners).catch(() => {});
-      await adminConfigApi.updateEventSections(sections).catch(() => {});
+      await adminConfigApi.updateBanners(banners);
+      savedBanners = true;
+      await adminConfigApi.updateEventSections(sections);
+      setUsingTemplate(false);
       toast.success(t("Xuất bản cấu hình trang chủ thành công"), {
         description: t("Giao diện trang chủ đã được cập nhật.")
       });
     } catch (error) {
-      toast.error(t("Có lỗi xảy ra khi lưu cấu hình"));
+      const reason = t(apiErrorMessage(error, "Có lỗi xảy ra khi lưu cấu hình"));
+      toast.error(savedBanners ? t("Đã lưu banner nhưng chưa lưu được các khối nội dung.") : t("Chưa lưu được cấu hình trang chủ."), { description: reason });
     } finally {
       setIsSaving(false);
     }
@@ -227,52 +249,26 @@ export function HomepageConfig() {
         description={t("Quản lý cấu trúc giao diện trang chủ, banner quảng cáo và các khu vực hiển thị sự kiện.")}
       />
       
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
-        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
-          <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-md flex items-center justify-center">
-            <FiImage className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xl font-bold app-text-main leading-tight">{banners.filter(b => b.active).length} / {banners.length}</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Banner Active")}</div>
-          </div>
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-900/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
+          <span className="flex items-center gap-2"><FiAlertCircle className="w-4 h-4 shrink-0" /> {t(loadError)}</span>
+          <button type="button" onClick={retry} className="inline-flex items-center gap-1.5 px-3 min-h-8 text-xs font-semibold rounded-md border border-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/30 cursor-pointer">
+            <FiRefreshCw className="w-3.5 h-3.5" /> {t("Thử lại")}
+          </button>
         </div>
-        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
-          <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-md flex items-center justify-center">
-            <FiLayout className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xl font-bold app-text-main leading-tight">{sections.length}</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Sections UI")}</div>
-          </div>
-        </div>
-        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
-          <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-md flex items-center justify-center">
-            <FiStar className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xl font-bold app-text-main leading-tight">{sections.filter(s => s.type === "ads").length}</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Ads Spots")}</div>
-          </div>
-        </div>
-        <div className="app-bg-card p-3 rounded-md border app-border shadow-xs flex items-center gap-3 transition-all hover:-translate-y-0.5">
-          <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-md flex items-center justify-center">
-            <FiGlobe className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xl font-bold app-text-main leading-tight">100%</div>
-            <div className="text-[10px] font-medium app-text-muted uppercase tracking-wider mt-0.5">{t("Uptime Display")}</div>
-          </div>
-        </div>
-      </div>
+      )}
+      {usingTemplate && !loadError && !isLoading && (
+        <p className="rounded-md border app-border app-bg-card px-4 py-3 text-xs app-text-muted">
+          {t("Chưa có cấu hình trang chủ được lưu. Đang hiển thị bố cục mẫu; bấm Xuất bản để lưu.")}
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end mb-4">
         <button
           onClick={handleSave}
-          disabled={isSaving}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-9 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+          disabled={isSaving || isLoading || !!loadError}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-9 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
         >
           <FiSave className="w-4 h-4" />
           <span>{isSaving ? t("Đang xử lý...") : t("Xuất bản")}</span>

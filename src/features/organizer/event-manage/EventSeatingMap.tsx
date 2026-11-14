@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useBlocker, useParams } from 'react-router-dom';
 import { ticketApi } from '@/services/ticketApi';
 import { venueApi } from '@/services/venueApi';
 import { eventApi } from '@/services/eventApi';
@@ -44,6 +44,27 @@ import { AttendeePreview } from './components/seating/AttendeePreview';
 import { VenueTemplateModal } from './components/seating/VenueTemplateModal';
 import { TierManagerModal } from './components/seating/TierManagerModal';
 import { SeatMapStats } from './components/seating/SeatMapStats';
+import { SeatMapIssuesPanel } from './components/seating/SeatMapIssuesPanel';
+import { ShortcutsDialog } from './components/seating/ShortcutsDialog';
+import type { SeatCanvasExtraProps } from './components/seating/SeatCanvas';
+import {
+  buildClipboard,
+  nudgeSelection,
+  pasteClipboard,
+  type SeatMapClipboard,
+  type SeatMapLayout,
+  type SeatMapSelection,
+} from './seatMapEditing';
+import { validateSeatMap, countIssues, type SeatMapIssue } from './seatMapValidation';
+import {
+  chooseNewerDraft,
+  deepEqual,
+  documentTimestamp,
+  hasLayoutContent,
+  readLocalDraft,
+  writeLocalDraft,
+  type DraftStorage,
+} from './seatMapDraft';
 import { PRESET_TEMPLATES } from '@/mock/presetTemplates';
 import {
   buildSeatMapDocument,
@@ -99,6 +120,20 @@ const normalizeImportedTierIds = (
       ];
     })
   );
+};
+
+// localStorage can throw on access (blocked site data, private window): give the draft code a storage that fails loudly instead
+const browserStorage = (): DraftStorage => {
+  try {
+    return window.localStorage;
+  } catch {
+    return {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('localStorage is not available');
+      },
+    };
+  }
 };
 
 // event seating map studio component
@@ -184,7 +219,30 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     message: string;
     type?: 'danger' | 'warning' | 'info';
     onConfirm: () => void;
+    onCancel?: () => void;
   } | null>(null);
+
+  // edits made by the user (not by loading) and the last edit version that reached the server: unsaved = ahead of it
+  const [editVersion, setEditVersion] = useState(0);
+  const [savedVersion, setSavedVersion] = useState(0);
+  const editCounterRef = useRef(0);
+  const layoutSettledRef = useRef(false);
+  const unsaved = editVersion > savedVersion;
+  const unsavedRef = useRef(false);
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
+  const autoSaveFailedRef = useRef(false);
+  const localDraftFailedRef = useRef(false);
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<SeatCanvasExtraProps['focusRequest']>(null);
+  const clipboardRef = useRef<SeatMapClipboard | null>(null);
+  const pasteCountRef = useRef(0);
+  const idCounterRef = useRef(0);
+
+  const markEdited = () => {
+    editCounterRef.current += 1;
+    setEditVersion(editCounterRef.current);
+  };
 
   const [eventVenue, setEventVenue] = useState<{ id?: string; name?: string; address?: string } | null>(null);
   const [previousSnapshotBeforePreset, setPreviousSnapshotBeforePreset] = useState<StudioSnapshot | null>(null);
@@ -316,10 +374,44 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     fetchVenues();
   }, []);
 
+  const snapshotFromDocument = (doc: Partial<SeatMapDocument>): StudioSnapshot => ({
+    seats: safeClone(doc.seats || []),
+    stages: safeClone(doc.stages || []),
+    structures: safeClone(doc.structures || []),
+    zones: safeClone(doc.zones || {}),
+    canvasSettings: { ...DEFAULT_CANVAS_SETTINGS, ...(doc.canvasSettings || {}) },
+  });
+
+  // A draft kept by the browser that is clearly newer than the server's (a failed upload, a closed tab) is offered,
+  // never applied silently: the user decides.
+  const offerLocalDraft = (serverSavedAt: number | null) => {
+    const local = readLocalDraft(browserStorage(), activeEventId);
+    if (!local || !hasLayoutContent(local.doc)) return;
+    if (chooseNewerDraft(local.savedAt, serverSavedAt) !== 'local') return;
+    const when = local.savedAt ? new Date(local.savedAt).toLocaleString('vi-VN') : '';
+    setConfirmModal({
+      isOpen: true,
+      title: t('Khôi phục bản nháp trên trình duyệt?'),
+      message: `${t('Trình duyệt đang giữ một bản nháp chưa được lưu lên máy chủ, mới hơn bản đã lưu')} (${when}). ${t('Khôi phục bản nháp này?')}`,
+      type: 'info',
+      onConfirm: () => {
+        const snapshot = snapshotFromDocument(local.doc);
+        applySnapshot(snapshot);
+        latestRef.current = snapshot;
+        setHistory([safeClone(snapshot)]);
+        setHistoryIndex(0);
+        historyIndexRef.current = 0;
+        markEdited(); // it still has to reach the server
+        setConfirmModal(null);
+      },
+    });
+  };
+
   // fetch ticket types & existing seat layout from Backend API via ticketApi service
   useEffect(() => {
     if (!activeEventId) return;
     const fetchLayoutAndTypes = async () => {
+      let serverSavedAt: number | null = null;
       try {
         // fetch ticket types via ticketApi
         const typesList = await ticketApi.getTicketTypesByEventId(activeEventId);
@@ -350,13 +442,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           if (layoutData.draftJson) {
             try {
               const parsedDoc = JSON.parse(layoutData.draftJson) as SeatMapDocument;
-              const snapshot: StudioSnapshot = {
-                seats: safeClone(parsedDoc.seats || []),
-                stages: safeClone(parsedDoc.stages || []),
-                structures: safeClone(parsedDoc.structures || []),
-                zones: safeClone(parsedDoc.zones || {}),
-                canvasSettings: { ...DEFAULT_CANVAS_SETTINGS, ...(parsedDoc.canvasSettings || {}) },
-              };
+              serverSavedAt = documentTimestamp(parsedDoc);
+              const snapshot = snapshotFromDocument(parsedDoc);
               applySnapshot(snapshot);
               latestRef.current = snapshot;
               setHistory([safeClone(snapshot)]);
@@ -414,58 +501,54 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         }
       } catch (err) {
         console.error('Error fetching seat layout or ticket types:', err);
+      } finally {
+        // from here on the studio may auto-save; until then it must not overwrite the server draft with an empty map
+        layoutSettledRef.current = true;
+        offerLocalDraft(serverSavedAt);
       }
     };
 
     fetchLayoutAndTypes();
   }, [activeEventId]);
 
-  // realtime auto-save (LocalStorage + Debounced Backend Draft Save)
-  const autoSaveTimerRef = useRef<any>(null);
+  // Auto-save: a local copy first (so a failed upload still leaves a recoverable draft), then the server draft.
+  // Runs only after the user's own edits: nothing is saved while the layout is still loading, so the empty initial
+  // map can never overwrite a draft that exists on the server.
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    if (editVersion === 0 || !layoutSettledRef.current) return;
 
     setAutoSaveStatus(t('Đang tự động lưu nháp...'));
     autoSaveTimerRef.current = setTimeout(async () => {
+      const versionAtStart = editCounterRef.current;
+      const payload = buildSeatMapDocument({
+        name: eventName,
+        venueTemplateId: selectedTemplateId,
+        canvasSettings,
+        zones,
+        stages,
+        structures,
+        seats,
+        ticketTiers: effectiveTiers,
+      });
+
+      const local = writeLocalDraft(browserStorage(), activeEventId, payload);
+      if (!local.ok && !localDraftFailedRef.current) {
+        localDraftFailedRef.current = true;
+        showToast('warning', `${t('Không lưu được bản nháp trên trình duyệt')}: ${local.message}`);
+      } else if (local.ok) {
+        localDraftFailedRef.current = false;
+      }
+
+      // a route without an event id must never write to a real event (the id falls back to a constant)
+      if (!urlEventId) {
+        setAutoSaveStatus(t('Chỉ lưu trên trình duyệt'));
+        return;
+      }
+
       try {
-        const payload = buildSeatMapDocument({
-          name: eventName,
-          venueTemplateId: selectedTemplateId,
-          canvasSettings,
-          zones,
-          stages,
-          structures,
-          seats,
-          ticketTiers: effectiveTiers,
-        });
-
-        // save locally for instant recovery
-        localStorage.setItem(`haloticket_seatmap_draft_${activeEventId}`, JSON.stringify(payload));
-        localStorage.setItem(`haloticket_seatmap_draft_${eventName}`, JSON.stringify(payload));
-
-        const zonesPayload = Object.entries(zones).map(([zId, z]) => {
-          const rawZone = z as any;
-          const shapeVal = rawZone.shape || rawZone.shapeType || 'RECTANGLE';
-          const pointsVal = rawZone.points;
-          return {
-            id: zId,
-            name: z.name,
-            ticketTypeId: z.tierId || null,
-            shapeType: String(shapeVal).toUpperCase(),
-            colorCode: z.color,
-            fillColor: z.fillColor || z.color,
-            strokeColor: z.strokeColor || z.color,
-            curvature: z.curvature ?? 16,
-            x: z.x ?? 100,
-            y: z.y ?? 100,
-            width: z.width ?? 300,
-            height: z.height ?? 180,
-            rotation: z.rotation ?? 0,
-            points: pointsVal ? (typeof pointsVal === 'string' ? pointsVal : JSON.stringify(pointsVal)) : null,
-            capacity: z.capacity || (seats.filter((s) => s.zoneId === zId).length || 100),
-          };
-        });
-
+        const zonesPayload = buildZonesPayload(zones);
         await ticketApi.saveSeatLayoutDraft(activeEventId, {
           eventId: activeEventId,
           draftJson: JSON.stringify(payload),
@@ -477,15 +560,59 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
         const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         setAutoSaveStatus(`${t('Đã tự động lưu nháp lúc')} ${timeStr}`);
-      } catch {
+        setAutoSaveError(null);
+        autoSaveFailedRef.current = false;
+        setSavedVersion((prev) => Math.max(prev, versionAtStart));
+      } catch (err) {
+        const message = isForbiddenError(err)
+          ? t('Bạn không có quyền thực hiện thao tác này')
+          : err instanceof Error
+            ? err.message
+            : String(err);
+        console.error('Auto-save of the seat map draft failed:', err);
         setAutoSaveStatus(t('Lỗi tự động lưu nháp'));
+        setAutoSaveError(message);
+        if (!autoSaveFailedRef.current) {
+          autoSaveFailedRef.current = true;
+          showToast('error', `${t('Không thể tự động lưu bản nháp lên máy chủ')}: ${message}`);
+        }
       }
     }, 2000);
 
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [seats, stages, structures, zones, canvasSettings, eventName, effectiveTiers, selectedTemplateId, activeEventId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seats, stages, structures, zones, canvasSettings, eventName, effectiveTiers, selectedTemplateId, activeEventId, editVersion]);
+
+  // leaving with edits the server does not have yet: ask first (closing the tab, and moving to another page)
+  useEffect(() => {
+    unsavedRef.current = unsaved;
+    if (!unsaved) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [unsaved]);
+
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => unsavedRef.current && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    setConfirmModal({
+      isOpen: true,
+      title: t('Rời khỏi trang?'),
+      message: t('Sơ đồ có thay đổi chưa được lưu lên máy chủ. Nếu rời đi, các thay đổi đó có thể bị mất.'),
+      type: 'warning',
+      onConfirm: () => {
+        setConfirmModal(null);
+        blocker.proceed();
+      },
+      onCancel: () => blocker.reset(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
 
   // export seatMap image function
   const handleExportImage = () => {
@@ -535,12 +662,15 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   // push history snapshot
   const pushHistory = (snapshot?: StudioSnapshot) => {
-    const nextSnapshot = safeClone(snapshot || latestRef.current);
+    const source = snapshot || latestRef.current;
     setHistory((prev) => {
       const base = prev.slice(0, historyIndexRef.current + 1);
       const last = base[base.length - 1];
-      if (last && JSON.stringify(last) === JSON.stringify(nextSnapshot)) return prev;
-      const next = [...base, nextSnapshot].slice(-80);
+      // structural comparison, and the snapshot is cloned only when it really changed (no JSON.stringify of both
+      // snapshots on every commit)
+      if (last && deepEqual(last, source)) return prev;
+      markEdited();
+      const next = [...base, safeClone(source)].slice(-80);
       const newIdx = next.length - 1;
       historyIndexRef.current = newIdx;
       setHistoryIndex(newIdx);
@@ -569,6 +699,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       applySnapshot(history[nextIndex]);
       historyIndexRef.current = nextIndex;
       setHistoryIndex(nextIndex);
+      markEdited();
     }
   };
 
@@ -580,6 +711,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       applySnapshot(history[nextIndex]);
       historyIndexRef.current = nextIndex;
       setHistoryIndex(nextIndex);
+      markEdited();
     }
   };
 
@@ -630,7 +762,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
+    if (!targetZoneId || !zones[targetZoneId]) return showToast('warning', t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
     const zone = zones[targetZoneId];
     const startX = lastClickedPos ? lastClickedPos.x : (zone.x || 120) + 32;
     const startY = lastClickedPos ? lastClickedPos.y : (zone.y || 180) + 70;
@@ -688,7 +820,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
+    if (!targetZoneId || !zones[targetZoneId]) return showToast('warning', t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
     const zone = zones[targetZoneId];
     const startX = lastClickedPos ? lastClickedPos.x : (zone.x || 100) + 34;
     const startY = lastClickedPos ? lastClickedPos.y : (zone.y || 180) + 68;
@@ -748,7 +880,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
 
     const targetZoneId = zoneId && zones[zoneId] ? zoneId : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
+    if (!targetZoneId || !zones[targetZoneId]) return showToast('warning', t('Hãy tạo/chọn khu vực trước khi tạo ghế.'));
     const zone = zones[targetZoneId];
     const centerX = lastClickedPos ? lastClickedPos.x : (zone.x || 0) + (zone.width || 600) / 2;
     const centerY = lastClickedPos ? lastClickedPos.y : (zone.y || 0) + 20;
@@ -782,7 +914,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   const handleAddTable = (zoneIdVal?: string, seatsPerTableVal?: number, radiusVal?: number) => {
     const targetZoneId = (zoneIdVal && zones[zoneIdVal]) ? zoneIdVal : Object.keys(zones)[0];
-    if (!targetZoneId || !zones[targetZoneId]) return window.alert(t('Hãy tạo/chọn khu vực trước khi tạo bàn.'));
+    if (!targetZoneId || !zones[targetZoneId]) return showToast('warning', t('Hãy tạo/chọn khu vực trước khi tạo bàn.'));
     const seatsPerTable = seatsPerTableVal || 8;
     const radius = radiusVal || 50;
     const zone = zones[targetZoneId];
@@ -1109,17 +1241,78 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
-  // handle duplicate selected elements
+  const currentLayout = (): SeatMapLayout => ({
+    seats: latestRef.current.seats,
+    stages: latestRef.current.stages,
+    structures: latestRef.current.structures,
+    zones: latestRef.current.zones,
+  });
+  const currentSelection = (): SeatMapSelection => ({
+    seatIds: selectedSeatIds,
+    stageId: selectedStageId,
+    structureId: selectedStructureId,
+    zoneId: selectedZoneId,
+  });
+  const hasAnySelection = selectedSeatIds.length > 0 || Boolean(selectedStageId || selectedStructureId || selectedZoneId);
+  const makeElementId = (kind: 'seat' | 'stage' | 'structure' | 'zone') => {
+    idCounterRef.current += 1;
+    return `${kind}_${Date.now()}_${idCounterRef.current}`;
+  };
+
+  // writes a whole layout back (one history step) and optionally moves the selection to the new elements
+  const applyLayout = (next: SeatMapLayout, selection?: SeatMapSelection) => {
+    setSeats(next.seats);
+    setStages(next.stages);
+    setStructures(next.structures);
+    setZones(next.zones);
+    commitWith(next);
+    if (selection) {
+      setSelectedSeatIds(selection.seatIds);
+      setSelectedStageId(selection.stageId);
+      setSelectedStructureId(selection.structureId);
+      setSelectedZoneId(selection.zoneId);
+    }
+  };
+
+  // copy: the selected seats, stage, structure or zone (a zone takes its seats along)
+  const handleCopySelected = () => {
+    const clip = buildClipboard(currentLayout(), currentSelection());
+    if (!clip) return;
+    clipboardRef.current = clip;
+    pasteCountRef.current = 0;
+    const count = clip.seats.length + clip.stages.length + clip.structures.length + clip.zones.length;
+    showToast('info', `${t('Đã sao chép')} ${count} ${t('phần tử')}`);
+  };
+
+  // paste: each paste is offset a little further so the copies do not pile up
+  const handlePasteClipboard = () => {
+    const clip = clipboardRef.current;
+    if (!clip) {
+      showToast('info', t('Chưa có gì để dán. Chọn phần tử rồi nhấn Ctrl + C.'));
+      return;
+    }
+    pasteCountRef.current += 1;
+    const result = pasteClipboard(currentLayout(), clip, 32 * pasteCountRef.current, makeElementId, ` ${t('(bản sao)')}`);
+    applyLayout(result.layout, result.selection);
+  };
+
+  // duplicate: copy and paste in one step, for any selected element
   const handleDuplicateSelected = () => {
-    if (!selectedSeatIds.length) return;
-    const baseId = Date.now();
-    const duplicated = seats
-      .filter((seat) => selectedSeatIds.includes(seat.id))
-      .map((seat, index) => ({ ...seat, id: `seat_dup_${baseId}_${index}`, x: seat.x + 32, y: seat.y + 32 }));
-    const nextSeats = [...seats, ...duplicated];
-    setSeats(nextSeats);
-    setSelectedSeatIds(duplicated.map((seat) => seat.id));
-    commitWith({ seats: nextSeats });
+    const clip = buildClipboard(currentLayout(), currentSelection());
+    if (!clip) return;
+    const result = pasteClipboard(currentLayout(), clip, 32, makeElementId, ` ${t('(bản sao)')}`);
+    applyLayout(result.layout, result.selection);
+  };
+
+  // arrow keys move the selection by grid steps; the canvas commits one history step after the last key press
+  const handleNudgeSelected = (dx: number, dy: number) => {
+    const next = nudgeSelection(currentLayout(), currentSelection(), dx, dy);
+    const base = latestRef.current;
+    if (next.seats !== base.seats) setSeats(next.seats);
+    if (next.stages !== base.stages) setStages(next.stages);
+    if (next.structures !== base.structures) setStructures(next.structures);
+    if (next.zones !== base.zones) setZones(next.zones);
+    latestRef.current = { ...base, ...next };
   };
 
   // handle select all seats
@@ -1419,6 +1612,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   // 1. Save as Draft
   const handleSaveDraft = async () => {
+    const versionAtStart = editCounterRef.current;
     try {
       setIsSaving(true);
       const { syncedTiers, updatedZones } = await syncTiersAndGetUpdatedData();
@@ -1444,6 +1638,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       });
 
       await onSave?.(payload);
+      setSavedVersion((prev) => Math.max(prev, versionAtStart));
       setLayoutStatus('DRAFT');
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2500);
@@ -1458,12 +1653,28 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   };
 
   // 2. Save Official (Publish Layout)
-  const handlePublishOfficial = async () => {
-    const unassignedZones = Object.values(zones).filter((zone) => !zone.tierId);
-    if (unassignedZones.length > 0) {
-      showToast('warning', `${t('Có')} ${unassignedZones.length} ${t('khu vực chưa gán Hạng vé! Vui lòng kiểm tra lại.')}`);
+  const handlePublishOfficial = () => {
+    const { errors } = countIssues(issues);
+    if (errors === 0) {
+      void publishOfficial();
+      return;
     }
+    // serious problems: show them and ask, instead of publishing a layout buyers could not use
+    setIssuesOpen(true);
+    setConfirmModal({
+      isOpen: true,
+      title: t('Sơ đồ còn lỗi nghiêm trọng'),
+      message: `${errors} ${t('lỗi nghiêm trọng chưa xử lý (xem bảng Kiểm tra trước khi xuất bản). Vẫn xuất bản?')}`,
+      type: 'warning',
+      onConfirm: () => {
+        setConfirmModal(null);
+        void publishOfficial();
+      },
+    });
+  };
 
+  const publishOfficial = async () => {
+    const versionAtStart = editCounterRef.current;
     try {
       setIsSaving(true);
       const { syncedTiers, updatedZones } = await syncTiersAndGetUpdatedData();
@@ -1489,6 +1700,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       });
 
       await onSave?.(payload);
+      setSavedVersion((prev) => Math.max(prev, versionAtStart));
       setLayoutStatus('PUBLISHED');
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2500);
@@ -1518,6 +1730,28 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   const assignedZoneCount = Object.values(zones).filter((zone) => zone.tierId).length;
 
+  // problems found in the layout, recomputed only when the layout or the tiers change
+  const issues = useMemo(
+    () => validateSeatMap({ seats, stages, structures, zones }, effectiveTiers),
+    [seats, stages, structures, zones, effectiveTiers]
+  );
+
+  // select the element an issue concerns and ask the canvas to scroll to it
+  const handleSelectIssue = (issue: SeatMapIssue) => {
+    const target = issue.target;
+    if (!target) return;
+    if (target.kind === 'seat') {
+      setSelectedSeatIds(target.ids ?? [target.id]);
+      setSelectedZoneId(null);
+    } else {
+      setSelectedSeatIds([]);
+      setSelectedZoneId(target.id);
+    }
+    setSelectedStageId(null);
+    setSelectedStructureId(null);
+    setFocusRequest((prev) => ({ kind: target.kind, id: target.id, nonce: (prev?.nonce ?? 0) + 1 }));
+  };
+
   return (
     <div ref={studioRef} className={`seat-studio-root ${isFullscreen ? 'is-fullscreen' : ''}`}>
       <div className="seat-studio-header">
@@ -1525,9 +1759,21 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="seat-studio-badge">HALOTICKET</span>
             <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.16em]">Seat Map Studio</span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold">
+            <span
+              className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${autoSaveError
+                ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                }`}
+              title={autoSaveError ?? undefined}
+              role={autoSaveError ? 'alert' : 'status'}
+            >
               {autoSaveStatus}
             </span>
+            {unsaved && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-bold">
+                {t('Chưa lưu lên máy chủ')}
+              </span>
+            )}
             {layoutStatus === 'PUBLISHED' ? (
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold tracking-wide flex items-center gap-1">
                 <FiCheckCircle className="w-3 h-3" /> CHÍNH THỨC (PUBLISHED)
@@ -1589,6 +1835,15 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
       <SeatMapStats seats={seats} tiers={effectiveTiers} zones={zones} stages={stages} structures={structures} compact />
 
+      {!isAttendeeMode && (
+        <SeatMapIssuesPanel
+          issues={issues}
+          isOpen={issuesOpen}
+          onToggle={() => setIssuesOpen((prev) => !prev)}
+          onSelectIssue={handleSelectIssue}
+        />
+      )}
+
       <div className={`flex flex-row gap-3 items-start w-full ${isFullscreen ? 'flex-1 min-h-0' : ''}`}>
         {/* Left Toolbar Column (ToolBar) - Compact vertical strip */}
         {!isAttendeeMode && (
@@ -1609,6 +1864,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               onDeleteSelected={handleDeleteSelected}
               onDuplicateSelected={handleDuplicateSelected}
               onSelectAll={handleSelectAll}
+              canDuplicate={hasAnySelection}
             />
           </div>
         )}
@@ -1651,6 +1907,13 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
             isFullscreen={isFullscreen}
             onToggleFullscreen={handleToggleFullscreen}
             onCanvasClickPosition={setLastClickedPos}
+            onNotify={showToast}
+            onCopy={handleCopySelected}
+            onPaste={handlePasteClipboard}
+            onDuplicate={handleDuplicateSelected}
+            onNudge={handleNudgeSelected}
+            onShowShortcuts={() => setShowShortcuts(true)}
+            focusRequest={focusRequest}
           />
         </div>
 
@@ -1832,6 +2095,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         </div>
       )}
 
+      <ShortcutsDialog isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
+
       {/* Global Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
 
@@ -1843,7 +2108,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           message={confirmModal.message}
           type={confirmModal.type}
           onConfirm={confirmModal.onConfirm}
-          onCancel={() => setConfirmModal(null)}
+          onCancel={() => {
+            confirmModal.onCancel?.();
+            setConfirmModal(null);
+          }}
         />
       )}
     </div>

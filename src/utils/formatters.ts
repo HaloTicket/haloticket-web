@@ -7,6 +7,16 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
+// Short axis label for a VND amount: 1500000 -> 1,5tr, 2400000000 -> 2,4 tỷ
+export const formatCompactVnd = (amount: number): string => {
+  const abs = Math.abs(amount);
+  const trim = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
+  if (abs >= 1e9) return `${trim(amount / 1e9)} tỷ`;
+  if (abs >= 1e6) return `${trim(amount / 1e6)}tr`;
+  if (abs >= 1e3) return `${trim(amount / 1e3)}k`;
+  return String(Math.round(amount));
+};
+
 export const parseVndAmount = (value: unknown): number | undefined => {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (typeof value !== "string") return undefined;

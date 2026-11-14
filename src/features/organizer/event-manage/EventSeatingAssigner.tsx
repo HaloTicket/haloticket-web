@@ -183,11 +183,8 @@ export const EventSeatingAssigner: React.FC = () => {
 
         // if backend draft is missing or empty, check localStorage draft
         if (!doc || (!doc.zones && !doc.seats) || (Object.keys(doc.zones || {}).length === 0 && (doc.seats || []).length === 0)) {
-          const loadedEventTitle = ((eventRes as any)?.title as string) || eventName;
-          const localStr =
-            localStorage.getItem(`haloticket_seatmap_draft_${activeEventId}`) ||
-            localStorage.getItem(`haloticket_seatmap_draft_${loadedEventTitle}`) ||
-            localStorage.getItem(`haloticket_seatmap_draft_${eventName}`);
+          // the draft is keyed by event id only: a key built from the event name could belong to another event
+          const localStr = localStorage.getItem(`haloticket_seatmap_draft_${activeEventId}`);
           if (localStr) {
             try {
               doc = JSON.parse(localStr) as SeatMapDocument;

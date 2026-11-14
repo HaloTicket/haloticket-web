@@ -13,9 +13,10 @@ import type {
 } from '@/types/seating';
 import { ZoneGeneratorModal } from './ZoneGeneratorModal';
 
-// seating editor toolbar component
-export const ToolBar: React.FC<ToolBarProps> = ({
+// seating editor toolbar component. canDuplicate: something is selected (a seat, a zone, a stage or a structure).
+export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
   selectedSeatIds,
+  canDuplicate,
   onAddStage,
   onAddStructure,
   onAddZoneBlock,
@@ -112,7 +113,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
             <button
               type="button"
               onClick={onDuplicateSelected}
-              disabled={selectedSeatIds.length === 0}
+              disabled={!(canDuplicate ?? selectedSeatIds.length > 0)}
               className="w-9 h-9 rounded-xl app-bg-main hover:app-bg-hover border app-border app-text-muted hover:app-text-main flex items-center justify-center transition-all cursor-pointer shadow-2xs disabled:opacity-30"
             >
               <FiCopy className="w-4 h-4" />

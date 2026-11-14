@@ -65,10 +65,10 @@ export function EventAreasConfig({ sections, onChange }: Props) {
     if (!file) return;
     try {
       setIsUploading(true);
-      const res = (await mediaApi.uploadImage(file, "sections")) as any;
+      const res = (await mediaApi.uploadImage(file, "sections")) as { url?: string; data?: { url?: string } };
       setFormData(prev => ({ ...prev, adsImageUrl: res.url || res.data?.url || "" }));
       toast.success(t("Tải ảnh lên thành công"));
-    } catch (error) {
+    } catch {
       toast.error(t("Lỗi tải ảnh lên"));
     } finally {
       setIsUploading(false);
@@ -85,7 +85,7 @@ export function EventAreasConfig({ sections, onChange }: Props) {
     if (editingSection) {
       newSections = newSections.map(s => s.id === editingSection.id ? { ...s, ...formData } as EventSection : s);
     } else {
-      newSections.push({ ...formData, id: `SEC_${Date.now()}` } as EventSection);
+      newSections.push({ ...formData, id: `SEC_${crypto.randomUUID()}` } as EventSection);
     }
     onChange(newSections);
     setIsModalOpen(false);
@@ -343,7 +343,7 @@ export function EventAreasConfig({ sections, onChange }: Props) {
                     <label className="text-[11px] font-medium app-text-main">{t("Kiểu hiển thị")}</label>
                     <CustomSelect 
                       value={formData.artistDisplayType || "auto"}
-                      onChange={(val: string) => setFormData({ ...formData, artistDisplayType: val as any })}
+                      onChange={(val: string) => setFormData({ ...formData, artistDisplayType: val as EventSection["artistDisplayType"] })}
                       options={[
                         { value: "auto", label: t("Tự động lấy nghệ sĩ có nhiều người hâm mộ nhất") },
                         { value: "manual", label: t("Chỉ định danh sách nghệ sĩ") }
