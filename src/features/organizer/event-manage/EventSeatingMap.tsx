@@ -5,6 +5,10 @@ import { ticketApi } from '@/services/ticketApi';
 import { venueApi } from '@/services/venueApi';
 import { eventApi } from '@/services/eventApi';
 import { isForbiddenError } from '@/utils/httpError';
+import { useStickyTopOffset } from '@/hooks/useStickyTopOffset';
+import type { CSSProperties } from 'react';
+import { extractSvgShapes, shapesToZones } from '@/utils/svgImport';
+
 import {
   FiCamera,
   FiCheck,
@@ -75,6 +79,9 @@ import {
   isSeatInsideZone,
   safeClone,
 } from '@/utils/seatMapHelpers';
+
+/** Dung lượng tối đa của file SVG được nhập (byte). */
+const MAX_SVG_IMPORT_BYTES = 2 * 1024 * 1024;
 
 /** Props của studio sơ đồ ghế: tên sự kiện, các hạng vé, sơ đồ ban đầu và hàm gọi sau khi lưu thành công. */
 interface EventSeatingMapProps {
@@ -205,6 +212,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const [isAttendeeMode, _setIsAttendeeMode] = useState(false);
   const [attendeeCart, setAttendeeCart] = useState<Seat[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // cột công cụ dính ngay dưới thanh tiêu đề khi cuộn trang; ở toàn màn hình thì mỗi cột tự cuộn trong khung
+  const stickyTop = useStickyTopOffset(!isFullscreen);
+  const sideColumnStyle: CSSProperties = isFullscreen ? { alignSelf: 'stretch' } : { position: 'sticky', top: stickyTop };
+  const panelColumnStyle: CSSProperties = isFullscreen
+    ? { height: '100%', overflowY: 'auto' }
+    : { position: 'sticky', top: stickyTop, maxHeight: `calc(100vh - ${stickyTop + 16}px)`, overflowY: 'auto' };
   const studioRef = useRef<HTMLDivElement | null>(null);
 
   const [templates, setTemplates] = useState<VenueTemplate[]>(PRESET_TEMPLATES);
@@ -1009,6 +1022,41 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ stages: nextStages });
   };
 
+  /**
+   * Nhập các khu vực từ file SVG: mỗi hình tô màu thành một khu đa giác (chưa gán hạng vé), co giãn vừa khung vẽ.
+   * Khu nhập vào được thêm cạnh các khu đang có, không thay thế sơ đồ hiện tại.
+   */
+  const handleImportSvg = async (file: File) => {
+    if (file.size > MAX_SVG_IMPORT_BYTES) {
+      showToast('error', t('File SVG quá lớn (tối đa 2 MB).'));
+      return;
+    }
+    try {
+      const shapes = extractSvgShapes(await file.text());
+      const imported = shapesToZones(shapes, { width: canvasSettings.width, height: canvasSettings.height });
+      if (imported.length === 0) {
+        showToast('warning', t('Không tìm thấy hình nào có thể nhập trong file SVG này.'));
+        return;
+      }
+      const nextZones = { ...zones };
+      imported.forEach((zone) => {
+        nextZones[zone.id] = zone;
+      });
+      setZones(nextZones);
+      resetSelection();
+      commitWith({ zones: nextZones });
+      const cut = shapes.length > imported.length;
+      showToast(
+        cut ? 'warning' : 'success',
+        cut
+          ? t('Đã nhập {{count}} khu; các hình quá nhỏ hoặc trùng nền đã được bỏ qua. Hãy gán hạng vé cho từng khu.', { count: imported.length })
+          : t('Đã nhập {{count}} khu từ file SVG. Hãy gán hạng vé cho từng khu.', { count: imported.length })
+      );
+    } catch (error) {
+      showToast('error', error instanceof Error ? error.message : t('Không đọc được file SVG.'));
+    }
+  };
+
   /** Thêm một cấu trúc phụ (lối ra, cổng, bàn điều khiển, nhà vệ sinh hoặc ăn uống...) với màu theo loại. */
   const handleAddStructure = (type: StructureElement['type'], label?: string) => {
     const colorMap: Record<StructureElement['type'], string> = {
@@ -1017,18 +1065,20 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       control_booth: '#475569',
       wc_food: '#0891b2',
       structure: '#64748b',
+      label: '#e2e8f0',
     };
     const newStructure: StructureElement = {
       id: `structure_${Date.now()}`,
       type,
       label: label || 'CẤU TRÚC PHỤ',
-      x: lastClickedPos ? Math.round(lastClickedPos.x - (type === 'control_booth' ? 110 : 75)) : 70,
-      y: lastClickedPos ? Math.round(lastClickedPos.y - 22) : 80 + structures.length * 55,
-      width: type === 'control_booth' ? 220 : 150,
-      height: 44,
+      x: lastClickedPos ? Math.round(lastClickedPos.x - (type === 'control_booth' ? 110 : type === 'label' ? 100 : 75)) : 70,
+      y: lastClickedPos ? Math.round(lastClickedPos.y - (type === 'label' ? 24 : 22)) : 80 + structures.length * 55,
+      width: type === 'control_booth' ? 220 : type === 'label' ? 200 : 150,
+      height: type === 'label' ? 48 : 44,
       color: colorMap[type] || '#64748b',
       rotation: 0,
       shape: 'rounded',
+      ...(type === 'label' ? { fontSize: 28, textColor: '#e2e8f0' } : {}),
     };
     const nextStructures = [...structures, newStructure];
     setStructures(nextStructures);
@@ -1908,10 +1958,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         />
       )}
 
-      <div className={`flex flex-row gap-3 items-start w-full ${isFullscreen ? 'flex-1 min-h-0' : ''}`}>
+      <div className={`flex flex-row gap-3 w-full ${isFullscreen ? 'flex-1 min-h-0 items-stretch' : 'items-start'}`}>
         {/* Cột công cụ bên trái (ToolBar): thanh dọc gọn */}
         {!isAttendeeMode && (
-          <div className="w-12 flex-shrink-0 sticky top-4 z-20">
+          <div className="w-12 flex-shrink-0 z-20" style={sideColumnStyle}>
             <ToolBar
               zones={zones}
               tiers={effectiveTiers}
@@ -1925,6 +1975,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               onAddStructure={handleAddStructure}
               onAddZoneBlock={handleAddZoneBlock}
               onResizeCanvas={handleResizeCanvas}
+              onImportSvg={handleImportSvg}
               onDeleteSelected={handleDeleteSelected}
               onDuplicateSelected={handleDuplicateSelected}
               onSelectAll={handleSelectAll}
@@ -1983,7 +2034,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
         {/* Cột thuộc tính bên phải (PropertyPanel hoặc AttendeePreview) */}
         <div
-          className={`transition-all duration-200 flex-shrink-0 sticky top-4 z-20 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
+          style={panelColumnStyle}
+          className={`transition-all duration-200 flex-shrink-0 z-20 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
             }`}
         >
           {!isAttendeeMode ? (

@@ -8,6 +8,7 @@ import type { SeatMapDocument, ZoneBlock, SeatTier } from "@/types/seating";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/utils/formatters";
+import { applyTierStock, getZoneAvailability, getZoneSeats, isSeatUnavailableStatus, resolveZoneTier } from "@/utils/zoneSales";
 import { getBuyableQuantity, getInitialQuantity, getSoldQuantity } from "@/utils/ticketQuantities";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { PATHS } from "@/routes/paths";
@@ -85,6 +86,7 @@ interface RawLayoutZone {
   name?: string;
   ticketTypeId?: string | null;
   shapeType?: string;
+  points?: string | null;
   colorCode?: string;
   fillColor?: string;
   strokeColor?: string;
@@ -281,6 +283,7 @@ export default function SelectTicket() {
                 width: z.width ?? 300,
                 height: z.height ?? 180,
                 rotation: z.rotation ?? 0,
+                points: z.points ?? undefined,
                 capacity: z.capacity,
               };
             });
@@ -550,27 +553,7 @@ export default function SelectTicket() {
   const priceLegend = useMemo(() => {
     if (zonesList.length > 0) {
       return zonesList.map((z, idx) => {
-        let tier = ticketTypes.find((t) => t.id === z.tierId);
-        
-        if (!tier && seatMap?.ticketTiers && z.tierId) {
-          const originalTier = seatMap.ticketTiers.find((t: any) => t.id === z.tierId);
-          if (originalTier) {
-             tier = ticketTypes.find(t => t.name.trim().toLowerCase() === originalTier.name.trim().toLowerCase());
-          }
-        }
-        
-        if (!tier) {
-           tier = ticketTypes.find(t => t.name.trim().toLowerCase() === (z.name || "").trim().toLowerCase());
-        }
-        
-        if (!tier) {
-           const sortedTypes = [...ticketTypes].sort((a, b) => b.name.length - a.name.length);
-           tier = sortedTypes.find(t => (z.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase()));
-        }
-        
-        if (!tier && ticketTypes.length === 1) {
-           tier = ticketTypes[0];
-        }
+        const tier = resolveZoneTier(z, ticketTypes, seatMap?.ticketTiers);
         const price = tier?.price !== undefined ? tier.price : (z.price ?? 0);
         const colors = ["#f59e0b", "#9333ea", "#2563eb", "#10b981", "#f97316", "#ec4899", "#475569", "#06b6d4"];
         const color = z.color || tier?.color || colors[idx % colors.length];
@@ -627,33 +610,22 @@ export default function SelectTicket() {
   const handleZoneClick = (zone: { id: string; name: string; price?: number; color?: string; tierId?: string; capacity?: number }) => {
     setErrorMessage(null);
 
-    const seatsInZone = seatMap?.seats?.filter((s) => s.zoneId === zone.id || (zone.name && s.zoneId === zone.name)) || [];
-    const isSeatedZone = seatsInZone.length > 0;
-
-    if (isSeatedZone) {
-      const availableSeats = seatsInZone.filter((s) => {
-        const st = seatStatusMap[s.id] || s.status;
-        return st !== "SOLD" && st !== "sold" && st !== "HELD" && st !== "HOLDING" && st !== "reserved";
-      });
-      if (availableSeats.length === 0) {
-        setErrorMessage(t("Khu vực này đã hết vé."));
-        return;
-      }
-    } else {
-      const totalCapacity = zone.capacity ?? Infinity;
-      const soldOrHeld = Object.entries(seatStatusMap).filter(
-        ([k, v]) => (k === zone.id || k.startsWith(zone.id + "_") || k.includes(zone.id)) && (v === "SOLD" || v === "HELD" || v === "HOLDING")
-      ).length;
-      if (totalCapacity - soldOrHeld <= 0) {
-        setErrorMessage(t("Khu vực này đã hết vé."));
-        return;
-      }
+    const zoneBlock = seatMap?.zones?.[zone.id];
+    const tier = zoneBlock
+      ? resolveZoneTier(zoneBlock, ticketTypes, seatMap?.ticketTiers)
+      : ticketTypes.find((tt) => tt.id === zone.tierId);
+    // khu bán theo số lượng bị giới hạn thêm bởi kho của hạng vé (các khu cùng hạng dùng chung kho)
+    const availability = zoneBlock
+      ? applyTierStock(getZoneAvailability(zoneBlock, seatMap?.seats, seatStatusMap), tier?.totalQuantity)
+      : undefined;
+    if (availability?.soldOut) {
+      setErrorMessage(t("Khu vực này đã hết vé."));
+      return;
     }
-
-    const tier = ticketTypes.find((t) => t.id === zone.tierId) || 
-      ticketTypes.find(t => t.name.trim().toLowerCase() === (zone.name || "").trim().toLowerCase()) || 
-      ticketTypes.find(t => (zone.name || "").trim().toLowerCase().includes(t.name.trim().toLowerCase())) || 
-      (ticketTypes.length === 1 ? ticketTypes[0] : undefined);
+    if (!tier && ticketTypes.length > 0 && zoneBlock) {
+      setErrorMessage(t("Khu vực này chưa được gán hạng vé hợp lệ nên chưa thể đặt."));
+      return;
+    }
     const price = tier?.price !== undefined ? tier.price : (zone.price ?? 0);
     const minQty = tier?.minPerOrder || 1;
 
@@ -667,7 +639,7 @@ export default function SelectTicket() {
       color: zone.color || "#3b82f6",
       tierId: zone.tierId,
       capacity: zone.capacity,
-      maxPerOrder: tier?.maxPerOrder || 4,
+      maxPerOrder: Math.min(tier?.maxPerOrder || 4, availability?.mode === "GENERAL" && availability.remaining !== null ? availability.remaining : Infinity),
       minPerOrder: minQty,
     });
     setSelectedQuantity(initialQty);
@@ -711,6 +683,10 @@ export default function SelectTicket() {
 
       // chọn ghế
       const zone = seatMap?.zones?.[seat.zoneId] || (seatMap?.zones && Object.values(seatMap.zones).find((z: any) => z.id === seat.zoneId || z.name === seat.zoneId));
+      if (zone && ticketTypes.length > 0 && !resolveZoneTier(zone, ticketTypes, seatMap?.ticketTiers)) {
+        setErrorMessage(t("Khu vực này chưa được gán hạng vé hợp lệ nên chưa thể đặt."));
+        return;
+      }
       const legendItem = priceLegend.find(p => p.id === (zone?.id || seat.zoneId) || p.name === (zone?.name || seat.zoneId));
       const tier = ticketTypes.find(t => t.id === legendItem?.tierId || t.name === legendItem?.tierName);
       
@@ -761,6 +737,15 @@ export default function SelectTicket() {
     const legendItem = priceLegend.find(p => p.id === activeZoneModal.id);
     const tier = ticketTypes.find(t => t.id === legendItem?.tierId || t.name === legendItem?.tierName);
 
+    const modalZoneBlock = seatMap?.zones?.[activeZoneModal.id];
+    const stock = modalZoneBlock
+      ? applyTierStock(getZoneAvailability(modalZoneBlock, seatMap?.seats, seatStatusMap), tier?.totalQuantity)
+      : undefined;
+    if (stock?.mode === "GENERAL" && stock.remaining !== null && selectedQuantity > stock.remaining) {
+      setErrorMessage(t("Khu vực này chỉ còn {{remaining}} vé.", { remaining: stock.remaining }));
+      return;
+    }
+
     const maxQty = tier?.maxPerOrder || activeZoneModal.maxPerOrder || 4;
     const minQty = tier?.minPerOrder || activeZoneModal.minPerOrder || 1;
 
@@ -776,14 +761,14 @@ export default function SelectTicket() {
 
     const price = legendItem?.price !== undefined ? legendItem.price : (activeZoneModal.price ?? 1000000);
 
-    const seatsInZone = seatMap?.seats?.filter((s) => s.zoneId === activeZoneModal.id || (activeZoneModal.name && s.zoneId === activeZoneModal.name)) || [];
+    const modalZone = seatMap?.zones?.[activeZoneModal.id];
+    const seatsInZone = modalZone ? getZoneSeats(modalZone, seatMap?.seats) : [];
     const isSeatedZone = seatsInZone.length > 0;
 
     if (isSeatedZone) {
-      // tìm các ghế còn trống trong khu vực này
+      // tìm các ghế còn trống trong khu vực này (cùng quy tắc với sơ đồ)
       const availableSeats = seatsInZone.filter((s) => {
-        const st = seatStatusMap[s.id] || s.status;
-        return st !== "SOLD" && st !== "sold" && st !== "HELD" && st !== "HOLDING" && st !== "reserved" && st !== "BLOCKED" && st !== "blocked";
+        return !isSeatUnavailableStatus(seatStatusMap[s.id] || s.status);
       });
 
       if (availableSeats.length < selectedQuantity) {

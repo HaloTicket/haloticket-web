@@ -15,6 +15,18 @@ import {
   FiCheck,
 } from 'react-icons/fi';
 import type { PropertyPanelProps } from '@/types/seating';
+import { parseZonePoints, presetToPoints } from '@/utils/seatMapHelpers';
+import type { ElementShape } from '@/types/seating';
+
+/** Các hình dạng chọn được cho sân khấu và cấu trúc trong bảng thuộc tính. */
+const ELEMENT_SHAPES: { id: ElementShape; label: string }[] = [
+  { id: 'rectangle', label: 'Chữ Nhật' },
+  { id: 'rounded', label: 'Bo Góc' },
+  { id: 'ellipse', label: 'H.Tròn/Oval' },
+  { id: 'semicircle', label: 'Bán Nguyệt' },
+  { id: 'trapezoid', label: 'Hình Thang' },
+  { id: 'runway', label: 'Sàn Diễn' },
+];
 
 const PALETTE_COLORS = [
   '#ec4899', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6',
@@ -457,12 +469,26 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     { id: 'rounded', label: t('Bo Góc') },
                     { id: 'ellipse', label: t('H.Tròn/Oval') },
                     { id: 'trapezoid', label: t('Hình Thang') },
+                    { id: 'trapezoid_reverse', label: t('Thang Ngược') },
+                    { id: 'diamond', label: t('Hình Thoi') },
                     { id: 'fan', label: t('Hình Quạt') },
+                    { id: 'polygon', label: t('Đa Giác Tự Vẽ') },
                   ].map((s) => (
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => onUpdateZoneProps(selectedZone.id, { shape: s.id as any })}
+                      onClick={() =>
+                        onUpdateZoneProps(
+                          selectedZone.id,
+                          s.id === 'polygon'
+                            ? {
+                              shape: 'polygon',
+                              // giữ hình hiện tại làm điểm xuất phát để chỉnh từng đỉnh
+                              points: parseZonePoints(selectedZone.points) ?? presetToPoints(selectedZone.shape),
+                            }
+                            : { shape: s.id as any }
+                        )
+                      }
                       className={`py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-colors cursor-pointer text-center ${(selectedZone.shape || 'rounded') === s.id
                         ? 'bg-cyan-600 text-white border-cyan-500 shadow-xs'
                         : 'app-bg-card border-app-border app-text-muted hover:app-text-main'
@@ -472,6 +498,40 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </button>
                   ))}
                 </div>
+                {selectedZone.shape === 'polygon' && (
+                  <p className="text-[10px] app-text-muted leading-snug">
+                    {t('Kéo ô vàng để đổi đỉnh, bấm chấm xanh giữa cạnh để thêm đỉnh, bấm đúp ô vàng để xóa đỉnh.')}
+                  </p>
+                )}
+              </div>
+
+              {/* Nhãn hàng ghế */}
+              <div className="pt-2 border-t app-border space-y-1.5">
+                <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Nhãn hàng ghế")}</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { id: 'none', label: t('Ẩn') },
+                    { id: 'start', label: t('Đầu hàng') },
+                    { id: 'both', label: t('Hai đầu') },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => onUpdateZoneProps(selectedZone.id, { showRowLabels: o.id })}
+                      className={`py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-colors cursor-pointer text-center ${(selectedZone.showRowLabels || 'none') === o.id
+                        ? 'bg-cyan-600 text-white border-cyan-500 shadow-xs'
+                        : 'app-bg-card border-app-border app-text-muted hover:app-text-main'
+                        }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                {!seats.some((seat) => seat.zoneId === selectedZone.id) && (
+                  <p className="text-[10px] app-text-muted leading-snug">
+                    {t('Khu này chưa có ghế nên chưa có nhãn hàng để hiển thị. Hãy thêm hàng hoặc ma trận ghế vào khu.')}
+                  </p>
+                )}
               </div>
 
               {/* Curvature Slider */}
@@ -668,6 +728,35 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
               />
             </div>
+
+            <div className="space-y-1.5 pt-2 border-t app-border">
+              <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Hình Dạng")}</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {ELEMENT_SHAPES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onUpdateStageProps(selectedStage.id, { shape: s.id })}
+                    className={`py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-colors cursor-pointer text-center ${(selectedStage.shape || 'rounded') === s.id
+                      ? 'bg-cyan-600 text-white border-cyan-500 shadow-xs'
+                      : 'app-bg-card border-app-border app-text-muted hover:app-text-main'
+                      }`}
+                  >
+                    {t(s.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t app-border">
+              <label className="text-[11px] font-bold app-text-muted uppercase">{t("Màu")}</label>
+              <input
+                type="color"
+                value={selectedStage.color || '#64748b'}
+                onChange={(e) => onUpdateStageProps(selectedStage.id, { color: e.target.value })}
+                className="w-10 h-7 rounded cursor-pointer app-bg-card border app-border"
+              />
+            </div>
           </div>
         )}
 
@@ -708,6 +797,60 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   className="w-full px-2.5 py-1.5 rounded-lg app-bg-card border app-border font-mono font-bold text-center"
                 />
               </div>
+            </div>
+
+            {selectedStructure.type === 'label' && (
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t app-border">
+                <div>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Cỡ chữ (px)")}</label>
+                  <input
+                    type="number"
+                    min={8}
+                    max={120}
+                    value={selectedStructure.fontSize ?? 28}
+                    onChange={(e) => onUpdateStructureProps(selectedStructure.id, { fontSize: Math.min(120, Math.max(8, Number(e.target.value) || 28)) })}
+                    className="w-full px-2.5 py-1.5 rounded-lg app-bg-card border app-border font-mono font-bold text-center"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold app-text-muted mb-1">{t("Màu chữ")}</label>
+                  <input
+                    type="color"
+                    value={selectedStructure.textColor || '#e2e8f0'}
+                    onChange={(e) => onUpdateStructureProps(selectedStructure.id, { textColor: e.target.value })}
+                    className="w-full h-8 rounded cursor-pointer app-bg-card border app-border"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5 pt-2 border-t app-border">
+              <label className="block text-[11px] font-bold app-text-muted uppercase">{t("Hình Dạng")}</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {ELEMENT_SHAPES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onUpdateStructureProps(selectedStructure.id, { shape: s.id })}
+                    className={`py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-colors cursor-pointer text-center ${(selectedStructure.shape || 'rounded') === s.id
+                      ? 'bg-cyan-600 text-white border-cyan-500 shadow-xs'
+                      : 'app-bg-card border-app-border app-text-muted hover:app-text-main'
+                      }`}
+                  >
+                    {t(s.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t app-border">
+              <label className="text-[11px] font-bold app-text-muted uppercase">{t("Màu")}</label>
+              <input
+                type="color"
+                value={selectedStructure.color || '#64748b'}
+                onChange={(e) => onUpdateStructureProps(selectedStructure.id, { color: e.target.value })}
+                className="w-10 h-7 rounded cursor-pointer app-bg-card border app-border"
+              />
             </div>
           </div>
         )}

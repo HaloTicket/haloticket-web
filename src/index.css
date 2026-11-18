@@ -1644,6 +1644,12 @@ input[type="submit"],
 }
 
 /* Seat Map Studio Component Utilities */
+/* Layout cha có overflow-y: auto làm mất position: sticky của các cột công cụ; trang Studio cần để cuộn theo cả trang */
+main:has(> .seat-studio-root),
+main:has(.seat-studio-root) {
+  overflow: visible;
+}
+
 .seat-studio-root {
   display: flex;
   flex-direction: column;

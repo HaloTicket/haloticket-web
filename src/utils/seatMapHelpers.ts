@@ -7,6 +7,7 @@ import type {
     StructureElement,
     VenueTemplate,
     ZoneBlock,
+    ZonePoint,
     ZoneShape,
 } from '@/types/seating';
 
@@ -100,11 +101,82 @@ export const getZoneColor = (
     tiers: SeatTier[]
 ): string => getTierForZone(zone, tiers)?.color || zone?.color || '#64748b';
 
-/** Lấy giá trị CSS `clip-path` cho hình dạng khu vực; hình `polygon` dùng đường cắt tùy chỉnh nếu có. Hình khác trả về `undefined`. */
+/** Đa giác dựng sẵn (phần trăm) cho các hình khu vực có thể chuyển thành đa giác tự do. */
+const PRESET_POLYGONS: Record<string, ZonePoint[]> = {
+    rectangle: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+    rounded: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+    trapezoid: [{ x: 8, y: 0 }, { x: 92, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+    trapezoid_reverse: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 92, y: 100 }, { x: 8, y: 100 }],
+    diamond: [{ x: 50, y: 0 }, { x: 100, y: 50 }, { x: 50, y: 100 }, { x: 0, y: 50 }],
+    fan: [{ x: 12, y: 0 }, { x: 88, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: 5, y: 52 }],
+    polygon: [{ x: 8, y: 0 }, { x: 92, y: 0 }, { x: 100, y: 36 }, { x: 88, y: 100 }, { x: 12, y: 100 }, { x: 0, y: 36 }],
+};
+
+/** Số đỉnh tối thiểu của một đa giác hợp lệ. */
+export const MIN_POLYGON_POINTS = 3;
+
+/**
+ * Đọc danh sách đỉnh đa giác từ mảng hoặc chuỗi JSON; bỏ qua đỉnh sai kiểu.
+ *
+ * @param raw - Giá trị `points` của khu vực (mảng, chuỗi JSON hoặc rỗng).
+ * @returns Mảng đỉnh nếu có ít nhất 3 đỉnh hợp lệ, ngược lại `undefined`.
+ */
+export const parseZonePoints = (raw: unknown): ZonePoint[] | undefined => {
+    let value = raw;
+    if (typeof value === 'string') {
+        try {
+            value = JSON.parse(value);
+        } catch {
+            return undefined;
+        }
+    }
+    if (!Array.isArray(value)) return undefined;
+    const points = value
+        .filter((p): p is ZonePoint => !!p && Number.isFinite((p as ZonePoint).x) && Number.isFinite((p as ZonePoint).y))
+        .map((p) => ({ x: Number(p.x), y: Number(p.y) }));
+    return points.length >= MIN_POLYGON_POINTS ? points : undefined;
+};
+
+/** Lấy đa giác dựng sẵn của một hình khu vực để người dùng chỉnh tiếp từng đỉnh; hình không có sẵn trả về hình chữ nhật. */
+export const presetToPoints = (shape?: ZoneShape | string): ZonePoint[] =>
+    (PRESET_POLYGONS[shape ?? 'rectangle'] ?? PRESET_POLYGONS.rectangle).map((p) => ({ ...p }));
+
+/** Dựng giá trị CSS `clip-path: polygon(...)` từ danh sách đỉnh theo phần trăm. */
+export const pointsToClipPath = (points: ZonePoint[]): string =>
+    `polygon(${points.map((p) => `${round2(p.x)}% ${round2(p.y)}%`).join(', ')})`;
+
+/** Làm tròn tới 2 chữ số thập phân để chuỗi CSS ngắn gọn. */
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Chèn một đỉnh vào giữa cạnh bắt đầu tại chỉ số `index` (cạnh nối đỉnh `index` với đỉnh kế tiếp, vòng về đỉnh đầu).
+ *
+ * @param points - Danh sách đỉnh hiện tại.
+ * @param index - Chỉ số đỉnh đầu của cạnh cần chia.
+ * @returns Danh sách đỉnh mới, không sửa mảng gốc.
+ */
+export const insertPolygonPoint = (points: ZonePoint[], index: number): ZonePoint[] => {
+    const a = points[index];
+    const b = points[(index + 1) % points.length];
+    if (!a || !b) return points;
+    const mid = { x: round2((a.x + b.x) / 2), y: round2((a.y + b.y) / 2) };
+    return [...points.slice(0, index + 1), mid, ...points.slice(index + 1)];
+};
+
+/** Xóa đỉnh tại `index`; giữ nguyên nếu xóa sẽ làm đa giác còn ít hơn 3 đỉnh. */
+export const removePolygonPoint = (points: ZonePoint[], index: number): ZonePoint[] =>
+    points.length <= MIN_POLYGON_POINTS ? points : points.filter((_, i) => i !== index);
+
+/** Lấy giá trị CSS `clip-path` cho hình dạng khu vực; hình `polygon` ưu tiên các đỉnh tự do, sau đó đến đường cắt tùy chỉnh. Hình khác trả về `undefined`. */
 export const getZoneClipPath = (
     shape?: ZoneShape | string,
-    customClipPath?: string
+    customClipPath?: string,
+    points?: unknown
 ): string | undefined => {
+    if (shape === 'polygon') {
+        const parsed = parseZonePoints(points);
+        if (parsed) return pointsToClipPath(parsed);
+    }
     switch (shape) {
         case 'ellipse':
             return 'ellipse(50% 50% at 50% 50%)';
@@ -129,6 +201,30 @@ export const getElementClipPath = (shape?: ElementShape) => {
     if (shape === 'trapezoid') return 'polygon(8% 0, 92% 0, 100% 100%, 0 100%)';
     if (shape === 'runway') return 'polygon(6% 0, 94% 0, 100% 20%, 100% 80%, 94% 100%, 6% 100%, 0 80%, 0 20%)';
     return undefined;
+};
+
+/**
+ * Lấy kiểu dáng (bo góc, cắt hình) cho một phần tử sân khấu hoặc cấu trúc theo hình dạng.
+ * Hình `rounded` hoặc chưa đặt trả về rỗng để giữ kiểu bo góc mặc định của giao diện.
+ *
+ * @param shape - Hình dạng của phần tử.
+ * @returns Đối tượng gồm `borderRadius` và/hoặc `clipPath` (nếu cần).
+ */
+export const getElementShapeStyle = (shape?: ElementShape): { borderRadius?: string; clipPath?: string } => {
+    switch (shape) {
+        case 'rectangle':
+            return { borderRadius: '0px' };
+        case 'ellipse':
+        case 'circle':
+            return { borderRadius: '50%' };
+        case 'semicircle':
+            return { borderRadius: '0 0 50% 50% / 0 0 100% 100%' };
+        case 'trapezoid':
+        case 'runway':
+            return { borderRadius: '0px', clipPath: getElementClipPath(shape) };
+        default:
+            return {};
+    }
 };
 
 /**
@@ -452,3 +548,86 @@ export const getRowLabel = (startPrefix: string, rowIndex: number): string => {
 };
 
 
+
+/** Nhãn hàng ghế hiển thị ở mép hàng: nội dung và tâm của nhãn trên canvas. */
+export interface RowLabel {
+    key: string;
+    text: string;
+    x: number;
+    y: number;
+}
+
+/** Kích thước một ghế trên canvas (px), dùng để tính tâm ghế từ góc trên trái. */
+const SEAT_SIZE = 34;
+
+/**
+ * Tính vị trí nhãn hàng (A, B, AA...) cho các khu bật `showRowLabels`.
+ * Nhãn đặt nối dài đường của hàng ra ngoài đầu (và cuối) hàng, nên hàng cong hay hàng xoay vẫn đúng hướng.
+ * Ghế trong hàng được xếp theo số ghế rồi theo cột.
+ *
+ * @param seats - Toàn bộ ghế.
+ * @param zones - Các khu vực theo mã.
+ * @param gap - Khoảng cách từ tâm ghế đầu hoặc cuối hàng tới tâm nhãn (px).
+ * @returns Danh sách nhãn hàng.
+ */
+export const computeRowLabels = (
+    seats: Seat[],
+    zones: Record<string, ZoneBlock>,
+    gap = 30
+): RowLabel[] => {
+    const groups = new Map<string, Seat[]>();
+    for (const seat of seats) {
+        const mode = zones[seat.zoneId]?.showRowLabels;
+        if (!mode || mode === 'none' || !seat.row || seat.hidden) continue;
+        const key = `${seat.zoneId}|${seat.row}`;
+        const list = groups.get(key);
+        if (list) list.push(seat);
+        else groups.set(key, [seat]);
+    }
+
+    const half = SEAT_SIZE / 2;
+    const labels: RowLabel[] = [];
+    const place = (key: string, text: string, edge: Seat, inner: Seat | undefined) => {
+        const dx = inner ? edge.x - inner.x : -1;
+        const dy = inner ? edge.y - inner.y : 0;
+        const len = Math.hypot(dx, dy) || 1;
+        labels.push({
+            key,
+            text,
+            x: Math.round(edge.x + half + (dx / len) * gap),
+            y: Math.round(edge.y + half + (dy / len) * gap),
+        });
+    };
+
+    for (const [key, list] of groups) {
+        const sorted = [...list].sort((a, b) => a.number - b.number || (a.col ?? 0) - (b.col ?? 0));
+        const first = sorted[0];
+        const mode = zones[first.zoneId]?.showRowLabels;
+        place(`${key}|start`, first.row, first, sorted[1]);
+        if (mode === 'both' && sorted.length > 1) {
+            place(`${key}|end`, first.row, sorted[sorted.length - 1], sorted[sorted.length - 2]);
+        }
+    }
+    return labels;
+};
+
+/**
+ * Lấy chuỗi toạ độ đa giác (cho thuộc tính `points` của `<polygon>` SVG) của một khu theo kích thước thật, dùng cho bản xem trước nhỏ.
+ * Hình đa giác tự vẽ dùng các đỉnh đã lưu; hình thang, thoi, quạt dùng đa giác dựng sẵn; hình khác trả về `undefined` (vẽ hình chữ nhật).
+ *
+ * @param zone - Khu vực cần vẽ.
+ * @param width - Chiều rộng khu (px).
+ * @param height - Chiều cao khu (px).
+ * @returns Chuỗi `x,y x,y ...` hoặc `undefined`.
+ */
+export const getZoneSvgPoints = (
+    zone: Pick<ZoneBlock, 'shape' | 'points'>,
+    width: number,
+    height: number
+): string | undefined => {
+    const shape = zone.shape as string | undefined;
+    const custom = shape === 'polygon' ? parseZonePoints(zone.points) : undefined;
+    const points = custom ?? (shape && ['polygon', 'trapezoid', 'trapezoid_reverse', 'diamond', 'fan'].includes(shape) ? presetToPoints(shape) : undefined);
+    if (!points) return undefined;
+    return points.map((p) => `${round2((p.x / 100) * width)},${round2((p.y / 100) * height)}`).join(' ');
+};

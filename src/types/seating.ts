@@ -23,8 +23,17 @@ export type ZoneShape =
   | 'fan'
   | 'polygon';
 
+/** Kiểu bán của khu vực (suy ra từ dữ liệu, không lưu): bán theo ghế (chọn từng ghế) hoặc bán theo số lượng (khu đứng, không có ghế). */
+export type ZoneSellMode = 'SEATED' | 'GENERAL';
+
+/** Đỉnh của đa giác khu vực, tính theo phần trăm (0 đến 100) so với hộp bao của khu nên đổi kích thước hay xoay vẫn đúng. */
+export interface ZonePoint {
+  x: number;
+  y: number;
+}
+
 /** Hình dạng của các phần tử sân khấu và cấu trúc. */
-export type ElementShape = 'rectangle' | 'rounded' | 'ellipse' | 'trapezoid' | 'runway';
+export type ElementShape = 'rectangle' | 'rounded' | 'ellipse' | 'circle' | 'semicircle' | 'trapezoid' | 'runway';
 
 /** Hạng vé gắn với ghế hoặc khu vực: giá, màu hiển thị và số lượng (tổng, đã bán, đang giữ, còn lại). */
 export interface SeatTier {
@@ -89,8 +98,12 @@ export interface StageElement {
 /** Phần tử cấu trúc trên sơ đồ như lối ra, cổng, bàn điều khiển hay khu vệ sinh/ăn uống. */
 export interface StructureElement {
   id: string;
-  type: 'exit' | 'structure' | 'gate' | 'control_booth' | 'wc_food';
+  type: 'exit' | 'structure' | 'gate' | 'control_booth' | 'wc_food' | 'label';
   label: string;
+  /** Cỡ chữ (px) khi type là 'label' (nhãn chữ không có nền, ví dụ "TẦNG 1"). */
+  fontSize?: number;
+  /** Màu chữ khi type là 'label'. */
+  textColor?: string;
   x: number;
   y: number;
   width: number;
@@ -117,11 +130,14 @@ export interface ZoneBlock {
   curvature?: number; // 0-100, hoặc bán kính bo góc / độ cong của cung
   shape?: ZoneShape | SeatShape;
   shapeType?: string;
-  points?: any;
+  /** Đỉnh đa giác (khi shape là 'polygon'); có thể là chuỗi JSON do backend lưu. Dùng parseZonePoints để đọc. */
+  points?: ZonePoint[] | string | null;
   customClipPath?: string;
   rows?: string[];
   seatsPerRow?: number;
   type?: 'SEATED' | 'STANDING' | 'CURVED_ARC' | 'GALA_TABLES';
+  /** Hiển thị nhãn hàng (A, B, AA...) ở mép hàng ghế: không hiện, đầu hàng hoặc hai đầu hàng. */
+  showRowLabels?: 'none' | 'start' | 'both';
   x?: number;
   y?: number;
   width?: number;
@@ -271,6 +287,8 @@ export interface ToolBarProps {
   onAddStructure: (type: any, label?: string) => void;
   onAddZoneBlock?: (configOrName: any, price?: number, color?: string, width?: number, height?: number, borderStyle?: 'dashed' | 'solid', rows?: number, cols?: number) => void;
   onResizeCanvas?: (width: number, height: number, gridSize?: number) => void;
+  /** Nhập các khu vực từ một file SVG do người dùng chọn. */
+  onImportSvg?: (file: File) => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
   onSelectAll: () => void;

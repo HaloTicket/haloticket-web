@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   FiGrid,
   FiCopy,
@@ -6,6 +6,8 @@ import {
   FiCheckSquare,
   FiLayers,
   FiShield,
+  FiType,
+  FiUpload,
 } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -23,6 +25,7 @@ export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
   onAddStage,
   onAddStructure,
   onAddZoneBlock,
+  onImportSvg,
   onDeleteSelected,
   onDuplicateSelected,
   onSelectAll,
@@ -30,6 +33,8 @@ export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
   const { t } = useTranslation();
   // trạng thái hiển thị của modal trình tạo khu
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
+  // ô chọn file SVG ẩn, mở khi bấm nút nhập SVG
+  const svgInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <>
@@ -64,6 +69,33 @@ export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
           </div>
         </div>
 
+        {onImportSvg && (
+          <div className="relative group w-full flex justify-center">
+            <button
+              type="button"
+              onClick={() => svgInputRef.current?.click()}
+              className="w-9 h-9 rounded-xl app-bg-main hover:app-bg-hover border app-border hover:border-cyan-500/50 text-cyan-500 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+              aria-label={t("Nhập sơ đồ từ file SVG")}
+            >
+              <FiUpload className="w-4 h-4" />
+            </button>
+            <input
+              ref={svgInputRef}
+              type="file"
+              accept=".svg,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onImportSvg(file);
+                e.target.value = '';
+              }}
+            />
+            <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+              {t("Nhập sơ đồ từ file SVG")}
+            </span>
+          </div>
+        )}
+
         <div className="w-8 h-px app-bg-border" />
 
         {/* Group 2: Stage & Structure */}
@@ -91,6 +123,20 @@ export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
             </button>
             <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
               {t("Lối thoát hiểm")}
+            </span>
+          </div>
+
+          <div className="relative group w-full flex justify-center">
+            <button
+              type="button"
+              onClick={() => onAddStructure('label', t('TẦNG 1'))}
+              className="w-9 h-9 rounded-xl app-bg-main hover:app-bg-hover border app-border hover:border-sky-500/50 text-sky-500 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+              aria-label={t("Thêm nhãn chữ")}
+            >
+              <FiType className="w-4 h-4" />
+            </button>
+            <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-extrabold text-slate-100 bg-slate-900 border border-slate-700/80 rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+              {t("Thêm nhãn chữ")}
             </span>
           </div>
         </div>
