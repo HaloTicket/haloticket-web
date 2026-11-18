@@ -7,14 +7,20 @@ import type { EventApiData } from "@/types";
 import { formatCurrency, formatDate, formatLegacyVietnameseDate, parseVndAmount } from "@/utils/formatters";
 import { Badge } from "./Badge";
 
+/** Dữ liệu sự kiện cho thẻ, ghép từ dữ liệu mock cũ và dữ liệu API nên mọi trường đều tùy chọn. */
 export type EventCardData = Partial<EventItem> & Partial<EventApiData>;
 
+/** Props của thẻ sự kiện: dữ liệu sự kiện, kiểu hiển thị và lớp CSS thêm. */
 interface EventCardProps {
   event: EventCardData | null | undefined;
   variant?: "standard" | "compact" | "ranked" | "poster";
   className?: string;
 }
 
+/**
+ * Thẻ sự kiện dạng liên kết tới `/events/{id}`: ảnh, huy hiệu (vé bán lại, HOT, danh mục), tiêu đề, giá thấp nhất,
+ * ngày và địa điểm. Trả về `null` khi không có sự kiện; kiểu `poster` dùng ảnh dọc 3:4.
+ */
 export const EventCard: React.FC<EventCardProps> = ({
   event,
   variant = "standard",
@@ -25,7 +31,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const isPoster = variant === "poster";
   
-  // dynamically determine minPrice by comparing prices across all event ticket tiers
+  // xác định giá thấp nhất bằng cách so giá của mọi hạng vé (bỏ qua vé HIDDEN), kể cả vé trong từng suất
   const rawTickets = (event as any).tickets || (event as any).ticketTypes;
   let computedMinPrice: number | undefined = undefined;
 
@@ -78,7 +84,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       to={`/events/${event.id}`}
       className={`group flex flex-col h-full app-bg-card border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden card-hover-zoom cursor-pointer shadow-xs hover:shadow-lg hover:border-blue-500/40 transition-all duration-300 ${className}`}
     >
-      {/* Image Container */}
+      {/* Khung ảnh */}
       <div className={`relative w-full overflow-hidden ${isPoster ? "aspect-[3/4]" : "aspect-[16/9]"} bg-slate-200 dark:bg-slate-800 shrink-0`}>
         <img
           src={event.image || event.bannerUrl || event.thumbnailUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80"}
@@ -87,7 +93,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           loading="lazy"
         />
 
-        {/* Badges Overlay */}
+        {/* Lớp huy hiệu phủ trên ảnh */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
           {event.isResale && (
             <Badge variant="resale">{translate("VÉ BÁN LẠI")}</Badge>
@@ -100,11 +106,11 @@ export const EventCard: React.FC<EventCardProps> = ({
           )}
         </div>
 
-        {/* Hover overlay gradient */}
+        {/* Lớp phủ chuyển màu khi rê chuột */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
 
-      {/* Content Container */}
+      {/* Khung nội dung */}
       <div className="p-3.5 flex flex-col grow justify-between">
         <div>
           <h4 className="font-extrabold text-sm md:text-base app-text-main group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug mb-2 min-h-[2.6rem] flex items-start">
@@ -113,12 +119,12 @@ export const EventCard: React.FC<EventCardProps> = ({
         </div>
 
         <div className="mt-auto space-y-1.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
-          {/* Price */}
+          {/* Giá */}
           <div className="text-blue-600 dark:text-blue-400 font-extrabold text-sm md:text-base">
             {displayPrice}
           </div>
 
-          {/* Date & Location */}
+          {/* Ngày và địa điểm */}
           <div className="flex items-center gap-1.5 text-xs app-text-muted font-medium">
             <FiCalendar className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{displayDate}</span>

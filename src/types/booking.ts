@@ -1,3 +1,4 @@
+/** Dữ liệu đơn hàng tạm ở phía giao diện khi chọn vé, trước khi tạo đặt vé. */
 export interface BookingOrderData {
   eventId?: string;
   showtimeId?: string;
@@ -12,6 +13,7 @@ export interface BookingOrderData {
   totalAmount: number;
 }
 
+/** Một dòng đặt vé trong danh sách quản lý của người tổ chức. */
 export interface BookingItem {
   id: string;
   orderCode: string;
@@ -24,14 +26,16 @@ export interface BookingItem {
   ticketQuantity: number;
 }
 
+/** Một mục vé trong yêu cầu tạo đặt vé: loại vé, số lượng và đơn giá. */
 export interface BookingItemRequest {
   ticketTypeId: string;
   quantity: number;
   unitPrice: number;
-  /** True for a no-seat (general admission) item; the backend holds its quantity as stock. */
+  /** Đúng với mục vé không chọn ghế (vé tự do); backend giữ số lượng này như tồn kho. */
   generalAdmission?: boolean;
 }
 
+/** Yêu cầu tạo đặt vé: sự kiện, suất diễn, khách hàng, voucher, ghế và các mục vé. */
 export interface BookingCreateRequest {
   eventId: string;
   showtimeId?: string;
@@ -44,6 +48,7 @@ export interface BookingCreateRequest {
   items?: BookingItemRequest[];
 }
 
+/** Phản hồi sau khi tạo hoặc tra cứu đặt vé: mã, trạng thái và hạn thanh toán. */
 export interface BookingResponse {
   id: string;
   bookingCode: string;
@@ -59,6 +64,7 @@ export interface BookingResponse {
   quantity?: number;
 }
 
+/** Một dòng chi tiết loại vé trong đặt vé. */
 export interface BookingItemDetailResponse {
   ticketTypeId: string;
   ticketTypeName: string;
@@ -66,6 +72,7 @@ export interface BookingItemDetailResponse {
   unitPrice: number;
 }
 
+/** Chi tiết đặt vé, gồm danh sách các mục vé. */
 export interface BookingDetailResponse {
   id: string;
   bookingCode: string;
@@ -77,6 +84,7 @@ export interface BookingDetailResponse {
   items: BookingItemDetailResponse[];
 }
 
+/** Một người tham dự (vé) trong danh sách tham dự và trạng thái check-in. */
 export interface AttendeeItem {
   id: string;
   ticketCode: string;

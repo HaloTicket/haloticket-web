@@ -1,3 +1,4 @@
+/** Một thông báo gửi tới người dùng. */
 export interface NotificationItem {
   id: string;
   userId: string;
@@ -6,6 +7,6 @@ export interface NotificationItem {
   message: string;
   readStatus?: boolean;
   createdAt?: string;
-  /** JSON text; event approval notifications carry {eventId, link, flaggedFields} (absent on older ones). */
+  /** Văn bản JSON; thông báo duyệt sự kiện mang {eventId, link, flaggedFields} (thông báo cũ có thể không có). */
   variablesJson?: string | null;
 }

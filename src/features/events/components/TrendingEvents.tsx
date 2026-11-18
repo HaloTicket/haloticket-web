@@ -7,6 +7,7 @@ import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { eventApi, type EventApiData } from "@/services/eventApi";
 
+/** Một mục trong bảng xếp hạng xu hướng: hạng, tiêu đề và ảnh. */
 interface TrendingRankItem {
   id: string;
   rank: number;
@@ -15,12 +16,14 @@ interface TrendingRankItem {
   [key: string]: unknown;
 }
 
+/** Props của khu vực xu hướng: tiêu đề, số lượng tối đa và danh sách sự kiện (nếu không truyền thì tự tải từ API). */
 interface TrendingEventsProps {
   title?: string;
   limit?: number;
   events?: EventApiData[];
 }
 
+/** Khu vực sự kiện xu hướng: bảng xếp hạng theo lượt xem và danh sách sự kiện theo tab "Cuối tuần này" hoặc "Tháng này", đều cuộn ngang. */
 export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8, events: propEvents }) => {
   const { t: translate } = useTranslation();
   const [activeTab, setActiveTab] = useState<"weekend" | "month">("weekend");
@@ -37,7 +40,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
   const [tabEvents, setTabEvents] = useState<Array<EventApiData>>([]);
   const [allEventsList, setAllEventsList] = useState<EventApiData[]>([]);
 
-  // fetch and store all events
+  // tải và lưu toàn bộ sự kiện
   useEffect(() => {
     if (propEvents && propEvents.length > 0) {
       setAllEventsList(propEvents);
@@ -48,11 +51,11 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
     }
   }, [propEvents]);
 
-  // process trending rank and tab events
+  // xử lý bảng xếp hạng xu hướng và sự kiện theo tab
   useEffect(() => {
     if (allEventsList.length === 0) return;
     
-    // 1. process top trending
+    // 1. xử lý nhóm xu hướng hàng đầu
     const sorted = [...allEventsList].sort((a, b) => {
       const viewsA = (a.pageViews as number) || (a.viewCount as number) || 0;
       const viewsB = (b.pageViews as number) || (b.viewCount as number) || 0;
@@ -68,12 +71,12 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
     }));
     setTrendingList(ranked);
     
-    // 2. process filtered events for tabs
+    // 2. xử lý danh sách sự kiện đã lọc cho các tab
     const now = new Date();
     let filtered = allEventsList;
     
     if (activeTab === "weekend") {
-      // find the upcoming weekend (Saturday and Sunday)
+      // tìm cuối tuần sắp tới (thứ Bảy và Chủ nhật)
       const day = now.getDay(); // 0 is Sunday, 6 is Saturday
       const daysUntilSaturday = (day === 0) ? 6 : (6 - day);
       
@@ -101,7 +104,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
       });
     }
     
-    // sort the filtered list by trending views and set
+    // sắp xếp danh sách đã lọc theo lượt xem xu hướng rồi lưu
     const sortedFiltered = filtered.sort((a, b) => {
       const viewsA = (a.pageViews as number) || (a.viewCount as number) || 0;
       const viewsB = (b.pageViews as number) || (b.viewCount as number) || 0;
@@ -116,6 +119,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
     { id: "month", label: "Tháng này" }
   ];
 
+  /** Cập nhật nút cuộn trái phải của dải xếp hạng theo vị trí cuộn. */
   const checkRankScroll = () => {
     if (rankScrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = rankScrollRef.current;
@@ -124,6 +128,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
     }
   };
 
+  /** Cập nhật nút cuộn trái phải của dải sự kiện theo vị trí cuộn. */
   const checkEventsScroll = () => {
     if (eventsScrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = eventsScrollRef.current;
@@ -137,24 +142,28 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
     checkEventsScroll();
   }, [trendingList, tabEvents]);
 
+  /** Cuộn dải xếp hạng sang trái 380 điểm ảnh. */
   const scrollRankLeft = () => {
     if (rankScrollRef.current) {
       rankScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải xếp hạng sang phải 380 điểm ảnh. */
   const scrollRankRight = () => {
     if (rankScrollRef.current) {
       rankScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải sự kiện sang trái 380 điểm ảnh. */
   const scrollEventsLeft = () => {
     if (eventsScrollRef.current) {
       eventsScrollRef.current.scrollBy({ left: -380, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải sự kiện sang phải 380 điểm ảnh. */
   const scrollEventsRight = () => {
     if (eventsScrollRef.current) {
       eventsScrollRef.current.scrollBy({ left: 380, behavior: "smooth" });
@@ -165,7 +174,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
 
   return (
     <div className="mb-12">
-      {/* Section Title Header */}
+      {/* Tiêu đề khu vực */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
           <FaFire className="w-6 h-6 text-rose-500 animate-pulse" />
@@ -173,9 +182,9 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
         </h2>
       </div>
 
-      {/* Top Ranked Cards Carousel */}
+      {/* Băng chuyền thẻ xếp hạng hàng đầu */}
       <div className="relative group mb-10">
-        {/* Navigation Arrow Left */}
+        {/* Nút mũi tên trái */}
         {showRankLeft && (
           <button
             type="button"
@@ -187,7 +196,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
           </button>
         )}
 
-        {/* Scrollable Ranked Cards Container */}
+        {/* Vùng cuộn các thẻ xếp hạng */}
         <div
           ref={rankScrollRef}
           onScroll={checkRankScroll}
@@ -215,7 +224,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
           ))}
         </div>
 
-        {/* Navigation Arrow Right */}
+        {/* Nút mũi tên phải */}
         {showRankRight && (
           <button
             type="button"
@@ -228,7 +237,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
         )}
       </div>
 
-      {/* Filter Tabs Sub-header with Smooth Button Transition Animation */}
+      {/* Tiêu đề phụ chứa các tab lọc, nút chuyển mượt */}
       <SectionHeader
         title=""
         tabs={filterTabs}
@@ -236,9 +245,9 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
         onTabChange={(tabId) => setActiveTab(tabId as "weekend" | "month")}
       />
 
-      {/* Carousel of Weekend / Month Event Cards */}
+      {/* Băng chuyền thẻ sự kiện cuối tuần hoặc tháng */}
       <div className="relative group">
-        {/* Navigation Arrow Left */}
+        {/* Nút mũi tên trái */}
         {showEventsLeft && (
           <button
             type="button"
@@ -262,7 +271,7 @@ export const TrendingEvents: React.FC<TrendingEventsProps> = ({ title, limit = 8
           ))}
         </div>
 
-        {/* Navigation Arrow Right */}
+        {/* Nút mũi tên phải */}
         {showEventsRight && (
           <button
             type="button"

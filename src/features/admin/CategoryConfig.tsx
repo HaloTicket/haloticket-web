@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { CategoryList } from "./category-config/CategoryList";
 
+/** Trang cấu hình danh mục sự kiện của admin: thêm, sắp xếp và ẩn/hiện danh mục (phần danh sách do `CategoryList` đảm nhiệm). */
 export function CategoryConfig() {
   const { t } = useTranslation();
 

@@ -1,3 +1,4 @@
+/** Một voucher của sự kiện do backend trả về (một số trường có tên cũ và mới song song). */
 export interface VoucherItem {
   id: string;
   eventId?: string;
@@ -24,6 +25,7 @@ export interface VoucherItem {
   updatedAt?: string;
 }
 
+/** Dữ liệu tạo hoặc cập nhật voucher, hỗ trợ tạo đơn lẻ hoặc hàng loạt. */
 export interface VoucherCreateData {
   creationMode?: "SINGLE" | "BULK";
   title: string;

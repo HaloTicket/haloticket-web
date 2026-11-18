@@ -3,20 +3,22 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiRefreshCw } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 
+/** Trạng thái đồng bộ loại vé của sự kiện: kết quả, lỗi (nếu có) và thời điểm đồng bộ gần nhất. */
 export interface TicketsSync {
   status?: "SYNCED" | "FAILED" | "UNAVAILABLE" | string | null;
   error?: string | null;
   syncedAt?: string | null;
 }
 
+/** Props của banner đồng bộ loại vé. */
 interface Props {
   eventId: string;
   ticketsSync?: TicketsSync | null;
-  // called after a successful resync so the caller can refresh the event
+  // được gọi sau khi đồng bộ lại thành công để người gọi tải lại sự kiện
   onResynced: () => void;
 }
 
-// visible warning while the ticket types are not (known to be) synced, with a real "Sync again" action
+/** Cảnh báo hiển thị khi loại vé chưa (hoặc không chắc đã) được đồng bộ, kèm nút "Đồng bộ lại" thật sự gọi API. */
 export function TicketsSyncBanner({ eventId, ticketsSync, onResynced }: Props) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -24,6 +26,7 @@ export function TicketsSyncBanner({ eventId, ticketsSync, onResynced }: Props) {
   const status = ticketsSync?.status;
   const needsSync = status === "FAILED" || status === "UNAVAILABLE";
 
+  /** Gọi API đồng bộ lại loại vé; thành công thì báo {@code onResynced}, lỗi thì hiện thông báo lỗi. */
   const resync = async () => {
     if (busy) return;
     setBusy(true);

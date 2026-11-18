@@ -76,6 +76,7 @@ import {
   safeClone,
 } from '@/utils/seatMapHelpers';
 
+/** Props của studio sơ đồ ghế: tên sự kiện, các hạng vé, sơ đồ ban đầu và hàm gọi sau khi lưu thành công. */
 interface EventSeatingMapProps {
   eventName?: string;
   ticketTiers?: SeatTier[];
@@ -83,11 +84,12 @@ interface EventSeatingMapProps {
   onSave?: (payload: SeatMapDocument) => Promise<void> | void;
 }
 
+/** Ảnh chụp trạng thái studio (ghế, sân khấu, cấu trúc, khu, cài đặt canvas) dùng cho lịch sử hoàn tác. */
 interface StudioSnapshot extends HistoryState {
   canvasSettings: CanvasSettings;
 }
 
-// normalize imported tier ids
+/** Chuẩn hóa {@code tierId} của các khu khi nhập sơ đồ: giữ ID hợp lệ, ID lạ thì khớp theo tên hạng vé, đồng thời bỏ giá riêng của khu. */
 const normalizeImportedTierIds = (
   zones: Record<string, ZoneBlock>,
   tiers: SeatTier[]
@@ -122,13 +124,15 @@ const normalizeImportedTierIds = (
   );
 };
 
-// localStorage can throw on access (blocked site data, private window): give the draft code a storage that fails loudly instead
+/** Lấy {@code localStorage} cho mã bản nháp; nếu truy cập bị chặn (tắt dữ liệu trang, cửa sổ riêng tư) thì trả storage giả có {@code setItem} ném lỗi để lỗi lưu không bị bỏ sót. */
 const browserStorage = (): DraftStorage => {
   try {
     return window.localStorage;
   } catch {
     return {
+      /** Storage giả: không có dữ liệu nào. */
       getItem: () => null,
+      /** Storage giả: luôn ném lỗi vì {@code localStorage} không dùng được. */
       setItem: () => {
         throw new Error('localStorage is not available');
       },
@@ -136,7 +140,10 @@ const browserStorage = (): DraftStorage => {
   }
 };
 
-// event seating map studio component
+/**
+ * Studio thiết kế sơ đồ ghế của sự kiện: canvas vẽ ghế, khu, sân khấu và cấu trúc phụ, lịch sử hoàn tác, mẫu địa điểm, quản lý hạng vé,
+ * tự động lưu nháp (cục bộ rồi lên máy chủ), kiểm tra lỗi và xuất bản sơ đồ chính thức.
+ */
 export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   eventName = 'Sự kiện mới',
   ticketTiers,
@@ -159,7 +166,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     [defaultTemplate, effectiveTiers]
   );
 
-  // initialize snapshot
+  // khởi tạo ảnh chụp ban đầu
   const initialSnapshot = useMemo<StudioSnapshot>(() => {
     if (initialMap) {
       return {
@@ -179,7 +186,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     };
   }, [defaultLayout, effectiveTiers, initialMap]);
 
-  // declare studio states
+  // khai báo các state của studio
   const [seats, setSeats] = useState<Seat[]>(initialSnapshot.seats);
   const [stages, setStages] = useState<StageElement[]>(initialSnapshot.stages);
   const [structures, setStructures] = useState<StructureElement[]>(initialSnapshot.structures);
@@ -222,7 +229,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     onCancel?: () => void;
   } | null>(null);
 
-  // edits made by the user (not by loading) and the last edit version that reached the server: unsaved = ahead of it
+  // số lần sửa do người dùng thực hiện (không tính khi tải dữ liệu) và phiên bản sửa gần nhất đã lên máy chủ: chưa lưu = đang đi trước nó
   const [editVersion, setEditVersion] = useState(0);
   const [savedVersion, setSavedVersion] = useState(0);
   const editCounterRef = useRef(0);
@@ -239,6 +246,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const pasteCountRef = useRef(0);
   const idCounterRef = useRef(0);
 
+  /** Ghi nhận một lần sửa của người dùng bằng cách tăng bộ đếm phiên bản sửa. */
   const markEdited = () => {
     editCounterRef.current += 1;
     setEditVersion(editCounterRef.current);
@@ -247,6 +255,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   const [eventVenue, setEventVenue] = useState<{ id?: string; name?: string; address?: string } | null>(null);
   const [previousSnapshotBeforePreset, setPreviousSnapshotBeforePreset] = useState<StudioSnapshot | null>(null);
 
+  /** Quay lại sơ đồ trước khi áp dụng mẫu địa điểm (nếu có bản lưu), đồng thời ghi vào lịch sử. */
   const handleRevertToPreviousVersion = () => {
     if (!previousSnapshotBeforePreset) return;
     applySnapshot(previousSnapshotBeforePreset);
@@ -256,6 +265,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     showToast('info', t('Đã khôi phục lại phiên bản sơ đồ trước khi áp dụng mẫu.'));
   };
 
+  /** Hiện toast trong 4 giây rồi tự ẩn. */
   const showToast = (type: 'success' | 'error' | 'warning' | 'info', text: string) => {
     const id = `toast_${Date.now()}_${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, text }]);
@@ -274,8 +284,9 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     latestRef.current = { seats, stages, structures, zones, canvasSettings };
   }, [canvasSettings, seats, stages, structures, zones]);
 
-  // load current event's venue from DB
+  // tải địa điểm hiện tại của sự kiện từ CSDL
   useEffect(() => {
+    /** Lấy sự kiện rồi ghép địa điểm theo tên (khớp một phần, không phân biệt hoa thường) với danh sách địa điểm; không khớp thì dùng tên địa điểm của sự kiện. */
     const fetchEventVenue = async () => {
       try {
         const ev = await eventApi.getEventById(activeEventId);
@@ -299,17 +310,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     fetchEventVenue();
   }, [activeEventId]);
 
-  // load Real Venues from Backend API via venueApi service
+  // tải các địa điểm thật từ Backend API qua {@code venueApi}
   useEffect(() => {
+    /** Tải danh sách địa điểm đã xác minh và dựng mỗi địa điểm thành các mẫu sơ đồ hệ thống (concert, sân vận động, sân khấu trung tâm). */
     const fetchVenues = async () => {
       try {
         const venues = await venueApi.getVenues();
         if (venues && venues.length > 0) {
           const venueTemplates: VenueTemplate[] = [];
           venues.forEach((v: any, idx: number) => {
-            if (v.verified === false) return; // Only public verified venues
+            if (v.verified === false) return; // chỉ lấy địa điểm công khai đã xác minh
 
-            // layout variant 1: concert & music stage
+            // biến thể bố cục 1: sân khấu concert và âm nhạc
             const preset1 = PRESET_TEMPLATES[idx % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[0];
             venueTemplates.push({
               id: `venue_${v.id}_concert`,
@@ -326,7 +338,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               canvasSettings: safeClone(preset1.canvasSettings || DEFAULT_CANVAS_SETTINGS),
             });
 
-            // Layout Variant 2: Sports & Arena Stand
+            // biến thể bố cục 2: khán đài thể thao và đấu trường
             const preset2 = PRESET_TEMPLATES[(idx + 1) % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[1];
             if (preset2) {
               venueTemplates.push({
@@ -345,7 +357,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               });
             }
 
-            // Layout Variant 3: 360 Arena Center Stage
+            // biến thể bố cục 3: đấu trường 360 độ với sân khấu ở giữa
             const preset3 = PRESET_TEMPLATES[(idx + 2) % PRESET_TEMPLATES.length] || PRESET_TEMPLATES[2];
             if (preset3) {
               venueTemplates.push({
@@ -368,12 +380,13 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           setTemplates((prev) => [...venueTemplates, ...prev.filter((t) => !t.id.startsWith('venue_'))]);
         }
       } catch {
-        // fallback to presets if backend endpoint offline
+        // nếu API chưa sẵn sàng thì dùng các mẫu có sẵn
       }
     };
     fetchVenues();
   }, []);
 
+  /** Dựng ảnh chụp studio từ tài liệu sơ đồ, bổ sung giá trị mặc định cho phần thiếu. */
   const snapshotFromDocument = (doc: Partial<SeatMapDocument>): StudioSnapshot => ({
     seats: safeClone(doc.seats || []),
     stages: safeClone(doc.stages || []),
@@ -382,8 +395,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     canvasSettings: { ...DEFAULT_CANVAS_SETTINGS, ...(doc.canvasSettings || {}) },
   });
 
-  // A draft kept by the browser that is clearly newer than the server's (a failed upload, a closed tab) is offered,
-  // never applied silently: the user decides.
+  /**
+   * Đề nghị khôi phục bản nháp lưu trong trình duyệt khi nó rõ ràng mới hơn bản trên máy chủ (tải lên lỗi, đóng tab).
+   * Không bao giờ tự áp dụng ngầm: người dùng quyết định qua hộp xác nhận.
+   *
+   * @param serverSavedAt thời điểm lưu của bản trên máy chủ, hoặc {@code null} nếu chưa có
+   */
   const offerLocalDraft = (serverSavedAt: number | null) => {
     const local = readLocalDraft(browserStorage(), activeEventId);
     if (!local || !hasLayoutContent(local.doc)) return;
@@ -394,6 +411,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       title: t('Khôi phục bản nháp trên trình duyệt?'),
       message: `${t('Trình duyệt đang giữ một bản nháp chưa được lưu lên máy chủ, mới hơn bản đã lưu')} (${when}). ${t('Khôi phục bản nháp này?')}`,
       type: 'info',
+      /** Áp bản nháp cục bộ vào studio, đặt lại lịch sử và đánh dấu là chưa lên máy chủ. */
       onConfirm: () => {
         const snapshot = snapshotFromDocument(local.doc);
         applySnapshot(snapshot);
@@ -401,19 +419,20 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         setHistory([safeClone(snapshot)]);
         setHistoryIndex(0);
         historyIndexRef.current = 0;
-        markEdited(); // it still has to reach the server
+        markEdited(); // vẫn phải được gửi lên máy chủ
         setConfirmModal(null);
       },
     });
   };
 
-  // fetch ticket types & existing seat layout from Backend API via ticketApi service
+  // tải các hạng vé và sơ đồ ghế đã có từ Backend API qua {@code ticketApi}
   useEffect(() => {
     if (!activeEventId) return;
+    /** Tải hạng vé rồi sơ đồ ghế (bản nháp hoặc bản đã xuất bản) của sự kiện; xong thì cho phép tự động lưu và đề nghị bản nháp cục bộ nếu có. */
     const fetchLayoutAndTypes = async () => {
       let serverSavedAt: number | null = null;
       try {
-        // fetch ticket types via ticketApi
+        // tải hạng vé qua {@code ticketApi}
         const typesList = await ticketApi.getTicketTypesByEventId(activeEventId);
         if (typesList && typesList.length > 0) {
           const colors = ['#f59e0b', '#9333ea', '#2563eb', '#10b981', '#f97316', '#ec4899', '#475569', '#06b6d4'];
@@ -433,7 +452,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           setBackendTiers(mappedTiers);
         }
 
-        // fetch layout via ticketApi
+        // tải sơ đồ qua {@code ticketApi}
         const layoutData = await ticketApi.getSeatLayoutByEventId(activeEventId);
         if (layoutData) {
           if (layoutData.status) {
@@ -502,7 +521,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       } catch (err) {
         console.error('Error fetching seat layout or ticket types:', err);
       } finally {
-        // from here on the studio may auto-save; until then it must not overwrite the server draft with an empty map
+        // từ đây studio mới được tự động lưu; trước đó không được ghi đè bản nháp trên máy chủ bằng sơ đồ trống
         layoutSettledRef.current = true;
         offerLocalDraft(serverSavedAt);
       }
@@ -511,9 +530,9 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     fetchLayoutAndTypes();
   }, [activeEventId]);
 
-  // Auto-save: a local copy first (so a failed upload still leaves a recoverable draft), then the server draft.
-  // Runs only after the user's own edits: nothing is saved while the layout is still loading, so the empty initial
-  // map can never overwrite a draft that exists on the server.
+  // Tự động lưu: bản cục bộ trước (để lưu lên máy chủ lỗi vẫn còn bản nháp khôi phục được), sau đó mới tới bản nháp trên máy chủ.
+  // Chỉ chạy sau khi chính người dùng sửa: không lưu gì khi sơ đồ còn đang tải, nên sơ đồ trống ban đầu
+  // không bao giờ ghi đè được bản nháp đang có trên máy chủ.
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
@@ -541,7 +560,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         localDraftFailedRef.current = false;
       }
 
-      // a route without an event id must never write to a real event (the id falls back to a constant)
+      // route không có ID sự kiện thì không được ghi vào sự kiện thật (ID khi đó rơi về một hằng số)
       if (!urlEventId) {
         setAutoSaveStatus(t('Chỉ lưu trên trình duyệt'));
         return;
@@ -585,10 +604,11 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seats, stages, structures, zones, canvasSettings, eventName, effectiveTiers, selectedTemplateId, activeEventId, editVersion]);
 
-  // leaving with edits the server does not have yet: ask first (closing the tab, and moving to another page)
+  // rời trang khi còn thay đổi mà máy chủ chưa có: hỏi trước (đóng tab và chuyển sang trang khác)
   useEffect(() => {
     unsavedRef.current = unsaved;
     if (!unsaved) return;
+    /** Hiện hộp thoại xác nhận mặc định của trình duyệt khi đóng hoặc tải lại tab. */
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = '';
@@ -605,16 +625,18 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       title: t('Rời khỏi trang?'),
       message: t('Sơ đồ có thay đổi chưa được lưu lên máy chủ. Nếu rời đi, các thay đổi đó có thể bị mất.'),
       type: 'warning',
+      /** Cho phép rời trang khi người dùng xác nhận. */
       onConfirm: () => {
         setConfirmModal(null);
         blocker.proceed();
       },
+      /** Ở lại trang khi người dùng hủy. */
       onCancel: () => blocker.reset(),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocker.state]);
 
-  // export seatMap image function
+  /** Xuất sơ đồ ghế thành ảnh PNG: dựng SVG, vẽ lên canvas nền trắng rồi tải xuống. */
   const handleExportImage = () => {
     const payload: SeatMapDocument = {
       version: '2.0',
@@ -660,14 +682,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     img.src = url;
   };
 
-  // push history snapshot
+  /** Đẩy một ảnh chụp vào lịch sử (mặc định là trạng thái mới nhất), cắt phần "làm lại" phía sau và giữ tối đa 80 bước. */
   const pushHistory = (snapshot?: StudioSnapshot) => {
     const source = snapshot || latestRef.current;
     setHistory((prev) => {
       const base = prev.slice(0, historyIndexRef.current + 1);
       const last = base[base.length - 1];
-      // structural comparison, and the snapshot is cloned only when it really changed (no JSON.stringify of both
-      // snapshots on every commit)
+      // so sánh theo cấu trúc, chỉ nhân bản ảnh chụp khi nó thật sự đổi (không phải JSON.stringify
+      // cả hai ảnh chụp ở mỗi lần commit)
       if (last && deepEqual(last, source)) return prev;
       markEdited();
       const next = [...base, safeClone(source)].slice(-80);
@@ -678,7 +700,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     });
   };
 
-  // apply snapshot to state
+  /** Áp một ảnh chụp lên các state của studio và bỏ mọi lựa chọn đang có. */
   const applySnapshot = (snapshot: StudioSnapshot) => {
     setSeats(safeClone(snapshot.seats));
     setStages(safeClone(snapshot.stages));
@@ -691,7 +713,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setSelectedZoneId(null);
   };
 
-  // handle undo action
+  /** Hoàn tác về bước lịch sử trước đó (nếu có). */
   const handleUndo = () => {
     if (historyIndexRef.current <= 0) return;
     const nextIndex = historyIndexRef.current - 1;
@@ -703,7 +725,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
-  // handle redo action
+  /** Làm lại bước lịch sử kế tiếp (nếu có). */
   const handleRedo = () => {
     if (historyIndexRef.current >= history.length - 1) return;
     const nextIndex = historyIndexRef.current + 1;
@@ -715,7 +737,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
-  // commit new state change
+  /** Ghi một thay đổi một phần lên trạng thái mới nhất và đẩy vào lịch sử thành một bước. */
   const commitWith = (partial: Partial<StudioSnapshot>) => {
     const current = latestRef.current;
     const next: StudioSnapshot = {
@@ -729,7 +751,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     pushHistory(next);
   };
 
-  // reset current selection
+  /** Bỏ chọn mọi ghế, sân khấu, cấu trúc và khu. */
   const resetSelection = () => {
     setSelectedSeatIds([]);
     setSelectedStageId(null);
@@ -737,7 +759,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setSelectedZoneId(null);
   };
 
-  // handle add seat row
+  /** Thêm một hàng ghế thẳng vào khu: nhận cấu hình dạng đối tượng hoặc các tham số rời (kiểu cũ), mặc định hàng A với 12 ghế. */
   const handleAddRow = (
 
     configOrLetter: AddRowConfig | string,
@@ -786,6 +808,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ seats: nextSeats });
   };
 
+  /** Thêm một ma trận ghế (nhiều hàng, nhiều cột, có thể có lối đi) vào khu; nhận cấu hình dạng đối tượng hoặc tham số rời. */
   const handleAddMatrix = (
     configOrRows: AddMatrixConfig | number,
     colsVal?: number,
@@ -854,6 +877,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ seats: nextSeats });
   };
 
+  /** Thêm một hàng ghế xếp theo cung tròn (bán kính, góc mở) vào khu; nhận cấu hình dạng đối tượng hoặc tham số rời. */
   const handleAddArc = (
     configOrLetter: AddArcConfig | string,
     countVal?: number,
@@ -912,6 +936,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ seats: nextSeats });
   };
 
+  /**
+   * Thêm một bàn tròn gồm nhiều ghế quanh tâm bàn, vào khu chỉ định (hoặc khu đầu tiên). Tâm đặt tại vị trí bấm gần nhất,
+   * không có thì ở giữa khu; chưa có khu nào thì báo cảnh báo.
+   */
   const handleAddTable = (zoneIdVal?: string, seatsPerTableVal?: number, radiusVal?: number) => {
     const targetZoneId = (zoneIdVal && zones[zoneIdVal]) ? zoneIdVal : Object.keys(zones)[0];
     if (!targetZoneId || !zones[targetZoneId]) return showToast('warning', t('Hãy tạo/chọn khu vực trước khi tạo bàn.'));
@@ -948,6 +976,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ seats: nextSeats });
   };
 
+  /** Thêm một sân khấu (chính hoặc chữ T) với nhãn cho trước, đặt ở vị trí bấm gần nhất. */
   const handleAddStage = (kindOrLabel: 'stage' | 't_stage' | string, labelVal?: string) => {
     let kind: 'stage' | 't_stage' = 'stage';
     let label = 'SÂN KHẤU CHÍNH (MAIN STAGE)';
@@ -980,6 +1009,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ stages: nextStages });
   };
 
+  /** Thêm một cấu trúc phụ (lối ra, cổng, bàn điều khiển, nhà vệ sinh hoặc ăn uống...) với màu theo loại. */
   const handleAddStructure = (type: StructureElement['type'], label?: string) => {
     const colorMap: Record<StructureElement['type'], string> = {
       exit: '#dc2626',
@@ -1007,6 +1037,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ structures: nextStructures });
   };
 
+  /** Thêm một khu ghế mới, có thể gắn hạng vé, kích thước, kiểu viền và sinh sẵn ghế theo số hàng và cột; nhận cấu hình dạng đối tượng hoặc tham số rời. */
   const handleAddZoneBlock = (
     configOrName: AddZoneConfig | string,
     priceVal?: number,
@@ -1193,7 +1224,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ zones: nextZones, seats: nextSeats });
   };
 
-  // handle delete selected elements
+  /**
+   * Xóa phần tử đang chọn theo thứ tự ưu tiên: ghế, sân khấu, cấu trúc, khu.
+   * Xóa khu đang chứa ghế thì hỏi xác nhận vì các ghế đó bị xóa theo.
+   */
   const handleDeleteSelected = () => {
     let nextSeats = seats;
     let nextStages = stages;
@@ -1222,6 +1256,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           title: t('Xác Nhận Xóa Khu Vực'),
           message: `${t('Khu vực này đang chứa')} ${seatCount} ${t('ghế. Xóa khu vực sẽ xóa luôn các ghế đó. Tiếp tục?')}`,
           type: 'danger',
+          /** Xóa khu cùng các ghế thuộc khu sau khi người dùng xác nhận. */
           onConfirm: () => {
             const filteredSeats = seats.filter((seat) => seat.zoneId !== selectedZoneId);
             const { [selectedZoneId]: _removed, ...rest } = zones;
@@ -1241,12 +1276,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
+  /** Lấy bố cục mới nhất (ghế, sân khấu, cấu trúc, khu) từ tham chiếu {@code latestRef}. */
   const currentLayout = (): SeatMapLayout => ({
     seats: latestRef.current.seats,
     stages: latestRef.current.stages,
     structures: latestRef.current.structures,
     zones: latestRef.current.zones,
   });
+  /** Gom các phần tử đang được chọn thành một đối tượng lựa chọn. */
   const currentSelection = (): SeatMapSelection => ({
     seatIds: selectedSeatIds,
     stageId: selectedStageId,
@@ -1254,12 +1291,13 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     zoneId: selectedZoneId,
   });
   const hasAnySelection = selectedSeatIds.length > 0 || Boolean(selectedStageId || selectedStructureId || selectedZoneId);
+  /** Sinh ID duy nhất cho phần tử mới theo loại, dựa trên thời gian và bộ đếm. */
   const makeElementId = (kind: 'seat' | 'stage' | 'structure' | 'zone') => {
     idCounterRef.current += 1;
     return `${kind}_${Date.now()}_${idCounterRef.current}`;
   };
 
-  // writes a whole layout back (one history step) and optionally moves the selection to the new elements
+  /** Ghi cả bố cục trở lại studio (một bước lịch sử) và có thể chuyển lựa chọn sang các phần tử mới. */
   const applyLayout = (next: SeatMapLayout, selection?: SeatMapSelection) => {
     setSeats(next.seats);
     setStages(next.stages);
@@ -1274,7 +1312,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
-  // copy: the selected seats, stage, structure or zone (a zone takes its seats along)
+  /** Sao chép ghế, sân khấu, cấu trúc hoặc khu đang chọn vào clipboard nội bộ (khu được sao chép kèm ghế của nó). */
   const handleCopySelected = () => {
     const clip = buildClipboard(currentLayout(), currentSelection());
     if (!clip) return;
@@ -1284,7 +1322,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     showToast('info', `${t('Đã sao chép')} ${count} ${t('phần tử')}`);
   };
 
-  // paste: each paste is offset a little further so the copies do not pile up
+  /** Dán clipboard nội bộ; mỗi lần dán lệch thêm một đoạn để các bản sao không chồng lên nhau. */
   const handlePasteClipboard = () => {
     const clip = clipboardRef.current;
     if (!clip) {
@@ -1296,7 +1334,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     applyLayout(result.layout, result.selection);
   };
 
-  // duplicate: copy and paste in one step, for any selected element
+  /** Nhân đôi phần tử đang chọn (sao chép và dán trong một bước). */
   const handleDuplicateSelected = () => {
     const clip = buildClipboard(currentLayout(), currentSelection());
     if (!clip) return;
@@ -1304,7 +1342,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     applyLayout(result.layout, result.selection);
   };
 
-  // arrow keys move the selection by grid steps; the canvas commits one history step after the last key press
+  /**
+   * Dịch lựa chọn theo bước lưới khi nhấn phím mũi tên. Chỉ cập nhật state; canvas ghi một bước lịch sử sau lần nhấn phím cuối.
+   *
+   * @param dx độ dịch theo trục ngang
+   * @param dy độ dịch theo trục dọc
+   */
   const handleNudgeSelected = (dx: number, dy: number) => {
     const next = nudgeSelection(currentLayout(), currentSelection(), dx, dy);
     const base = latestRef.current;
@@ -1315,7 +1358,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     latestRef.current = { ...base, ...next };
   };
 
-  // handle select all seats
+  /** Chọn mọi ghế không bị ẩn. */
   const handleSelectAll = () => {
     setSelectedSeatIds(seats.filter((seat) => !seat.hidden).map((seat) => seat.id));
     setSelectedStageId(null);
@@ -1323,14 +1366,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setSelectedZoneId(null);
   };
 
-  // handle update seat props
+  /** Cập nhật thuộc tính cho các ghế đang chọn. */
   const handleUpdateSeatProps = (props: Partial<Seat>) => {
     const nextSeats = seats.map((seat) => selectedSeatIds.includes(seat.id) ? { ...seat, ...props } : seat);
     setSeats(nextSeats);
     commitWith({ seats: nextSeats });
   };
 
-  // handle move seats to zone
+  /** Chuyển các ghế đang chọn sang khu khác và xóa hạng vé riêng của ghế (dùng hạng vé của khu). */
   const handleMoveSeatsToZone = (zoneId: string) => {
     if (!zones[zoneId]) return;
     const nextSeats = seats.map((seat) => selectedSeatIds.includes(seat.id) ? { ...seat, zoneId, tierId: undefined } : seat);
@@ -1338,21 +1381,24 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ seats: nextSeats });
   };
 
-  // handle update stage props
+  /** Cập nhật thuộc tính của một sân khấu. */
   const handleUpdateStageProps = (stageId: string, props: Partial<StageElement>) => {
     const nextStages = stages.map((stage) => stage.id === stageId ? { ...stage, ...props } : stage);
     setStages(nextStages);
     commitWith({ stages: nextStages });
   };
 
-  // handle update structure props
+  /** Cập nhật thuộc tính của một cấu trúc phụ. */
   const handleUpdateStructureProps = (structureId: string, props: Partial<StructureElement>) => {
     const nextStructures = structures.map((item) => item.id === structureId ? { ...item, ...props } : item);
     setStructures(nextStructures);
     commitWith({ structures: nextStructures });
   };
 
-  // handle update zone props
+  /**
+   * Cập nhật thuộc tính của một khu. Đổi hạng vé thì lấy màu của hạng và xóa giá riêng của khu cùng hạng vé riêng của ghế;
+   * đổi góc xoay thì xoay các ghế thuộc khu quanh tâm khu theo phần chênh lệch.
+   */
   const handleUpdateZoneProps = (zoneId: string, props: Partial<ZoneBlock>) => {
     const currentZone = zones[zoneId];
     if (!currentZone) return;
@@ -1396,7 +1442,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ zones: nextZones, seats: nextSeats });
   };
 
-  // handle arrange seats
+  /** Căn hoặc phân bố đều các ghế đang chọn (cần ít nhất 2 ghế, bỏ qua ghế bị khóa). */
   const handleArrangeSeats = (
     action: 'align-left' | 'align-center' | 'align-right' | 'align-top' | 'align-middle' | 'align-bottom' | 'distribute-x' | 'distribute-y'
   ) => {
@@ -1433,14 +1479,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     commitWith({ seats: nextSeats });
   };
 
-  // handle resize canvas
+  /** Đổi kích thước canvas và (nếu có) kích thước lưới. */
   const handleResizeCanvas = (width: number, height: number, gridSize?: number) => {
     const next = { ...canvasSettings, width, height, gridSize: gridSize ?? canvasSettings.gridSize };
     setCanvasSettings(next);
     commitWith({ canvasSettings: next });
   };
 
-  // handle load preset template
+  /** Áp một mẫu địa điểm: lưu bản trước đó (nếu sơ đồ không trống) để có thể khôi phục, rồi thay toàn bộ sơ đồ và đặt lại lịch sử. */
   const handleLoadPreset = (template: VenueTemplate) => {
     const current = latestRef.current;
     if (current.seats.length > 0 || current.stages.length > 0 || Object.keys(current.zones).length > 0) {
@@ -1466,12 +1512,14 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     showToast('success', `${t('Đã áp dụng mẫu')} "${template.name}". ${t('Bạn có thể bấm "Khôi phục bản trước" nếu muốn hoàn tác.')}`);
   };
 
+  /** Hỏi xác nhận rồi xóa toàn bộ nội dung canvas. */
   const handleClearCanvas = () => {
     setConfirmModal({
       isOpen: true,
       title: t('Xóa Canvas'),
       message: t('Bạn có chắc chắn muốn xóa toàn bộ ghế, khu vực, sân khấu và tiện ích trên canvas không?'),
       type: 'danger',
+      /** Đặt lại sơ đồ về trống (có ghi vào lịch sử) và xóa giỏ hàng mô phỏng. */
       onConfirm: () => {
         const snapshot: StudioSnapshot = {
           seats: [],
@@ -1490,10 +1538,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     });
   };
 
+  /** Chọn hoặc bỏ chọn một ghế trong giỏ hàng ở chế độ mô phỏng người mua. */
   const handleToggleAttendeeSeat = (seat: Seat) => {
     setAttendeeCart((prev) => prev.some((item) => item.id === seat.id) ? prev.filter((item) => item.id !== seat.id) : [...prev, seat]);
   };
 
+  /** Mở modal JSON với tài liệu sơ đồ hiện tại đã được tuần tự hóa. */
   const handleOpenJSONModal = () => {
     const payload = buildSeatMapDocument({
       name: eventName,
@@ -1509,6 +1559,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     setIsJSONModalOpen(true);
   };
 
+  /** Nạp sơ đồ từ JSON trong modal: chuẩn hóa hạng vé, thay toàn bộ sơ đồ; JSON sai thì báo lỗi. */
   const handleImportJSON = () => {
     try {
       const parsed = JSON.parse(jsonText) as Partial<SeatMapDocument>;
@@ -1534,6 +1585,12 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
+  /**
+   * Đồng bộ các hạng vé của studio lên backend và ánh xạ lại {@code tierId} của các khu theo ID thật vừa nhận được (khớp theo ID hoặc tên).
+   * Lỗi đồng bộ chỉ ghi cảnh báo, vẫn dùng hạng vé hiện có.
+   *
+   * @returns các hạng vé sau đồng bộ và các khu đã cập nhật {@code tierId}
+   */
   const syncTiersAndGetUpdatedData = async () => {
     let syncedTiers = effectiveTiers;
     if (effectiveTiers && effectiveTiers.length > 0) {
@@ -1585,6 +1642,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     return { syncedTiers, updatedZones };
   };
 
+  /** Dựng danh sách khu theo định dạng API từ các khu của studio (hình dạng, màu, tọa độ, sức chứa tính từ số ghế nếu chưa có). */
   const buildZonesPayload = (targetZones: Record<string, ZoneBlock> = zones) => {
     return Object.entries(targetZones).map(([zId, z]) => {
       const rawZone = z as any;
@@ -1610,7 +1668,8 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     });
   };
 
-  // 1. Save as Draft
+  // 1. Lưu bản nháp
+  /** Đồng bộ hạng vé rồi lưu sơ đồ lên máy chủ ở trạng thái {@code DRAFT}; thành công thì ghi nhận phiên bản đã lưu, lỗi thì báo toast. */
   const handleSaveDraft = async () => {
     const versionAtStart = editCounterRef.current;
     try {
@@ -1652,20 +1711,22 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
-  // 2. Save Official (Publish Layout)
+  // 2. Lưu chính thức (xuất bản sơ đồ)
+  /** Xuất bản sơ đồ; còn lỗi nghiêm trọng thì hiện bảng lỗi và hỏi xác nhận trước khi xuất bản. */
   const handlePublishOfficial = () => {
     const { errors } = countIssues(issues);
     if (errors === 0) {
       void publishOfficial();
       return;
     }
-    // serious problems: show them and ask, instead of publishing a layout buyers could not use
+    // còn lỗi nghiêm trọng: hiện ra và hỏi, thay vì xuất bản một sơ đồ mà người mua không dùng được
     setIssuesOpen(true);
     setConfirmModal({
       isOpen: true,
       title: t('Sơ đồ còn lỗi nghiêm trọng'),
       message: `${errors} ${t('lỗi nghiêm trọng chưa xử lý (xem bảng Kiểm tra trước khi xuất bản). Vẫn xuất bản?')}`,
       type: 'warning',
+      /** Tiếp tục xuất bản dù còn lỗi nghiêm trọng, sau khi người dùng xác nhận. */
       onConfirm: () => {
         setConfirmModal(null);
         void publishOfficial();
@@ -1673,6 +1734,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     });
   };
 
+  /** Đồng bộ hạng vé rồi xuất bản sơ đồ lên máy chủ ở trạng thái {@code PUBLISHED}; thành công thì ghi nhận phiên bản đã lưu, lỗi thì báo toast. */
   const publishOfficial = async () => {
     const versionAtStart = editCounterRef.current;
     try {
@@ -1714,6 +1776,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
     }
   };
 
+  /** Bật hoặc thoát chế độ toàn màn hình cho vùng studio. */
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
       studioRef.current?.requestFullscreen?.().catch(() => { });
@@ -1723,6 +1786,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
   };
 
   useEffect(() => {
+    /** Cập nhật cờ toàn màn hình theo trạng thái thật của trình duyệt (kể cả khi thoát bằng phím Esc). */
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -1730,13 +1794,13 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
   const assignedZoneCount = Object.values(zones).filter((zone) => zone.tierId).length;
 
-  // problems found in the layout, recomputed only when the layout or the tiers change
+  // các vấn đề tìm thấy trong sơ đồ, chỉ tính lại khi sơ đồ hoặc hạng vé đổi
   const issues = useMemo(
     () => validateSeatMap({ seats, stages, structures, zones }, effectiveTiers),
     [seats, stages, structures, zones, effectiveTiers]
   );
 
-  // select the element an issue concerns and ask the canvas to scroll to it
+  /** Chọn phần tử mà một lỗi nói tới và yêu cầu canvas cuộn tới đó. */
   const handleSelectIssue = (issue: SeatMapIssue) => {
     const target = issue.target;
     if (!target) return;
@@ -1845,7 +1909,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
       )}
 
       <div className={`flex flex-row gap-3 items-start w-full ${isFullscreen ? 'flex-1 min-h-0' : ''}`}>
-        {/* Left Toolbar Column (ToolBar) - Compact vertical strip */}
+        {/* Cột công cụ bên trái (ToolBar): thanh dọc gọn */}
         {!isAttendeeMode && (
           <div className="w-12 flex-shrink-0 sticky top-4 z-20">
             <ToolBar
@@ -1869,7 +1933,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           </div>
         )}
 
-        {/* Center Canvas Column (SeatCanvas) - Expands to fill available space */}
+        {/* Cột canvas ở giữa (SeatCanvas): giãn ra chiếm hết chỗ trống */}
         <div className={`flex-1 min-w-0 ${isFullscreen ? 'h-full flex flex-col' : ''}`}>
           <SeatCanvas
             seats={seats}
@@ -1917,7 +1981,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
           />
         </div>
 
-        {/* Right Inspector Column (PropertyPanel / AttendeePreview) */}
+        {/* Cột thuộc tính bên phải (PropertyPanel hoặc AttendeePreview) */}
         <div
           className={`transition-all duration-200 flex-shrink-0 sticky top-4 z-20 ${isPropertyPanelCollapsed ? 'w-12' : 'w-full lg:w-80'
             }`}
@@ -2003,7 +2067,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
         </div>
       )}
 
-      {/* Zone Ticket Selector Modal for Preview Mode */}
+      {/* Modal chọn số vé theo khu ở chế độ xem trước */}
       {selectedZoneModal && (
         <div className="seat-studio-modal-backdrop" onMouseDown={() => setSelectedZoneModal(null)}>
           <div className="seat-studio-modal max-w-md p-6 space-y-4" onMouseDown={(e) => e.stopPropagation()}>
@@ -2036,7 +2100,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               )}
             </div>
 
-            {/* Quantity Counter */}
+            {/* Bộ đếm số lượng */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold app-text-muted uppercase">{t("Chọn Số Lượng Vé")}</label>
               <div className="flex items-center gap-3">
@@ -2060,7 +2124,7 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
               </div>
             </div>
 
-            {/* Total Calculation */}
+            {/* Tính tổng tiền */}
             <div className="flex items-center justify-between pt-2 border-t app-border">
               <span className="text-xs font-bold app-text-muted">{t("Tổng tiền tạm tính")}:</span>
               <span className="font-mono text-lg font-black text-emerald-500">
@@ -2097,10 +2161,10 @@ export const EventSeatingMap: React.FC<EventSeatingMapProps> = ({
 
       <ShortcutsDialog isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
 
-      {/* Global Toast Notifications */}
+      {/* Thông báo toast toàn cục */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
 
-      {/* Custom Confirmation Modal */}
+      {/* Modal xác nhận tùy biến */}
       {confirmModal && (
         <ConfirmModal
           isOpen={confirmModal.isOpen}

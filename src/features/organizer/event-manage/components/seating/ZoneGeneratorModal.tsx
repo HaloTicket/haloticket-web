@@ -18,6 +18,7 @@ const COLOR_PALETTE = [
   '#10b981', '#ef4444', '#6366f1', '#14b8a6', '#f97316',
 ];
 
+/** Modal tạo khu mới theo kiểu bố cục (đứng tự do, hàng thẳng, ma trận, vòm quạt, bàn gala); tự tính kích thước khu rồi gọi {@code onGenerateZone} với cấu hình. */
 export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
   isOpen,
   onClose,
@@ -29,30 +30,30 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
   const [borderStyle, setBorderStyle] = useState<'dashed' | 'solid'>('dashed');
   const [layoutType, setLayoutType] = useState<'STANDING' | 'ROW' | 'MATRIX' | 'ARC' | 'GALA'>('MATRIX');
 
-  // Straight row state
+  // trạng thái kiểu hàng thẳng
   const [rowLetter, setRowLetter] = useState('A');
   const [rowCountRowMode, setRowCountRowMode] = useState(12);
 
-  // Matrix grid state
+  // trạng thái kiểu ma trận
   const [matrixStartRow, setMatrixStartRow] = useState('A');
   const [matrixRows, setMatrixRows] = useState(4);
   const [matrixCols, setMatrixCols] = useState(10);
 
-  // Arc fan state
+  // trạng thái kiểu vòm quạt
   const [arcRowLetter, setArcRowLetter] = useState('A');
   const [arcCount, setArcCount] = useState(16);
   const [arcRadius, setArcRadius] = useState(260);
 
-  // Gala table state
+  // trạng thái kiểu bàn gala
   const [galaTableCount, setGalaTableCount] = useState(2);
   const [galaSeatsPerTable, setGalaSeatsPerTable] = useState(8);
 
-  // Standing capacity state
+  // trạng thái kiểu khu đứng (sức chứa)
   const [capacity, setCapacity] = useState(200);
 
   if (!isOpen) return null;
 
-  // Auto-calculate required Zone width & height to ensure seats fit completely INSIDE without overflowing
+  /** Tự tính chiều rộng, chiều cao khu để ghế nằm trọn BÊN TRONG mà không tràn ra ngoài; trả về thêm tổng số ghế và mô tả bố cục. */
   const calculateZoneDimensions = () => {
     let width = 500;
     let height = 200;
@@ -94,6 +95,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
 
   const { width: computedWidth, height: computedHeight, seatTotal, desc: layoutDesc } = calculateZoneDimensions();
 
+  /** Gửi biểu mẫu: dựng {@code AddZoneConfig} từ kiểu bố cục đang chọn rồi gọi {@code onGenerateZone} và đóng modal; bỏ qua khi tên khu trống. */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!zoneName.trim()) return;
@@ -106,7 +108,7 @@ export const ZoneGeneratorModal: React.FC<ZoneGeneratorModalProps> = ({
       borderStyle,
       layoutType,
       capacity: layoutType === 'STANDING' ? capacity : seatTotal,
-      // Pass generator specific fields
+      // các trường riêng của từng kiểu bố cục
       rowPrefix: layoutType === 'ROW' ? rowLetter : layoutType === 'MATRIX' ? matrixStartRow : layoutType === 'ARC' ? arcRowLetter : 'A',
       rowCount: layoutType === 'ROW' ? 1 : layoutType === 'MATRIX' ? matrixRows : 1,
       seatsPerRow: layoutType === 'ROW' ? rowCountRowMode : layoutType === 'MATRIX' ? matrixCols : 0,

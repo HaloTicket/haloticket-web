@@ -6,6 +6,10 @@ import { FiClock, FiCalendar, FiActivity, FiTag, FiPauseCircle, FiPlayCircle } f
 import { formatDatetimeLocal } from "@/utils/formatters";
 import { formatQuantity, normalizeTicketsForSave, getHeldQuantity, getInitialQuantity, getRemainingQuantity, getSoldQuantity } from "@/utils/ticketQuantities";
 
+/**
+ * Tab quản lý suất diễn của sự kiện: liệt kê từng suất với trạng thái bán vé, số vé còn lại theo hạng vé,
+ * và cho phép ngừng hoặc mở bán lại một suất bằng cách đổi giờ kết thúc bán.
+ */
 export const EventShowtimes: React.FC = () => {
   const { t } = useTranslation();
   const unknownLabel = t("tickets.quantity.unknown");
@@ -15,6 +19,7 @@ export const EventShowtimes: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
+  /** Tải lại dữ liệu sự kiện theo {@code eventId} trên URL; lỗi thì chỉ tắt trạng thái đang tải. */
   const fetchEvent = () => {
     if (!eventId) return;
     setIsLoading(true);
@@ -30,21 +35,27 @@ export const EventShowtimes: React.FC = () => {
     fetchEvent();
   }, [eventId]);
 
+  /**
+   * Ngừng bán hoặc mở bán lại một suất diễn bằng cách đổi {@code saleEndTime} rồi cập nhật cả sự kiện qua API.
+   *
+   * @param showtimeId mã suất diễn cần đổi
+   * @param action {@code STOP} để ngừng bán ngay, {@code RESUME} để mở bán lại đến hết giờ kết thúc suất
+   */
   const handleUpdateShowtimeStatus = async (showtimeId: string, action: 'STOP' | 'RESUME') => {
     if (!eventData || !eventId) return;
     setIsUpdating(showtimeId);
     
     try {
-      // find the showtime and modify its saleEndTime
+      // tìm suất diễn và sửa {@code saleEndTime} của nó
       const updatedShowtimes = eventData.showtimes.map((st: any) => {
         if (st.id === showtimeId) {
           const now = new Date();
           if (action === 'STOP') {
-            // set saleEndTime to 1 minute ago to stop sales immediately
+            // đặt giờ kết thúc bán về 1 phút trước để ngừng bán ngay
             now.setMinutes(now.getMinutes() - 1);
             return { ...st, saleEndTime: formatDatetimeLocal(now.toISOString()) };
           } else {
-            // set saleEndTime to event end time to resume
+            // đặt giờ kết thúc bán bằng giờ kết thúc suất để mở bán lại
             return { ...st, saleEndTime: formatDatetimeLocal(st.endTime) };
           }
         }
@@ -98,7 +109,7 @@ export const EventShowtimes: React.FC = () => {
 
       <div className="space-y-5">
         {eventData.showtimes.map((st: any) => {
-          // find tickets for this showtime
+          // tìm các hạng vé của suất diễn này
           const rawStTickets = Array.isArray(eventData.tickets) 
             ? eventData.tickets.filter((t: any) => t.showtimeId === st.id)
             : [];
@@ -109,7 +120,7 @@ export const EventShowtimes: React.FC = () => {
           let hasAvailableTickets = false;
           
           stTickets.forEach((t: any) => {
-             // an unknown number (old backend) is not counted as sold out
+             // số lượng không xác định (backend cũ) thì không tính là hết vé
              const remaining = getRemainingQuantity(t);
              if (remaining === undefined || remaining > 0) hasAvailableTickets = true;
           });

@@ -1,3 +1,4 @@
+/** Chính sách bán lại vé của sự kiện: khoảng giá cho phép, thời gian mở và phạm vi loại vé. */
 export interface ResalePolicyData {
   eventId: string;
   enabled: boolean;
@@ -13,6 +14,7 @@ export interface ResalePolicyData {
   version: number;
 }
 
+/** Chính sách tặng vé của sự kiện: thời gian mở, hạn lời mời, yêu cầu eKYC và phạm vi loại vé. */
 export interface GiftPolicyData {
   eventId: string;
   enabled: boolean;
@@ -26,12 +28,14 @@ export interface GiftPolicyData {
   version: number;
 }
 
+/** Cài đặt chuyển nhượng vé của sự kiện (bán lại và tặng) và quyền ghi của người xem. */
 export interface TransferSettingsData {
   resale: ResalePolicyData | null;
   gift: GiftPolicyData | null;
   canWrite: boolean;
 }
 
+/** Thống kê số lượng tin bán lại và quà tặng theo trạng thái. */
 export interface TransferSummaryData {
   activeListings: number;
   reservedListings: number;
@@ -40,6 +44,7 @@ export interface TransferSummaryData {
   completedGifts: number;
 }
 
+/** Một tin bán lại vé trong màn hình của người tổ chức (email người bán đã che). */
 export interface OrganizerListingItem {
   listingId: string;
   refCode: string;
@@ -59,6 +64,7 @@ export interface OrganizerListingItem {
   ticketIds?: string[];
 }
 
+/** Một lượt tặng vé trong màn hình của người tổ chức (email người gửi và nhận đã che). */
 export interface OrganizerGiftItem {
   sagaId: string;
   senderEmailMasked: string;
@@ -74,6 +80,7 @@ export interface OrganizerGiftItem {
   isRecipientEkycVerified?: boolean | null;
 }
 
+/** Trang dữ liệu phân trang kiểu Spring. */
 export interface PageData<T> {
   content: T[];
   totalElements: number;

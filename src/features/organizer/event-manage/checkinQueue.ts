@@ -1,8 +1,9 @@
-// A scan that cannot reach the server (no network, or the gateway cannot reach the ticket service) is kept here and sent again
-// later, one by one, through the normal check-in call. Only the network is retried: an answer from the server (a refusal such as
-// ALREADY_USED, or an error such as 403) is final and leaves the queue.
-// The server stamps a check-in with the time it receives it, so a queued scan enters at the time of the sync, not of the scan.
+// Lượt quét không tới được máy chủ (mất mạng, hoặc cổng không tới được dịch vụ vé) được giữ ở đây và gửi lại
+// sau, lần lượt từng lượt, qua lời gọi check-in thông thường. Chỉ lỗi mạng mới được thử lại: câu trả lời từ máy chủ (bị từ chối như
+// ALREADY_USED, hoặc lỗi như 403) là kết quả cuối và lượt quét rời khỏi hàng chờ.
+// Máy chủ ghi giờ check-in là lúc nhận được, nên lượt quét trong hàng chờ vào cổng theo giờ đồng bộ, không phải giờ quét.
 
+/** Một lượt quét đang chờ gửi: sự kiện, mã băm QR, suất diễn (nếu có) và thời điểm đưa vào hàng chờ. */
 export interface QueuedScan {
   id: string;
   eventId: string;
@@ -11,13 +12,16 @@ export interface QueuedScan {
   queuedAt: string;
 }
 
+/** Phần của {@code Storage} mà hàng chờ cần dùng, để dễ thay bằng bản giả khi kiểm thử. */
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export const CHECKIN_QUEUE_KEY = "haloticket_checkin_queue_v1";
 export const CHECKIN_QUEUE_LIMIT = 500;
 
+/** Kết quả khi thêm vào hàng chờ: đã thêm, trùng với lượt đã có, hoặc hàng chờ đầy. */
 export type AddResult = "added" | "duplicate" | "full";
 
+/** Hàng chờ các lượt quét ngoại tuyến: liệt kê, đếm, thêm và xóa, có thể lọc theo sự kiện. */
 export interface CheckinQueue {
   list(eventId?: string): QueuedScan[];
   size(eventId?: string): number;
@@ -25,19 +29,30 @@ export interface CheckinQueue {
   remove(id: string): void;
 }
 
+/** Lấy {@code localStorage} nếu dùng được; trả {@code null} khi không có hoặc trình duyệt chặn truy cập. */
 function browserStorage(): StorageLike | null {
   try {
     return typeof localStorage === "undefined" ? null : localStorage;
   } catch {
-    return null; // a browser that blocks storage: the queue then lives in memory only
+    return null; // trình duyệt chặn storage: khi đó hàng chờ chỉ nằm trong bộ nhớ
   }
 }
 
+/** Kiểm tra giá trị đọc từ bộ nhớ có đủ các trường bắt buộc của một lượt quét hay không. */
 function isQueuedScan(value: unknown): value is QueuedScan {
   const v = value as Partial<QueuedScan> | null;
   return !!v && typeof v.id === "string" && typeof v.eventId === "string" && typeof v.qrCodeHash === "string";
 }
 
+/**
+ * Tạo hàng chờ check-in lưu trong storage (mặc định {@code localStorage}), có bản sao trong bộ nhớ khi storage lỗi.
+ * Mỗi sự kiện không có hai lượt quét trùng mã và tổng số lượt bị giới hạn bởi {@code CHECKIN_QUEUE_LIMIT}.
+ *
+ * @param storage nơi lưu, hoặc {@code null} để chỉ giữ trong bộ nhớ
+ * @param now hàm lấy thời điểm hiện tại, dùng để ghi giờ vào hàng chờ
+ * @param makeId hàm sinh mã định danh cho mỗi lượt quét
+ * @returns hàng chờ vừa tạo
+ */
 export function createCheckinQueue(
   storage: StorageLike | null = browserStorage(),
   now: () => Date = () => new Date(),
@@ -45,6 +60,7 @@ export function createCheckinQueue(
 ): CheckinQueue {
   let memory: QueuedScan[] = [];
 
+  /** Đọc danh sách từ storage; dữ liệu hỏng hoặc không đọc được thì coi như rỗng, bỏ qua phần tử sai dạng. */
   const load = (): QueuedScan[] => {
     if (!storage) return memory;
     try {
@@ -55,19 +71,23 @@ export function createCheckinQueue(
     }
   };
 
+  /** Ghi danh sách vào bộ nhớ và storage; lỗi ghi storage được bỏ qua vì đã có bản sao trong bộ nhớ. */
   const save = (items: QueuedScan[]) => {
     memory = items;
     if (!storage) return;
     try {
       storage.setItem(CHECKIN_QUEUE_KEY, JSON.stringify(items));
     } catch {
-      // storage full or blocked: the memory copy still lets this page session send them
+      // storage đầy hoặc bị chặn: bản sao trong bộ nhớ vẫn cho phép phiên trang này gửi chúng đi
     }
   };
 
   return {
+    /** Liệt kê các lượt quét đang chờ, của một sự kiện nếu có truyền {@code eventId}. */
     list: (eventId) => load().filter((item) => !eventId || item.eventId === eventId),
+    /** Đếm các lượt quét đang chờ, của một sự kiện nếu có truyền {@code eventId}. */
     size: (eventId) => load().filter((item) => !eventId || item.eventId === eventId).length,
+    /** Thêm một lượt quét; trả {@code "duplicate"} nếu mã đã chờ trong cùng sự kiện, {@code "full"} nếu hàng chờ đã đầy. */
     add(eventId, qrCodeHash, showtimeId) {
       const items = load();
       if (items.some((item) => item.eventId === eventId && item.qrCodeHash === qrCodeHash)) return "duplicate";
@@ -75,13 +95,14 @@ export function createCheckinQueue(
       save([...items, { id: makeId(), eventId, qrCodeHash, showtimeId: showtimeId ?? null, queuedAt: now().toISOString() }]);
       return "added";
     },
+    /** Xóa một lượt quét khỏi hàng chờ theo mã định danh. */
     remove(id) {
       save(load().filter((item) => item.id !== id));
     },
   };
 }
 
-/** True when sending again later can work: the request got no answer, or the gateway could not reach the ticket service. */
+/** Cho biết gửi lại sau này có thể thành công: yêu cầu không nhận được trả lời, hoặc cổng không tới được dịch vụ vé (502, 503, 504). */
 export function isRetryableError(err: unknown): boolean {
   const e = err as { response?: { status?: number } | null; isAxiosError?: boolean; code?: string; request?: unknown } | null;
   if (!e || typeof e !== "object") return false;
@@ -89,22 +110,24 @@ export function isRetryableError(err: unknown): boolean {
   return e.isAxiosError === true || e.code === "ERR_NETWORK" || e.code === "ECONNABORTED" || e.request !== undefined;
 }
 
+/** Kết quả gửi một lượt quét trong hàng chờ: câu trả lời hoặc lỗi cuối cùng. */
 export interface FlushEntry<T> {
   item: QueuedScan;
-  /** the server's answer, when there was one */
+  /** câu trả lời của máy chủ, nếu có */
   body?: T;
-  /** the final error (not a network error), when there was one */
+  /** lỗi cuối cùng (không phải lỗi mạng), nếu có */
   error?: unknown;
 }
 
+/** Kết quả của một đợt gửi hàng chờ: từng lượt đã xử lý xong và số lượt còn lại. */
 export interface FlushResult<T> {
   results: FlushEntry<T>[];
   remaining: number;
-  /** true when the network failed part-way: the rest stays queued for the next try */
+  /** {@code true} khi mạng hỏng giữa chừng: phần còn lại ở trong hàng chờ cho lần thử sau */
   stoppedByNetwork: boolean;
 }
 
-/** Sends the queued scans of one event in order. Stops at the first network failure and keeps that scan and the rest queued. */
+/** Gửi lần lượt các lượt quét đang chờ của một sự kiện. Dừng ở lỗi mạng đầu tiên và giữ lượt đó cùng phần còn lại trong hàng chờ. */
 export async function flushCheckinQueue<T>(
   queue: CheckinQueue,
   eventId: string,

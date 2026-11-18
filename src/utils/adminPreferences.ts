@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { UserProfile } from "@/types";
 
+/** Các tùy chọn cá nhân của admin (ẩn email, loại thông báo, kiểm tra chính tả, nén ảnh, tự động trả lời). */
 export interface AdminPreferences {
   hideEmail: boolean;
   instantNotifications: boolean;
@@ -24,14 +25,17 @@ const changedEvent = "admin-preferences-changed";
 const storageError = "Không thể lưu cài đặt trên trình duyệt này. Vui lòng kiểm tra quyền lưu trữ và thử lại.";
 const invalidError = "Cài đặt đã lưu không hợp lệ. Giá trị mặc định đang được sử dụng; hãy chọn lại để lưu.";
 
+/** Lấy định danh dùng làm khóa lưu tùy chọn: ưu tiên id Keycloak, rồi id, rồi email viết thường; `null` nếu chưa có hồ sơ. */
 export function preferenceIdentity(profile: UserProfile | null): string | null {
   return profile?.keycloakId || profile?.id || profile?.email?.toLowerCase() || null;
 }
 
+/** Dựng khóa localStorage lưu tùy chọn của một người dùng. */
 export function preferenceKey(identity: string): string {
   return `${prefix}${encodeURIComponent(identity)}`;
 }
 
+/** Đọc tùy chọn của admin từ localStorage. Trả về giá trị mặc định kèm thông báo lỗi khi dữ liệu hỏng hoặc không đọc được bộ nhớ. */
 export function readAdminPreferences(identity: string | null): { preferences: AdminPreferences; error: string | null } {
   if (!identity) return { preferences: defaults, error: null };
   try {
@@ -55,6 +59,7 @@ export function readAdminPreferences(identity: string | null): { preferences: Ad
   }
 }
 
+/** Ghi tùy chọn vào localStorage và phát sự kiện để các nơi khác cập nhật. Trả về thông báo lỗi nếu không lưu được, ngược lại `null`. */
 export function writeAdminPreferences(identity: string, preferences: AdminPreferences): string | null {
   try {
     localStorage.setItem(preferenceKey(identity), JSON.stringify(preferences));
@@ -65,11 +70,13 @@ export function writeAdminPreferences(identity: string, preferences: AdminPrefer
   }
 }
 
+/** Hook trả về tùy chọn hiện tại của admin, lỗi (nếu có) và hàm `update` đổi từng tùy chọn; tự đồng bộ khi dữ liệu đổi ở thẻ khác. */
 export function useAdminPreferences(identity: string | null) {
   const [stored, setStored] = useState(() => ({ identity, ...readAdminPreferences(identity) }));
   const state = stored.identity === identity ? stored : readAdminPreferences(identity);
 
   useEffect(() => {
+    /** Nạp lại tùy chọn từ localStorage vào state. */
     const refresh = () => setStored({ identity, ...readAdminPreferences(identity) });
     refresh();
     window.addEventListener(changedEvent, refresh);
@@ -80,6 +87,7 @@ export function useAdminPreferences(identity: string | null) {
     };
   }, [identity]);
 
+  /** Đổi một tùy chọn và lưu lại; nếu lưu lỗi thì giữ giá trị cũ và hiển thị lỗi. */
   const update = (key: keyof AdminPreferences, value: boolean) => {
     if (!identity) return;
     const next = { ...readAdminPreferences(identity).preferences, [key]: value };

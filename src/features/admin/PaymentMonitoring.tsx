@@ -10,7 +10,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { eventApi } from "@/services/eventApi";
 import type { EventApiData } from "@/types";
 
+/** Hai tab của trang tài chính: tổng quan và danh sách yêu cầu rút tiền. */
 type FinanceTab = "overview" | "requests";
+/** Bộ lọc trạng thái yêu cầu: tất cả hoặc một nhóm trạng thái rút tiền. */
 type StatusFilter = "ALL" | PayoutStatusGroup;
 
 const tabs: { id: FinanceTab; label: string }[] = [
@@ -30,14 +32,18 @@ const statusLabels: Record<string, string> = {
   DISPUTE: "Tạm giữ để kiểm tra",
 };
 
+/** Định dạng số tiền theo kiểu vi-VN kèm ký hiệu đồng; giá trị không phải số hiện dấu gạch. */
 const money = (value: number | string | undefined) => {
   const amount = Number(value);
   return Number.isFinite(amount) ? `${amount.toLocaleString("vi-VN")} ₫` : "—";
 };
 
+/** Định dạng ngày giờ theo vi-VN; thiếu giá trị hiện dấu gạch. */
 const dateTime = (value?: string) => value ? new Date(value).toLocaleString("vi-VN") : "—";
+/** Nhãn loại yêu cầu: {@code ADVANCE} là tạm ứng kiểu cũ, còn lại là rút tiền. */
 const requestTypeLabel = (type?: string) => type === "ADVANCE" ? "Tạm ứng (cũ)" : "Rút tiền";
 
+/** Hộp thoại Radix dùng cho các thao tác tài chính; không cho đóng bằng Escape hay bấm ra ngoài khi đang xử lý. */
 function FinanceDialog({ title, subtitle, icon, onClose, pending, children }: { title: string; subtitle: string; icon: React.ReactNode; onClose: () => void; pending: boolean; children: React.ReactNode }) {
   return <Dialog.Root open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
     <Dialog.Portal>
@@ -50,10 +56,12 @@ function FinanceDialog({ title, subtitle, icon, onClose, pending, children }: { 
   </Dialog.Root>;
 }
 
+/** Lấy ảnh đại diện sự kiện: ưu tiên poster, rồi banner, rồi thumbnail, bỏ qua giá trị rỗng. */
 function eventPosterUrl(event?: EventApiData) {
   return [event?.posterImage, event?.bannerUrl, event?.thumbnailUrl].find((value): value is string => typeof value === "string" && value.trim().length > 0);
 }
 
+/** Huy hiệu trạng thái yêu cầu; với `grouped` thì gộp trạng thái về nhóm trước khi hiển thị. */
 function StatusBadge({ status, grouped = false }: { status: string; grouped?: boolean }) {
   if (grouped) status = payoutStatusGroup(status);
   const color = status === "COMPLETED" ? "text-emerald-700 bg-emerald-50" :
@@ -63,6 +71,7 @@ function StatusBadge({ status, grouped = false }: { status: string; grouped?: bo
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${color}`}>{(grouped ? payoutStatusGroups[status as PayoutStatusGroup] : statusLabels[status]) || status}</span>;
 }
 
+/** Màn chi tiết một yêu cầu rút tiền: thông tin, lịch sử, tài khoản nhận, điều kiện và các thao tác duyệt, tạm giữ, từ chối, ghi nhận chuyển tiền, xác minh tài khoản. */
 function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminPayoutRow; event?: EventApiData; onBack: () => void; onRefresh: () => void }) {
   const [payout, setPayout] = useState<AdminPayoutDetail | AdminPayoutRow>(row);
   const [detailLoading, setDetailLoading] = useState(true);
@@ -96,6 +105,7 @@ function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminP
   const canApprove = payout.status === "PENDING" && (payout.allowedActions?.includes("APPROVE") ?? true);
   const canHold = payout.status === "PENDING" && (payout.allowedActions?.includes("DISPUTE") ?? true);
 
+  /** Phê duyệt yêu cầu (chưa chuyển tiền), chuyển sang trạng thái chờ xử lý và tải lại danh sách. */
   const approve = async () => {
     setBusy(true);
     try {
@@ -112,6 +122,7 @@ function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminP
     }
   };
 
+  /** Tạm giữ yêu cầu để kiểm tra; bắt buộc có lý do. */
   const hold = async () => {
     if (!holdReason.trim()) return;
     setBusy(true);
@@ -128,6 +139,7 @@ function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminP
     }
   };
 
+  /** Từ chối yêu cầu; bắt buộc có lý do. */
   const reject = async () => {
     if (!rejectReason.trim()) return;
     setBusy(true);
@@ -142,6 +154,7 @@ function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminP
     } finally { setBusy(false); }
   };
 
+  /** Ghi nhận giao dịch chuyển tiền thủ công với mã giao dịch bắt buộc; liên kết biên nhận nếu có phải hợp lệ. */
   const recordTransfer = async () => {
     if (!transactionReference.trim()) return;
     if (receiptUrl.trim()) {
@@ -159,6 +172,7 @@ function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminP
     } finally { setBusy(false); }
   };
 
+  /** Lưu mã tham chiếu xác minh tài khoản nhận sau khi quản trị viên đã kiểm tra qua ngân hàng. */
   const verifyAccount = async () => {
     if (!accountVerificationReference.trim()) return;
     setVerifyingAccount(true);
@@ -246,6 +260,7 @@ function DetailPanel({ payout: row, event, onBack, onRefresh }: { payout: AdminP
   </section>;
 }
 
+/** Trang quản lý tài chính của quản trị viên: tab tổng quan và hàng đợi yêu cầu rút tiền với bộ lọc đồng bộ lên URL. */
 export function PaymentMonitoring() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<FinanceTab>(() => {
@@ -264,6 +279,7 @@ export function PaymentMonitoring() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /** Tải lại hàng đợi yêu cầu rút tiền và hiện lỗi nếu thất bại. */
   const load = async () => {
     setLoading(true);
     setError("");
@@ -317,6 +333,7 @@ export function PaymentMonitoring() {
     setSearchParams(next, { replace: true });
   }, [status, query, fromDate, toDate, minAmount, maxAmount, tab, setSearchParams]);
 
+  /** Đổi tab và bỏ chọn yêu cầu đang xem. */
   const setActiveTab = (next: FinanceTab) => { setTab(next); setSelectedId(null); };
 
   return <div className="finance-theme space-y-6 bg-[#f2f6ff] px-4 py-5 text-[#101c48] sm:px-6 lg:px-8 [&_.app-bg-card]:!bg-white [&_.app-border]:!border-[#dce6f8] [&_.app-text-main]:!text-[#101c48]">

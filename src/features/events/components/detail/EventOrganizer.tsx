@@ -3,11 +3,13 @@ import React from "react";
 import { FiUsers } from "react-icons/fi";
 import type { EventDetailData } from "@/types";
 
+/** Props của phần ban tổ chức: thông tin ban tổ chức và sự kiện (dự phòng lấy tác giả). */
 interface EventOrganizerProps {
   organizer?: EventDetailData["organizer"] | null;
   event?: EventDetailData | null;
 }
 
+/** Phần ban tổ chức: tên, ảnh đại diện và mô tả, dùng giá trị mặc định khi thiếu dữ liệu. */
 export const EventOrganizer: React.FC<EventOrganizerProps> = ({ organizer, event }) => {
   const { t: translate } = useTranslation();
 

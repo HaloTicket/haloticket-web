@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCheck, FiX, FiZoomIn, FiZoomOut, FiRefreshCw } from "react-icons/fi";
 
+/** Props của hộp thoại cắt ảnh: ảnh nguồn, tỷ lệ khung, hàm xác nhận, hàm đóng và tên, loại tệp gốc. */
 interface CropModalProps {
   /** Blob/Object URL của ảnh cần crop */
   src: string;
@@ -16,6 +17,7 @@ interface CropModalProps {
 const MIN_ZOOM = 1.0; // 100% (vừa vặn khung)
 const MAX_ZOOM = 2.0; // 200% (tối đa 200%)
 
+/** Hộp thoại cắt ảnh giấy tờ: kéo để di chuyển, thu phóng 100% đến 200% (nút hoặc chụm hai ngón), xuất ảnh JPEG hoặc PNG chất lượng 0,95. */
 export function CropModal({
   src,
   aspectRatio = 16 / 10,
@@ -38,11 +40,12 @@ export function CropModal({
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [exporting, setExporting] = useState(false);
 
-  // Crop box dimensions inside container
+  // Kích thước khung cắt trong vùng chứa
   const cropW = containerSize.w;
   const cropH = containerSize.h;
   const currentScale = baseScale * zoom;
 
+  /** Vẽ ảnh lên canvas theo vị trí và tỷ lệ hiện tại. */
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
@@ -65,7 +68,7 @@ export function CropModal({
     draw();
   }, [draw]);
 
-  // Measure container
+  // Đo kích thước vùng chứa
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -78,7 +81,7 @@ export function CropModal({
     return () => ro.disconnect();
   }, [aspectRatio]);
 
-  // Load image and fit to crop box
+  // Tải ảnh và căn vừa khung cắt
   useEffect(() => {
     if (!containerSize.w) return;
     const img = new Image();
@@ -88,14 +91,14 @@ export function CropModal({
       const ih = img.naturalHeight;
       setImgSize({ w: iw, h: ih });
 
-      // Base scale: scale so image fills the crop box (cover)
+      // Tỷ lệ cơ sở: phóng ảnh để phủ kín khung cắt (cover)
       const scaleX = cropW / iw;
       const scaleY = cropH / ih;
       const fit = Math.max(scaleX, scaleY);
       setBaseScale(fit);
       setZoom(1.0);
 
-      // Center
+      // Căn giữa
       const scaledW = iw * fit;
       const scaledH = ih * fit;
       setOffset({
@@ -106,7 +109,8 @@ export function CropModal({
     img.src = src;
   }, [src, cropW, cropH, containerSize.w]);
 
-  // Clamp offset so image always fills crop box
+  // Giới hạn độ lệch để ảnh luôn phủ kín khung cắt
+  /** Giới hạn tọa độ dịch chuyển ảnh để ảnh luôn phủ kín khung cắt. */
   const clampOffset = useCallback(
     (ox: number, oy: number, s: number) => {
       const scaledW = imgSize.w * s;
@@ -123,6 +127,7 @@ export function CropModal({
     [imgSize, cropW, cropH]
   );
 
+  /** Đặt mức thu phóng trong khoảng cho phép, giữ nguyên điểm tâm khung khi phóng. */
   const setZoomLevel = (newZ: number) => {
     const clampedZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZ));
     if (!cropW || !cropH || !baseScale) {
@@ -138,23 +143,28 @@ export function CropModal({
     setOffset(clampOffset(newOx, newOy, baseScale * clampedZ));
   };
 
+  /** Tăng hoặc giảm mức thu phóng theo {@code delta}. */
   const zoomBy = (delta: number) => {
     setZoomLevel(zoom + delta);
   };
 
+  /** Bắt đầu kéo ảnh bằng chuột. */
   const handleMouseDown = (e: React.MouseEvent) => {
     setDragging(true);
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
+  /** Di chuyển ảnh theo chuột khi đang kéo. */
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!dragging) return;
     const raw = { x: e.clientX - dragStart.x, y: e.clientY - dragStart.y };
     setOffset(clampOffset(raw.x, raw.y, currentScale));
   };
+  /** Kết thúc kéo ảnh bằng chuột. */
   const handleMouseUp = () => setDragging(false);
 
-  // Touch support
+  // Hỗ trợ cảm ứng
   const lastTouchDist = useRef<number | null>(null);
+  /** Bắt đầu kéo (một ngón) hoặc ghi lại khoảng cách hai ngón để chụm thu phóng. */
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       setDragging(true);
@@ -167,6 +177,7 @@ export function CropModal({
       );
     }
   };
+  /** Kéo ảnh bằng một ngón hoặc thu phóng theo thay đổi khoảng cách hai ngón. */
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 1 && dragging) {
       const raw = { x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y };
@@ -181,8 +192,10 @@ export function CropModal({
       setZoomLevel(newZoom);
     }
   };
+  /** Kết thúc thao tác chạm. */
   const handleTouchEnd = () => { setDragging(false); lastTouchDist.current = null; };
 
+  /** Xuất vùng đang hiển thị trong khung thành tệp và gọi {@code onConfirm}. */
   const handleConfirm = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -200,6 +213,7 @@ export function CropModal({
     );
   };
 
+  /** Đưa ảnh về mức vừa khung và căn giữa. */
   const resetFit = () => {
     if (!imgSize.w || !baseScale) return;
     setZoom(1.0);
@@ -214,7 +228,7 @@ export function CropModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-lg flex flex-col gap-0 overflow-hidden border border-slate-200 dark:border-zinc-700">
-        {/* Header */}
+        {/* Tiêu đề */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-zinc-700">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">{t("Cắt & Căn chỉnh ảnh")}</h3>
@@ -225,7 +239,7 @@ export function CropModal({
           </button>
         </div>
 
-        {/* Crop area */}
+        {/* Vùng cắt ảnh */}
         <div
           ref={containerRef}
           className="relative w-full bg-slate-950 overflow-hidden select-none touch-none"
@@ -239,7 +253,7 @@ export function CropModal({
           onTouchEnd={handleTouchEnd}
         >
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-          {/* Crop frame overlay — rule of thirds grid */}
+          {/* Lớp khung cắt, lưới chia ba */}
           <div className="absolute inset-0 pointer-events-none border-2 border-white/40">
             <div className="w-full h-full grid grid-cols-3 grid-rows-3">
               {Array.from({ length: 9 }).map((_, i) => (
@@ -247,13 +261,13 @@ export function CropModal({
               ))}
             </div>
           </div>
-          {/* Corner handles */}
+          {/* Các điểm góc */}
           {[["top-0 left-0","border-t-2 border-l-2"],["top-0 right-0","border-t-2 border-r-2"],["bottom-0 left-0","border-b-2 border-l-2"],["bottom-0 right-0","border-b-2 border-r-2"]].map(([pos, border]) => (
             <div key={pos} className={`absolute ${pos} w-6 h-6 border-white/80 pointer-events-none ${border}`} />
           ))}
         </div>
 
-        {/* Toolbar: range slider zoom (100% - 200%) */}
+        {/* Thanh công cụ: thanh trượt thu phóng (100% - 200%) */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50">
           <button
             type="button"
@@ -265,7 +279,7 @@ export function CropModal({
             <FiZoomOut className="w-4 h-4" />
           </button>
 
-          {/* Range slider 100% -> 200% */}
+          {/* Thanh trượt 100% -> 200% */}
           <div className="flex-1 flex flex-col items-center gap-0.5">
             <input
               type="range"
@@ -304,7 +318,7 @@ export function CropModal({
           </button>
         </div>
 
-        {/* Action buttons */}
+        {/* Các nút thao tác */}
         <div className="flex items-center gap-3 px-5 py-4">
           <button
             type="button"

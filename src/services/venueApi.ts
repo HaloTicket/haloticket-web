@@ -2,13 +2,13 @@ import axiosClient from "./axiosClient";
 import type { VenueApiData } from "@/types";
 
 export const venueApi = {
-  // Admin screens must distinguish an empty database from a failed request.
+  /** Màn hình admin cần phân biệt cơ sở dữ liệu rỗng với yêu cầu bị lỗi, nên hàm này ném lỗi khi phản hồi không hợp lệ. */
   getAdminVenues: async (): Promise<VenueApiData[]> => {
     const response: unknown = await axiosClient.get("/events/venues");
     if (!Array.isArray(response)) throw new Error("Invalid venue response");
     return response as VenueApiData[];
   },
-  // fetch all venues from backend DB
+  /** Lấy toàn bộ địa điểm từ backend; trả về mảng rỗng nếu lỗi. */
   getVenues: async (): Promise<VenueApiData[]> => {
     try {
       const response: unknown = await axiosClient.get("/events/venues");
@@ -22,7 +22,7 @@ export const venueApi = {
     }
   },
 
-  // create new venue
+  /** Tạo địa điểm mới; trả về `null` nếu lỗi. */
   createVenue: async (data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
     try {
       const response: unknown = await axiosClient.post("/events/venues", data);
@@ -33,7 +33,7 @@ export const venueApi = {
     }
   },
 
-  // update existing venue
+  /** Cập nhật địa điểm; trả về `null` nếu lỗi. */
   updateVenue: async (id: number | string, data: Partial<VenueApiData>): Promise<VenueApiData | null> => {
     try {
       const response: unknown = await axiosClient.put(`/events/venues/${id}`, data);
@@ -44,7 +44,7 @@ export const venueApi = {
     }
   },
 
-  // toggle venue verification status
+  /** Đảo trạng thái xác minh của địa điểm; trả về `null` nếu lỗi. */
   toggleVerifyVenue: async (id: number | string): Promise<VenueApiData | null> => {
     try {
       const response: unknown = await axiosClient.patch(`/events/venues/${id}/verify`);
@@ -55,7 +55,7 @@ export const venueApi = {
     }
   },
 
-  // delete venue by ID
+  /** Xóa địa điểm theo id; trả về `true` nếu thành công. */
   deleteVenue: async (id: number | string): Promise<boolean> => {
     try {
       await axiosClient.delete(`/events/venues/${id}`);
@@ -66,7 +66,7 @@ export const venueApi = {
     }
   },
 
-  // get all seatmaps associated with a venue (admin template + organizer seatmaps)
+  /** Lấy mọi sơ đồ chỗ ngồi gắn với địa điểm (mẫu của admin và sơ đồ của người tổ chức). */
   getVenueSeatmaps: async (id: number | string): Promise<import("@/types").VenueSeatmapsResponse | null> => {
     try {
       const response: unknown = await axiosClient.get(`/events/venues/${id}/seatmaps`);
@@ -77,7 +77,7 @@ export const venueApi = {
     }
   },
 
-  // save admin seatmap template for a venue
+  /** Lưu mẫu sơ đồ chỗ ngồi của admin cho một địa điểm. */
   saveVenueSeatmapTemplate: async (id: number | string, seatmapTemplate: string): Promise<VenueApiData | null> => {
     try {
       const response: unknown = await axiosClient.put(`/events/venues/${id}/seatmap-template`, { seatmapTemplate });

@@ -5,21 +5,23 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 
 const messageType = "haloticket-google-auth";
 
+/** Trang callback của cửa sổ popup đăng nhập Google: hoàn tất phiên Keycloak rồi báo kết quả về cửa sổ mở nó và tự đóng. */
 export default function GoogleAuthPopupCallback() {
   useTranslation();
   useEffect(() => {
+    /** Đọc kết quả đăng nhập, dựng thông điệp thành công hoặc hủy, gửi qua opener, BroadcastChannel và localStorage rồi đóng popup. */
     async function completeAuthentication() {
       const params = new URLSearchParams(window.location.search);
       const error = params.get("error");
       const session = getKeycloakSession();
 
-      // The popup receives an authorization code, not an access token. Let
-      // keycloak-js process that code before notifying the opener.
+      // Popup nhận mã ủy quyền chứ không phải access token. Để
+      // keycloak-js xử lý mã đó trước khi báo cho cửa sổ mở popup.
       if (!error) {
         try {
           await session.init({ checkLoginIframe: false, pkceMethod: "S256" });
         } catch {
-          // Treat an invalid/expired callback like a cancelled popup.
+          // Callback không hợp lệ hoặc hết hạn được xem như popup bị hủy.
         }
       }
 
@@ -39,17 +41,17 @@ export default function GoogleAuthPopupCallback() {
           }
         : { type: messageType, status: "cancelled" as const };
 
-      // 1. Send via window.opener if available
+      // 1. Gửi qua window.opener nếu có
       const opener = window.opener;
       if (opener) {
         try {
           opener.postMessage(message, window.location.origin);
         } catch {
-          // Opener blocked by browser policy
+          // Cửa sổ mở popup bị trình duyệt chặn
         }
       }
 
-      // 2. Broadcast via BroadcastChannel (works reliably across COOP boundaries on same origin)
+      // 2. Phát qua BroadcastChannel (hoạt động ổn định xuyên ranh giới COOP trong cùng origin)
       try {
         if (typeof BroadcastChannel !== "undefined") {
           const channel = new BroadcastChannel(messageType);
@@ -57,10 +59,10 @@ export default function GoogleAuthPopupCallback() {
           channel.close();
         }
       } catch {
-        // BroadcastChannel unavailable
+        // BroadcastChannel không khả dụng
       }
 
-      // 3. Fallback via localStorage
+      // 3. Dự phòng qua localStorage
       try {
         if (token) {
           localStorage.setItem("access_token", token);
@@ -99,15 +101,15 @@ export default function GoogleAuthPopupCallback() {
           JSON.stringify({ ...message, time: Date.now() }),
         );
       } catch {
-        // Storage unavailable
+        // Không dùng được localStorage
       }
 
-      // The callback page is same-origin and was opened by window.open, so it
-      // can close itself without the opener touching a COOP-isolated WindowProxy.
+      // Trang callback cùng origin và được mở bằng window.open nên
+      // có thể tự đóng mà không cần cửa sổ mở động vào WindowProxy bị cô lập COOP.
       try {
         window.close();
       } catch {
-        // Some browsers may still refuse to close a tab opened manually.
+        // Một số trình duyệt vẫn từ chối đóng tab do người dùng mở thủ công.
       }
     }
 

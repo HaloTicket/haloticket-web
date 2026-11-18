@@ -3,6 +3,7 @@ import React from "react";
 import { FiDollarSign, FiChevronLeft, FiCheckCircle, FiAlertCircle, FiBookmark } from "react-icons/fi";
 import type { Step5Errors } from "@/types/organizer";
 
+/** Props của bước 5: thông tin tài khoản nhận tiền, thông tin xuất hóa đơn VAT, lỗi kiểm tra, cờ đang gửi và các hàm cập nhật, lưu nháp, quay lại, gửi duyệt. */
 interface Step5PaymentInfoProps {
   accountHolder: string;
   setAccountHolder: (v: string) => void;
@@ -27,6 +28,7 @@ interface Step5PaymentInfoProps {
   onSubmit: () => void;
 }
 
+/** Bước 5 của form tạo sự kiện: nhập tài khoản ngân hàng nhận tiền (tên chủ tài khoản tự viết hoa), thông tin xuất hóa đơn VAT và gửi yêu cầu duyệt sự kiện. */
 export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
   accountHolder,
   setAccountHolder,
@@ -53,7 +55,7 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
   const { t: translate } = useTranslation();
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Bank Info Section */}
+      {/* Thông tin ngân hàng */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div>
           <h3 className="text-lg font-extrabold app-text-main flex items-center gap-2">
@@ -149,7 +151,7 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
         </div>
       </div>
 
-      {/* VAT Invoice Section */}
+      {/* Thông tin xuất hóa đơn VAT */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4">
           {translate("Thông tin xuất hóa đơn đỏ (VAT)")} </h3>
@@ -212,7 +214,7 @@ export const Step5PaymentInfo: React.FC<Step5PaymentInfoProps> = ({
         </div>
       </div>
 
-      {/* Final Submit & Back & Save Draft Buttons */}
+      {/* Các nút gửi duyệt, quay lại và lưu nháp */}
       <div className="flex items-center justify-between pt-4">
         <button
           type="button"

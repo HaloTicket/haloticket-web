@@ -1,7 +1,7 @@
 /**
- * The numbers shown for a ticket type. A new backend sends remainingQuantity, heldQuantity, soldQuantity and
- * availableQuantity next to the old totalQuantity / initialQuantity; an old backend sends only the old two. Every
- * function returns undefined when it cannot know the number, so a screen shows "unknown" instead of 0 or a made-up 100.
+ * Các số lượng hiển thị cho một loại vé. Backend mới gửi `remainingQuantity`, `heldQuantity`, `soldQuantity` và `availableQuantity` cùng với
+ * `totalQuantity` và `initialQuantity` cũ; backend cũ chỉ gửi hai trường cũ. Mỗi hàm trả về `undefined` khi không thể biết số,
+ * để màn hình hiển thị "không rõ" thay vì 0 hay con số 100 tự bịa.
  */
 export interface TicketQuantityFields {
   initialQuantity?: number | null;
@@ -13,25 +13,26 @@ export interface TicketQuantityFields {
   quantity?: number | null;
 }
 
+/** Trả về giá trị nếu là số hữu hạn, ngược lại `undefined`. */
 const num = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
-/** Tickets put on sale. */
+/** Số vé đã mở bán. */
 export function getInitialQuantity(t: TicketQuantityFields): number | undefined {
   return num(t.initialQuantity);
 }
 
-/** Still in stock, held ones included (totalQuantity is the same number on an old backend). */
+/** Số vé còn trong kho, gồm cả vé đang giữ (backend cũ gửi `totalQuantity` với cùng ý nghĩa). */
 export function getRemainingQuantity(t: TicketQuantityFields): number | undefined {
   return num(t.remainingQuantity) ?? num(t.totalQuantity) ?? num(t.quantity);
 }
 
-/** Kept by unpaid bookings. An old backend does not say, so it is unknown (not 0). */
+/** Số vé đang được các đơn chưa thanh toán giữ chỗ. Backend cũ không gửi nên là chưa biết (không phải 0). */
 export function getHeldQuantity(t: TicketQuantityFields): number | undefined {
   return num(t.heldQuantity);
 }
 
-/** Sold so far: the server's number, else initial minus remaining; never negative. */
+/** Số vé đã bán: lấy số của server, nếu không có thì bằng số mở bán trừ số còn lại; không bao giờ âm. */
 export function getSoldQuantity(t: TicketQuantityFields): number | undefined {
   const sold = num(t.soldQuantity);
   if (sold !== undefined) return Math.max(0, sold);
@@ -40,26 +41,31 @@ export function getSoldQuantity(t: TicketQuantityFields): number | undefined {
   return initial !== undefined && remaining !== undefined ? Math.max(0, initial - remaining) : undefined;
 }
 
-/** What a customer can still buy now: the server's availableQuantity, else the remaining stock. */
+/** Số vé khách còn mua được hiện tại: `availableQuantity` của server, nếu không có thì là số còn trong kho. */
 export function getBuyableQuantity(t: TicketQuantityFields): number | undefined {
   const available = num(t.availableQuantity);
   if (available !== undefined) return Math.max(0, available);
   return getRemainingQuantity(t);
 }
 
-/** True unless the ticket type is known to be out of stock (unknown counts as in stock, as before). */
+/** `true` trừ khi biết chắc loại vé đã hết (chưa biết số lượng thì vẫn coi là còn vé, như trước đây). */
 export function isTicketInStock(t: TicketQuantityFields & { available?: boolean }): boolean {
   if (t.available === false) return false;
   const buyable = getBuyableQuantity(t);
   return buyable === undefined ? true : buyable > 0;
 }
 
-/** Text for a count that may be unknown. */
+/**
+ * Chuỗi hiển thị cho số lượng có thể chưa biết.
+ *
+ * @param value - Số lượng hoặc `undefined`.
+ * @param unknown - Chữ hiển thị khi chưa biết.
+ */
 export function formatQuantity(value: number | undefined, unknown: string): string {
   return value === undefined ? unknown : value.toLocaleString("vi-VN");
 }
 
-/** Lowest number that may be issued: sold + held (held counts as 0 when unknown). Undefined when sold is unknown. */
+/** Số lượng phát hành tối thiểu cho phép: đã bán cộng đang giữ (đang giữ chưa biết thì tính 0). `undefined` khi chưa biết số đã bán. */
 export function getMinIssuedQuantity(t: TicketQuantityFields): number | undefined {
   const sold = getSoldQuantity(t);
   if (sold === undefined) return undefined;
@@ -67,9 +73,11 @@ export function getMinIssuedQuantity(t: TicketQuantityFields): number | undefine
 }
 
 /**
- * The number the organizer sees and sends is the ISSUED number, never the remaining stock. A ticket coming from the
- * server uses initialQuantity (else totalQuantity of an old backend). The payload keeps totalQuantity equal to
- * initialQuantity for compatibility.
+ * Số lượng nhà tổ chức nhìn thấy và gửi đi là số PHÁT HÀNH, không bao giờ là số còn trong kho. Vé từ server dùng `initialQuantity`
+ * (nếu không có thì `totalQuantity` của backend cũ). Dữ liệu gửi đi giữ `totalQuantity` bằng `initialQuantity` để tương thích.
+ *
+ * @param tickets - Danh sách vé.
+ * @returns Danh sách vé đã chuẩn hóa.
  */
 export function normalizeTicketsForSave<T extends TicketQuantityFields>(tickets: T[]): T[] {
   return tickets.map((t) => {

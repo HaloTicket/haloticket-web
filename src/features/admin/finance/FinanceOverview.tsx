@@ -5,17 +5,20 @@ import type { AdminFinanceSummary, AdminPayoutRow, PayoutStatus } from "@/types"
 import { FinanceCharts } from "@/features/organizer/finance/FinanceInsights";
 import { payoutSlices } from "@/features/organizer/finance/financeChartData";
 
+/** Định dạng số tiền theo vi-VN kèm ký hiệu đồng; giá trị không phải số hiện dấu gạch. */
 const amount = (value?: string | number) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? `${numeric.toLocaleString("vi-VN")} ₫` : "—";
 };
 
+/** Tab tổng quan tài chính: số liệu tổng hợp, biểu đồ giải ngân theo ngày và nhóm yêu cầu rút tiền cần xử lý; `onOpenQueue` mở hàng đợi theo trạng thái. */
 export function FinanceOverview({ onOpenQueue }: { onOpenQueue: (status: PayoutStatus) => void }) {
   const [summary, setSummary] = useState<AdminFinanceSummary | null>(null);
   const [payouts, setPayouts] = useState<AdminPayoutRow[]>([]);
   const [updatedAt, setUpdatedAt] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  /** Tải số liệu tổng hợp và hàng đợi rút tiền song song; mỗi nguồn lỗi độc lập với nguồn kia. */
   const load = async () => {
     setLoading(true);
     setError("");
@@ -38,6 +41,7 @@ export function FinanceOverview({ onOpenQueue }: { onOpenQueue: (status: PayoutS
     return () => { active = false; };
   }, []);
 
+  /** Số yêu cầu rút tiền ở một trạng thái. */
   const count = (status: string) => Number(summary?.countsByStatus?.[status] || 0);
   const byDate = new Map<string, number>();
   for (const payout of payouts) {
@@ -59,6 +63,7 @@ export function FinanceOverview({ onOpenQueue }: { onOpenQueue: (status: PayoutS
   </div>;
 }
 
+/** Thẻ số liệu nhỏ gồm biểu tượng, nhãn và giá trị, màu nền chip theo `tone`. */
 function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
   const chip = tone.includes("emerald") ? "bg-emerald-50" : tone.includes("orange") ? "bg-orange-50" : tone.includes("rose") ? "bg-rose-50" : "bg-blue-50";
   return <div className="rounded-xl border app-border app-bg-card p-5"><div className="flex items-center justify-between gap-2"><span className="text-sm app-text-muted">{label}</span><span className={`flex h-8 w-8 items-center justify-center rounded-lg ${chip} ${tone}`}>{icon}</span></div><div className={`mt-3 text-xl font-bold ${tone}`}>{value}</div></div>;

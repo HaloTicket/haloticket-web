@@ -7,12 +7,14 @@ import { adminUserApi } from "@/services/adminUserApi";
 import { adminUserErrorMessage } from "./adminUserErrors";
 import { ASSIGNABLE_ROLES, EMAIL_PATTERN, ROLE_HINT, ROLE_LABEL, VN_PHONE_PATTERN } from "./roleOptions";
 
+/** Props của hộp thoại tạo người dùng: hàm đóng và hàm gọi sau khi tạo thành công. */
 interface Props {
   onClose: () => void;
-  /** called after the account exists, so the list and the counts can be reloaded */
+  /** Gọi sau khi tài khoản đã được tạo, để tải lại danh sách và số liệu thống kê. */
   onCreated: () => void;
 }
 
+/** Các trường nhập của biểu mẫu tạo người dùng. */
 interface Fields {
   email: string;
   fullName: string;
@@ -21,6 +23,7 @@ interface Fields {
 
 const inputClass = "min-h-10 w-full rounded-md border app-border app-bg-card px-3 text-sm app-text-main placeholder:app-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50";
 
+/** Hộp thoại quản trị viên tạo tài khoản cho người khác: kiểm tra email, họ tên, số điện thoại, vai trò rồi gọi API; không đặt mật khẩu hộ. */
 export function CreateUserModal({ onClose, onCreated }: Props) {
   const { t } = useTranslation();
   const [fields, setFields] = useState<Fields>({ email: "", fullName: "", phoneNumber: "" });
@@ -39,16 +42,19 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
   if (roles.length === 0) errors.roles = t("Cần chọn ít nhất một vai trò.");
   const hasErrors = Object.keys(errors).length > 0;
 
+  /** Tạo trình xử lý onChange cập nhật một trường nhập và xóa lỗi từ máy chủ. */
   const set = (key: keyof Fields) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFields((prev) => ({ ...prev, [key]: event.target.value }));
     setServerError(null);
   };
 
+  /** Thêm hoặc bỏ một vai trò khỏi danh sách đã chọn. */
   const toggleRole = (role: string) => {
     setRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
     setServerError(null);
   };
 
+  /** Gửi yêu cầu tạo tài khoản nếu dữ liệu hợp lệ; thành công thì báo, gọi {@code onCreated} và đóng hộp thoại. */
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setTouched(true);
@@ -67,6 +73,7 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
     }
   };
 
+  /** Dựng thông báo lỗi của một trường, chỉ hiện sau khi người dùng đã thử gửi. */
   const fieldError = (key: keyof typeof errors) => (touched && errors[key] ? (
     <p className="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400" role="alert">{errors[key]}</p>
   ) : null);

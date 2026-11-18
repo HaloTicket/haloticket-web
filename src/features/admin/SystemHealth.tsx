@@ -23,15 +23,18 @@ import { AdminDataState } from "@/components/admin/AdminDataState";
 import { resolveAiError, aiErrorMessage } from "@/utils/aiErrors";
 import type { SystemServiceStatus } from "@/types/ai";
 
+/** Trạng thái một dịch vụ vi mô trong màn giám sát hệ thống. */
 export type MicroserviceStatus = SystemServiceStatus;
 
 const NO_DATA_VI = "Không có dữ liệu";
 
+/** Trang giám sát sức khỏe hệ thống: thống kê dịch vụ, chọn lọc theo tên và trạng thái, thời gian hoạt động, chứng chỉ SSL, nhật ký và cấu hình cảnh báo. */
 export function SystemHealth() {
   const { t, i18n } = useTranslation();
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  // null = not loaded yet or failed: never substitute made-up services.
+  // `null` nghĩa là chưa tải hoặc tải lỗi: không bao giờ thay bằng dịch vụ bịa.
   const [services, setServices] = useState<MicroserviceStatus[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,7 +43,7 @@ export function SystemHealth() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const noData = label(NO_DATA_VI, "No data");
 
-  /** Returns true only when the backend answered with a usable list. */
+  /** Tải trạng thái dịch vụ từ máy chủ; trả về `true` chỉ khi backend trả danh sách dùng được. */
   const fetchSystemData = async (): Promise<boolean> => {
     setIsRefreshing(true);
     try {
@@ -89,7 +92,7 @@ export function SystemHealth() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Đầu trang */}
       <AdminPageHeader
         title={label("Giám sát dịch vụ hệ thống (System Monitoring)", "System Service Monitoring")}
         description={label(
@@ -128,7 +131,7 @@ export function SystemHealth() {
         }
       />
 
-      {/* Overview Stat Cards */}
+      {/* Thẻ thống kê tổng quan */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <AdminStatCard
           title={label("Dịch vụ hoạt động", "Active Services")}
@@ -166,13 +169,13 @@ export function SystemHealth() {
         />
       </div>
 
-      {/* SSL Certificate Monitoring Card */}
+      {/* Thẻ giám sát chứng chỉ SSL */}
       <SslCertificateCard />
 
-      {/* Uptime Monitors & SLA Chart */}
+      {/* Giám sát uptime và biểu đồ SLA */}
       {list.length > 0 && <UptimeMonitorSection services={list} />}
 
-      {/* Microservices Grid */}
+      {/* Lưới dịch vụ vi mô */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -269,10 +272,10 @@ export function SystemHealth() {
         </div>
       </div>
 
-      {/* Real-time Audit Logs with Error & Warning Filtering */}
+      {/* Nhật ký kiểm toán thời gian thực, lọc theo lỗi và cảnh báo */}
       <AdminAuditLogs />
 
-      {/* Alert Configuration Modal */}
+      {/* Hộp thoại cấu hình cảnh báo */}
       <AlertConfigModal
         isOpen={showAlertModal}
         onClose={() => setShowAlertModal(false)}

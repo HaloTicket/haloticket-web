@@ -8,15 +8,18 @@ import { isPasswordValid } from "@/validation/passwordRules";
 import { getAuthErrorMessage, secondsUntil, type LocalizedError } from "@/services/authApi";
 import { PATHS } from "@/routes/paths";
 
+/** Dữ liệu đặt lại mật khẩu: token đặt lại nhận sau khi xác minh OTP và mật khẩu mới. */
 export interface PasswordResetData {
   resetToken: string;
   password: string;
 }
 
+/** Props của trang đặt lại mật khẩu: hàm gọi API đặt lại. */
 interface ResetPasswordProps {
   onSubmit: (data: PasswordResetData) => Promise<void>;
 }
 
+/** Trang đặt mật khẩu mới; token và hạn dùng lấy từ {@code location.state} do trang quên mật khẩu chuyển sang. */
 export default function ResetPassword({ onSubmit }: ResetPasswordProps) {
   useTranslation();
   const location = useLocation();
@@ -38,6 +41,7 @@ export default function ResetPassword({ onSubmit }: ResetPasswordProps) {
     isPasswordValid(password) &&
     password === confirmPassword;
 
+  /** Kiểm tra phiên đặt lại còn hiệu lực rồi gửi mật khẩu mới; thành công thì hiện màn hình hoàn tất. */
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);

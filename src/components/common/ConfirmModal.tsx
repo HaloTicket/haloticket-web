@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FiAlertTriangle, FiInfo, FiAlertCircle, FiCheckCircle, FiX, FiCheck, FiLoader } from 'react-icons/fi';
 
+/** Kiểu hộp thoại xác nhận, quyết định biểu tượng và màu mặc định. */
 export type ConfirmModalType = 'danger' | 'warning' | 'info' | 'success' | 'primary';
 
+/** Props của hộp thoại xác nhận: nội dung, kiểu, nhãn nút, tùy biến biểu tượng/màu, cỡ, trạng thái tải và hai callback. */
 export interface ConfirmModalProps {
   isOpen: boolean;
   title: React.ReactNode;
@@ -25,6 +27,10 @@ export interface ConfirmModalProps {
   onCancel: () => void;
 }
 
+/**
+ * Hộp thoại xác nhận dùng chung, dựng qua portal vào `document.body` (hoặc phần tử đang toàn màn hình).
+ * Trả về `null` khi `isOpen` là false; khi `isLoading` thì khóa các nút. Truyền `cancelText={null}` để ẩn nút hủy.
+ */
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   isOpen,
   title,
@@ -93,7 +99,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       <div
         className={`w-full ${sizeClassMap[modalSize]} app-bg-card border app-border rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150`}
       >
-        {/* Modal Header */}
+        {/* Đầu hộp thoại */}
         <div className="flex items-center justify-between px-6 py-4 border-b app-border bg-slate-500/5">
           <div className="flex items-center gap-3">
             <div
@@ -117,7 +123,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           )}
         </div>
 
-        {/* Modal Body */}
+        {/* Thân hộp thoại */}
         {(message || children) && (
           <div className="p-6 space-y-4">
             {message && (
@@ -129,7 +135,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
         )}
 
-        {/* Modal Footer */}
+        {/* Chân hộp thoại */}
         <div className="px-6 py-4 bg-slate-500/5 border-t app-border flex items-center justify-end gap-3">
           {resolvedCancelText && (
             <button

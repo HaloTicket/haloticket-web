@@ -1,6 +1,7 @@
 import { t as translate } from "@/i18n";
 import type { UserProfileUpdateRequest } from "@/services/userApi";
 
+/** Lỗi của từng trường trong biểu mẫu hồ sơ; trường không có lỗi thì để trống. */
 export interface ProfileFieldErrors {
   fullName?: string;
   phoneNumber?: string;
@@ -27,11 +28,11 @@ function validatePhoneNumber(phoneNumber: string): string | undefined {
     return translate("Vui lòng nhập Số điện thoại (+84)");
   }
   // Hỗ trợ tất cả đầu số Việt Nam:
-  //   03x — Viettel
-  //   05x — Vietnamobile (052, 056, 058), Gmobile (059), Reddi (055)
-  //   07x — Mobifone (070, 076, 077, 078, 079)
-  //   08x — Vinaphone (081-085, 088), Mobifone (089), Viettel (086)
-  //   09x — Viettel (096, 097, 098), Mobifone (090, 093), Vinaphone (091, 094), Vietnamobile (092), Gmobile (099)
+  //   03x: Viettel
+  //   05x: nhà mạng Vietnamobile (052, 056, 058), Gmobile (059), Reddi (055)
+  //   07x: Mobifone (070, 076, 077, 078, 079)
+  //   08x: nhà mạng Vinaphone (081-085, 088), Mobifone (089), Viettel (086)
+  //   09x: nhà mạng Viettel (096, 097, 098), Mobifone (090, 093), Vinaphone (091, 094), Vietnamobile (092), Gmobile (099)
   // Định dạng: 0[35789]xxxxxxxx (10 số) hoặc +84/84[35789]xxxxxxxx
   const VN_PHONE_REGEX = /^(\+?84|0)[35789]\d{8}$/;
   if (!VN_PHONE_REGEX.test(raw)) {

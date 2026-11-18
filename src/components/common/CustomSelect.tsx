@@ -5,11 +5,13 @@ import { useTranslation } from "react-i18next";
 import { useFloating, autoUpdate, offset, flip, shift, size } from "@floating-ui/react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 
+/** Một lựa chọn của ô chọn tùy biến: giá trị và nhãn hiển thị. */
 export interface CustomSelectOption {
   value: string;
   label: string;
 }
 
+/** Props của ô chọn tùy biến: giá trị hiện tại, danh sách lựa chọn, callback đổi giá trị, placeholder, biểu tượng và cờ vô hiệu. */
 export interface CustomSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -20,6 +22,10 @@ export interface CustomSelectProps {
   disabled?: boolean;
 }
 
+/**
+ * Ô chọn tùy biến: danh sách thả xuống dựng qua portal, định vị bằng floating-ui (lật/dịch để không tràn màn hình)
+ * và rộng bằng nút. Chọn bằng sự kiện pointerdown để tránh bị hộp thoại Radix coi là bấm ra ngoài.
+ */
 export function CustomSelect({
   value,
   onChange,
@@ -40,6 +46,7 @@ export function CustomSelect({
       flip({ padding: 8 }),
       shift({ padding: 8 }),
       size({
+        /** Đặt chiều rộng của danh sách thả xuống bằng chiều rộng của nút. */
         apply({ rects, elements }) {
           Object.assign(elements.floating.style, {
             width: `${rects.reference.width}px`,
@@ -53,8 +60,9 @@ export function CustomSelect({
   const selectedOption = options.find((opt) => opt.value === value);
 
   useEffect(() => {
+    /** Đóng danh sách khi lần bấm chuột nằm ngoài cả nút lẫn danh sách thả xuống. */
     const handleClickOutside = (e: MouseEvent) => {
-      // check if click is outside both the button and the floating dropdown
+      // kiểm tra lần bấm có nằm ngoài cả nút lẫn danh sách thả xuống không
       const isOutsideButton = containerRef.current && !containerRef.current.contains(e.target as Node);
       const isOutsideDropdown = refs.floating.current && !(refs.floating.current as Node).contains(e.target as Node);
       

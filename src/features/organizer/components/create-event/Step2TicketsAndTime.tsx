@@ -5,6 +5,7 @@ import { FiClock, FiCalendar, FiPlus, FiTrash2, FiEdit3, FiChevronLeft, FiChevro
 import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem, ShowtimeItem, Step2Errors } from "@/types/organizer";
 
+/** Props của bước 2: mốc bắt đầu và kết thúc, danh sách suất diễn và vé, lỗi kiểm tra, cùng các hàm mở hộp thoại vé, sửa, xóa vé, lưu nháp, quay lại và tiếp tục. */
 interface Step2TicketsAndTimeProps {
   startDate: string;
   setStartDate: (v: string) => void;
@@ -22,6 +23,7 @@ interface Step2TicketsAndTimeProps {
   onNext: () => void;
 }
 
+/** Bước 2 của form tạo sự kiện: chọn thời gian bắt đầu và kết thúc, đặt thời gian mở và đóng bán vé cho từng suất diễn được sinh ra, và quản lý danh sách hạng vé. */
 export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   startDate,
   setStartDate,
@@ -41,7 +43,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
   const { t: translate } = useTranslation();
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Event Time Schedule */}
+      {/* Thời gian diễn ra sự kiện */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4 flex items-center gap-2">
           <FiClock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -92,7 +94,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
           </div>
           </div>
 
-        {/* Generated Showtimes UI */}
+        {/* Giao diện các suất diễn được sinh ra */}
         {showtimes.length > 0 && (
           <div className="pt-6 border-t app-border space-y-4">
             <h4 className="text-sm font-bold app-text-main flex items-center gap-2">
@@ -148,7 +150,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
         )}
       </div>
 
-      {/* Ticket Categories List */}
+      {/* Danh sách hạng vé */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b app-border pb-4">
           <div>
@@ -230,7 +232,7 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
         )}
       </div>
 
-      {/* Stepper Nav Buttons */}
+      {/* Các nút điều hướng bước */}
       <div className="flex items-center justify-between pt-4">
         <button
           type="button"

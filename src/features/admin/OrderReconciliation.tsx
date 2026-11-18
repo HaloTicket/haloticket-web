@@ -34,15 +34,18 @@ import {
   type StockFilters,
 } from "@/features/admin/reconciliationFilters";
 
+/** Ba tab của màn hình đối soát: thanh toán ngoại lệ, đơn đã thanh toán thiếu vé, hạng vé lệch kho. */
 type TabId = "exceptions" | "paid" | "stock";
+/** Trạng thái tải một danh sách: đang tải, lỗi (kèm cờ nguồn dữ liệu không đọc được) hoặc đã có dữ liệu. */
 type ListState<T> = { status: "loading" } | { status: "error"; unavailable: boolean } | { status: "ready"; data: T };
 
-// ids are shortened on screen (a UUID keeps its first 8 characters). Customer name, e-mail and phone are shown to administrators because reconciling a payment means contacting the buyer.
+/** Rút gọn mã: UUID dài chỉ giữ 8 ký tự đầu, rỗng thì trả về dấu gạch. */
 const shortId = (id?: string | null) => (!id ? "-" : id.length > 12 ? `${id.slice(0, 8)}…` : id);
 const DASH = "—";
+/** Cắt khoảng trắng và trả về chuỗi, hoặc `null` nếu giá trị rỗng. Tên, e-mail, số điện thoại của khách hiển thị cho quản trị viên vì đối soát phải liên hệ người mua. */
 const present = (value?: string | null) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
-// name (bold), e-mail and phone, each on its own line; a missing part is a dash
+/** Ô khách hàng: tên (đậm), e-mail và số điện thoại, mỗi phần một dòng; phần thiếu hiện dấu gạch. */
 function CustomerCell({ item }: { item: ReconciliationContext }) {
   return (
     <div className="min-w-40 space-y-0.5" data-testid="customer-cell">
@@ -53,7 +56,7 @@ function CustomerCell({ item }: { item: ReconciliationContext }) {
   );
 }
 
-// a long exception text is clamped to a few lines with a toggle.
+/** Văn bản ngoại lệ dài hơn 120 ký tự được cắt còn 3 dòng, kèm nút bật tắt xem thêm hoặc thu gọn. */
 function ClampedText({ text }: { text?: string | null }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -72,10 +75,11 @@ function ClampedText({ text }: { text?: string | null }) {
   );
 }
 
-// short payment reference that copies the full id.
+/** Mã thanh toán rút gọn; bấm vào để sao chép mã đầy đủ vào clipboard. */
 function CopyRef({ value }: { value?: string | null }) {
   const { t } = useTranslation();
   if (!value) return null;
+  /** Sao chép mã thanh toán đầy đủ và báo kết quả bằng toast. */
   const copy = () => {
     void navigator.clipboard?.writeText(value).then(() => toast.success(t("Đã sao chép")), () => undefined);
   };
@@ -87,10 +91,10 @@ function CopyRef({ value }: { value?: string | null }) {
   );
 }
 
-// loads one list with an AbortController; reload() fetches again. Errors are kept (never shown as an empty list).
+/**\n * Tải một danh sách có `AbortController`; `reload()` tải lại có hiệu ứng đang tải, `refresh()` tải lại ngầm.\n * Lỗi được giữ lại thay vì hiện như danh sách rỗng.\n */
 function useReconciliationList<T>(load: (signal: AbortSignal) => Promise<T>, deps: unknown[]) {
   const [nonce, setNonce] = useState(0);
-  // a silent refresh fetches again without showing the loading state: the rows on screen stay until the new answer arrives
+  // tải lại ngầm không hiện trạng thái đang tải: các dòng đang hiển thị được giữ đến khi có kết quả mới
   const [silentNonce, setSilentNonce] = useState(0);
   const key = JSON.stringify([...deps, nonce]);
   const [outcome, setOutcome] = useState<{ key: string; state: ListState<T> } | null>(null);
@@ -104,12 +108,18 @@ function useReconciliationList<T>(load: (signal: AbortSignal) => Promise<T>, dep
     return () => controller.abort();
   }, [key, silentNonce]);
 
-  // a result that belongs to an older request (other page, filter or retry) counts as loading.
+  // kết quả thuộc yêu cầu cũ (trang, bộ lọc hoặc lần thử lại khác) coi như đang tải.
   const state: ListState<T> = outcome && outcome.key === key ? outcome.state : { status: "loading" };
-  return { state, reload: useCallback(() => setNonce((n) => n + 1), []), refresh: useCallback(() => setSilentNonce((n) => n + 1), []) };
+  return {
+    state,
+    /** Tải lại có hiện trạng thái đang tải (đổi khóa yêu cầu). */
+    reload: useCallback(() => setNonce((n) => n + 1), []),
+    /** Tải lại ngầm, giữ nguyên dữ liệu đang hiển thị. */
+    refresh: useCallback(() => setSilentNonce((n) => n + 1), [])
+  };
 }
 
-// tables follow the event approval and venue pages: tinted header row, hover rows, small badges
+/** Khung bảng theo phong cách trang duyệt sự kiện và địa điểm: hàng tiêu đề nhạt, hàng đổi màu khi rê chuột, huy hiệu nhỏ. */
 function TableShell({ children, label, minWidth }: { children: ReactNode; label: string; minWidth: string }) {
   return (
     <div className="overflow-x-auto no-scrollbar" role="region" aria-label={label} tabIndex={0}>
@@ -123,6 +133,7 @@ const td = "px-4 py-3.5 align-top app-text-main";
 const bodyRow = "hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
 const tbody = "divide-y divide-slate-100 dark:divide-slate-800/60";
 
+/** Tông màu của huy hiệu trạng thái. */
 type Tone = "amber" | "rose" | "emerald" | "indigo" | "slate";
 const TONES: Record<Tone, string> = {
   amber: "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
@@ -131,10 +142,12 @@ const TONES: Record<Tone, string> = {
   indigo: "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
   slate: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700",
 };
+/** Huy hiệu tròn nhỏ tô màu theo `tone`. */
 function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   return <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold ${TONES[tone]}`}>{children}</span>;
 }
 
+/** Thân danh sách: hiện đang tải, lỗi kèm nút thử lại, trạng thái rỗng, hoặc gọi `children` với dữ liệu đã tải. */
 function ListBody<T>({ state, reload, isEmpty, children }: { state: ListState<T>; reload: () => void; isEmpty: (data: T) => boolean; children: (data: T) => ReactNode }) {
   const { t } = useTranslation();
   if (state.status === "loading") return <AdminDataState state="loading" />;
@@ -145,16 +158,18 @@ function ListBody<T>({ state, reload, isEmpty, children }: { state: ListState<T>
   return <>{children(state.data)}</>;
 }
 
-// the search box keeps its own text and tells the list only after a short pause
+/** Ô tìm kiếm giữ văn bản riêng và chỉ báo cho danh sách sau 250 ms ngừng gõ (debounce). */
 function SearchBox({ value, onCommit, placeholder }: { value: string; onCommit: (value: string) => void; placeholder: string }) {
   const [text, setText] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  /** Cập nhật văn bản và hẹn giờ báo giá trị mới cho danh sách. */
   const change = (next: string) => {
     setText(next);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => onCommit(next), 250);
   };
+  /** Xóa nội dung tìm kiếm và báo ngay giá trị rỗng. */
   const clear = () => { if (timer.current) clearTimeout(timer.current); setText(""); onCommit(""); };
   return (
     <div className="relative w-full sm:w-64">
@@ -176,6 +191,7 @@ function SearchBox({ value, onCommit, placeholder }: { value: string; onCommit: 
   );
 }
 
+/** Trường bộ lọc có nhãn phía trên bao quanh một điều khiển. */
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex w-full flex-col gap-1 sm:w-auto">
@@ -185,6 +201,7 @@ function FilterField({ label, children }: { label: string; children: ReactNode }
   );
 }
 
+/** Dòng tóm tắt "hiển thị x/y" kèm nút xóa bộ lọc khi đang lọc. */
 function FilterSummary({ shown, total, active, onClear }: { shown: number; total: number; active: boolean; onClear: () => void }) {
   const { t } = useTranslation();
   return (
@@ -202,31 +219,38 @@ const EXCEPTION_KINDS = ["LATE_PAYMENT_NO_STOCK", "LATE_PAYMENT_SEATS_UNAVAILABL
 const PENDING_POLL_MS = 3000;
 const PENDING_MAX_MS = 60000;
 
+/** Trang đối soát của quản trị viên: tóm tắt, danh sách thanh toán ngoại lệ, đơn đã thanh toán thiếu vé và hạng vé lệch kho, cùng các thao tác xử lý từng loại. */
 export default function OrderReconciliation() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith("en") ? "en-US" : "vi-VN";
+  /** Định dạng số tiền VND theo ngôn ngữ hiện tại; giá trị thiếu hiện dấu gạch. */
   const money = (value?: number | null) => (typeof value === "number" ? new Intl.NumberFormat(locale, { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value) : "-");
+  /** Định dạng thời điểm theo ngôn ngữ hiện tại; giá trị thiếu hoặc sai hiện dấu gạch. */
   const time = (value?: string | null) => { if (!value) return "-"; const d = new Date(value); return Number.isNaN(d.getTime()) ? "-" : d.toLocaleString(locale); };
   const unknown = t("không rõ");
+  /** Tên hiển thị của loại ngoại lệ thanh toán. */
   const kindLabel = (kind: string) => ({
     LATE_PAYMENT_NO_STOCK: t("Thanh toán muộn, hết vé"),
     LATE_PAYMENT_SEATS_UNAVAILABLE: t("Thanh toán muộn, ghế không còn"),
     LATE_PAYMENT_UNEXPECTED_STATUS: t("Thanh toán muộn, đơn ở trạng thái lạ"),
     ISSUANCE_FAILED: t("Phát hành vé thất bại"),
   } as Record<string, string>)[kind] ?? t("Khác");
+  /** Tên hiển thị của trạng thái ngoại lệ. */
   const statusLabel = (status: string) => ({
     OPEN: t("Cần xử lý"),
     RESOLVED: t("Đã xử lý"),
     REFUNDED_MANUALLY: t("Đã hoàn tiền thủ công"),
   } as Record<string, string>)[status] ?? t("Khác");
+  /** Tông màu huy hiệu theo trạng thái ngoại lệ. */
   const statusTone = (status: string): Tone => (status === "OPEN" ? "amber" : status === "REFUNDED_MANUALLY" ? "indigo" : "emerald");
-  // the stock check returns codes in "note"; the screen shows what each one means
+  /** Chuyển mã trong trường {@code note} của kiểm tra kho thành câu giải thích dễ hiểu. */
   const noteLabel = (code: string) => ({
     INITIAL_QUANTITY_NULL: t("Chưa ghi số phát hành (dữ liệu cũ), không tính được số vé đã bán"),
     REMAINING_NEGATIVE: t("Số còn lại đang âm"),
     HELD_EXCEEDS_REMAINING: t("Số đang giữ lớn hơn số còn lại"),
     REMAINING_EXCEEDS_INITIAL: t("Số còn lại lớn hơn số phát hành"),
   } as Record<string, string>)[code] ?? t("Có điểm bất thường khác, hãy kiểm tra hạng vé này");
+  /** Đổi số phút thành chuỗi "x giờ y phút" hoặc "x phút". */
   const minutesText = (minutes: number) => minutes >= 60
     ? t("{{hours}} giờ {{minutes}} phút", { hours: Math.floor(minutes / 60), minutes: minutes % 60 })
     : t("{{count}} phút", { count: minutes });
@@ -242,11 +266,11 @@ export default function OrderReconciliation() {
   const [saving, setSaving] = useState(false);
   const [republishing, setRepublishing] = useState<PaidWithoutTicketsItem | null>(null);
   const [republishBusy, setRepublishBusy] = useState(false);
-  // orders whose tickets are being issued again: bookingId -> when the request was accepted. The row stays on screen as "being reissued" until the tickets exist (or 60 s pass).
+  // các đơn đang được phát hành lại vé: bookingId -> thời điểm yêu cầu được nhận. Dòng vẫn hiện "đang phát hành lại" đến khi vé xuất hiện (hoặc sau 60 giây).
   const [pending, setPending] = useState<Record<string, number>>({});
   const [fixing, setFixing] = useState<StockDiscrepancyItem | null>(null);
   const [fixBusy, setFixBusy] = useState(false);
-  // filters are kept per tab
+  // bộ lọc được giữ riêng cho từng tab
   const [exFilters, setExFilters] = useState<ExceptionFilters>(EMPTY_EXCEPTION_FILTERS);
   const [paidFilters, setPaidFilters] = useState<PaidFilters>(EMPTY_PAID_FILTERS);
   const [stockFilters, setStockFilters] = useState<StockFilters>(EMPTY_STOCK_FILTERS);
@@ -257,14 +281,19 @@ export default function OrderReconciliation() {
   const paid = useReconciliationList((signal) => adminReconciliationApi.getPaidWithoutTickets(signal), []);
   const stock = useReconciliationList((signal) => adminReconciliationApi.getStockDiscrepancies(signal), []);
 
+  /** Lấy một số liệu từ phần tóm tắt, hoặc `undefined` nếu chưa tải xong. */
   const count = (key: keyof ReconciliationSummary) => (summary.state.status === "ready" ? summary.state.data[key] ?? undefined : undefined);
+  /** Số liệu tóm tắt dạng chữ; chưa có thì hiện "không rõ". */
   const countText = (key: keyof ReconciliationSummary) => {
     const value = count(key);
     return value === undefined ? unknown : value.toLocaleString(locale);
   };
 
+  /** Mở hộp thoại xử lý một ngoại lệ và xóa ghi chú cũ. */
   const openResolve = (item: PaymentExceptionItem) => { setResolving(item); setNote(""); setRefunded(false); setNoteError(false); };
+  /** Đóng hộp thoại xử lý, trừ khi đang lưu. */
   const closeResolve = () => { if (!saving) setResolving(null); };
+  /** Gửi đánh dấu đã xử lý (bắt buộc có ghi chú), rồi tải lại danh sách và tóm tắt. */
   const confirmResolve = async () => {
     if (!resolving || saving) return;
     if (!note.trim()) { setNoteError(true); return; }
@@ -282,7 +311,7 @@ export default function OrderReconciliation() {
     }
   };
 
-  // while an order is being reissued: look again every 3 s without a loading flash, give up after 60 s
+  // khi có đơn đang phát hành lại: kiểm tra lại mỗi 3 giây không hiện hiệu ứng tải, bỏ cuộc sau 60 giây
   const hasPending = Object.keys(pending).length > 0;
   const refreshPaid = paid.refresh;
   const refreshExceptions = exceptions.refresh;
@@ -300,7 +329,7 @@ export default function OrderReconciliation() {
     return () => clearInterval(id);
   }, [hasPending, refreshPaid]);
 
-  // an order that left the list while pending was reissued: say so, and refresh the other lists (its exception resolves itself)
+  // đơn đã rời danh sách khi đang chờ nghĩa là vé đã được phát hành lại: báo thành công và tải lại các danh sách khác (ngoại lệ của nó tự được giải quyết)
   const paidData = paid.state.status === "ready" ? paid.state.data : null;
   const stockData = stock.state.status === "ready" ? stock.state.data : null;
   useEffect(() => {
@@ -316,6 +345,7 @@ export default function OrderReconciliation() {
     });
   }, [paidData, pending, refreshExceptions, refreshSummary, t]);
 
+  /** Gửi yêu cầu phát hành lại vé cho đơn đã chọn và đưa đơn vào nhóm đang chờ. */
   const confirmRepublish = async () => {
     if (!republishing || republishBusy) return;
     setRepublishBusy(true);
@@ -333,6 +363,7 @@ export default function OrderReconciliation() {
     }
   };
 
+  /** Yêu cầu đồng bộ lại kho của hạng vé đã chọn; báo lỗi riêng khi chưa biết số lượng phát hành ban đầu. */
   const confirmFix = async () => {
     if (!fixing || fixBusy) return;
     setFixBusy(true);
@@ -351,6 +382,7 @@ export default function OrderReconciliation() {
     }
   };
 
+  /** Tải lại cả bốn nguồn dữ liệu. */
   const reloadAll = () => { summary.reload(); exceptions.reload(); paid.reload(); stock.reload(); };
 
   const cards: { key: keyof ReconciliationSummary; label: string; icon: ReactNode; tone: string }[] = [
@@ -364,6 +396,7 @@ export default function OrderReconciliation() {
     { id: "paid", label: t("Đơn thiếu vé"), count: count("paidWithoutTickets") ?? undefined },
     { id: "stock", label: t("Lệch kho"), count: count("stockDiscrepancies") ?? undefined },
   ];
+  /** Điều hướng tab bằng phím mũi tên trái phải, quay vòng ở hai đầu. */
   const onTabKey = (event: ReactKeyboardEvent, index: number) => {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
@@ -640,8 +673,9 @@ export default function OrderReconciliation() {
         {tab === "stock" && (
           <ListBody state={stock.state} reload={stock.reload} isEmpty={(d) => d.items.length === 0}>
             {(data: { items: StockDiscrepancyItem[] }) => {
+              /** Định dạng số theo ngôn ngữ hiện tại; thiếu thì hiện "không rõ". */
               const n = (v?: number | null) => (typeof v === "number" ? v.toLocaleString(locale) : unknown);
-              // what each difference means, in words (the raw number is the size of the gap)
+              /** Mô tả bằng lời từng chênh lệch của dòng kho (số thô là độ lớn của khoảng lệch). */
               const differences = (item: StockDiscrepancyItem) => {
                 const list: { tone: Tone; text: string }[] = [];
                 const stockGap = item.diffStockVsIssued;
@@ -653,6 +687,7 @@ export default function OrderReconciliation() {
                 return list;
               };
               const rows = filterStock(data.items, stockFilters);
+              /** Tách trường {@code note} (các mã ngăn bằng dấu chấm phẩy) thành danh sách mã. */
               const notes = (item: StockDiscrepancyItem) => (item.note ? item.note.split(";").map((c) => c.trim()).filter(Boolean) : []);
               return (
                 <div className="space-y-4">

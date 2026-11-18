@@ -43,6 +43,7 @@ import {
   applyTextFormatToTextarea
 } from "@/utils/editorUtils";
 
+/** Props của bước 1 (thông tin sự kiện): giá trị và hàm cập nhật từng trường của form, lỗi kiểm tra, cờ đã điền sẵn thông tin ban tổ chức, hàm lưu nháp và hàm sang bước tiếp. */
 interface Step1EventInfoProps {
   title: string;
   setTitle: (v: string) => void;
@@ -78,6 +79,10 @@ interface Step1EventInfoProps {
   onNext: () => void;
 }
 
+/**
+ * Bước 1 của form tạo sự kiện: tải ảnh poster và banner, nhập tên, thể loại, hình thức và địa điểm (chọn địa điểm có sẵn hoặc khai báo mới, kiểm tra trùng lịch),
+ * soạn mô tả bằng trình soạn thảo đơn giản (chèn ảnh, video, sinh nội dung bằng AI), thư viện ảnh và thông tin ban tổ chức.
+ */
 export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   title,
   setTitle,
@@ -125,7 +130,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [selectedColor, setSelectedColor] = useState<string>("#ffffff");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  // insert/edit image modal state
+  // trạng thái hộp thoại chèn hoặc sửa ảnh
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageTab, setImageTab] = useState<"general" | "upload" | "gallery">("general");
   const [imageSource, setImageSource] = useState("");
@@ -135,7 +140,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [imageLockRatio, setImageLockRatio] = useState(true);
   const [imageRatio, setImageRatio] = useState<number | null>(null);
 
-  // insert/edit media modal state
+  // trạng thái hộp thoại chèn hoặc sửa media
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [mediaTab, setMediaTab] = useState<"general" | "advanced">("general");
   const [mediaSource, setMediaSource] = useState("");
@@ -163,6 +168,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
 
+  /** Hiện thông báo nổi trong 3 giây. */
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -177,10 +183,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
   };
   const [newVenueForm, setNewVenueForm] = useState(newVenueFormTemplate);
 
-  // load real db events and extract real venues & booking collisions dynamically
+  // nạp các sự kiện thật từ DB để suy ra danh sách địa điểm và các lịch đặt trùng
   useEffect(() => {
     let isMounted = true;
 
+    /** Lấy danh mục và toàn bộ sự kiện, gom các sự kiện theo tên địa điểm thành danh sách địa điểm hệ thống kèm các lịch đang giữ chỗ. */
     const loadRealData = async () => {
       try {
         const realEvents = await eventApi.getAllEvents();
@@ -192,7 +199,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         if (Array.isArray(realEvents)) {
           const venueMap = new Map<string, SystemVenue>();
 
-          // iterate real DB events to extract & group venue details
+          // duyệt các sự kiện thật trong DB để trích và gom thông tin địa điểm
           realEvents.forEach((ev: EventApiData & Record<string, unknown>) => {
             if (!ev.locationName || !ev.locationName.trim()) return;
 
@@ -203,7 +210,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             const approval = String(ev.eventApprovalStatus || ev.approvalStatus || "").toUpperCase();
             const isCompletedOrPublished = status === "COMPLETED" || status === "PUBLISHED" || approval === "APPROVED";
 
-            // exclude past, completed, cancelled, or rejected events so expired events do NOT falsely hold the venue
+            // loại các sự kiện đã qua, đã hoàn tất, đã hủy hoặc bị từ chối để sự kiện hết hạn không giữ địa điểm một cách sai
             const evEndTime = ev.endTime ? new Date(ev.endTime).getTime() : (ev.startTime ? new Date(ev.startTime).getTime() + 4 * 3600000 : 0);
             const isPast = evEndTime > 0 && evEndTime < Date.now();
             const isCancelled = status === "CANCELLED" || status === "COMPLETED" || approval === "REJECTED";
@@ -260,7 +267,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     };
   }, []);
 
-  // pre-fill sample description template if empty on mount
+  // điền sẵn mẫu mô tả nếu mô tả đang trống khi vào màn hình
   useEffect(() => {
     if (!description || !description.trim()) {
       setDescription(DEFAULT_DESCRIPTION_TEMPLATE);
@@ -274,6 +281,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       v.city.toLowerCase().includes((venueSearchQuery || locationName).toLowerCase())
   );
 
+  /** Chọn một địa điểm hệ thống: điền tên, thành phố, phường và địa chỉ vào form rồi đóng danh sách gợi ý. */
   const handleSelectVenue = (venue: SystemVenue) => {
     setSelectedVenue(venue);
     setLocationName(venue.name);
@@ -284,6 +292,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     setIsVenueDropdownOpen(false);
   };
 
+  /** Tạo địa điểm mới từ form khai báo (cần tên và địa chỉ), thêm lên đầu danh sách, chọn luôn và đóng hộp thoại. */
   const handleCreateNewVenue = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVenueForm.name.trim() || !newVenueForm.address.trim()) return;
@@ -306,7 +315,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     setShowNewVenueModal(false);
   };
 
-  // media service upload handler with instant local preview & async s3 persistence
+  // tải ảnh lên dịch vụ media: hiện ngay bản xem trước cục bộ, sau đó tải lên S3 ở nền
+  /** Xử lý chọn tệp ảnh: hiện ngay bản xem trước bằng blob, tải lên S3 rồi thay bằng địa chỉ thật; poster và banner cũng được thêm vào thư viện ảnh. Nếu tải lỗi thì giữ bản xem trước. */
   const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (v: string | null) => void,
@@ -318,7 +328,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     const tempUrl = URL.createObjectURL(file);
     setter(tempUrl);
 
-    // automatically add vertical poster and horizontal banner to galleryImages upon selection
+    // tự động thêm poster dọc và banner ngang vào thư viện ảnh khi được chọn
     if (setter === setPosterImage || setter === setBannerImage) {
       if (setGalleryImages) {
         setGalleryImages((prev) => (prev.includes(tempUrl) ? prev : [...prev, tempUrl]));
@@ -344,7 +354,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     e.target.value = "";
   };
 
-  // handlers for Insert/Edit Image Modal
+  // các hàm xử lý cho hộp thoại chèn hoặc sửa ảnh
+  /** Đổi chiều rộng ảnh; nếu đang khóa tỷ lệ thì tính lại chiều cao. */
   const handleImageWidthChange = (val: string) => {
     setImageWidth(val);
     if (imageLockRatio && imageRatio && val && !isNaN(Number(val))) {
@@ -352,6 +363,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }
   };
 
+  /** Đổi chiều cao ảnh; nếu đang khóa tỷ lệ thì tính lại chiều rộng. */
   const handleImageHeightChange = (val: string) => {
     setImageHeight(val);
     if (imageLockRatio && imageRatio && val && !isNaN(Number(val))) {
@@ -359,6 +371,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }
   };
 
+  /** Tải ảnh chọn trong hộp thoại: xem trước ngay, đọc kích thước gốc để lấy tỷ lệ, tải lên S3 rồi thêm vào thư viện ảnh. */
   const handleModalImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -393,7 +406,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     e.target.value = "";
   };
 
-  // upload small video (<= 20MB)
+  // tải video nhỏ (tối đa 20MB)
+  /** Tải video trong hộp thoại media lên S3; từ chối video lớn hơn 20MB bằng thông báo lỗi. */
   const handleModalVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -422,7 +436,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }
   };
 
-  // helper to insert markdown/HTML at exact cursor position in the description textarea
+  // chèn markdown hoặc HTML đúng vị trí con trỏ trong ô mô tả
+  /** Chèn đoạn markup vào ô mô tả tại vị trí con trỏ (hoặc vùng đang chọn) rồi đặt lại con trỏ sau đoạn vừa chèn. */
   const insertAtCursor = (markup: string) => {
     const textarea = document.getElementById("event-description-textarea") as HTMLTextAreaElement | null;
     const start = textarea?.selectionStart ?? cursorPositionRef.current.start ?? description.length;
@@ -440,7 +455,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }, 50);
   };
 
-  // upload and insert multiple direct images into gallery images list with instant preview
+  // tải lên và thêm nhiều ảnh trực tiếp vào thư viện ảnh, có xem trước ngay
+  /** Xử lý chọn nhiều ảnh cho thư viện: thêm bản xem trước ngay rồi thay từng ảnh bằng địa chỉ S3 khi tải xong. */
   const handleInsertGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -475,6 +491,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     e.target.value = "";
   };
 
+  /** Lưu hộp thoại ảnh: chèn thẻ ảnh vào mô tả và thêm ảnh vào thư viện; không có nguồn ảnh thì chỉ đóng hộp thoại. */
   const handleSaveImageModal = () => {
     if (!imageSource || !imageSource.trim()) {
       setShowImageModal(false);
@@ -493,7 +510,8 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     setShowImageModal(false);
   };
 
-  // handlers for Insert/Edit Media Modal
+  // các hàm xử lý cho hộp thoại chèn hoặc sửa media
+  /** Đổi chiều rộng media; nếu đang khóa tỷ lệ thì tính lại chiều cao. */
   const handleMediaWidthChange = (val: string) => {
     setMediaWidth(val);
     if (mediaLockRatio && mediaRatio && val && !isNaN(Number(val))) {
@@ -501,6 +519,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }
   };
 
+  /** Đổi chiều cao media; nếu khóa tỷ lệ thì tính lại chiều rộng, nếu không thì cập nhật tỷ lệ theo kích thước mới. */
   const handleMediaHeightChange = (val: string) => {
     setMediaHeight(val);
     if (mediaLockRatio && mediaRatio && val && !isNaN(Number(val))) {
@@ -510,6 +529,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     }
   };
 
+  /** Lưu hộp thoại media: chèn mã nhúng video vào mô tả; không có nguồn thì chỉ đóng hộp thoại. */
   const handleSaveMediaModal = () => {
     if (!mediaSource || !mediaSource.trim()) {
       setShowMediaModal(false);
@@ -526,12 +546,14 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     setShowMediaModal(false);
   };
 
-  // textarea formatting helper
+  // hàm hỗ trợ định dạng văn bản trong ô mô tả
+  /** Bọc phần văn bản đang chọn trong ô mô tả bằng tiền tố và hậu tố (mặc định hai bên giống nhau). */
   const applyTextFormat = (prefix: string, suffix: string = prefix) => {
     const updated = applyTextFormatToTextarea("event-description-textarea", description, prefix, suffix);
     setDescription(updated);
   };
 
+  /** Gọi dịch vụ AI sinh nội dung mô tả từ tên sự kiện và các ý chính; thành công thì thay mô tả và đóng hộp thoại, thất bại thì hiện lỗi. */
   const handleGenerateDescription = async () => {
     if (!title) {
       showToast(t("Vui lòng nhập tên sự kiện trước khi sử dụng tính năng sinh nội dung AI."), "error");
@@ -549,7 +571,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
       const res = await aiApi.generateEventContent(title, aiBulletPoints);
       const fullDesc = buildGeneratedDescription(res, t("Điều khoản & Quy định:"));
       if (fullDesc === null) {
-        // a response without a description is a failure: never touch the description field.
+        // phản hồi không có mô tả được coi là thất bại: tuyệt đối không đổi ô mô tả
         setAiGenerateError(getAiErrorMessage({ response: { status: 502, data: { code: "AI_GENERATION_FAILED" } } }));
         return;
       }
@@ -567,7 +589,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 relative">
-      {/* Toast Notification */}
+      {/* Thông báo nổi */}
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-full shadow-lg text-sm font-bold animate-in fade-in slide-in-from-top-4 flex items-center gap-2 ${toast.type === "error" ? "bg-red-600 text-white" : "bg-emerald-600 text-white"}`}>
           {toast.type === "error" ? <FiAlertCircle className="w-5 h-5" /> : <FiCheckCircle className="w-5 h-5" />}
@@ -575,7 +597,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         </div>
       )}
 
-      {/* Upload Images Section */}
+      {/* Khu vực tải ảnh sự kiện */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b app-border pb-4">
           <h3 className="text-lg font-extrabold app-text-main flex items-center gap-2">
@@ -593,7 +615,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Poster 3:4 Upload Box */}
+          {/* Ô tải poster tỷ lệ 3:4 */}
           <div className="md:col-span-5 flex flex-col space-y-2">
             <label className="text-xs font-bold app-text-main">
               {t("Ảnh sự kiện dọc (Khuyên dùng: 720 x 958 px)")}
@@ -651,7 +673,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
           </div>
 
-          {/* Banner 16:9 Upload Box */}
+          {/* Ô tải banner tỷ lệ 16:9 */}
           <div className="md:col-span-7 flex flex-col space-y-2">
             <label className="text-xs font-bold app-text-main">
               {t("Ảnh nền / Banner ngang (Khuyên dùng: 1280 x 720 px)")}
@@ -711,13 +733,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         </div>
       </div>
 
-      {/* General Info Form Section */}
+      {/* Khu vực thông tin chung */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4">
           {t("Thông tin chung sự kiện")}
         </h3>
 
-        {/* Event Title */}
+        {/* Tên sự kiện */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold app-text-main">
@@ -742,7 +764,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           )}
         </div>
 
-        {/* Category Dropdown */}
+        {/* Danh sách thể loại */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold app-text-main">
             <span className="text-rose-500 font-bold">*</span> {t("Thể loại sự kiện")}
@@ -767,13 +789,13 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           )}
         </div>
 
-        {/* Event Location */}
+        {/* Địa điểm sự kiện */}
         <div className="space-y-4 pt-2">
           <label className="text-xs font-bold app-text-main block">
             <span className="text-rose-500 font-bold">*</span> {t("Hình thức tổ chức địa điểm")}
           </label>
 
-          {/* Offline / Online Selector */}
+          {/* Chọn trực tiếp hoặc trực tuyến */}
           <div className="inline-flex p-1 app-bg-subnav rounded-xl border app-border">
             <button
               type="button"
@@ -801,7 +823,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
 
           {locationType === "offline" && (
             <div className="space-y-4 pt-2">
-              {/* Public vs Private Venue Type Selector */}
+              {/* Chọn loại địa điểm: công khai hoặc riêng */}
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -834,7 +856,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </div>
 
               {venueCategory === "PRIVATE" ? (
-                /* Private Location Form Fields */
+                /* Các trường nhập địa điểm riêng */
                 <div className="p-5 rounded-2xl app-bg-subnav border app-border space-y-4 animate-in fade-in duration-200">
                   <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-medium space-y-1">
                     <p className="font-bold flex items-center gap-1.5">
@@ -897,7 +919,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                   </div>
                 </div>
               ) : (
-                /* Smart System Public Venue Selector & Search */
+                /* Chọn và tìm địa điểm công khai của hệ thống */
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -914,7 +936,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                       </button>
                     </div>
 
-                    {/* Search & Select Input with Dropdown */}
+                    {/* Ô tìm kiếm và chọn kèm danh sách thả xuống */}
                     <div className="relative">
                       <div className="flex items-center gap-2 app-bg-subnav border app-border rounded-xl px-4 py-3 shadow-xs">
                         <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
@@ -945,7 +967,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         )}
                       </div>
 
-                      {/* Dropdown Menu of System Venues */}
+                      {/* Danh sách địa điểm của hệ thống */}
                       {isVenueDropdownOpen && (
                         <div className="absolute top-full left-0 right-0 mt-2 z-50 app-bg-card border app-border rounded-2xl shadow-2xl p-2 max-h-72 overflow-y-auto no-scrollbar space-y-1 animate-in fade-in zoom-in-95">
                           <div className="px-3 py-1.5 text-[10px] font-bold app-text-muted uppercase tracking-wider flex items-center justify-between border-b app-border pb-2">
@@ -1020,7 +1042,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     )}
                   </div>
 
-                  {/* Venue Info & Schedule Collision Indicator Box */}
+                  {/* Khung thông tin địa điểm và cảnh báo trùng lịch */}
                   {selectedVenue && (
                     <div className="p-4 rounded-2xl app-bg-subnav border app-border space-y-3 animate-in fade-in duration-200">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b app-border pb-3">
@@ -1053,7 +1075,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                         </div>
                       </div>
 
-                      {/* Real-time Schedule Collision Check Badge */}
+                      {/* Nhãn kiểm tra trùng lịch theo thời gian thực */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl app-bg-card border app-border">
                         <div className="flex items-start gap-2.5">
                           {selectedVenue.bookings.length > 0 ? (
@@ -1096,7 +1118,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                     </div>
                   )}
 
-              {/* Detailed Address Inputs Grid */}
+              {/* Lưới nhập địa chỉ chi tiết */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
@@ -1186,7 +1208,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
     </div>
   </div>
 
-      {/* Event Description Rich Text Section */}
+      {/* Khu vực mô tả sự kiện (soạn thảo văn bản) */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b app-border pb-3">
           <h3 className="text-lg font-extrabold app-text-main">
@@ -1211,9 +1233,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           </div>
         </div>
 
-        {/* Rich Text Formatting Toolbar */}
+        {/* Thanh công cụ định dạng văn bản */}
         <div className="flex flex-wrap items-center gap-2 p-2 app-bg-subnav border app-border rounded-xl">
-          {/* Paragraph Format Selector */}
+          {/* Chọn kiểu đoạn văn */}
           <select
             value={selectedFormat}
             onChange={(e) => {
@@ -1231,7 +1253,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             <option value="Heading 3">Heading 3</option>
           </select>
 
-          {/* Color Palette */}
+          {/* Bảng màu */}
           <div className="flex items-center gap-1.5 px-2 border-r app-border">
             <button
               type="button"
@@ -1271,7 +1293,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             />
           </div>
 
-          {/* Formatting: Bold, Italic, Underline */}
+          {/* Định dạng: đậm, nghiêng, gạch chân */}
           <div className="flex items-center gap-1 px-2 border-r app-border">
             <button
               type="button"
@@ -1299,7 +1321,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </button>
           </div>
 
-          {/* Alignments */}
+          {/* Căn lề */}
           <div className="flex items-center gap-1 px-2 border-r app-border">
             <button
               type="button"
@@ -1335,7 +1357,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </button>
           </div>
 
-          {/* Lists */}
+          {/* Danh sách */}
           <div className="flex items-center gap-1 px-2 border-r app-border">
             <button
               type="button"
@@ -1355,9 +1377,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </button>
           </div>
 
-          {/* Media Attachments: Image & Video (Matching Screenshots 1 & 2) */}
+          {/* Đính kèm media: ảnh và video */}
           <div className="flex items-center gap-1.5 pl-1">
-            {/* Image Button with Tooltip */}
+            {/* Nút chèn ảnh kèm tooltip */}
             <div className="relative group">
               <button
                 type="button"
@@ -1381,7 +1403,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </div>
             </div>
 
-            {/* Media/Video Button with Tooltip */}
+            {/* Nút chèn media/video kèm tooltip */}
             <div className="relative group">
               <button
                 type="button"
@@ -1435,7 +1457,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
           </p>
         )}
 
-        {/* Gallery Images Visual Preview & Management Section */}
+        {/* Khu vực xem trước và quản lý thư viện ảnh */}
         <div className="pt-4 border-t app-border space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold app-text-main flex items-center gap-2">
@@ -1507,7 +1529,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
           )}
 
-          {/* Full Size Gallery Preview Modal */}
+          {/* Hộp thoại xem ảnh thư viện cỡ đầy đủ */}
           {selectedGalleryPreview && (
             <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
               <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
@@ -1529,7 +1551,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         </div>
       </div>
 
-      {/* Organizer Info Section */}
+      {/* Khu vực thông tin ban tổ chức */}
       <div className="app-bg-card border app-border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b app-border pb-4">
           <h3 className="text-lg font-extrabold app-text-main">
@@ -1544,7 +1566,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-          {/* Logo Upload */}
+          {/* Tải logo */}
           <div className="md:col-span-4 space-y-2">
             <label className="text-xs font-bold app-text-main">{t("Logo Ban Tổ Chức (275 x 275 px)")}</label>
             <input
@@ -1595,7 +1617,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
             </div>
           </div>
 
-          {/* Organizer Name & Description */}
+          {/* Tên và mô tả ban tổ chức */}
           <div className="md:col-span-8 space-y-4">
             <div className="space-y-1">
               <div className="flex justify-between text-xs font-bold app-text-main">
@@ -1644,7 +1666,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         </div>
       </div>
 
-      {/* Modal 1: Khai báo địa điểm mới */}
+      {/* Hộp thoại 1: khai báo địa điểm mới */}
       {showNewVenueModal && createPortal(
         <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="app-bg-card border app-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
@@ -1750,7 +1772,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         document.body
       )}
 
-      {/* Modal 2: Lịch đặt sự kiện tại địa điểm */}
+      {/* Hộp thoại 2: lịch đặt sự kiện tại địa điểm */}
       {showScheduleModal && selectedVenue && createPortal(
         <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="app-bg-card border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
@@ -1809,11 +1831,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         document.body
       )}
 
-      {/* Modal: Insert/Edit Image (Styled with app design tokens & Gallery selector) */}
+      {/* Hộp thoại chèn hoặc sửa ảnh (theo token thiết kế của ứng dụng, có chọn từ thư viện) */}
       {showImageModal && createPortal(
         <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="app-bg-card app-text-main border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
-            {/* Modal Header */}
+            {/* Đầu hộp thoại */}
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-base font-bold app-text-main flex items-center gap-2">
                 <FiImage className="w-4 h-4 text-blue-500" />
@@ -1828,9 +1850,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </button>
             </div>
 
-            {/* Modal Content */}
+            {/* Nội dung hộp thoại */}
             <div className="grid grid-cols-12 gap-5 min-h-[220px]">
-              {/* Left Tabs */}
+              {/* Các tab bên trái */}
               <div className="col-span-3 border-r app-border pr-3 space-y-2 pt-1">
                 <button
                   type="button"
@@ -1867,7 +1889,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 </button>
               </div>
 
-              {/* Right Form Fields */}
+              {/* Các trường nhập bên phải */}
               <div className="col-span-9 pl-4 space-y-4">
                 {imageTab === "general" ? (
                   <>
@@ -1978,7 +2000,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </div>
             </div>
 
-            {/* Modal Footer Actions */}
+            {/* Các nút hành động cuối hộp thoại */}
             <div className="pt-3 border-t app-border flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -2001,11 +2023,11 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         document.body
       )}
 
-      {/* Modal: Insert/Edit Media (Styled with app design tokens & Video Upload <=20MB) */}
+      {/* Hộp thoại chèn hoặc sửa media (theo token thiết kế của ứng dụng, tải video tối đa 20MB) */}
       {showMediaModal && createPortal(
         <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="app-bg-card app-text-main border app-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
-            {/* Modal Header */}
+            {/* Đầu hộp thoại */}
             <div className="flex items-center justify-between border-b app-border pb-3">
               <h3 className="text-base font-bold app-text-main flex items-center gap-2">
                 <FiVideo className="w-4 h-4 text-blue-500" />
@@ -2020,9 +2042,9 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </button>
             </div>
 
-            {/* Modal Content */}
+            {/* Nội dung hộp thoại */}
             <div className="grid grid-cols-12 gap-5 min-h-[220px]">
-              {/* Left Tabs */}
+              {/* Các tab bên trái */}
               <div className="col-span-3 border-r app-border pr-3 space-y-2 pt-1">
                 <button
                   type="button"
@@ -2048,7 +2070,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
                 </button>
               </div>
 
-              {/* Right Form Fields */}
+              {/* Các trường nhập bên phải */}
               <div className="col-span-9 space-y-4">
                 {mediaTab === "general" ? (
                   <>
@@ -2141,7 +2163,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
               </div>
             </div>
 
-            {/* Modal Footer Actions */}
+            {/* Các nút hành động cuối hộp thoại */}
             <div className="pt-3 border-t app-border flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -2164,7 +2186,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         document.body
       )}
 
-      {/* AI Generative Modal */}
+      {/* Hộp thoại sinh nội dung bằng AI */}
       {showAIGenerateModal && createPortal(
         <div className="fixed inset-0 min-h-screen w-screen z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
@@ -2238,7 +2260,7 @@ export const Step1EventInfo: React.FC<Step1EventInfoProps> = ({
         document.body
       )}
 
-      {/* Next Step Action Button & Save Draft */}
+      {/* Nút sang bước tiếp theo và lưu nháp */}
       <div className="flex items-center justify-between pt-4">
         {onSaveDraft && (
           <button

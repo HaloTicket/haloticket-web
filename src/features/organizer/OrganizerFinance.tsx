@@ -13,15 +13,20 @@ import { OrganizerFinanceAnalytics } from "@/features/organizer/finance/Organize
 import { revenueRange, type RevenuePeriod } from "@/features/organizer/finance/revenuePeriods";
 import type { EventSettlement, FinanceSummary, OrganizerFinanceAnalytics as OrganizerFinanceAnalyticsData, PayoutAccount, PayoutQuote, PayoutResponse } from "@/types";
 
+/** Tab của trang tài chính: tổng quan hoặc lịch sử rút tiền. */
 type FinanceTab = "overview" | "history";
+/** Bộ lọc danh sách sự kiện: tất cả, đủ điều kiện rút tiền, hoặc đang có yêu cầu rút xử lý. */
 type EventFilter = "all" | "eligible" | "processing";
+/** Tiêu chí sắp xếp sự kiện: mới kết thúc, doanh thu gộp, số dư khả dụng hoặc tên. */
 type EventSort = "recent" | "gross" | "available" | "name";
 
 
+/** Định dạng số tiền (chuỗi hoặc số nguyên lớn) theo kiểu vi-VN kèm ký hiệu ₫; trả về "—" khi rỗng hoặc không hợp lệ. */
 const money = (value?: string | number) => {
   if (value === undefined || value === null || value === "") return "—";
   try { return `${BigInt(String(value)).toLocaleString("vi-VN")} ₫`; } catch { return "—"; }
 };
+/** Định dạng ngày theo dd/MM/yyyy (vi-VN); trả về "—" khi không có giá trị. */
 const date = (value?: string) => value ? new Date(value).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
 const statusCopy = payoutStatusGroups;
 const reasonCopy: Record<string, string> = {
@@ -37,8 +42,11 @@ const reasonCopy: Record<string, string> = {
   PAYOUT_IN_PROGRESS: "Đã có yêu cầu khác đang xử lý",
   NO_AVAILABLE_FUNDS: "Chưa có số dư đủ điều kiện",
 };
+/** Đổi mã lý do không đủ điều kiện rút tiền thành câu thông báo tiếng Việt; mã lạ giữ nguyên mã. */
 const reasonLabel = (code?: string) => code ? reasonCopy[code] || code : "Chưa đủ điều kiện";
+/** Chọn lớp màu cho nhãn trạng thái yêu cầu rút tiền: xanh khi hoàn tất, vàng khi đang xử lý, đỏ khi thất bại hoặc tranh chấp. */
 const statusStyle = (status: string) => status === "COMPLETED" ? "bg-green-50 text-green-700" : ["PENDING", "APPROVED", "PROCESSING", "NEEDS_VERIFICATION"].includes(status) ? "bg-amber-50 text-amber-700" : ["FAILED", "REJECTED", "DISPUTE"].includes(status) ? "bg-rose-50 text-rose-700" : "bg-zinc-100 text-zinc-700";
+/** Lấy thông báo lỗi hiển thị từ lỗi API: ưu tiên thông điệp từ server, có câu riêng cho HTTP 403 và 409. */
 const errorText = (error: unknown) => {
   const err = error as { response?: { status?: number; data?: { message?: string } }; message?: string };
   if (err?.response?.status === 403) return "Bạn chưa được cấp quyền xem dữ liệu tài chính này.";
@@ -46,6 +54,11 @@ const errorText = (error: unknown) => {
   return err?.response?.data?.message || err?.message || "Không thể tải dữ liệu. Vui lòng thử lại.";
 };
 
+/**
+ * Trang "Doanh thu và rút tiền" của ban tổ chức: tổng quan số dư, danh sách sự kiện và biểu đồ doanh thu, báo cáo,
+ * lịch sử rút tiền, cùng hộp thoại nhiều bước để yêu cầu rút tiền (chọn sự kiện, xem báo giá, xác nhận, kết quả).
+ * Bộ lọc, tab và phân trang được giữ trên tham số URL.
+ */
 export const OrganizerFinance: React.FC = () => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -118,6 +131,7 @@ export const OrganizerFinance: React.FC = () => {
   const [payoutSearch, setPayoutSearch] = useState(searchParams.get("q") || "");
   const [eventSearch, setEventSearch] = useState("");
 
+  /** Tải đồng thời tổng quan, danh sách sự kiện và lịch sử rút tiền; mỗi phần lỗi riêng được báo riêng và bổ sung tên sự kiện cho các yêu cầu rút. */
   const loadData = useCallback(async () => {
     setLoading(true);
     setDataError(""); setSummaryError(""); setHistoryError("");
@@ -145,6 +159,7 @@ export const OrganizerFinance: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [searchParams, tab]);
 
+  /** Tải số liệu doanh thu theo khoảng ngày đang chọn (kiểm tra thứ tự ngày và tối đa 366 ngày); bỏ qua kết quả của yêu cầu cũ khi có yêu cầu mới. */
   const loadAnalytics = useCallback(async () => {
     const requestId = ++analyticsRequestRef.current;
     setAnalytics(null); setAnalyticsLoading(true); setAnalyticsError("");
@@ -175,6 +190,7 @@ export const OrganizerFinance: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [loadAnalytics, tab]);
 
+  /** Tải số liệu cho báo cáo (có thể lọc theo sự kiện) khi hộp báo cáo đang mở; kiểm tra khoảng ngày như {@code loadAnalytics} và bỏ qua kết quả cũ. */
   const loadReportAnalytics = useCallback(async () => {
     const requestId = ++reportAnalyticsRequestRef.current;
     setReportAnalytics(null); setReportAnalyticsLoading(true); setReportAnalyticsError("");
@@ -201,15 +217,18 @@ export const OrganizerFinance: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [loadReportAnalytics]);
 
+  /** Cập nhật các tham số tìm kiếm trên URL: giá trị rỗng hoặc {@code null} sẽ xóa tham số. */
   const updateSearch = (patch: Record<string, string | number | null>) => {
     const next = new URLSearchParams(searchParams);
     Object.entries(patch).forEach(([key, value]) => value === null || value === "" ? next.delete(key) : next.set(key, String(value)));
     setSearchParams(next, { replace: true });
   };
+  /** Đổi khoảng ngày và kỳ thống kê trên URL rồi quay về trang 1. */
   const updateAnalyticsRange = (from: string, to: string, nextPeriod: RevenuePeriod) => {
     updateSearch({ from: from || null, to: to || null, period: nextPeriod, page: null });
     setPage(1);
   };
+  /** Mở hộp thoại yêu cầu rút tiền: đặt lại trạng thái các bước, chọn sẵn sự kiện nếu có và tải danh sách sự kiện đủ điều kiện. */
   const openRequest = async (eventId = "") => {
     quoteRequestRef.current++;
     setDialogOpen(true); setStep(1); setSelectedEventIds(eventId ? [eventId] : []); setEventSearch(""); setQuotes([]); setConfirmed(false); setSubmitError(""); setSubmitUncertain(false); setEligibleError(""); setAccountError(""); setSent([]); setCopiedRequestId("");
@@ -228,9 +247,12 @@ export const OrganizerFinance: React.FC = () => {
     && account?.verified && !accountError && !quoteError && confirmed && !submitting && !accountSaving && !accountEditorOpen;
   const totalExpected = quotes.filter(quote => pendingEvents.some(event => event.eventId === quote.eventId))
     .reduce((total, quote) => total + BigInt(quote.expectedTransferAmount), 0n);
+  /** Lấy tên sự kiện theo id từ danh sách đủ điều kiện; không thấy thì dùng chính id. */
   const eventName = (eventId: string) => eligibleEvents.find(event => event.eventId === eventId)?.eventName || eventId;
 
+  /** Sự kiện có thể yêu cầu rút tiền khi đã được đánh dấu đủ điều kiện. */
   const canRequestEvent = (event: EventSettlement) => event.eligible;
+  /** Kiểm tra sự kiện có yêu cầu rút tiền nào đang xử lý (chờ, đã duyệt, đang xử lý, cần xác minh hoặc tranh chấp). */
   const hasProcessingPayout = useCallback((eventId: string) => payouts.some(payout => payout.eventId === eventId && ["PENDING", "APPROVED", "PROCESSING", "NEEDS_VERIFICATION", "DISPUTE"].includes(payout.status)), [payouts]);
   const filteredEvents = useMemo(() => {
     const rows = events.filter(event => {
@@ -261,6 +283,7 @@ export const OrganizerFinance: React.FC = () => {
   const paginatedPayouts = filteredPayouts.slice((page - 1) * pageSize, page * pageSize);
   const grossRevenueForRange = analytics?.series.reduce((total, item) => total + BigInt(item.grossAmount), 0n).toString();
 
+  /** Lấy báo giá rút tiền cho các sự kiện đã chọn và tài khoản nhận tiền từ server, rồi chuyển sang bước 2. Bỏ qua kết quả nếu đã có yêu cầu lấy báo giá mới hơn. */
   const getQuote = async () => {
     if (!pendingEvents.length || submitUncertain) return;
     const requestId = ++quoteRequestRef.current;
@@ -275,6 +298,7 @@ export const OrganizerFinance: React.FC = () => {
     if (accountResult.status === "fulfilled") setAccount(accountResult.value);
     else setAccountError(errorText(accountResult.reason));
   };
+  /** Lưu tài khoản nhận tiền do người dùng nhập (kiểm tra đủ ba trường) rồi lấy lại báo giá. */
   const saveAccount = async () => {
     if (!accountForm.bankName.trim() || !accountForm.accountHolder.trim() || !accountForm.accountNumber.trim()) {
       setAccountSaveError("Nhập ngân hàng, số tài khoản và tên chủ tài khoản.");
@@ -295,6 +319,10 @@ export const OrganizerFinance: React.FC = () => {
     } catch (error) { setAccountSaveError(errorText(error)); }
     finally { setAccountSaving(false); }
   };
+  /**
+   * Gửi lần lượt yêu cầu rút tiền cho từng sự kiện chưa gửi, mỗi sự kiện dùng một khóa an toàn (idempotency key) giữ lại để thử lại.
+   * Khi lỗi mạng, 5xx hoặc 408 thì tra cứu lại theo khóa để biết yêu cầu đã được ghi nhận chưa, tránh gửi trùng.
+   */
   const submitRequest = async () => {
     if (!readyToSubmit) return;
     setSubmitting(true); setSubmitError("");
@@ -342,6 +370,7 @@ export const OrganizerFinance: React.FC = () => {
       setSubmitting(false);
     }
   };
+  /** Sao chép mã yêu cầu vào clipboard và hiện trạng thái đã sao chép trong 1,8 giây. */
   const copyRequestId = async (id: string) => {
     if (!navigator.clipboard?.writeText) return;
     try {
@@ -530,6 +559,7 @@ export const OrganizerFinance: React.FC = () => {
   </div></Dialog.Root>;
 };
 
+/** Thẻ tóm tắt một chỉ số tiền với biểu tượng và tông màu; hiện "Đang tải…" khi đang tải. */
 const SummaryCard = ({ label, amount, icon, tone, loading }: { label: string; amount?: string; icon: string; tone: "blue" | "emerald" | "navy"; loading: boolean }) => {
   const toneClasses = {
     blue: "bg-blue-50 text-blue-700",
@@ -539,10 +569,15 @@ const SummaryCard = ({ label, amount, icon, tone, loading }: { label: string; am
   const valueClasses = { blue: "text-blue-700", emerald: "text-emerald-700", navy: "text-slate-900" }[tone];
   return <div className="rounded-xl border app-border app-bg-card p-4"><div className="flex items-center justify-between"><span className="text-sm app-text-muted">{label}</span><span className={`flex h-9 w-9 items-center justify-center rounded-lg font-bold ${toneClasses}`}>{icon}</span></div><div className={`mt-3 text-xl font-bold ${valueClasses}`}>{loading ? "Đang tải…" : amount === undefined ? "—" : money(amount)}</div></div>;
 };
+/** Khung báo lỗi kèm nút "Thử lại" gọi {@code onRetry}. */
 const ErrorBanner = ({ message, onRetry }: { message: string; onRetry: () => void }) => <div role="alert" className="m-4 flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between"><span className="flex items-start gap-2"><FiAlertCircle className="mt-0.5 shrink-0" />{message}</span><button onClick={onRetry} className="min-h-10 rounded-lg border border-rose-300 px-3 font-semibold">Thử lại</button></div>;
+/** Vòng tròn đánh số của một bước trong hộp thoại rút tiền; hiện dấu tích khi bước đã hoàn tất. */
 const StepCircle = ({ number, active, complete }: { number: number; active?: boolean; complete?: boolean }) => <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${complete ? "bg-emerald-500 text-white" : active ? "bg-blue-600 text-white" : "border app-border bg-white app-text-muted"}`}>{complete ? <FiCheckCircle aria-hidden="true" /> : number}</span>;
+/** Đường nối giữa hai bước, đổi màu khi bước trước đã hoàn tất. */
 const StepConnector = ({ complete }: { complete?: boolean }) => <span className={`h-0.5 flex-1 ${complete ? "bg-emerald-400" : "bg-slate-200"}`} />;
+/** Một dòng nhãn và giá trị trong phiếu xác nhận rút tiền. */
 const ReceiptRow = ({ label, value, valueClass = "app-text-main" }: { label: string; value: string; valueClass?: string }) => <div className="flex items-center justify-between gap-4 border-b border-slate-200/70 py-1.5 last:border-0"><span className="shrink-0 text-xs app-text-muted">{label}</span><span className={`min-w-0 break-words text-right text-sm font-semibold ${valueClass}`}>{value}</span></div>;
+/** Một dòng nhãn và số tiền (đã định dạng); có thể in đậm để nhấn mạnh tổng. */
 const MoneyRow = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => <div className="flex justify-between gap-3 py-1.5 text-sm"><span className="app-text-muted">{label}</span><span className={strong ? "font-bold text-emerald-700" : "font-medium app-text-main"}>{money(value)}</span></div>;
 
 export default OrganizerFinance;

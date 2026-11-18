@@ -7,5 +7,7 @@ export const store = configureStore({
   },
 });
 
+/** Kiểu của toàn bộ state trong store. */
 export type RootState = ReturnType<typeof store.getState>;
+/** Kiểu của hàm `dispatch` của store. */
 export type AppDispatch = typeof store.dispatch;

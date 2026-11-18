@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import type { NotificationItem } from "@/types";
 
+/** Props của hộp thư thông báo: danh sách, trạng thái tải/lỗi, các callback, chế độ gọn và hàm tính đường dẫn đích. */
 export interface NotificationInboxProps {
   notifications: NotificationItem[];
   loading?: boolean;
@@ -16,16 +17,21 @@ export interface NotificationInboxProps {
   getTarget?: (item: NotificationItem) => string | null;
 }
 
+/** Bộ lọc theo trạng thái đọc. */
 type ReadFilter = "all" | "unread";
+/** Bộ lọc theo nhóm loại thông báo. */
 type TypeFilter = "all" | "event" | "system" | "alert";
 
+/** Thông báo chưa đọc khi `readStatus` không bật. */
 const isUnread = (item: NotificationItem) => !item.readStatus;
+/** Parse `createdAt` thành `Date`; trả về `null` nếu thiếu hoặc không hợp lệ. */
 const validDate = (item: NotificationItem) => {
   if (!item.createdAt) return null;
   const date = new Date(item.createdAt);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+/** Mô tả thời điểm tương đối (ví dụ "2 giờ trước") theo locale; trả về chuỗi "Time unavailable" nếu không có ngày hợp lệ. */
 function relativeTime(item: NotificationItem, locale: string) {
   const date = validDate(item);
   if (!date) return "Time unavailable";
@@ -38,6 +44,7 @@ function relativeTime(item: NotificationItem, locale: string) {
   return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(Math.round(seconds / size), unit);
 }
 
+/** Đổi loại thông báo thô thành nhãn song ngữ: Sự kiện, Cảnh báo hoặc Hệ thống. */
 function localizedType(type: string, label: (vi: string, en: string) => string) {
   const value = type.toLowerCase();
   if (value.includes("event") || value.includes("calendar")) return label("Sự kiện", "Event");
@@ -45,6 +52,7 @@ function localizedType(type: string, label: (vi: string, en: string) => string) 
   return label("Hệ thống", "System");
 }
 
+/** Chọn biểu tượng theo loại thông báo: lịch cho sự kiện, cảnh báo cho lỗi, chuông cho phần còn lại. */
 function itemIcon(type: string) {
   const value = type.toLowerCase();
   if (value.includes("event") || value.includes("calendar")) return FiCalendar;
@@ -52,16 +60,22 @@ function itemIcon(type: string) {
   return FiBell;
 }
 
+/** Kiểm tra thông báo được tạo trong ngày hôm nay. */
 function isToday(item: NotificationItem) {
   const date = validDate(item);
   const now = new Date();
   return !!date && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
 }
 
+/** Cho biết màn hình đang ở khổ di động (rộng tối đa 700px). */
 function isMobileViewport() {
   return window.matchMedia?.("(max-width: 700px)").matches ?? false;
 }
 
+/**
+ * Hộp thư thông báo. Chế độ `compact` dựng danh sách gọn (nhóm Hôm nay/Trước đó) cho dropdown; chế độ đầy đủ có
+ * bộ lọc, ô tìm kiếm và khung chi tiết, thông báo đang xem lưu ở tham số URL `notificationId`.
+ */
 export function NotificationInbox({
   notifications,
   loading = false,
@@ -75,6 +89,7 @@ export function NotificationInbox({
   const { t, i18n } = useTranslation();
   const language = i18n.language ?? "vi";
   const locale = language.startsWith("en") ? "en-US" : "vi-VN";
+  /** Chọn chuỗi theo ngôn ngữ hiện tại: bản tiếng Anh khi ngôn ngữ là `en`, còn lại bản tiếng Việt. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: language.startsWith("en") ? en : vi });
   const [searchParams, setSearchParams] = useSearchParams();
   const [readFilter, setReadFilter] = useState<ReadFilter>("all");
@@ -101,6 +116,7 @@ export function NotificationInbox({
 
   const compactItems = useMemo(() => notifications.filter((item) => compactFilter === "all" || isUnread(item)), [notifications, compactFilter]);
 
+  /** Chọn một thông báo: ở chế độ đầy đủ thì ghi `notificationId` lên URL (và cuộn tới chi tiết trên di động), rồi gọi callback. */
   const select = (item: NotificationItem) => {
     if (!compact) {
       const params = new URLSearchParams(searchParams);
@@ -113,6 +129,7 @@ export function NotificationInbox({
     onNotificationClick(item);
   };
 
+  /** Dựng một dòng thông báo (biểu tượng, tiêu đề, nội dung, thời gian) có chấm xanh khi chưa đọc. */
   const row = (item: NotificationItem, mode: "compact" | "full") => {
     const Icon = itemIcon(item.type);
     const date = validDate(item);

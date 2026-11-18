@@ -8,11 +8,13 @@ import type { EventSection } from "@/types/adminConfig";
 import { mediaApi } from "@/services/mediaApi";
 import { toast } from "sonner";
 
+/** Props của phần cấu hình khu vực sự kiện: danh sách khu vực và hàm báo thay đổi. */
 interface Props {
   sections: EventSection[];
   onChange: (sections: EventSection[]) => void;
 }
 
+/** Phần cấu hình các khu vực sự kiện trên trang chủ: kéo thả sắp xếp, thêm, sửa, xóa và tải ảnh quảng cáo. */
 export function EventAreasConfig({ sections, onChange }: Props) {
   const { t } = useTranslation();
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -22,17 +24,19 @@ export function EventAreasConfig({ sections, onChange }: Props) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Form State
+  // Trạng thái biểu mẫu
   const [formData, setFormData] = useState<Partial<EventSection>>({});
   const [uploadMode, setUploadMode] = useState<"url" | "upload">("url");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /** Bắt đầu kéo một khu vực. */
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIdx(index);
     e.dataTransfer.effectAllowed = "move";
   };
 
+  /** Đổi chỗ khu vực đang kéo khi rê qua khu vực khác. */
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIdx === null || draggedIdx === index) return;
@@ -44,6 +48,7 @@ export function EventAreasConfig({ sections, onChange }: Props) {
     onChange(items);
   };
 
+  /** Mở hộp thoại thêm mới hoặc sửa một khu vực. */
   const handleOpenModal = (sec?: EventSection) => {
     if (sec) {
       setEditingSection(sec);
@@ -60,6 +65,7 @@ export function EventAreasConfig({ sections, onChange }: Props) {
     setIsModalOpen(true);
   };
 
+  /** Tải ảnh quảng cáo lên máy chủ và gán URL trả về vào biểu mẫu. */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -75,6 +81,7 @@ export function EventAreasConfig({ sections, onChange }: Props) {
     }
   };
 
+  /** Kiểm tra tên và loại hiển thị rồi thêm hoặc cập nhật khu vực. */
   const handleSaveSection = () => {
     if (!formData.title || !formData.type) {
       toast.error(t("Vui lòng nhập tên và chọn loại hiển thị"));
@@ -91,11 +98,13 @@ export function EventAreasConfig({ sections, onChange }: Props) {
     setIsModalOpen(false);
   };
 
+  /** Mở hộp thoại xác nhận xóa khu vực. */
   const confirmDelete = (id: string) => {
     setDeletingId(id);
     setIsConfirmOpen(true);
   };
 
+  /** Xóa khu vực đang chờ xác nhận. */
   const handleDeleteSection = () => {
     if (deletingId) {
       onChange(sections.filter(s => s.id !== deletingId));

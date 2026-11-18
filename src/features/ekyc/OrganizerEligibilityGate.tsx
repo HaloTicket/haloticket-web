@@ -5,6 +5,7 @@ import { ekycApi } from "@/services/ekycApi";
 import { PATHS } from "@/routes/paths";
 import { FiShield, FiRefreshCw, FiArrowLeft, FiCheck } from "react-icons/fi";
 
+/** Cổng chặn trang dành cho ban tổ chức: chỉ hiển thị {@code children} khi tài khoản đã đủ điều kiện eKYC; ngược lại hiện hướng dẫn xác minh hoặc nút thử lại khi lỗi. */
 export default function OrganizerEligibilityGate({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const [state, setState] = useState<"loading" | "allowed" | "denied" | "error">("loading");

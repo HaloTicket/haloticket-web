@@ -5,14 +5,20 @@ import type { MemberRole } from "@/types";
 import { CustomSelect } from "@/components/common/CustomSelect";
 import { describeInvitationFailure } from "../memberInvitationErrors";
 
+/** Vai trò có thể mời: mọi vai trò thành viên trừ chủ sở hữu ({@code OWNER}). */
 type InvitableRole = Exclude<MemberRole, "OWNER">;
 
+/** Props của modal mời thành viên: cờ mở, hàm đóng và hàm gửi lời mời theo email và vai trò. */
 interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (email: string, role: InvitableRole) => Promise<void>;
 }
 
+/**
+ * Modal mời thành viên mới vào sự kiện bằng email và vai trò. Khi mở thì đưa tiêu điểm vào ô email và trả lại khi đóng;
+ * phím Escape đóng modal (trừ lúc đang gửi). Lỗi gửi lời mời được dịch thành thông báo hiển thị trong modal.
+ */
 export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose, onAdd }) => {
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
@@ -32,6 +38,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
 
   useEffect(() => {
     if (!isOpen) return;
+    /** Đóng modal khi nhấn Escape, trừ khi đang gửi lời mời. */
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !sending) onClose();
     };
@@ -41,6 +48,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
 
   if (!isOpen) return null;
 
+  /** Gửi lời mời; thành công thì xóa email và đóng modal, lỗi thì hiện thông báo trong modal. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim();

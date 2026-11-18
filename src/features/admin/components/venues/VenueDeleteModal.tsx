@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AdminConfirmModal } from "../../../../components/admin/AdminConfirmModal";
 import type { SystemVenue } from "@/utils/venueUtils";
 
+/** Props của hộp thoại xác nhận xóa địa điểm: trạng thái mở, địa điểm bị xóa, cờ đang xử lý và thông báo lỗi. */
 interface VenueDeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -12,6 +13,7 @@ interface VenueDeleteModalProps {
   error: string;
 }
 
+/** Hộp thoại xác nhận xóa địa điểm; cảnh báo nếu địa điểm đang liên kết với sự kiện. */
 export const VenueDeleteModal: React.FC<VenueDeleteModalProps> = ({
   isOpen,
   onClose,

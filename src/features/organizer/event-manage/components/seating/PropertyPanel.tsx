@@ -21,7 +21,7 @@ const PALETTE_COLORS = [
   '#ef4444', '#06b6d4', '#6366f1', '#f97316', '#475569',
 ];
 
-// property inspector panel component
+/** Bảng thuộc tính của studio: hiển thị và chỉnh sửa thuộc tính của ghế, sân khấu, cấu trúc hoặc khu đang chọn; khi không chọn gì thì hiện tổng quan số ghế theo trạng thái. Có thể thu gọn. */
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   isCollapsed: externalIsCollapsed,
   onToggleCollapse,
@@ -43,7 +43,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // collapse state declaration
+  // trạng thái thu gọn nội bộ, dùng khi component cha không điều khiển
   const [internalIsCollapsed, setInternalIsCollapsed] = useState<boolean>(false);
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const handleToggle = onToggleCollapse || (() => setInternalIsCollapsed((prev) => !prev));
@@ -54,7 +54,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const selectedStructure = structures.find((st) => st.id === selectedStructureId);
   const selectedZone = selectedZoneId ? zones[selectedZoneId] : null;
 
-  // counts for overview
+  // số lượng cho phần tổng quan
   const availableCount = seats.filter((s) => (s.status || 'available') === 'available').length;
   const btcCount = seats.filter((s) => s.status === 'reserved').length;
   const accessibleCount = seats.filter((s) => s.status === 'accessible').length;

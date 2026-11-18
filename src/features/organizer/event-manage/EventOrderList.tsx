@@ -15,6 +15,7 @@ import * as XLSX from "xlsx";
 
 import OrderDetailsModal from "./components/OrderDetailsModal";
 
+/** Trang danh sách đơn hàng của sự kiện: tìm theo từ khóa, lọc theo suất diễn, phân trang, xem chi tiết đơn và xuất Excel. */
 export const EventOrderList: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -35,6 +36,7 @@ export const EventOrderList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [pageSize, setPageSize] = useState(10);
 
+  /** Hiện thông báo nổi trong 3 giây. */
   const showToastMsg = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
@@ -60,7 +62,7 @@ export const EventOrderList: React.FC = () => {
         if (isMounted) setIsLoading(false);
       });
       
-    // fetch event details to get showtimes
+    // lấy chi tiết sự kiện để có danh sách suất diễn
     eventApi.getEventById(eventId).then((res: any) => {
       if (isMounted && res) {
         setEventDetails(res);
@@ -70,11 +72,12 @@ export const EventOrderList: React.FC = () => {
     return () => { isMounted = false; };
   }, [eventId, searchQuery, showtimeId, currentPage, pageSize]);
 
+  /** Xuất danh sách đơn hàng theo bộ lọc hiện tại ra tệp Excel (tối đa 1000 đơn). */
   const handleExportExcel = async () => {
     if (!eventId) return;
     try {
       showToastMsg(t("Đang chuẩn bị dữ liệu xuất..."));
-      // fetch all for export or just use current page. Let's fetch all (up to 1000) for export
+      // lấy toàn bộ để xuất thay vì chỉ trang hiện tại, tối đa 1000 đơn
       const res = await eventApi.getEventBookings(eventId, searchQuery, showtimeId, 0, 1000);
       const allOrders = res.content || [];
       
@@ -100,6 +103,7 @@ export const EventOrderList: React.FC = () => {
     }
   };
 
+  /** Áp dụng từ khóa tìm kiếm đã nhập và quay về trang 1. */
   const handleSearch = () => {
     setSearchQuery(searchInput);
     setCurrentPage(1);
@@ -107,7 +111,7 @@ export const EventOrderList: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Toast Notification */}
+      {/* Thông báo nổi */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-[9999] bg-blue-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-bottom-3">
           <FiCheckCircle className="w-4 h-4" />
@@ -115,14 +119,14 @@ export const EventOrderList: React.FC = () => {
         </div>
       )}
 
-      {/* Controls Bar */}
+      {/* Thanh điều khiển */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b app-border pb-3">
           <p className="text-xs app-text-muted">
             {t("Quản lý chi tiết đơn hàng đã mua vé, tìm kiếm người xem và gửi thông báo email đến khán giả.")}
           </p>
 
-          {/* Action Buttons */}
+          {/* Các nút hành động */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
@@ -144,9 +148,9 @@ export const EventOrderList: React.FC = () => {
           </div>
         </div>
 
-        {/* Filter Controls & Unified Search Bar */}
+        {/* Bộ lọc và thanh tìm kiếm chung */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Search Input Box matching MyEvents style */}
+          {/* Ô tìm kiếm, cùng kiểu với MyEvents */}
           <div className="flex items-center gap-2 app-bg-card border app-border rounded-xl p-1.5 shadow-xs w-full sm:max-w-md">
             <div className="flex items-center gap-2 flex-1 pl-3">
               <FiSearch className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -228,7 +232,7 @@ export const EventOrderList: React.FC = () => {
         </div>
       </div>
 
-      {/* Orders Table Card with NO row borders */}
+      {/* Thẻ bảng đơn hàng, không có viền giữa các dòng */}
       <div className="app-bg-card border app-border rounded-2xl p-4 shadow-xs space-y-4">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left text-xs table-fixed min-w-[950px] border-collapse">
@@ -299,7 +303,7 @@ export const EventOrderList: React.FC = () => {
           </table>
         </div>
 
-        {/* Table Pagination */}
+        {/* Phân trang */}
         <div className="pt-2 border-t app-border">
           <TablePagination
             currentPage={currentPage}
@@ -312,7 +316,7 @@ export const EventOrderList: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Send Email */}
+      {/* Hộp thoại gửi email */}
       {showEmailModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="app-bg-card border app-border rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl">

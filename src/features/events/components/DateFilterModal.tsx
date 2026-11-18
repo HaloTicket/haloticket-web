@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
+/** Props của hộp thoại lọc ngày: trạng thái mở, hàm đóng, hàm áp dụng và lựa chọn hiện tại. */
 interface DateFilterModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -9,6 +10,7 @@ interface DateFilterModalProps {
   currentPreset?: string;
 }
 
+/** Hộp thoại lọc theo ngày gồm các lựa chọn nhanh (hôm nay, ngày mai, cuối tuần, tháng này) và lịch hai tháng; hiện chỉ lựa chọn nhanh được truyền lên khi áp dụng. */
 export const DateFilterModal: React.FC<DateFilterModalProps> = ({
   isOpen,
   onClose,
@@ -32,11 +34,13 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
   const septDays = Array.from({ length: 30 }, (_, i) => i + 1);
   const octDays = Array.from({ length: 31 }, (_, i) => i + 1);
 
+  /** Đưa lựa chọn về "Tất cả các ngày" và bỏ chọn ngày. */
   const handleReset = () => {
     setSelectedPreset("Tất cả các ngày");
     setSelectedDay(null);
   };
 
+  /** Gửi lựa chọn nhanh đã chọn lên cha rồi đóng hộp thoại. */
   const handleApply = () => {
     onApply(selectedPreset);
     onClose();
@@ -44,7 +48,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
 
   return (
     <div className="absolute top-full right-0 z-50 mt-2 w-[90vw] sm:w-[580px] app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in slide-in-from-top-2">
-      {/* Preset Pill Filters */}
+      {/* Các nút lọc nhanh dạng viên thuốc */}
       <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-200/60 dark:border-slate-800/60">
         {presetOptions.map((preset) => (
           <button
@@ -62,7 +66,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
         ))}
       </div>
 
-      {/* Calendar Header & Dual Months */}
+      {/* Đầu lịch và hai tháng */}
       <div className="space-y-4">
         <div className="flex items-center justify-between font-extrabold text-xs md:text-sm app-text-main px-2">
           <button type="button" className="p-1 hover:app-text-brand cursor-pointer">
@@ -75,9 +79,9 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
           </button>
         </div>
 
-        {/* Dual Month Calendar Grids */}
+        {/* Lưới lịch hai tháng */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-          {/* Month 1: Tháng 09, 2026 */}
+          {/* Tháng 1: Tháng 09, 2026 */}
           <div>
             <div className="grid grid-cols-7 gap-1 text-center font-bold app-text-muted mb-2">
               <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
@@ -101,7 +105,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
             </div>
           </div>
 
-          {/* Month 2: Tháng 10, 2026 */}
+          {/* Tháng 2: Tháng 10, 2026 */}
           <div className="hidden sm:block">
             <div className="grid grid-cols-7 gap-1 text-center font-bold app-text-muted mb-2">
               <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
@@ -129,7 +133,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
         </div>
       </div>
 
-      {/* Action Footer Buttons */}
+      {/* Các nút thao tác ở chân hộp thoại */}
       <div className="flex items-center gap-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
         <button
           type="button"

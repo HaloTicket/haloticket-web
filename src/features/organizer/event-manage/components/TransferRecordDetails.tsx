@@ -3,9 +3,12 @@ import { FiGift, FiRepeat } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 
+/** Thông tin sự kiện đi kèm bản ghi chuyển nhượng: tên và ảnh đại diện. */
 export interface TransferEventInfo { eventTitle?: string; eventThumbnail?: string }
+/** Định dạng số tiền theo VND; không có giá trị thì trả chuỗi "Chưa có thông tin". */
 // eslint-disable-next-line react-refresh/only-export-components -- Shared display formatting belongs with these record components.
 export const transferMoney = (amount?: number | null) => amount == null ? i18n.t("Chưa có thông tin") : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+/** Định dạng ngày giờ ngắn theo {@code vi-VN}; không có hoặc sai giá trị thì trả chuỗi "Chưa có thông tin". */
 // eslint-disable-next-line react-refresh/only-export-components
 export const transferDate = (value?: string | null) => {
   if (!value || Number.isNaN(new Date(value).getTime())) return i18n.t("Chưa có thông tin");
@@ -17,12 +20,14 @@ const statuses: Record<string, [string, string]> = {
   PENDING: ["Chờ xác nhận", "info"], WAITING_RECIPIENT: ["Chờ xác nhận", "info"], COMPLETED: ["Thành công", "success"],
   FAILED: ["Thất bại", "danger"], DECLINED: ["Đã từ chối", "neutral"],
 };
+/** Nhãn trạng thái của tin đăng hoặc giao dịch tặng vé, tô màu theo mức độ; trạng thái đã hủy của giao dịch tặng hiển thị là "Đã hủy". */
 export function TransferStatus({ status, gift = false }: { status: string; gift?: boolean }) {
   const { t } = useTranslation();
   const [label, color] = statuses[status] ?? [status, "neutral"];
   const displayLabel = gift && status === "CANCELLED" ? t("Đã hủy") : t(label);
   return <span className={"transfer-status transfer-status-" + color}>{displayLabel}</span>;
 }
+/** Phần tóm tắt đầu modal chi tiết: ảnh và tên sự kiện, hạng vé, số lượng và mã vé liên quan. */
 export function TransferRecordSummary({ eventTitle, eventThumbnail, type, quantity, ticketIds, gift = false }: TransferEventInfo & { type: string; quantity?: number; ticketIds?: string[]; gift?: boolean }) {
   const { t } = useTranslation();
   return <div className="transfer-record-summary">
@@ -30,6 +35,7 @@ export function TransferRecordSummary({ eventTitle, eventThumbnail, type, quanti
     <div><h3>{eventTitle || t("Vé sự kiện")}</h3><p>{type} · {quantity ?? 1} {t("vé")}</p>{ticketIds?.length ? <p className="transfer-ticket-reference">{t("Mã vé:")} {ticketIds.join(", ")}</p> : null}</div>
   </div>;
 }
+/** Một hàng nhãn và giá trị trong danh sách chi tiết. */
 export function TransferDetailRow({ label, children }: { label: string; children: ReactNode }) {
   return <div className="transfer-detail-row"><dt>{label}</dt><dd>{children}</dd></div>;
 }

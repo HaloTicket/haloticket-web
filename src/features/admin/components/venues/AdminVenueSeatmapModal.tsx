@@ -25,6 +25,7 @@ import { venueApi } from '@/services/venueApi';
 import { PATHS } from '@/routes/paths';
 import { toast } from 'sonner';
 
+/** Props của hộp thoại quản lý sơ đồ ghế của địa điểm: trạng thái mở, địa điểm đang xem, hàm đóng và hàm báo khi mẫu thay đổi. */
 interface AdminVenueSeatmapModalProps {
   isOpen: boolean;
   venue: (SystemVenue & { isPublic?: boolean; organizerId?: string; seatmapTemplate?: string }) | null;
@@ -32,6 +33,7 @@ interface AdminVenueSeatmapModalProps {
   onTemplateUpdated?: () => void;
 }
 
+/** Một sơ đồ mẫu do quản trị viên quản lý cho địa điểm: trạng thái xuất bản, thời điểm tạo và cập nhật, dữ liệu sơ đồ và các số tổng hợp. */
 export interface AdminSeatmapTemplateItem {
   id: string;
   name: string;
@@ -44,6 +46,7 @@ export interface AdminSeatmapTemplateItem {
   totalZones: number;
 }
 
+/** Hộp thoại xem và quản lý sơ đồ ghế của một địa điểm: tab sơ đồ mẫu của quản trị viên (xuất bản, nhân bản, xóa, sửa trong Studio) và tab sơ đồ của ban tổ chức (xem trước, sao chép thành mẫu). */
 export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
   isOpen,
   venue,
@@ -56,17 +59,17 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
   const [data, setData] = useState<VenueSeatmapsResponse | null>(null);
   const [activeTab, setActiveTab] = useState<'admin' | 'organizers'>('admin');
 
-  // admin templates list for this venue
+  // danh sách sơ đồ mẫu của quản trị viên cho địa điểm này
   const [adminTemplates, setAdminTemplates] = useState<AdminSeatmapTemplateItem[]>([]);
   const [selectedAdminTplId, setSelectedAdminTplId] = useState<string | null>(null);
 
-  // selected organizer map
+  // sơ đồ của ban tổ chức đang chọn
   const [selectedOrgIndex, setSelectedOrgIndex] = useState<number>(0);
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const isPublicVenue = venue?.isPublic !== false && !venue?.organizerId;
 
-  // load backend data and stored templates
+  // tải dữ liệu từ backend và các mẫu đã lưu
   useEffect(() => {
     if (isOpen && venue) {
       loadSeatmaps();
@@ -78,6 +81,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     }
   }, [isOpen, venue?.id]);
 
+  /** Tải sơ đồ từ backend, gộp với mẫu lưu trong localStorage; mẫu chính thức của backend luôn được coi là đã xuất bản. */
   const loadSeatmaps = async () => {
     if (!venue) return;
     setLoading(true);
@@ -85,7 +89,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
       const res = await venueApi.getVenueSeatmaps(venue.id);
       setData(res);
 
-      // load additional templates from localStorage
+      // tải thêm các mẫu từ localStorage
       const localKey = `admin_venue_templates_${venue.id}`;
       let localList: AdminSeatmapTemplateItem[] = [];
       try {
@@ -97,7 +101,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
 
       const templatesMap = new Map<string, AdminSeatmapTemplateItem>();
 
-      // if backend has an official adminTemplate, include it as published
+      // nếu backend có sơ đồ mẫu chính thức thì đưa vào danh sách với trạng thái đã xuất bản
       if (res?.adminTemplate) {
         try {
           const parsed: SeatMapDocument = JSON.parse(res.adminTemplate);
@@ -129,11 +133,11 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
         }
       }
 
-      // add local templates
+      // thêm các mẫu lưu cục bộ
       localList.forEach((tpl) => {
-        // if an official template exists from backend, unpublish local ones with same id
+        // nếu backend đã có mẫu chính thức thì bỏ qua mẫu cục bộ trùng mã
         if (res?.adminTemplate && tpl.id === `official_tpl_${venue.id}`) {
-          // already handled
+          // đã được xử lý ở trên
         } else {
           templatesMap.set(tpl.id, {
             ...tpl,
@@ -154,6 +158,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     }
   };
 
+  /** Cập nhật danh sách mẫu trong state và lưu vào localStorage theo mã địa điểm. */
   const saveLocalTemplates = (list: AdminSeatmapTemplateItem[]) => {
     if (!venue) return;
     setAdminTemplates(list);
@@ -164,7 +169,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     }
   };
 
-  // publish a template to organizers
+  // xuất bản một mẫu cho ban tổ chức
+  /** Xuất bản mẫu lên backend (chỉ với địa điểm công cộng) và đánh dấu mẫu đó là mẫu duy nhất đã xuất bản. */
   const handlePublishTemplate = async (template: AdminSeatmapTemplateItem) => {
     if (!venue) return;
     if (!isPublicVenue) {
@@ -183,7 +189,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
       const result = await venueApi.saveVenueSeatmapTemplate(venue.id, JSON.stringify(payload));
       if (result) {
         toast.success(t('Đã xuất bản Sơ đồ mẫu thành công! Ban tổ chức có thể xem và áp dụng mẫu này khi tạo sự kiện.'));
-        // update published status across list
+        // cập nhật trạng thái xuất bản trên toàn danh sách
         const updated = adminTemplates.map((t) => ({
           ...t,
           isPublished: t.id === template.id,
@@ -200,7 +206,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     }
   };
 
-  // unpublish official template
+  // gỡ xuất bản mẫu chính thức
+  /** Sau khi xác nhận, gỡ mẫu chính thức khỏi backend và đặt mọi mẫu về chưa xuất bản. */
   const handleUnpublishTemplate = async (templateId: string) => {
     if (!venue || !window.confirm(t('Bạn có chắc muốn hủy xuất bản sơ đồ này? Ban tổ chức sẽ không còn thấy mẫu này nữa.'))) return;
     setPublishingId(templateId);
@@ -220,7 +227,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     }
   };
 
-  // duplicate template
+  // nhân bản mẫu
+  /** Tạo bản sao chưa xuất bản của một mẫu và chọn bản sao đó. */
   const handleDuplicateTemplate = (tpl: AdminSeatmapTemplateItem) => {
     const duplicated: AdminSeatmapTemplateItem = {
       ...tpl,
@@ -236,7 +244,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     toast.success(t('Đã nhân bản sơ đồ mẫu!'));
   };
 
-  // delete template
+  // xóa mẫu
+  /** Sau khi xác nhận, xóa mẫu khỏi danh sách; nếu mẫu đã xuất bản thì xóa luôn mẫu trên backend. */
   const handleDeleteTemplate = (tpl: AdminSeatmapTemplateItem) => {
     if (!window.confirm(t('Bạn có chắc chắn muốn xóa sơ đồ mẫu "{{name}}"?', { name: tpl.name }))) return;
     if (tpl.isPublished) {
@@ -251,10 +260,11 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     onTemplateUpdated?.();
   };
 
-  // edit template in Designer Studio
+  // sửa mẫu trong Designer Studio
+  /** Lưu mẫu làm bản nháp trong localStorage rồi chuyển sang trang Studio thiết kế sơ đồ của địa điểm. */
   const handleEditInStudio = (tpl: AdminSeatmapTemplateItem) => {
     if (!venue) return;
-    // set active draft in localStorage
+    // đặt bản nháp đang làm việc trong localStorage
     try {
       localStorage.setItem(`admin_venue_seatmap_draft_${venue.id}`, JSON.stringify(tpl.data));
     } catch {
@@ -264,7 +274,8 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     navigate(PATHS.ADMIN_VENUE_SEATMAP(venue.id));
   };
 
-  // clone an Organizer's seatmap into Admin templates
+  // sao chép sơ đồ của ban tổ chức thành mẫu của quản trị viên
+  /** Chuyển bản nháp sơ đồ của ban tổ chức thành mẫu chưa xuất bản (chỉ với địa điểm công cộng). */
   const handleCloneOrganizerSeatmap = (orgSeatmap: VenueOrganizerSeatmap) => {
     if (!venue) return;
     if (!isPublicVenue) {
@@ -312,18 +323,18 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
     }
   };
 
-  // active previewed template
+  // mẫu đang xem trước
   const activeAdminTemplate = useMemo(() => {
     return adminTemplates.find((t) => t.id === selectedAdminTplId) || adminTemplates[0] || null;
   }, [adminTemplates, selectedAdminTplId]);
 
-  // active previewed organizer seatmap
+  // sơ đồ của ban tổ chức đang xem trước
   const activeOrganizerSeatmap = useMemo(() => {
     if (!data?.organizerSeatmaps || data.organizerSeatmaps.length === 0) return null;
     return data.organizerSeatmaps[selectedOrgIndex] || null;
   }, [data?.organizerSeatmaps, selectedOrgIndex]);
 
-  // parse active organizer doc for live SVG preview
+  // phân tích sơ đồ ban tổ chức đang chọn để xem trước SVG trực tiếp
   const activeOrganizerDoc = useMemo<SeatMapDocument | null>(() => {
     if (!activeOrganizerSeatmap?.draftJson) return null;
     try {
@@ -338,7 +349,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 md:p-6 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-lg app-bg-card border app-border shadow-2xl overflow-hidden">
-        {/* Header */}
+        {/* Đầu trang */}
         <div className="flex items-center justify-between px-6 py-4 border-b app-border app-bg-subnav shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-600 flex items-center justify-center font-bold">
@@ -380,7 +391,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
           </button>
         </div>
 
-        {/* Private Venue Alert Banner */}
+        {/* Biểu ngữ cảnh báo địa điểm riêng */}
         {!isPublicVenue && (
           <div className="px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center gap-2">
             <FiAlertCircle className="w-4 h-4 shrink-0" />
@@ -390,7 +401,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
           </div>
         )}
 
-        {/* Tab switcher */}
+        {/* Chuyển tab */}
         <div className="flex items-center justify-between px-6 pt-2 border-b app-border bg-slate-500/5 shrink-0">
           <div className="flex items-center gap-4">
             <button
@@ -438,7 +449,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
           )}
         </div>
 
-        {/* Modal Body */}
+        {/* Thân hộp thoại */}
         <div className="flex-1 overflow-hidden p-5 flex flex-col">
           {loading ? (
             <div className="flex-1 flex items-center justify-center py-20 gap-2.5 text-sm app-text-muted">
@@ -446,7 +457,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
               <span>{t('Đang tải dữ liệu SeatMap...')}</span>
             </div>
           ) : activeTab === 'admin' ? (
-            /* Tab 1: Admin Templates */
+            /* Tab 1: Sơ đồ mẫu của quản trị viên */
             adminTemplates.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
                 <div className="w-14 h-14 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -478,7 +489,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full overflow-hidden">
-                {/* Left: Templates list (7 cols) */}
+                {/* Trái: danh sách mẫu (7 cột) */}
                 <div className="lg:col-span-7 flex flex-col overflow-y-auto space-y-3 pr-1">
                   <div className="text-[11px] font-bold app-text-muted uppercase tracking-wider mb-0.5">
                     {t('Danh sách Sơ đồ mẫu đã tạo')} ({adminTemplates.length}):
@@ -529,7 +540,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Actions */}
+                        {/* Thao tác */}
                         <div className="flex items-center justify-between gap-2 pt-2 border-t app-border">
                           <div className="flex items-center gap-2">
                             {tpl.isPublished ? (
@@ -602,7 +613,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                   })}
                 </div>
 
-                {/* Right: Live Interactive SVG Visual Preview (5 cols) */}
+                {/* Phải: xem trước SVG tương tác trực tiếp (5 cột) */}
                 <div className="lg:col-span-5 p-4 rounded-lg app-bg-subnav border app-border flex flex-col justify-between overflow-y-auto space-y-4">
                   {activeAdminTemplate ? (
                     <div className="space-y-3.5 flex-1 flex flex-col">
@@ -620,7 +631,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                         </span>
                       </div>
 
-                      {/* SVG Live Preview */}
+                      {/* Xem trước SVG trực tiếp */}
                       <div className="relative w-full h-56 rounded-md bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
                         <svg className="w-full h-full" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet">
                           <defs>
@@ -630,7 +641,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                           </defs>
                           <rect width="100%" height="100%" fill="url(#adminPreviewGrid)" />
 
-                          {/* Stages */}
+                          {/* Sân khấu */}
                           {(activeAdminTemplate.data.stages || []).map((stg, idx) => (
                             <g key={idx} transform={`translate(${stg.x}, ${stg.y}) rotate(${stg.rotation || 0})`}>
                               <rect
@@ -655,7 +666,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             </g>
                           ))}
 
-                          {/* Zones */}
+                          {/* Các khu */}
                           {Object.values(activeAdminTemplate.data.zones || {}).map((zone, idx) => (
                             <g key={idx} transform={`translate(${zone.x}, ${zone.y}) rotate(${zone.rotation || 0})`}>
                               <rect
@@ -681,7 +692,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             </g>
                           ))}
 
-                          {/* Seats sample */}
+                          {/* Ghế mẫu */}
                           {(activeAdminTemplate.data.seats || []).slice(0, 160).map((seat, idx) => {
                             const zColor = (activeAdminTemplate.data.zones as any)?.[seat.zoneId]?.color || '#3b82f6';
                             return (
@@ -699,7 +710,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                         </svg>
                       </div>
 
-                      {/* Zone breakdown stats */}
+                      {/* Thống kê theo khu */}
                       <div className="space-y-1.5">
                         <span className="text-[11px] font-bold app-text-muted uppercase tracking-wider">
                           {t('Phân khu trong sơ đồ')} ({activeAdminTemplate.totalZones}):
@@ -738,7 +749,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
               </div>
             )
           ) : (
-            /* Tab 2: Organizer Seatmaps */
+            /* Tab 2: Sơ đồ của ban tổ chức */
             (!data?.organizerSeatmaps || data.organizerSeatmaps.length === 0) ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
                 <div className="w-14 h-14 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -755,7 +766,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full overflow-hidden">
-                {/* Left: Organizer Seatmaps list (7 cols) */}
+                {/* Trái: danh sách sơ đồ của ban tổ chức (7 cột) */}
                 <div className="lg:col-span-7 flex flex-col overflow-y-auto space-y-3 pr-1">
                   <div className="text-[11px] font-bold app-text-muted uppercase tracking-wider mb-0.5">
                     {t('Sơ đồ do Ban Tổ Chức thiết kế cho các sự kiện')} ({data.organizerSeatmaps.length}):
@@ -817,7 +828,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Clone action */}
+                        {/* Thao tác sao chép */}
                         <div className="flex items-center justify-between gap-2 pt-2 border-t app-border">
                           <span className="text-[11px] text-slate-400">
                             {s.seatLayoutId ? `Layout: #${s.seatLayoutId}` : ''}
@@ -841,7 +852,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                   })}
                 </div>
 
-                {/* Right: Live Interactive SVG Visual Preview (5 cols) */}
+                {/* Phải: xem trước SVG tương tác trực tiếp (5 cột) */}
                 <div className="lg:col-span-5 p-4 rounded-lg app-bg-subnav border app-border flex flex-col justify-between overflow-y-auto space-y-4">
                   {activeOrganizerSeatmap && activeOrganizerDoc ? (
                     <div className="space-y-3.5 flex-1 flex flex-col">
@@ -856,7 +867,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                         </div>
                       </div>
 
-                      {/* SVG Live Preview */}
+                      {/* Xem trước SVG trực tiếp */}
                       <div className="relative w-full h-56 rounded-md bg-slate-950 border border-slate-800 p-2 overflow-hidden flex items-center justify-center shadow-inner">
                         <svg className="w-full h-full" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet">
                           <defs>
@@ -866,7 +877,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                           </defs>
                           <rect width="100%" height="100%" fill="url(#orgPreviewGrid)" />
 
-                          {/* Stages */}
+                          {/* Sân khấu */}
                           {(activeOrganizerDoc.stages || []).map((stg, idx) => (
                             <g key={idx} transform={`translate(${stg.x}, ${stg.y}) rotate(${stg.rotation || 0})`}>
                               <rect
@@ -891,7 +902,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             </g>
                           ))}
 
-                          {/* Zones */}
+                          {/* Các khu */}
                           {Object.values(activeOrganizerDoc.zones || {}).map((zone, idx) => (
                             <g key={idx} transform={`translate(${zone.x}, ${zone.y}) rotate(${zone.rotation || 0})`}>
                               <rect
@@ -917,7 +928,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                             </g>
                           ))}
 
-                          {/* Seats sample */}
+                          {/* Ghế mẫu */}
                           {(activeOrganizerDoc.seats || []).slice(0, 160).map((seat, idx) => {
                             const zColor = (activeOrganizerDoc.zones as any)?.[seat.zoneId]?.color || '#3b82f6';
                             return (
@@ -935,7 +946,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                         </svg>
                       </div>
 
-                      {/* Zone breakdown stats */}
+                      {/* Thống kê theo khu */}
                       <div className="space-y-1.5">
                         <span className="text-[11px] font-bold app-text-muted uppercase tracking-wider">
                           {t('Phân khu trong sơ đồ')}:

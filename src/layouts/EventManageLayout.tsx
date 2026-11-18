@@ -7,6 +7,7 @@ import { EVENT_TICKETS_SYNC_CHANGED } from "@/utils/eventSaveErrors";
 import { TicketsSyncBanner, type TicketsSync } from "@/features/organizer/event-manage/components/TicketsSyncBanner";
 import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
+/** Bố cục trang quản lý một sự kiện của ban tổ chức: tải sự kiện theo `eventId` và vai trò của người dùng trong sự kiện, hiển thị thanh bên và nội dung trang con. */
 export const EventManageLayout: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -17,6 +18,7 @@ export const EventManageLayout: React.FC = () => {
   const myRoleLoaded = current !== null;
   const myRole = current ? current.role : null;
 
+  /** Tải lại dữ liệu sự kiện; cũng được gọi khi đồng bộ vé của sự kiện thay đổi. */
   const refreshEvent = useCallback(() => {
     if (!eventId) return;
     eventApi.getEventById(eventId).then((data) => {

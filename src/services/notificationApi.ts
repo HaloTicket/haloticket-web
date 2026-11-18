@@ -1,7 +1,7 @@
 import axiosClient from "./axiosClient";
 
 export const notificationApi = {
-  // fetch user notifications from DB
+    /** Lấy danh sách thông báo của người dùng; ném lỗi nếu phản hồi không phải mảng. */
   getUserNotifications: async (userId: string = "ADMIN"): Promise<Record<string, unknown>[]> => {
     const response: unknown = await axiosClient.get(`/notifications/users/${userId}`);
     if (Array.isArray(response)) {
@@ -10,17 +10,17 @@ export const notificationApi = {
     throw new Error("INVALID_NOTIFICATION_RESPONSE");
   },
 
-  // mark single notification as read in DB
+    /** Đánh dấu một thông báo là đã đọc. */
   markNotificationAsRead: async (id: string): Promise<unknown> => {
     return await axiosClient.patch(`/notifications/${id}/read`);
   },
 
-  // mark all notifications for a user as read in DB
+    /** Đánh dấu toàn bộ thông báo của người dùng là đã đọc. */
   markAllNotificationsAsRead: async (userId: string): Promise<unknown> => {
     return await axiosClient.patch(`/notifications/users/${userId}/read-all`);
   },
 
-  // publish notification payload via backend endpoint
+    /** Gửi nội dung thông báo qua backend; lỗi thì ghi cảnh báo và trả về `null`. */
   publishNotification: async (data: { userId: string; type: string; title: string; message: string }): Promise<unknown> => {
     try {
       const response: unknown = await axiosClient.post("/notifications/publish", data);

@@ -2,10 +2,12 @@ import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiAlertCircle } from "react-icons/fi";
 
+/** Props của hộp thoại lưu ý: hàm đóng. */
 interface NoticeModalProps {
   onClose: () => void;
 }
 
+/** Hộp thoại lưu ý quan trọng khi đăng sự kiện (không đưa thông tin liên lạc của ban tổ chức, quyền từ chối và gỡ sự kiện của HaloTicket). */
 export const NoticeModal: React.FC<NoticeModalProps> = ({ onClose }) => {
   const { t: translate } = useTranslation();
   return (

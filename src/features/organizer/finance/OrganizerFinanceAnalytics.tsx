@@ -5,8 +5,10 @@ import { FiCalendar, FiChevronDown, FiCheck } from "react-icons/fi";
 import { formatRevenueDate, revenueRange, type RevenuePeriod } from "./revenuePeriods";
 
 const colors = ["#005cff", "#00b585", "#ffab24"];
+/** Định dạng số tiền theo kiểu Việt Nam kèm ký hiệu ₫. */
 const money = (value: unknown) => `${Number(value).toLocaleString("vi-VN")} ₫`;
 
+/** Biểu đồ doanh thu theo thời gian (theo ngày, tháng, năm hoặc khoảng tùy chọn) và cơ cấu dòng tiền (đã nhận, có thể rút, đang xử lý); doanh thu gom theo ngày kết thúc sự kiện. */
 export function OrganizerFinanceAnalytics({ events, payouts, loading, error, from, to, period = "recent", onRangeChange }: {
   events: EventSettlement[];
   payouts: PayoutResponse[];
@@ -20,6 +22,7 @@ export function OrganizerFinanceAnalytics({ events, payouts, loading, error, fro
   const [menuOpen, setMenuOpen] = useState(false);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   const labels: Record<RevenuePeriod, string> = { recent: "Theo ngày", month: "Theo tháng", year: "Theo năm", custom: "Tùy chọn thời gian" };
+  /** Đổi kiểu thống kê: đóng menu rồi báo khoảng ngày tương ứng cho component cha (kiểu tùy chọn giữ nguyên khoảng hiện tại). */
   const choose = (next: RevenuePeriod) => {
     setMenuOpen(false);
     const range = next === "custom" ? { from, to } : revenueRange(next, today);

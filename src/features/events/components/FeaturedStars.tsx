@@ -5,12 +5,14 @@ import { FiStar, FiCheck, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import type { EventApiData } from "@/services/eventApi";
 
+/** Props của khu vực ngôi sao nổi bật: tiêu đề, số lượng tối đa và danh sách sự kiện (nếu không truyền thì tự tải từ API). */
 interface FeaturedStarsProps {
   title?: string;
   limit?: number;
   events?: EventApiData[];
 }
 
+/** Khu vực ban tổ chức nổi bật: gom sự kiện theo ban tổ chức, xếp theo điểm phổ biến (lượt xem) và số sự kiện, hiển thị dưới dạng dải thẻ cuộn ngang. */
 export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10, events }) => {
   const { t: translate } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -19,13 +21,14 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
   const [stars, setStars] = useState<{id: string, name: string, avatar: string, verified: boolean}[]>([]);
 
   useEffect(() => {
+    /** Gom sự kiện theo ban tổ chức, tính điểm phổ biến rồi lưu danh sách đã sắp xếp tối đa {@code limit} ban tổ chức. */
     const processData = (data: EventApiData[]) => {
       if (!data || data.length === 0) return;
       const organizerMap = new Map<string, any>();
       
       data.forEach(e => {
         const eAny = e as any;
-        // try to get real organizer from event object or fallback to author
+        // lấy ban tổ chức thật từ sự kiện, nếu không có thì dùng tác giả
         const orgId = eAny.organizer?.id || eAny.organizer?.userId || e.author || eAny.organizerName || "unknown";
         if (orgId === "unknown") return;
         
@@ -39,7 +42,7 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
             avatar: orgAvatar,
             verified: true,
             eventCount: 1,
-            // mock some popularity metrics since we don't have ticket sales data in allEvents
+            // điểm phổ biến ước lượng vì dữ liệu allEvents không có số liệu bán vé
             popularityScore: (e.pageViews as number || 0) + 10
           });
         } else {
@@ -49,7 +52,7 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
         }
       });
       
-      // sort by popularity and event count
+      // sắp xếp theo độ phổ biến rồi đến số sự kiện
       const computedStars = Array.from(organizerMap.values()).sort((a, b) => {
         if (b.popularityScore !== a.popularityScore) return b.popularityScore - a.popularityScore;
         return b.eventCount - a.eventCount;
@@ -67,6 +70,7 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
     }
   }, [events, limit]);
 
+  /** Cập nhật việc hiện hay ẩn nút cuộn trái và phải theo vị trí cuộn hiện tại. */
   const checkScroll = () => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
@@ -79,12 +83,14 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
     checkScroll();
   }, []);
 
+  /** Cuộn dải thẻ sang trái 300 điểm ảnh. */
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: -300, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải thẻ sang phải 300 điểm ảnh. */
   const scrollRight = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: 300, behavior: "smooth" });
@@ -93,7 +99,7 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
 
   return (
     <div className="relative mb-12 py-7 px-4 md:px-6 rounded-3xl bg-[#121418] border border-slate-800/90 overflow-hidden shadow-2xl">
-      {/* Background SVG Wave Pattern */}
+      {/* Họa tiết sóng SVG làm nền */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-90 z-0">
         <svg
           className="w-full h-full object-cover"
@@ -163,11 +169,11 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
         </svg>
       </div>
 
-      {/* Radial Glow Ambient Orbs */}
+      {/* Các quầng sáng phát tán */}
       <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none z-0" />
       <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none z-0" />
 
-      {/* Section Header */}
+      {/* Tiêu đề khu vực */}
       <div className="relative z-10 flex items-center justify-between mb-5 px-1">
         <h2 className="text-xl md:text-2xl font-extrabold text-white flex items-center gap-2 tracking-tight">
           <FiStar className="w-5 h-5 text-amber-400 fill-amber-400" />
@@ -182,9 +188,9 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
         </Link>
       </div>
 
-      {/* Ticketbox-Style Sleek Dark Glass Cards Carousel */}
+      {/* Dải thẻ kính tối kiểu Ticketbox */}
       <div className="relative z-10 group">
-        {/* Navigation Arrow Left (Only visible when scrolled right) */}
+        {/* Nút mũi tên trái (chỉ hiện khi đã cuộn sang phải) */}
         {showLeft && (
           <button
             type="button"
@@ -196,7 +202,7 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
           </button>
         )}
 
-        {/* Scrollable Container */}
+        {/* Vùng chứa cuộn */}
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
@@ -233,7 +239,7 @@ export const FeaturedStars: React.FC<FeaturedStarsProps> = ({ title, limit = 10,
           ))}
         </div>
 
-        {/* Navigation Arrow Right (Only visible when more items exist to the right) */}
+        {/* Nút mũi tên phải (chỉ hiện khi còn mục bên phải) */}
         {showRight && (
           <button
             type="button"

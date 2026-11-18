@@ -1,10 +1,12 @@
-// Pre-publish checks of a seat map. Pure: takes the layout and the ticket tiers, returns a list of issues.
+// Kiểm tra sơ đồ ghế trước khi xuất bản. Thuần túy: nhận bố cục và các hạng vé, trả về danh sách vấn đề.
 import type { Seat, SeatTier } from '@/types/seating';
 import { isSeatInsideZone } from '@/utils/seatMapHelpers';
 import type { SeatMapLayout } from './seatMapEditing';
 
+/** Mức độ của vấn đề: lỗi (chặn xuất bản) hoặc cảnh báo. */
 export type SeatMapIssueSeverity = 'error' | 'warning';
 
+/** Mã định danh từng loại vấn đề mà bộ kiểm tra có thể phát hiện. */
 export type SeatMapIssueCode =
   | 'NO_SEATS'
   | 'DUPLICATE_SEAT_LABEL'
@@ -15,30 +17,40 @@ export type SeatMapIssueCode =
   | 'SEATS_WITHOUT_TIER'
   | 'ZONE_EMPTY';
 
+/** Phần tử mà vấn đề nhắc tới, để bảng kiểm tra cuộn tới và chọn. */
 export interface SeatMapIssueTarget {
   kind: 'seat' | 'zone';
-  id: string; // the element to scroll to
-  ids?: string[]; // all the seats concerned, when kind is 'seat'
+  id: string; // phần tử cần cuộn tới
+  ids?: string[]; // mọi ghế liên quan, khi kind là 'seat'
 }
 
+/** Một vấn đề tìm thấy trong sơ đồ: id, mã, mức độ, mẫu thông báo kèm tham số và phần tử liên quan. */
 export interface SeatMapIssue {
   id: string;
   code: SeatMapIssueCode;
   severity: SeatMapIssueSeverity;
-  // i18n key (the Vietnamese sentence with {{placeholders}}) and its values: the panel calls t(template, params)
+  // khóa i18n (câu tiếng Việt có {{placeholders}}) và giá trị của nó: bảng kiểm tra gọi t(template, params)
   template: string;
   params: Record<string, string | number>;
   target?: SeatMapIssueTarget;
 }
 
+/** Nhãn ghế gồm hàng ghép với số ghế. */
 const label = (seat: Seat) => `${seat.row}${seat.number}`;
 
+/**
+ * Kiểm tra sơ đồ: không có ghế hoặc khu đứng nào, ghế trùng nhãn trong một khu, ghế thuộc khu không còn hoặc nằm ngoài khu,
+ * khu chưa gán hạng vé hoặc gán hạng vé không tồn tại, ghế chưa có hạng vé, khu không có ghế lẫn sức chứa.
+ * @param layout - bố cục sơ đồ cần kiểm tra
+ * @param tiers - các hạng vé của sự kiện
+ * @returns danh sách vấn đề, rỗng nếu sơ đồ hợp lệ
+ */
 export const validateSeatMap = (layout: SeatMapLayout, tiers: SeatTier[]): SeatMapIssue[] => {
   const issues: SeatMapIssue[] = [];
   const zones = Object.values(layout.zones);
   const tierIds = new Set(tiers.map((tier) => tier.id));
 
-  // a map with neither seats nor a standing zone with a capacity cannot sell anything
+  // sơ đồ không có ghế và cũng không có khu đứng có sức chứa thì không bán được gì
   const hasStanding = zones.some((zone) => (zone.capacity ?? 0) > 0);
   if (layout.seats.length === 0 && !hasStanding) {
     issues.push({
@@ -50,7 +62,7 @@ export const validateSeatMap = (layout: SeatMapLayout, tiers: SeatTier[]): SeatM
     });
   }
 
-  // duplicate labels inside one zone: same row and number
+  // nhãn trùng trong cùng một khu: cùng hàng và cùng số
   const byLabel = new Map<string, Seat[]>();
   for (const seat of layout.seats) {
     const key = `${seat.zoneId}|${String(seat.row).trim().toLowerCase()}|${seat.number}`;
@@ -71,7 +83,7 @@ export const validateSeatMap = (layout: SeatMapLayout, tiers: SeatTier[]): SeatM
     });
   });
 
-  // seats whose zone is gone, and seats lying outside the zone they belong to
+  // ghế có khu đã bị xóa, và ghế nằm ngoài khu mà nó thuộc về
   const missingZone = new Map<string, Seat[]>();
   const outside = new Map<string, Seat[]>();
   for (const seat of layout.seats) {
@@ -107,7 +119,7 @@ export const validateSeatMap = (layout: SeatMapLayout, tiers: SeatTier[]): SeatM
     })
   );
 
-  // ticket tiers
+  // hạng vé
   const seatsByZone = new Map<string, Seat[]>();
   for (const seat of layout.seats) {
     const list = seatsByZone.get(seat.zoneId);
@@ -136,7 +148,7 @@ export const validateSeatMap = (layout: SeatMapLayout, tiers: SeatTier[]): SeatM
       });
     }
 
-    // a seat takes the tier of its own, or else its zone's: it has none only when both are empty
+    // ghế lấy hạng vé riêng, nếu không có thì lấy của khu: chỉ khi cả hai đều trống ghế mới không có hạng vé
     if (!zone.tierId) {
       const untiered = zoneSeats.filter((seat) => !seat.tierId);
       if (untiered.length) {
@@ -166,6 +178,7 @@ export const validateSeatMap = (layout: SeatMapLayout, tiers: SeatTier[]): SeatM
   return issues;
 };
 
+/** Đếm số lỗi và số cảnh báo trong danh sách vấn đề. */
 export const countIssues = (issues: SeatMapIssue[]): { errors: number; warnings: number } => ({
   errors: issues.filter((issue) => issue.severity === 'error').length,
   warnings: issues.filter((issue) => issue.severity === 'warning').length,

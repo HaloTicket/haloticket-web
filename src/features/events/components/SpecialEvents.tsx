@@ -6,12 +6,14 @@ import { eventApi } from "@/services/eventApi";
 
 import type { EventApiData } from "@/services/eventApi";
 
+/** Props của khu vực sự kiện đặc biệt: tiêu đề, số lượng tối đa và danh sách sự kiện (nếu không truyền thì tự tải từ API). */
 interface SpecialEventsProps {
   title?: string;
   limit?: number;
   events?: EventApiData[];
 }
 
+/** Khu vực sự kiện đặc biệt: poster các sự kiện nổi bật (đang hot hoặc giá trên 500.000), bổ sung ngẫu nhiên cho đủ {@code limit}, cuộn ngang. */
 export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, events: propEvents }) => {
   const { t: translate } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -19,12 +21,13 @@ export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, 
   const [showRight, setShowRight] = useState(true);
   const [events, setEvents] = useState<Array<EventApiData>>([]);
 
-  // fetch event data
+  // tải dữ liệu sự kiện
   useEffect(() => {
+    /** Lọc sự kiện đặc biệt và bổ sung ngẫu nhiên nếu chưa đủ số lượng. */
     const filterSpecialEvents = (data: EventApiData[]) => {
-      // special event criteria: high-value event or isHot
+      // tiêu chí sự kiện đặc biệt: giá trị cao hoặc isHot
       const special = data.filter(e => e.isHot || Number(e.minPrice || e.price) > 500000);
-      // if there aren't enough, select at random.
+      // nếu chưa đủ thì chọn ngẫu nhiên thêm
       if (special.length < limit) {
         const others = data.filter(e => !special.includes(e));
         special.push(...others.sort(() => 0.5 - Math.random()).slice(0, limit - special.length));
@@ -43,6 +46,7 @@ export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, 
     }
   }, [propEvents, limit]);
 
+  /** Cập nhật việc hiện hay ẩn nút cuộn trái và phải theo vị trí cuộn hiện tại. */
   const checkScroll = () => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
@@ -55,12 +59,14 @@ export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, 
     checkScroll();
   }, [events]);
 
+  /** Cuộn dải poster sang trái 350 điểm ảnh. */
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: -350, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải poster sang phải 350 điểm ảnh. */
   const scrollRight = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: 350, behavior: "smooth" });
@@ -71,15 +77,15 @@ export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, 
 
   return (
     <div className="mb-12">
-      {/* Header */}
+      {/* Tiêu đề */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main tracking-tight">
           {translate(title || "Sự kiện đặc biệt")}</h2>
       </div>
 
-      {/* Poster Cards Carousel Wrapper */}
+      {/* Khung băng chuyền poster */}
       <div className="relative group">
-        {/* Navigation Arrow Left */}
+        {/* Nút mũi tên trái */}
         {showLeft && (
           <button
             type="button"
@@ -91,7 +97,7 @@ export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, 
           </button>
         )}
 
-        {/* Scrollable Posters Container */}
+        {/* Vùng cuộn các poster */}
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
@@ -114,7 +120,7 @@ export const SpecialEvents: React.FC<SpecialEventsProps> = ({ title, limit = 8, 
           ))}
         </div>
 
-        {/* Navigation Arrow Right */}
+        {/* Nút mũi tên phải */}
         {showRight && (
           <button
             type="button"

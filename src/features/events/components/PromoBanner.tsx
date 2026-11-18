@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import React from "react";
 
+/** Props của banner quảng bá: loại cấu hình sẵn (vib, shopee, greensm) và các trường tùy chỉnh ghi đè nội dung mặc định. */
 interface PromoBannerProps {
   type?: "vib" | "shopee" | "greensm";
   className?: string;
@@ -12,6 +13,7 @@ interface PromoBannerProps {
   buttonUrl?: string;
 }
 
+/** Banner quảng bá: dùng nội dung cấu hình sẵn theo {@code type}, các trường truyền vào được ưu tiên; có ảnh nền tùy chọn và nút kêu gọi hành động. */
 export const PromoBanner: React.FC<PromoBannerProps> = ({
   type = "vib",
   className = "my-10",
@@ -64,15 +66,15 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
     >
       {imageUrl && <div className="absolute inset-0 bg-slate-900/70" />}
       <div className="z-10 max-w-2xl text-center md:text-left">
-        {/* Crisp Subtitle */}
+        {/* Phụ đề nổi bật */}
         <div className={`text-xs md:text-sm font-black tracking-widest uppercase mb-1.5 ${imageUrl ? 'text-amber-400' : config.partnerColor}`}>
           {translate(displaySubtitle)}
         </div>
-        {/* Title */}
+        {/* Tiêu đề */}
         <h3 className="text-lg md:text-2xl font-black text-white leading-tight mb-2 tracking-tight">
           {translate(displayTitle)}
         </h3>
-        {/* Description */}
+        {/* Mô tả */}
         <p className="text-xs md:text-sm text-slate-300 font-medium">
           {translate(displayDescription)}
         </p>
@@ -87,7 +89,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
         </a>
       </div>
 
-      {/* Decorative Blur Elements */}
+      {/* Các phần tử mờ trang trí */}
       {!imageUrl && (
         <div className="absolute right-0 top-0 w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none" />
       )}

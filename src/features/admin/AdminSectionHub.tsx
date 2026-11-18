@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 
+/** Trang trung tâm của một nhóm menu admin: liệt kê các mục con dưới dạng thẻ liên kết; không dựng gì nếu đường dẫn hiện tại không phải nhóm. */
 export default function AdminSectionHub() {
   const { pathname } = useLocation();
   const { t, i18n } = useTranslation();
   const route = resolveAdminNavigation(pathname);
   if (!route?.isGroup) return null;
+  /** Chọn nhãn theo ngôn ngữ hiện tại: bản tiếng Anh khi ngôn ngữ là `en`, còn lại bản tiếng Việt. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   return <section className="space-y-6">
     <AdminPageHeader title={label(route.group.label, route.group.english)} description={t(route.group.description)} />

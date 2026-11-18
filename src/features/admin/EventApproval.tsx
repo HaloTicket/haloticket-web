@@ -22,6 +22,7 @@ import { RiskBadge } from "@/features/admin/components/RiskBadge";
 import type { AiRiskScoreResponse } from "@/types/ai";
 import type { ApprovalEventItem } from "@/types";
 
+/** Một hạng vé trong hồ sơ sự kiện chờ duyệt: tên, giá, số lượng và mô tả. */
 interface ApprovalTicket {
   name?: string;
   price?: number;
@@ -31,6 +32,7 @@ interface ApprovalTicket {
   [key: string]: unknown;
 }
 
+/** Dữ liệu thô của sự kiện chờ duyệt từ API, trước khi chuẩn hóa thành `ApprovalEventItem`. */
 interface ApprovalEventRaw {
   id?: string;
   title?: string;
@@ -58,6 +60,10 @@ interface ApprovalEventRaw {
 
 const RISK_CHUNK = 30;
 
+/**
+ * Trang duyệt sự kiện của admin: tab theo trạng thái, tìm kiếm, lọc theo ngày và mức rủi ro AI, sắp xếp (mặc định ở tab chờ duyệt
+ * thì xếp theo điểm rủi ro giảm dần), phân trang 4 mục mỗi trang. Tự tải lại khi có sự kiện `approval-events-updated`.
+ */
 export const EventApproval: React.FC = () => {
   const { t: translate } = useTranslation();
 
@@ -65,7 +71,7 @@ export const EventApproval: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // pagination state
+  // state phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 4;
 
@@ -81,17 +87,20 @@ export const EventApproval: React.FC = () => {
   const [sortChoice, setSortChoice] = useState<"auto" | "risk" | "date">("auto");
   const riskRequest = useRef(0);
 
+  /** Hiện banner thông báo tạm thời, tự ẩn sau 3,5 giây. */
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
   };
 
-  // load real event approval records from backend CSDL
+  // tải danh sách sự kiện cần duyệt thật từ backend
+  /** Tải mọi sự kiện duyệt từ API, chuẩn hóa dữ liệu hiển thị (lọc hạng vé ẩn hoặc trùng tên), sắp mới nhất trước và tính số lượng theo tab. */
   const loadApprovalEvents = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await eventApi.getApprovalEvents("ALL");
       if (Array.isArray(data)) {
+        /** Định dạng thời điểm gửi duyệt theo kiểu vi-VN; chuỗi không phải ngày hợp lệ được giữ nguyên, thiếu thì hiện "Vừa gửi". */
         const formatTimestamp = (rawDate?: string) => {
           if (!rawDate) return translate("Vừa gửi");
           const cleaned = String(rawDate).replace(/^Gửi lúc:\s*/i, "").trim();
@@ -108,6 +117,7 @@ export const EventApproval: React.FC = () => {
           return cleaned;
         };
 
+        /** Tóm tắt ngày diễn ra: ưu tiên chuỗi tóm tắt từ API (đổi "Tháng" thành dấu "/"), nếu không thì định dạng từ giờ bắt đầu. */
         const formatDatesSummary = (summary?: string, startTime?: string) => {
           if (summary) {
             return summary.replace(/\s*Tháng\s*0?/gi, "/");
@@ -157,7 +167,7 @@ export const EventApproval: React.FC = () => {
           galleryImages: Array.isArray(item.galleryImages) ? item.galleryImages : []
         }));
 
-        // sort events by start time (newest first)
+        // sắp sự kiện theo giờ bắt đầu (mới nhất trước)
         formattedList.sort((a, b) => {
           const timeA = new Date(a.startTime || a.createdAt || a.submittedAt || 0).getTime();
           const timeB = new Date(b.startTime || b.createdAt || b.submittedAt || 0).getTime();
@@ -167,7 +177,7 @@ export const EventApproval: React.FC = () => {
           return String(b.id).localeCompare(String(a.id));
         });
 
-        // Compute counts
+        // tính số lượng theo từng trạng thái
         const newCounts = { PENDING: 0, UPDATE_PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: formattedList.length };
         formattedList.forEach(item => {
           if (item.eventApprovalStatus === "PENDING") newCounts.PENDING++;
@@ -197,7 +207,7 @@ export const EventApproval: React.FC = () => {
     };
   }, [loadApprovalEvents]);
 
-  // layer A+B risk of all events in the view (no model call). The server scores at most 30 files per request.
+  /** Lấy rủi ro tầng A+B của mọi sự kiện đang xem (không gọi mô hình); máy chủ chấm tối đa 30 hồ sơ mỗi yêu cầu nên chia lô và bỏ qua kết quả của lượt cũ. */
   const loadRisk = useCallback(async (items: ApprovalEventItem[]) => {
     const ids = items
       .filter((item) => item.id)
@@ -236,7 +246,7 @@ export const EventApproval: React.FC = () => {
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.organizerName && item.organizerName.toLowerCase().includes(searchQuery.toLowerCase()));
       
-    // Date filter
+    // Lọc theo ngày
     let matchesDate = true;
     if (dateFilter !== "all" && item.startTime) {
       const eventDate = new Date(item.startTime);
@@ -261,7 +271,7 @@ export const EventApproval: React.FC = () => {
 
   const effectiveSort = sortChoice === "auto" ? (activeTab === "PENDING" ? "risk" : "date") : sortChoice;
   if (effectiveSort === "risk") {
-    // highest score first; files without a score go last. Array.sort is stable, so equal scores keep the date order.
+    // điểm cao nhất lên đầu; hồ sơ chưa có điểm xếp cuối. Array.sort ổn định nên các hồ sơ bằng điểm giữ thứ tự theo ngày.
     filteredEvents.sort((a, b) => (risk[String(b.id)]?.risk_score ?? -1) - (risk[String(a.id)]?.risk_score ?? -1));
   }
 
@@ -270,7 +280,7 @@ export const EventApproval: React.FC = () => {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
-      {/* Toast Banner */}
+      {/* Banner thông báo */}
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-[9999] px-5 py-3.5 rounded-xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-4 duration-200 ${toast.type === "success"
@@ -285,7 +295,7 @@ export const EventApproval: React.FC = () => {
         </div>
       )}
 
-      {/* Header & Filter Controls */}
+      {/* Tiêu đề và bộ lọc */}
       <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
           <div>
@@ -309,7 +319,7 @@ export const EventApproval: React.FC = () => {
           </button>
         </div>
 
-        {/* Tab Filters */}
+        {/* Tab lọc */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 app-bg-subnav p-1 rounded-lg border border-slate-200 dark:border-slate-800 w-full sm:w-auto flex-wrap">
             {(["PENDING", "UPDATE_PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((tab) => (
@@ -343,7 +353,7 @@ export const EventApproval: React.FC = () => {
             ))}
           </div>
 
-          {/* Search & Select */}
+          {/* Tìm kiếm và chọn lọc */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <input
               aria-label={translate("Tìm sự kiện")}
@@ -414,7 +424,7 @@ export const EventApproval: React.FC = () => {
         </div>
       )}
 
-      {/* Events Approval List Table */}
+      {/* Bảng danh sách duyệt sự kiện */}
       <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left text-xs table-fixed min-w-[1000px]">
@@ -526,7 +536,7 @@ export const EventApproval: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer */}
+        {/* Chân trang phân trang */}
         {totalPages > 1 && (
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <span className="app-text-muted font-medium">

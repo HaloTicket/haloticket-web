@@ -13,11 +13,13 @@ import { adminConfigApi } from "@/services/adminConfigApi";
 import type { Banner, EventSection } from "@/types/adminConfig";
 import { FiMusic } from "react-icons/fi";
 
+/** Props của trang chủ: banner và các khu vực dùng để xem trước khi cấu hình, thay cho dữ liệu tải từ API. */
 interface HomeProps {
   previewBanners?: Banner[];
   previewSections?: EventSection[];
 }
 
+/** Trang chủ: tải sự kiện, danh mục, banner và các khu vực (section) từ API rồi dựng theo cấu hình của quản trị; nếu chưa có cấu hình thì dùng bố cục mặc định. */
 export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) => {
   const { t: translate } = useTranslation();
   const [allEvents, setAllEvents] = useState<EventApiData[]>([]);
@@ -53,9 +55,10 @@ export const Home: React.FC<HomeProps> = ({ previewBanners, previewSections }) =
   const displayBanners = previewBanners || banners;
   const displaySections = previewSections || sections;
 
-  // static fallback if no config from DB
+  // bố cục tĩnh dự phòng khi không có cấu hình từ DB
   const isDefaultFallback = displaySections.length === 0;
 
+  /** Dựng thành phần giao diện tương ứng với loại ({@code type}) của một khu vực; loại không hỗ trợ thì trả về {@code null}. */
   const renderSection = (section: EventSection) => {
     switch (section.type) {
       case "featured":

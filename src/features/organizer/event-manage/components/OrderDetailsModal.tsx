@@ -6,6 +6,7 @@ import { vi, enUS } from "date-fns/locale";
 import { ticketApi } from "@/services/ticketApi";
 import { eventApi } from "@/services/eventApi";
 
+/** Props của modal chi tiết đơn hàng: đơn cần xem, danh sách loại vé và khu ghế (nếu đã có) và hàm tùy chọn để suy ra tên hạng vé. */
 interface OrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +16,10 @@ interface OrderDetailsModalProps {
   ticketNameResolver?: (item: any) => string;
 }
 
+/**
+ * Modal chi tiết đơn hàng của sự kiện: trạng thái, người mua, thanh toán và danh sách vé theo hạng vé.
+ * Khi người gọi không truyền loại vé hoặc khu ghế thì tự tải từ nhiều nguồn (loại vé, suất diễn, sơ đồ ghế) để suy ra tên hạng vé.
+ */
 export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -28,10 +33,11 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [internalTypes, setInternalTypes] = useState<any[]>([]);
   const [internalZones, setInternalZones] = useState<any[]>([]);
 
+  /** Kiểm tra chuỗi có đúng dạng UUID hay không, để tránh hiện mã thô làm tên hạng vé. */
   const isUuid = (val: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
-  // if ticketTypes or seatZones are not passed, automatically fetch from multiple tables for order.eventId
+  // nếu không truyền {@code ticketTypes} hoặc {@code seatZones}, tự tải từ nhiều nguồn theo {@code order.eventId}
   useEffect(() => {
     let isMounted = true;
     if (!isOpen || !order?.eventId) return;
@@ -40,16 +46,17 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       return;
     }
 
+    /** Gom loại vé từ các bảng ticket_types, suất diễn và sơ đồ ghế (kể cả bản nháp) của sự kiện; mỗi nguồn lỗi thì bỏ qua. */
     async function loadSources() {
       try {
         const collectedTypes: any[] = [];
         const collectedZones: any[] = [];
 
-        // table ticket_types (all showtimes and event)
+        // bảng ticket_types (mọi suất diễn và sự kiện)
         const allTypes = await ticketApi.getAllTicketTypesByEventId(order.eventId).catch(() => []);
         if (Array.isArray(allTypes)) collectedTypes.push(...allTypes);
 
-        // table event_showtimes & showtime ticket_types
+        // bảng event_showtimes và ticket_types theo suất diễn
         const eventData = await eventApi.getEventById(order.eventId).catch(() => null);
         const showtimes: any[] = (eventData as any)?.showtimes || [];
         if (showtimes.length > 0) {
@@ -61,7 +68,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           });
         }
 
-        // 3. Table seat_layouts & seat_zones
+        // bảng seat_layouts và seat_zones
         const layout = await ticketApi.getSeatLayoutByEventId(order.eventId).catch(() => null);
         if (layout?.zones && Array.isArray(layout.zones)) {
           collectedZones.push(...layout.zones);
@@ -98,9 +105,9 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     };
   }, [isOpen, order?.eventId, ticketTypes.length, seatZones.length]);
 
-  // combined dictionary from all tables:
-  // - ID -> Tier Name
-  // - Unit Price -> Tier Name
+  // từ điển gộp từ mọi bảng:
+  // - ID sang tên hạng vé
+  // - đơn giá sang tên hạng vé
   const { idToNameMap, priceToNameMap } = useMemo(() => {
     const idMap = new Map<string, string>();
     const priceMap = new Map<number, string>();
@@ -129,9 +136,12 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     return { idToNameMap: idMap, priceToNameMap: priceMap };
   }, [ticketTypes, internalTypes, seatZones, internalZones]);
 
-  // resolve the true tier name from combined tables
+  /**
+   * Suy ra tên hạng vé thật của một dòng đơn hàng. Thử lần lượt: hàm của người gọi, tra theo ID, các trường tên có sẵn,
+   * ghế đã đặt, đúng đơn giá, đơn giá gần nhất (lệch dưới 30%); cuối cùng dùng tên chung theo giá.
+   */
   const getTicketName = (item: any) => {
-    // if parent resolver provided and gives valid tier name, use it
+    // nếu người gọi có truyền hàm suy tên và hàm trả tên hợp lệ thì dùng luôn
     if (ticketNameResolver) {
       const resolved = ticketNameResolver(item);
       if (resolved && resolved !== "Vé tham gia" && !isUuid(resolved)) {
@@ -142,12 +152,12 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     const typeId = String(item?.ticketTypeId || item?.id || "").toLowerCase();
     const unitPrice = Number(item?.unitPrice || 0);
 
-    // direct ID lookup in combined idToNameMap (ticket_types, seat_zones, showtimes)
+    // tra ID trực tiếp trong {@code idToNameMap} đã gộp (ticket_types, seat_zones, suất diễn)
     if (typeId && idToNameMap.has(typeId)) {
       return idToNameMap.get(typeId)!;
     }
 
-    // item direct properties if valid tier name
+    // các thuộc tính tên có sẵn trên dòng nếu là tên hạng vé hợp lệ
     if (item?.ticketTypeName && !isUuid(item.ticketTypeName)) {
       return item.ticketTypeName;
     }
@@ -161,7 +171,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       return item.name;
     }
 
-    // seat reservations matching
+    // đối chiếu với ghế đã đặt
     if (Array.isArray(order?.seatReservations)) {
       const seatMatch = order.seatReservations.find(
         (s: any) =>
@@ -173,12 +183,12 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       if (seatMatch?.seatTypeName) return seatMatch.seatTypeName;
     }
 
-    // exact match by Unit Price to event tier
+    // khớp chính xác đơn giá với hạng vé của sự kiện
     if (unitPrice > 0 && priceToNameMap.has(unitPrice)) {
       return priceToNameMap.get(unitPrice)!;
     }
 
-    // closest price match among event tiers
+    // khớp đơn giá gần nhất trong các hạng vé của sự kiện
     if (unitPrice > 0 && priceToNameMap.size > 0) {
       let closestName = "";
       let minDiff = Infinity;
@@ -194,7 +204,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       }
     }
 
-    // contextual tier fallback (NEVER "Vé tham gia" or raw UUID)
+    // phương án dự phòng theo ngữ cảnh (KHÔNG BAO GIỜ dùng "Vé tham gia" hay UUID thô)
     if (unitPrice > 0) {
       return `${t("Hạng vé")} ${unitPrice.toLocaleString("vi-VN")} đ`;
     }
@@ -203,6 +213,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   if (!isOpen || !order) return null;
 
+  /** Trả nhãn, biểu tượng và màu hiển thị cho trạng thái đơn hàng. */
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "PAID":
@@ -241,15 +252,15 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
-      {/* Backdrop */}
+      {/* Lớp nền mờ */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
         onClick={onClose}
       />
 
-      {/* Modal Content */}
+      {/* Nội dung modal */}
       <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col app-bg-card border app-border rounded-lg shadow-2xl z-10 text-[var(--text-main)]">
-        {/* Header */}
+        {/* Đầu modal */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b app-border app-bg-subnav">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -282,10 +293,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </button>
         </div>
 
-        {/* Body (Scrollable) */}
+        {/* Thân modal (cuộn được) */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Customer Info Card */}
+            {/* Thẻ thông tin người mua */}
             <div className="app-bg-subnav border app-border rounded-lg p-4 space-y-2.5 shadow-xs">
               <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">
                 <FiUser className="w-4 h-4 text-blue-500" /> {t("Khách hàng")}
@@ -305,7 +316,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* Payment Summary Card */}
+            {/* Thẻ tóm tắt thanh toán */}
             <div className="app-bg-subnav border app-border rounded-lg p-4 space-y-2.5 shadow-xs">
               <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">
                 <FiCreditCard className="w-4 h-4 text-emerald-500" /> {t("Thanh toán")}
@@ -344,7 +355,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Tickets Section */}
+          {/* Phần danh sách vé */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">
               <FiTag className="w-4 h-4 text-purple-500" /> {t("Danh sách Vé")}
@@ -394,7 +405,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             )}
           </div>
 
-          {/* Seat Reservations Section */}
+          {/* Phần ghế đã đặt */}
           {order.seatReservations && order.seatReservations.length > 0 && (
             <div className="space-y-2.5">
               <h4 className="text-xs font-black app-text-muted uppercase tracking-wider flex items-center gap-1.5">

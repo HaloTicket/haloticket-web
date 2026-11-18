@@ -10,12 +10,14 @@ import { resolveAiError, aiErrorMessage, type AiErrorInfo } from "@/utils/aiErro
 import { Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 
+/** Sự kiện chờ duyệt mà trợ lý gợi ý thao tác nhanh: id, tên và ban tổ chức. */
 interface ActionableEvent {
   id: string | number;
   title: string;
   organizer?: { name?: string };
 }
 
+/** Một tin nhắn trong khung chat trợ lý admin: người gửi, nội dung, thời gian, sự kiện gợi ý, công cụ đã dùng và cờ có dữ liệu căn cứ. */
 interface ChatMessage {
   id: string;
   sender: "ai" | "user";
@@ -26,30 +28,42 @@ interface ChatMessage {
   grounded?: boolean;
 }
 
+/** Chuẩn hóa Markdown do AI trả về: sửa bảng bị dính các dòng hoặc dòng phân cách tiêu đề bằng `||`. */
 const normalizeMarkdown = (text: string) => {
   if (!text) return "";
-  // fix tables where rows or header dividers are glued together with ||
+  // sửa bảng bị dính các dòng hoặc dòng phân cách tiêu đề bằng ||
   let formatted = text.replace(/\|\|\s*\|/g, "|\n|");
   formatted = formatted.replace(/\|\|\s*/g, "|\n");
   return formatted;
 };
 
-// react-markdown hands the parsed `node` to every renderer; it must not be spread onto the DOM element
+/** Trả về bản sao của props không có `node`: react-markdown truyền `node` đã parse vào mọi renderer và không được rải nó lên phần tử DOM. */
 function withoutNode<T extends object>(props: T): Omit<T, "node"> {
   const rest = { ...props } as Record<string, unknown>;
   delete rest.node;
   return rest as Omit<T, "node">;
 }
 
+/** Tin nhắn dạng đã lưu trong `localStorage`, thời gian là chuỗi hoặc số thay vì `Date`. */
 type StoredMessage = Omit<ChatMessage, "timestamp"> & { timestamp?: string | number };
 
+/** Sinh id tin nhắn duy nhất từ thời gian hiện tại và chuỗi ngẫu nhiên ngắn. */
 const newMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+/**
+ * Khung chat trợ lý AI cho quản trị viên (trang riêng hoặc dạng ngăn kéo): lưu lịch sử trong `localStorage`
+ * (khóa `admin_ai_chat_history`), hiện lỗi AI dưới dạng bong bóng hệ thống có thể gửi lại, và gợi ý nhanh các sự kiện chờ duyệt
+ * khi câu hỏi liên quan tới duyệt sự kiện.
+ * @param isDrawer hiển thị dạng ngăn kéo
+ * @param initialPrompt nội dung ô nhập do cha truyền vào
+ */
 export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" }: { isDrawer?: boolean, initialPrompt?: string }) {
   const { t, i18n } = useTranslation();
+  /** Chọn nhãn theo ngôn ngữ hiện tại: bản tiếng Anh khi ngôn ngữ là `en`, còn lại bản tiếng Việt. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /** Tạo tin chào đầu tiên của trợ lý theo ngôn ngữ hiện tại. */
   const getWelcomeMessage = (): ChatMessage => ({
     id: "welcome-1",
     sender: "ai",
@@ -73,14 +87,14 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
         }
       }
     } catch {
-      // saved history is unreadable or corrupt: start again from the welcome message
+      // lịch sử đã lưu không đọc được hoặc hỏng: bắt đầu lại từ tin chào
     }
     return [getWelcomeMessage()];
   });
 
   const [inputText, setInputText] = useState(initialPrompt);
   const [isLoading, setIsLoading] = useState(false);
-  // failures are shown as a system bubble that lives outside `messages`: never persisted, never sent back as history.
+  // lỗi hiện dưới dạng bong bóng hệ thống nằm ngoài `messages`: không bao giờ được lưu và không bao giờ gửi lại làm lịch sử.
   const [chatError, setChatError] = useState<{ info: AiErrorInfo; text: string; userMessageId: string } | null>(null);
 
   useEffect(() => {
@@ -91,6 +105,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
     }
   }, [messages]);
 
+  /** Xóa cuộc trò chuyện, đưa về tin chào và ghi đè lịch sử đã lưu. */
   const clearChatHistory = () => {
     const fresh = [getWelcomeMessage()];
     setMessages(fresh);
@@ -98,13 +113,14 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
     localStorage.setItem('admin_ai_chat_history', JSON.stringify(fresh));
   };
 
-  // a new prompt handed in by the parent replaces the draft (adjusting state while rendering instead of in an effect)
+  // prompt mới do cha truyền vào sẽ thay bản nháp (điều chỉnh state ngay lúc render thay vì dùng effect)
   const [seenPrompt, setSeenPrompt] = useState(initialPrompt);
   if (initialPrompt !== seenPrompt) {
     setSeenPrompt(initialPrompt);
     if (initialPrompt) setInputText(initialPrompt);
   }
 
+  /** Cuộn khung tin nhắn xuống cuối. */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -113,6 +129,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
     scrollToBottom();
   }, [messages, chatError]);
 
+  /** Thêm tin của quản trị viên vào hội thoại rồi xin câu trả lời; bỏ qua nội dung rỗng. */
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputText.trim()) return;
@@ -130,12 +147,19 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
     void requestReply(userMessage.text, userMessage.id, history);
   };
 
+  /** Gửi lại câu hỏi vừa lỗi với lịch sử đến trước tin đó; không làm gì khi đang tải hoặc không có lỗi. */
   const resendLast = () => {
     if (!chatError || isLoading) return;
     const index = messages.findIndex(m => m.id === chatError.userMessageId);
     void requestReply(chatError.text, chatError.userMessageId, index > 0 ? messages.slice(1, index) : messages.slice(1));
   };
 
+  /**
+   * Gọi trợ lý admin và thêm câu trả lời; với câu hỏi về duyệt sự kiện thì lấy thêm tối đa 3 sự kiện đang chờ duyệt để gợi ý thao tác.
+   * @param text nội dung câu hỏi
+   * @param userMessageId id tin nhắn người dùng (để gửi lại khi lỗi)
+   * @param previous các tin nhắn trước đó dùng làm lịch sử
+   */
   const requestReply = async (text: string, userMessageId: string, previous: ChatMessage[]) => {
     const userMessage = { text };
     setChatError(null);
@@ -218,7 +242,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
       )}
 
       <div className={`flex-1 min-h-0 flex flex-col shadow-xs ${isDrawer ? '' : 'border app-border rounded-lg app-bg-card'}`}>
-        {/* Chat Messages */}
+        {/* Danh sách tin nhắn */}
         <div role="log" aria-live="polite" aria-label={label("Cuộc trò chuyện với trợ lý AI", "Conversation with the AI assistant")} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
           {messages.length === 1 && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
@@ -271,41 +295,53 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
+                        /** Bọc bảng Markdown trong khung cuộn ngang. */
                         table: (props) => (
                           <div className="my-2.5 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40">
                             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs text-left" {...withoutNode(props)} />
                           </div>
                         ),
+                        /** Kiểu cho phần đầu bảng Markdown. */
                         thead: (props) => (
                           <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-[11px]" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho phần thân bảng Markdown. */
                         tbody: (props) => (
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho dòng của bảng Markdown. */
                         tr: (props) => (
                           <tr className="hover:bg-blue-50/50 dark:hover:bg-slate-800/40 transition-colors" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho ô tiêu đề của bảng Markdown. */
                         th: (props) => (
                           <th className="px-3 py-2 font-bold text-slate-900 dark:text-white whitespace-nowrap border-b border-slate-200 dark:border-slate-700" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho ô dữ liệu của bảng Markdown. */
                         td: (props) => (
                           <td className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/60 leading-relaxed" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho đoạn văn Markdown. */
                         p: (props) => (
                           <p className="my-1.5 leading-relaxed text-xs text-slate-800 dark:text-slate-200" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho chữ in đậm Markdown. */
                         strong: (props) => (
                           <strong className="font-bold text-slate-900 dark:text-white" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho danh sách không thứ tự Markdown. */
                         ul: (props) => (
                           <ul className="my-2 pl-4 list-disc space-y-1 text-xs text-slate-800 dark:text-slate-200" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho danh sách có thứ tự Markdown. */
                         ol: (props) => (
                           <ol className="my-2 pl-4 list-decimal space-y-1 text-xs text-slate-800 dark:text-slate-200" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho mục danh sách Markdown. */
                         li: (props) => (
                           <li className="leading-relaxed" {...withoutNode(props)} />
                         ),
+                        /** Kiểu cho mã Markdown: mã nội dòng dùng nền nhạt, khối mã nhiều dòng hoặc có ngôn ngữ dùng kiểu khối. */
                         code: ({ className, children, ...rest }: ComponentPropsWithoutRef<"code">) => {
                           const props = withoutNode(rest);
                           const match = /language-(\w+)/.exec(className || "");
@@ -388,7 +424,7 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
+        {/* Khu vực nhập liệu */}
         <div className="p-3.5 app-bg-subnav border-t app-border rounded-b-md">
           <form onSubmit={handleSendMessage} className="relative flex items-center">
             <input

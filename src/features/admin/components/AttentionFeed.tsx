@@ -15,7 +15,7 @@ const PRIORITY_CLASS: Record<string, string> = {
 
 const KNOWN_EVIDENCE = new Set(["risk_score", "hours_waiting", "amount", "kind", "minutes_open", "expected_tickets", "issued_tickets", "minutes_since_paid", "count", "oldest_hours", "port"]);
 
-/** One short line of evidence from the server's evidence object (known keys only, each with a translated label). */
+/** Một dòng bằng chứng từ đối tượng evidence của máy chủ (chỉ các khóa đã biết, mỗi khóa có nhãn đã dịch). */
 function evidenceLine(evidence: Record<string, unknown>, t: TFunction): string {
   const parts: string[] = [];
   for (const [key, value] of Object.entries(evidence ?? {})) {
@@ -25,18 +25,20 @@ function evidenceLine(evidence: Record<string, unknown>, t: TFunction): string {
   return parts.join(" · ");
 }
 
+/** Định dạng thời điểm ngắn theo ngôn ngữ hiện tại; thiếu hoặc sai thì trả về `null`. */
 function sinceText(value: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleString(getLocale(), { dateStyle: "short", timeStyle: "short" }) : null;
 }
 
-/** "Needs attention": rule-based items from GET /admin/attention (no AI), each with evidence, priority and a link. */
+/** Mục "Cần chú ý": các mục theo quy tắc từ GET /admin/attention (không dùng AI), mỗi mục có bằng chứng, mức ưu tiên và liên kết. */
 export function AttentionFeed() {
   const { t } = useTranslation();
   const [data, setData] = useState<AttentionResponse | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
+  /** Tải danh sách mục cần chú ý từ máy chủ. */
   const load = useCallback(async () => {
     setState("loading");
     try {

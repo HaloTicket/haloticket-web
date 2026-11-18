@@ -1,5 +1,6 @@
 import axiosClient from "./axiosClient";
 
+/** Kết quả tải tệp lên dịch vụ media: đường dẫn, tên, kích thước và loại nội dung. */
 export interface FileUploadResult {
   imageUrl: string;
   fileName: string;
@@ -8,7 +9,7 @@ export interface FileUploadResult {
 }
 
 export const mediaApi = {
-  // upload raw file via FormData
+    /** Tải ảnh lên dịch vụ media bằng FormData theo thư mục chỉ định; lỗi thì trả về `null`. */
   uploadImage: async (file: File, folder = "media"): Promise<FileUploadResult | null> => {
     try {
       const formData = new FormData();
@@ -27,7 +28,7 @@ export const mediaApi = {
     }
   },
 
-  // upload Base64 Data URL string
+    /** Tải ảnh dạng chuỗi Base64 Data URL (phải bắt đầu bằng `data:image/`); không hợp lệ hoặc lỗi thì trả về `null`. */
   uploadBase64Image: async (base64Data: string, folder = "media"): Promise<FileUploadResult | null> => {
     if (!base64Data || !base64Data.startsWith("data:image/")) return null;
     try {
@@ -42,7 +43,7 @@ export const mediaApi = {
     }
   },
 
-  // upload video file via FormData (max 20MB)
+    /** Tải video lên dịch vụ media bằng FormData (tối đa 20MB); lỗi thì trả về `null`. */
   uploadVideo: async (file: File, folder = "videos"): Promise<FileUploadResult | null> => {
     try {
       const formData = new FormData();

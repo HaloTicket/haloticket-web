@@ -26,6 +26,10 @@ import { getAiErrorMessage } from "@/utils/aiErrors";
 import type { VoucherItem, VoucherCreateData } from "@/types";
 import ReactMarkdown from 'react-markdown';
 
+/**
+* Tab quản lý voucher của sự kiện: danh sách có tìm kiếm và phân trang, tạo, sửa, phát hành, bật tắt, xóa voucher,
+* sao chép mã, và hộp trợ lý AI đề xuất chiến lược phát hành voucher.
+*/
 export const EventVouchers: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -35,11 +39,11 @@ export const EventVouchers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // modals state
+  // trạng thái các modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [editingVoucher, setEditingVoucher] = useState<VoucherItem | null>(null);
 
-  // confirm Modal state
+  // trạng thái modal xác nhận
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
     title: string;
@@ -51,22 +55,24 @@ export const EventVouchers: React.FC = () => {
     title: "",
     message: "",
     type: "warning",
+    /** Hành động sẽ chạy khi người dùng xác nhận; mặc định không làm gì. */
     action: async () => {},
   });
 
-  // toast message state
+  // trạng thái thông báo toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: "success" | "info" | "error" } | null>(null);
 
-  // showtime options extracted from event
+  // các lựa chọn suất diễn lấy từ sự kiện
   const [showtimeOptions, setShowtimeOptions] = useState<Array<{ id: string; label: string }>>([]);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // AI strategy state
+  // trạng thái phân tích chiến lược bằng AI
   const [strategyMessage, setStrategyMessage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  /** Gọi AI phân tích dữ liệu bán vé để đề xuất chiến lược voucher; kết quả hiện trong hộp trợ lý, lỗi hiện bằng toast. */
   const handleAnalyzeStrategy = async () => {
     if (!eventId) return;
     setIsAnalyzing(true);
@@ -76,21 +82,22 @@ export const EventVouchers: React.FC = () => {
       setStrategyMessage(res.strategy || t("Hệ thống chưa đủ dữ liệu để phân tích."));
     } catch (err) {
       console.error(err);
-      // 403: the analysis is not open to this account yet
+      // 403: tài khoản này chưa được mở tính năng phân tích
       const forbidden = (err as { response?: { status?: number } })?.response?.status === 403;
-      // any other failure: say what actually happened (rate limit, unavailable, ...), by error code
+      // lỗi khác: nói rõ chuyện gì đã xảy ra (giới hạn tần suất, dịch vụ không khả dụng, ...) theo mã lỗi
       showToast(forbidden ? t("Tính năng đang được nâng cấp") : getAiErrorMessage(err), forbidden ? "info" : "error");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
+  /** Hiện toast trong 3,5 giây rồi tự ẩn. */
   const showToast = (text: string, type: "success" | "info" | "error" = "success") => {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // load vouchers & showtimes from backend
+  /** Tải đồng thời voucher và thông tin sự kiện; dựng danh sách lựa chọn suất diễn từ dữ liệu sự kiện. */
   const loadVouchersAndShowtimes = useCallback(async () => {
     if (!eventId) return;
     setIsLoading(true);
@@ -102,7 +109,7 @@ export const EventVouchers: React.FC = () => {
 
       setVouchers(vList);
 
-      // derive showtimes from event data if available
+      // lấy danh sách suất diễn từ dữ liệu sự kiện nếu có
         if (evData && Array.isArray(evData.showtimes) && evData.showtimes.length > 0) {
           const options = (evData.showtimes as { id: string; name?: string; startTime: string }[]).map((st, idx) => {
             const displayStr = new Date(st.startTime).toLocaleString("vi-VN", {
@@ -128,7 +135,7 @@ export const EventVouchers: React.FC = () => {
   }, [eventId]);
 
   useEffect(() => {
-    // deferred one tick: the loader sets state straight away, and doing that inside the effect body triggers a second render
+    // hoãn một nhịp: hàm tải đặt state ngay, làm việc đó trong thân effect sẽ gây render lần hai
     const timer = setTimeout(() => void loadVouchersAndShowtimes(), 0);
     return () => clearTimeout(timer);
   }, [loadVouchersAndShowtimes]);
@@ -142,6 +149,7 @@ export const EventVouchers: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredVouchers.length / pageSize));
   const paginatedVouchers = filteredVouchers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  /** Sao chép mã voucher vào clipboard, báo toast và đánh dấu dòng vừa sao chép trong 2 giây. */
   const handleCopyCode = (id: string, code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
@@ -149,13 +157,14 @@ export const EventVouchers: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // trigger publish confirm modal
+  /** Mở modal xác nhận phát hành voucher (chuyển trạng thái sang {@code ACTIVE}). */
   const promptPublishVoucher = (voucher: VoucherItem) => {
     setConfirmState({
       isOpen: true,
       title: t("Xác nhận phát hành voucher"),
       message: `${t("Bạn có chắc chắn muốn phát hành mã voucher")} "${voucher.code}" (${voucher.title})? ${t("Sau khi phát hành, người mua vé có thể áp dụng mã này khi đặt vé.")}`,
       type: "primary",
+      /** Phát hành voucher qua API rồi cập nhật dòng trong danh sách; lỗi thì báo toast. */
       action: async () => {
         try {
           const updated = await voucherApi.updateVoucher(voucher.id, { status: "ACTIVE" });
@@ -173,7 +182,7 @@ export const EventVouchers: React.FC = () => {
     });
   };
 
-  // trigger status toggle confirm modal
+  /** Mở modal xác nhận bật hoặc tắt hoạt động của voucher. */
   const promptToggleStatus = (voucher: VoucherItem) => {
     const nextStatusText = voucher.isActive ? t("TẮT") : t("BẬT");
     setConfirmState({
@@ -181,6 +190,7 @@ export const EventVouchers: React.FC = () => {
       title: `${t("Xác nhận")} ${nextStatusText.toLowerCase()} ${t("mã voucher")}`,
       message: `${t("Bạn có chắc chắn muốn")} ${nextStatusText} ${t("trạng thái hoạt động của mã voucher")} "${voucher.code}" (${voucher.title}) ${t("không?")}`,
       type: voucher.isActive ? "warning" : "primary",
+      /** Đổi trạng thái voucher qua API; nếu API không trả bản ghi mới thì đảo cờ {@code isActive} tại chỗ. */
       action: async () => {
         try {
           const updated = await voucherApi.toggleVoucherStatus(voucher.id);
@@ -202,13 +212,14 @@ export const EventVouchers: React.FC = () => {
     });
   };
 
-  // trigger delete confirm modal
+  /** Mở modal xác nhận xóa voucher. */
   const promptDeleteVoucher = (voucher: VoucherItem) => {
     setConfirmState({
       isOpen: true,
       title: t("Xác nhận xóa voucher"),
       message: `${t("Bạn có chắc chắn muốn xóa mã voucher")} "${voucher.code}" (${voucher.title}) ${t("không? Hành động này không thể hoàn tác.")}`,
       type: "danger",
+      /** Xóa voucher qua API rồi bỏ dòng khỏi danh sách; lỗi thì báo toast. */
       action: async () => {
         try {
           await voucherApi.deleteVoucher(voucher.id);
@@ -222,7 +233,7 @@ export const EventVouchers: React.FC = () => {
     });
   };
 
-  // save new voucher (Single or Bulk)
+  /** Tạo voucher (đơn lẻ hoặc hàng loạt) rồi thêm vào đầu danh sách; nếu API không trả bản ghi thì tải lại toàn bộ. */
   const handleCreateVoucher = async (data: VoucherCreateData) => {
     if (!eventId) return;
     try {
@@ -244,7 +255,7 @@ export const EventVouchers: React.FC = () => {
     }
   };
 
-  // update existing voucher
+  /** Cập nhật một phần voucher qua API rồi thay dòng tương ứng trong danh sách. */
   const handleUpdateVoucher = async (voucherId: string, data: Partial<VoucherCreateData>) => {
     try {
       const updated = await voucherApi.updateVoucher(voucherId, data);
@@ -260,7 +271,7 @@ export const EventVouchers: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Toast Notification Banner */}
+      {/* Banner thông báo toast */}
       {toastMsg && (
         <div
           className={`fixed top-20 right-6 z-50 px-5 py-3.5 rounded-2xl shadow-2xl font-bold text-xs md:text-sm flex items-center gap-3 border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
@@ -277,7 +288,7 @@ export const EventVouchers: React.FC = () => {
         </div>
       )}
 
-      {/* AI Strategy Assistant Box */}
+      {/* Hộp trợ lý AI đề xuất chiến lược */}
       <div className="bg-linear-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
@@ -296,8 +307,8 @@ export const EventVouchers: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      // Pre-fill the create modal based on suggestion if needed
-                      // For now, just open the modal
+                      // điền sẵn modal tạo theo gợi ý nếu cần
+                      // hiện tại chỉ mở modal
                       setEditingVoucher(null);
                       setIsCreateModalOpen(true);
                     }}
@@ -330,9 +341,9 @@ export const EventVouchers: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Toolbar */}
+      {/* Thanh công cụ phía trên */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        {/* Search & Counter tag */}
+        {/* Ô tìm kiếm và nhãn đếm số lượng */}
         <div className="flex items-center gap-3 flex-1 max-w-xl">
           <div className="flex items-center gap-2 app-bg-card border app-border rounded-xl p-1.5 shadow-xs flex-1">
             <div className="flex items-center gap-2 flex-1 pl-3">
@@ -363,7 +374,7 @@ export const EventVouchers: React.FC = () => {
           </div>
         </div>
 
-        {/* Create Voucher CTA Button */}
+        {/* Nút tạo voucher */}
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -387,7 +398,7 @@ export const EventVouchers: React.FC = () => {
         </div>
       </div>
 
-      {/* Voucher Table */}
+      {/* Bảng voucher */}
       <div className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm p-4 space-y-4">
         {isLoading ? (
           <div className="p-12 text-center space-y-3">
@@ -552,7 +563,7 @@ export const EventVouchers: React.FC = () => {
         )}
       </div>
 
-      {/* Create / Edit Voucher Modal */}
+      {/* Modal tạo hoặc sửa voucher */}
       <CreateVoucherModal
         isOpen={isCreateModalOpen}
         onClose={() => {
@@ -565,7 +576,7 @@ export const EventVouchers: React.FC = () => {
         availableShowtimes={showtimeOptions}
       />
 
-      {/* Confirmation Modal for Status Toggle & Deletion */}
+      {/* Modal xác nhận đổi trạng thái hoặc xóa */}
       <ConfirmModal
         isOpen={confirmState.isOpen}
         title={confirmState.title}

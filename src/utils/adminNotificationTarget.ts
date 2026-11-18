@@ -1,7 +1,7 @@
 import type { NotificationItem } from '@/types';
 import { notificationTarget } from '@/utils/notificationTarget';
 
-// one mapping for the bell, the toast and the inbox: see notificationTarget.
+/** Trả về đường dẫn đích khi admin bấm vào một thông báo. Dùng chung một cách ánh xạ cho chuông, toast và hộp thư: xem `notificationTarget`. */
 export function adminNotificationTarget(item: NotificationItem): string | null {
   return notificationTarget(item, 'admin');
 }

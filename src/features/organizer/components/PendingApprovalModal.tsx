@@ -2,11 +2,13 @@ import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiRotateCcw } from "react-icons/fi";
 
+/** Props của hộp thoại sự kiện đang chờ duyệt: hàm đóng và hàm thu hồi yêu cầu duyệt (tùy chọn). */
 interface PendingApprovalModalProps {
   onClose: () => void;
   onCancelApproval?: () => void;
 }
 
+/** Hộp thoại thông báo sự kiện đang chờ duyệt, hướng dẫn liên hệ HaloTicket; nút "Hủy yêu cầu duyệt" chỉ hiện khi có {@code onCancelApproval}. */
 export const PendingApprovalModal: React.FC<PendingApprovalModalProps> = ({ onClose, onCancelApproval }) => {
   const { t: translate } = useTranslation();
   return (

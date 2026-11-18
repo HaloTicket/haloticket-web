@@ -1,6 +1,7 @@
 import { FiBell } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 
+/** Props của hộp thoại báo hết thời gian giữ vé; `title`, `message`, `buttonText` là tùy chọn, bỏ trống thì dùng chữ mặc định. */
 export interface TicketHoldTimeoutModalProps {
   open: boolean;
   onReset: () => void;
@@ -9,6 +10,7 @@ export interface TicketHoldTimeoutModalProps {
   buttonText?: string;
 }
 
+/** Hộp thoại chặn toàn màn hình báo thời gian giữ vé đã hết. Không dựng gì khi `open` là false; nút bấm gọi `onReset` để người dùng đặt vé lại. */
 export const TicketHoldTimeoutModal = ({
   open,
   onReset,

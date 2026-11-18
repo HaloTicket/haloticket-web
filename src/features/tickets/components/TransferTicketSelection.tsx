@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ticketApi } from "@/services/ticketApi";
 import type { OwnedTicketApiResponse } from "@/types/ticket";
 
+/** Lọc các vé có thể chuyển nhượng cùng vé gốc `anchorId`: còn `VALID`, cùng sự kiện, cùng suất diễn và cùng đơn đặt. Trả mảng rỗng nếu không thấy vé gốc. */
 export function transferCandidates(tickets: OwnedTicketApiResponse[], anchorId: string) {
   const anchor = tickets.find(ticket => ticket.id === anchorId);
   if (!anchor) return [];
@@ -13,6 +14,7 @@ export function transferCandidates(tickets: OwnedTicketApiResponse[], anchorId: 
     && (order ? (ticket.bookingId || ticket.bookingCode) === order : ticket.id === anchorId));
 }
 
+/** Hook tải vé của người dùng và giữ danh sách vé đủ điều kiện chuyển nhượng, cùng vé đã chọn (tối đa 50, mặc định là vé gốc). Trả về `tickets`, `selectedIds`, `setSelectedIds`, `selectedTickets`, `loading`, `error`, `retry`. */
 export function useTransferTickets(anchorId: string) {
   const { t } = useTranslation();
   const [tickets, setTickets] = useState<OwnedTicketApiResponse[]>([]);
@@ -22,7 +24,7 @@ export function useTransferTickets(anchorId: string) {
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     let active = true;
-    // Reset request state when the selected order changes or a fetch is retried.
+    // đặt lại trạng thái yêu cầu khi đổi đơn đã chọn hoặc khi thử tải lại.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError("");
@@ -35,12 +37,16 @@ export function useTransferTickets(anchorId: string) {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [anchorId, revision, t]);
+  /** Cập nhật danh sách vé đã chọn, giới hạn tối đa 50 vé. */
   const changeSelection = useCallback((ids: string[]) => setSelectedIds(ids.slice(0, 50)), []);
   return { tickets, selectedIds, setSelectedIds: changeSelection,
     selectedTickets: tickets.filter(ticket => selectedIds.includes(ticket.id)),
-    loading, error, retry: () => setRevision(value => value + 1) };
+    loading, error,
+    /** Tăng `revision` để kích hoạt tải lại danh sách vé. */
+    retry: () => setRevision(value => value + 1) };
 }
 
+/** Danh sách vé có thể chọn để đăng bán hoặc tặng, gom theo hạng vé; mỗi nhóm có ô chọn cả nhóm và hiển thị số vé đã chọn trên tổng. */
 export function TransferTicketSelection({ tickets, selectedIds, onChange }: {
   tickets: OwnedTicketApiResponse[]; selectedIds: string[]; onChange: (ids: string[]) => void;
 }) {
@@ -50,6 +56,7 @@ export function TransferTicketSelection({ tickets, selectedIds, onChange }: {
     const key = ticket.ticketTypeId || ticket.ticketTypeName || t("Vé");
     groups.set(key, [...(groups.get(key) || []), ticket]);
   }
+  /** Chọn hoặc bỏ chọn một nhóm vé (`checked`), giữ tối đa 50 vé được chọn. */
   const toggle = (ids: string[], checked: boolean) => onChange(checked
     ? [...new Set([...selectedIds, ...ids])].slice(0, 50) : selectedIds.filter(id => !ids.includes(id)));
   return <section aria-label={t("Chọn vé")} className="space-y-3">

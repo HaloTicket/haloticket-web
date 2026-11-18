@@ -16,6 +16,7 @@ import type { EkycStatusResponse } from "@/types/ekyc";
 import { userApi, type UserProfile } from "@/services/userApi";
 import { PATHS } from "@/routes/paths";
 
+/** Props của bước xác nhận: trạng thái eKYC, hồ sơ người dùng, đường dẫn quay lại và hàm quay về bước xác minh. */
 interface EkycConfirmationStepProps {
   status: EkycStatusResponse;
   userProfile: UserProfile | null;
@@ -44,6 +45,7 @@ const POPULAR_BANKS = [
 
 const PAYOUT_STORAGE_KEY = "haloticket_payout_bank";
 
+/** Che số giấy tờ, chỉ giữ 6 ký tự đầu và 2 ký tự cuối; số quá ngắn thì giữ nguyên. */
 function maskDocumentNumber(num: string) {
   if (!num) return "—";
   const cleaned = num.trim();
@@ -51,6 +53,7 @@ function maskDocumentNumber(num: string) {
   return cleaned.slice(0, 6) + "****" + cleaned.slice(-2);
 }
 
+/** Lấy ngày sinh đã xác minh từ trạng thái được duyệt, nếu không có thì dùng giá trị lưu ở localStorage. */
 function getVerifiedBirthDate(status: EkycStatusResponse): string {
   if (status.status === "APPROVED" && status.birthDate?.trim()) {
     return status.birthDate.trim();
@@ -59,6 +62,7 @@ function getVerifiedBirthDate(status: EkycStatusResponse): string {
   return saved || "";
 }
 
+/** Lấy địa chỉ đã xác minh từ trạng thái được duyệt, nếu không có thì dùng giá trị lưu ở localStorage. */
 function getVerifiedAddress(status: EkycStatusResponse): string {
   if (status.status === "APPROVED" && status.address?.trim()) {
     return status.address.trim();
@@ -67,6 +71,7 @@ function getVerifiedAddress(status: EkycStatusResponse): string {
   return saved || "";
 }
 
+/** Bước cuối của eKYC: điền sẵn thông tin từ CCCD đã duyệt, nhập số điện thoại và tài khoản ngân hàng nhận tiền, rồi lưu xác nhận vào hồ sơ và localStorage. */
 export function EkycConfirmationStep({
   status,
   userProfile,
@@ -76,7 +81,7 @@ export function EkycConfirmationStep({
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // Purge legacy mock data if lingering in localStorage
+  // Xóa dữ liệu giả cũ còn sót trong localStorage
   if (typeof window !== "undefined") {
     const savedDob = localStorage.getItem("ekyc_saved_dob");
     if (savedDob === "01/09/2000") {
@@ -88,17 +93,17 @@ export function EkycConfirmationStep({
     }
   }
 
-  // Accordion state
+  // Trạng thái các khối thu gọn
   const [personalInfoOpen, setPersonalInfoOpen] = useState(true);
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(true);
 
-  // Form state from verified CCCD
+  // Trạng thái biểu mẫu lấy từ CCCD đã xác minh
   const isApproved = status.status === "APPROVED";
   const legalName = isApproved && status.legalName ? status.legalName.toUpperCase() : (userProfile?.fullName || "").toUpperCase();
   const documentNumber = isApproved && status.documentNumber ? status.documentNumber : "";
   const email = userProfile?.email || "";
 
-  // Pre-fill info ONLY when CCCD has been verified and returned by backend
+  // Chỉ điền sẵn khi CCCD đã được xác minh và backend trả về
   const defaultDob = getVerifiedBirthDate(status);
   const defaultAddress = getVerifiedAddress(status);
   const hasExtractedDob = isApproved && Boolean(status.birthDate?.trim());
@@ -112,14 +117,14 @@ export function EkycConfirmationStep({
   const [phoneCountry, setPhoneCountry] = useState("+84");
   const [userEditedPhone, setUserEditedPhone] = useState<string | null>(null);
 
-  // Derive initial phone number from userProfile without triggering cascading renders in useEffect
+  // Suy ra số điện thoại ban đầu từ userProfile, tránh render lan truyền trong useEffect
   const profilePhoneClean = (() => {
     const raw = userProfile?.phoneNumber || "";
     return raw.startsWith("+84") ? raw.slice(3) : raw.startsWith("0") ? raw.slice(1) : raw;
   })();
   const phoneNumber = userEditedPhone !== null ? userEditedPhone : profilePhoneClean;
 
-  // Payment state
+  // Trạng thái thanh toán
   const [bankName, setBankName] = useState(() => {
     try {
       const saved = localStorage.getItem(PAYOUT_STORAGE_KEY);
@@ -157,14 +162,15 @@ export function EkycConfirmationStep({
     return "";
   });
 
-  // Commitment checkbox
+  // Ô cam kết
   const [agreed, setAgreed] = useState(true);
 
-  // Status & error state
+  // Trạng thái và lỗi
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [confirmedSuccess, setConfirmedSuccess] = useState(false);
 
+  /** Kiểm tra các trường bắt buộc, cập nhật số điện thoại vào hồ sơ, lưu thông tin nhận tiền vào localStorage và hiện màn hình thành công. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -202,7 +208,7 @@ export function EkycConfirmationStep({
     try {
       const fullPhone = phoneNumber.startsWith("0") ? phoneNumber : `0${phoneNumber}`;
 
-      // Update user profile phone number
+      // Cập nhật số điện thoại trong hồ sơ người dùng
       try {
         await userApi.updateProfile({
           fullName: legalName || userProfile?.fullName || '',
@@ -212,7 +218,7 @@ export function EkycConfirmationStep({
         console.warn("Could not sync phone to user profile:", err);
       }
 
-      // Save payout bank info to local storage for event payouts
+      // Lưu thông tin ngân hàng nhận tiền vào localStorage để dùng khi thanh toán sự kiện
       const payoutData = {
         bankName,
         accountHolder: accountHolder.trim().toUpperCase(),
@@ -295,7 +301,7 @@ export function EkycConfirmationStep({
 
   return (
     <div className="w-full overflow-hidden rounded-3xl app-bg-card border app-border shadow-xs">
-      {/* Step 4 Header - Unified with Steps 1-3 */}
+      {/* Tiêu đề bước 4, đồng bộ với bước 1 đến 3 */}
       <div className="p-6 sm:p-7 pb-4 sm:pb-5 border-b app-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-base sm:text-lg font-bold app-text-main">
@@ -317,7 +323,7 @@ export function EkycConfirmationStep({
         )}
       </div>
 
-      {/* Notice Banner */}
+      {/* Banner lưu ý */}
       <div className="p-4 sm:p-5 bg-blue-50/60 dark:bg-blue-950/30 border-b app-border text-xs leading-relaxed flex items-start gap-3">
         <FiInfo className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <p className="app-text-muted text-[11px] sm:text-xs leading-relaxed">
@@ -596,7 +602,7 @@ export function EkycConfirmationStep({
           </span>
         </label>
 
-        {/* Error message */}
+        {/* Thông báo lỗi */}
         {errorMsg && (
           <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
             <FiAlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -604,7 +610,7 @@ export function EkycConfirmationStep({
           </div>
         )}
 
-        {/* Submit Button - Solid Blue */}
+        {/* Nút gửi, màu xanh đặc */}
         <button
           type="submit"
           disabled={submitting || !agreed}
@@ -620,7 +626,7 @@ export function EkycConfirmationStep({
           )}
         </button>
 
-        {/* Secondary options */}
+        {/* Các tùy chọn phụ */}
         <div className="pt-1 text-center">
           {onBackToVerification && (
             <button

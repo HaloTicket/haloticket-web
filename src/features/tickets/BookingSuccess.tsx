@@ -8,6 +8,7 @@ import { ticketApi } from "@/services/ticketApi";
 
 import type { OwnedTicketApiResponse } from "@/types";
 
+/** Thông tin đơn vừa đặt thành công để hiển thị ở trang kết quả, lấy từ phản hồi API hoặc dữ liệu lưu tạm ở trình duyệt. */
 interface SuccessTicketInfo extends Partial<OwnedTicketApiResponse> {
   id?: string;
   bookingId?: string;
@@ -17,6 +18,7 @@ interface SuccessTicketInfo extends Partial<OwnedTicketApiResponse> {
   ticketTypeName?: string | null;
 }
 
+/** Trang báo đặt vé thành công. Khởi tạo thông tin đơn từ `localStorage` (đơn vừa đặt, đơn đang chờ, rồi vé đã lưu) và dựng màn hình xác nhận kèm nút về trang chủ hoặc xem vé. */
 export default function BookingSuccess() {
   const { t } = useTranslation();
   const navigate = useNavigate();

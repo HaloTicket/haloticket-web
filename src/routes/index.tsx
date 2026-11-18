@@ -1,4 +1,4 @@
-/* This module intentionally co-locates route definitions and their small auth adapters. */
+/* Mô-đun này cố ý đặt chung phần khai báo route và các bộ chuyển đổi xác thực nhỏ. */
 /* eslint-disable react-refresh/only-export-components */
 import { createBrowserRouter, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { PATHS } from "./paths";
@@ -10,12 +10,12 @@ import OrganizerLayout from "@/layouts/OrganizerLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import BookingLayout from "@/layouts/BookingLayout";
 
-// Events Feature
+// Tính năng sự kiện
 import Home from "@/features/events/Home";
 import EventSearch from "@/features/events/EventSearch";
 import EventDetail from "@/features/events/EventDetail";
 
-// Auth Feature
+// Tính năng xác thực
 import Login from "@/features/auth/Login";
 import Register from "@/features/auth/Register";
 import GoogleAuthPopupCallback from "@/features/auth/components/GoogleAuthPopupCallback";
@@ -29,7 +29,7 @@ import type { RegistrationData, RegistrationOtpData } from "@/features/auth/Regi
 import type { PasswordRecoveryRequest } from "@/features/auth/ForgotPassword";
 import type { PasswordResetData } from "@/features/auth/ResetPassword";
 
-// Tickets Feature
+// Tính năng vé
 import SelectTicket from "@/features/tickets/SelectTicket";
 import Checkout from "@/features/tickets/Checkout";
 import BookingSuccess from "@/features/tickets/BookingSuccess";
@@ -39,18 +39,18 @@ import OrderDetail from "@/features/tickets/OrderDetail";
 import GiftInvitation from "@/features/tickets/GiftInvitation";
 import MemberInvitation from "@/features/organizer/event-manage/MemberInvitation";
 
-// User Feature
+// Tính năng người dùng
 import Profile from "@/features/user/Profile";
 import EkycVerification from "@/features/ekyc/EkycVerification";
 
-// Organizer Feature
+// Tính năng nhà tổ chức
 import CreateEvent from "@/features/organizer/CreateEvent";
 import MyEvents from "@/features/organizer/MyEvents";
 import OrganizerFinance from "@/features/organizer/OrganizerFinance";
 import WithdrawalDetail from "@/features/organizer/finance/WithdrawalDetail";
 import OrganizerTerms from "@/features/organizer/OrganizerTerms";
 
-// Event Management Portal Feature
+// Tính năng cổng quản lý sự kiện
 import EventManageLayout from "@/layouts/EventManageLayout";
 import { EventOverview } from "@/features/organizer/event-manage/EventOverview";
 import { EventManageIndexRedirect, EventManageRoleGate } from "@/features/organizer/event-manage/components/EventManageRoleGate";
@@ -65,13 +65,13 @@ import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
 import EventTransfers from "@/features/organizer/event-manage/EventTransfers";
 import { EventShowtimes } from "@/features/organizer/event-manage/EventShowtimes";
 
-// Resale Feature
+// Tính năng bán lại vé
 import ResaleList from "@/features/resale/ResaleList";
 import ResaleEventDetail from "@/features/resale/ResaleEventDetail";
 import ResaleTicketCheckout from "@/features/resale/ResaleTicketCheckout";
 import ResaleTransactionResult from "@/features/resale/ResaleTransactionResult";
 
-// Admin Feature
+// Tính năng quản trị
 import AdminDashboard from "@/features/admin/AdminDashboard";
 import AdminNotifications from "@/features/admin/AdminNotifications";
 import AdminSettings from "@/features/admin/settings/AdminSettings";
@@ -91,9 +91,10 @@ import AdminOrderReconciliation from "@/features/admin/OrderReconciliation";
 import AdminHomepageConfig from "@/features/admin/HomepageConfig";
 import AdminCategoryConfig from "@/features/admin/CategoryConfig";
 
-// Common / Error
+// Dùng chung / trang lỗi
 import NotFound from "@/features/common/NotFound";
 
+/** Kiểm tra người dùng hiện tại có vai trò quản trị hay không, ưu tiên hồ sơ đã lưu đệm, nếu không có thì đọc vai trò từ JWT. Trả về `false` khi chưa đăng nhập. */
 function checkIsAdmin(): boolean {
   const authed = getKeycloakSession().isAuthenticated();
   if (!authed) return false;
@@ -116,6 +117,7 @@ function checkIsAdmin(): boolean {
   return false;
 }
 
+/** Chặn quản trị viên khỏi các trang dành cho khách hàng và chuyển họ về trang tổng quan quản trị. */
 function CustomerRouteGuard({ children }: { children: React.ReactNode }) {
   if (checkIsAdmin()) {
     return <Navigate to={PATHS.ADMIN_DASHBOARD} replace />;
@@ -123,6 +125,7 @@ function CustomerRouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Chỉ cho phép người dùng đã đăng nhập và không phải quản trị viên. Chưa đăng nhập thì lưu đường dẫn hiện tại để quay lại sau khi đăng nhập. */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const authed = getKeycloakSession().isAuthenticated();
@@ -136,6 +139,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Chỉ cho phép quản trị viên đã đăng nhập; chưa đăng nhập thì về trang đăng nhập, không đủ quyền thì về trang chủ. */
 function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
   const authed = getKeycloakSession().isAuthenticated();
   if (!authed) {
@@ -147,9 +151,11 @@ function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Gom các hàm xử lý đăng nhập, đăng ký, quên mật khẩu và đăng nhập Google, kèm bước điều hướng sau khi đăng nhập. */
 function AuthHandlers() {
   const navigate = useNavigate();
 
+    /** Điều hướng sau đăng nhập: quản trị viên về trang tổng quan quản trị, người dùng thường về đường dẫn đã lưu (lời mời nhận quà hoặc trang trước đó) hoặc trang chủ. */
   const redirectAfterLogin = async (token?: string) => {
     let isAdmin = false;
     try {
@@ -183,6 +189,7 @@ function AuthHandlers() {
     }
   };
 
+    /** Đăng nhập bằng email và mật khẩu, lưu token vào `localStorage`, gọi `onSuccess` rồi chờ một lúc trước khi điều hướng. */
   const login = async ({ email, password }: LoginCredentials, onSuccess?: () => void) => {
     const result = await authApi.login(email, password);
     localStorage.setItem("access_token", result.accessToken);
@@ -193,14 +200,22 @@ function AuthHandlers() {
     await redirectAfterLogin(result.accessToken);
   };
 
+    /** Bắt đầu đăng ký tài khoản, gửi email và mật khẩu kèm khóa idempotency. */
   const registerStart = (data: RegistrationData) => authApi.registerStart(data.email, data.password, createIdempotencyKey("register"));
+    /** Xác thực mã OTP của bước đăng ký. */
   const registerVerify = ({ challengeId, email, password, otp }: RegistrationOtpData) => authApi.registerVerify(challengeId, email, password, otp);
+    /** Gửi lại mã OTP đăng ký. */
   const registerResend = (challengeId: string) => authApi.registerResend(challengeId);
+    /** Bắt đầu quy trình quên mật khẩu theo định danh người dùng nhập. */
   const forgotStart = (data: PasswordRecoveryRequest) => authApi.forgotStart(data.identifier, createIdempotencyKey("password-reset"));
+    /** Xác thực mã OTP của quy trình quên mật khẩu. */
   const forgotVerify = (challengeId: string, otp: string) => authApi.forgotVerify(challengeId, otp);
+    /** Gửi lại mã OTP của quy trình quên mật khẩu. */
   const forgotResend = (challengeId: string) => authApi.forgotResend(challengeId);
+    /** Đặt lại mật khẩu bằng token đặt lại nhận được sau khi xác thực OTP. */
   const resetPassword = (data: PasswordResetData) => authApi.resetPassword(data.resetToken, data.password);
 
+    /** Đăng nhập bằng Google qua cửa sổ popup Keycloak rồi điều hướng như đăng nhập thường. */
   const googleLogin = async () => {
     await getKeycloakSession().loginWithGoogle();
     await redirectAfterLogin();
@@ -208,9 +223,13 @@ function AuthHandlers() {
 
   return { login, googleLogin, registerStart, registerVerify, registerResend, forgotStart, forgotVerify, forgotResend, resetPassword };
 }
+/** Trang đăng nhập, nối form với các hàm xử lý đăng nhập. */
 function AuthLoginRoute() { const handlers = AuthHandlers(); return <Login onSubmit={handlers.login} onGoogleLogin={handlers.googleLogin} />; }
+/** Trang đăng ký, nối form với bước gửi, xác thực và gửi lại OTP. */
 function AuthRegisterRoute() { const handlers = AuthHandlers(); return <Register onSubmit={handlers.registerStart} onVerifyOtp={handlers.registerVerify} onResendOtp={handlers.registerResend} onGoogleLogin={handlers.googleLogin} />; }
+/** Trang quên mật khẩu, nối form với bước gửi, xác thực và gửi lại OTP. */
 function AuthForgotRoute() { const handlers = AuthHandlers(); return <ForgotPassword onSubmit={handlers.forgotStart} onVerifyOtp={handlers.forgotVerify} onResendOtp={handlers.forgotResend} />; }
+/** Trang đặt lại mật khẩu, nối form với hàm đặt lại mật khẩu. */
 function AuthResetRoute() { return <ResetPassword onSubmit={AuthHandlers().resetPassword} />; }
 
 export const router = createBrowserRouter([
@@ -219,7 +238,7 @@ export const router = createBrowserRouter([
     element: <GoogleAuthPopupCallback />,
   },
 
-  // Ticket Booking Flow Routes (Header + Outlet, NO Footer)
+  // Các route luồng đặt vé (Header + Outlet, KHÔNG có Footer)
   {
     element: <BookingLayout />,
     children: [
@@ -254,7 +273,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Main App Routes (with Main Header & Footer)
+  // Các route chính của ứng dụng (có Header và Footer chính)
   {
     path: PATHS.HOME,
     element: (
@@ -350,7 +369,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Auth Routes (with Auth Layout)
+  // Các route xác thực (dùng layout xác thực)
   {
     element: <AuthLayout />,
     children: [
@@ -373,7 +392,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Organizer Center Routes (Separate Layout WITHOUT Main Header & Footer)
+  // Các route Trung tâm nhà tổ chức (layout riêng, KHÔNG có Header và Footer chính)
   {
     element: (
       <ProtectedRoute>
@@ -412,7 +431,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Standalone Event Management Portal Routes
+  // Các route cổng quản lý sự kiện độc lập
   {
     path: "/organizer/events/:eventId/manage",
     element: (
@@ -504,7 +523,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Admin Portal Routes (Separate Admin Layout)
+  // Các route cổng quản trị (layout quản trị riêng)
   {
     element: (
       <AdminProtectedRoute>

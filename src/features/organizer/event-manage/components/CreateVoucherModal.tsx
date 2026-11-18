@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { FiX, FiCheck, FiCalendar, FiPercent, FiDollarSign, FiLayers, FiAlertCircle } from "react-icons/fi";
 import type { VoucherItem, VoucherCreateData } from "@/types";
 
+/** Một lựa chọn suất diễn để áp dụng voucher: mã và nhãn hiển thị. */
 interface EventShowtimeOption {
   id: string;
   label: string;
 }
 
+/** Thông báo lỗi của từng trường trong form voucher (trường nào không lỗi thì để trống). */
 interface FormErrors {
   title?: string;
   code?: string;
@@ -23,6 +25,7 @@ interface FormErrors {
   selectedShowtimes?: string;
 }
 
+/** Props của modal tạo hoặc sửa voucher: cờ mở, hàm đóng, hàm lưu mới, hàm cập nhật, voucher đang sửa và các suất diễn có thể chọn. */
 interface CreateVoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -39,15 +42,15 @@ const DEFAULT_SHOWTIMES: EventShowtimeOption[] = [
 ];
 
 /**
- * converts various datetime string formats (dd/MM/yyyy HH:mm, yyyy-MM-dd HH:mm, ISO)
- * into standard HTML <input type="datetime-local"> format: YYYY-MM-DDTHH:mm
+ * Chuyển nhiều dạng chuỗi ngày giờ (dd/MM/yyyy HH:mm, yyyy-MM-dd HH:mm, ISO)
+ * về dạng chuẩn của ô HTML {@code <input type="datetime-local">}: YYYY-MM-DDTHH:mm
  */
 function toDatetimeLocalInput(dateStr: string | undefined | null): string {
   if (!dateStr) return "";
 
   const trimmed = dateStr.trim();
 
-  // if format is dd/MM/yyyy HH:mm
+  // nếu định dạng là dd/MM/yyyy HH:mm
   if (trimmed.includes("/")) {
     const parts = trimmed.split(" ");
     const datePart = parts[0];
@@ -60,7 +63,7 @@ function toDatetimeLocalInput(dateStr: string | undefined | null): string {
     }
   }
 
-  // if format is yyyy-MM-dd HH:mm or yyyy-MM-ddTHH:mm
+  // nếu định dạng là yyyy-MM-dd HH:mm hoặc yyyy-MM-ddTHH:mm
   if (trimmed.includes("-")) {
     return trimmed.replace(" ", "T").slice(0, 16);
   }
@@ -68,6 +71,10 @@ function toDatetimeLocalInput(dateStr: string | undefined | null): string {
   return trimmed;
 }
 
+/**
+ * Modal tạo hoặc sửa voucher của sự kiện, chia ba phần: thông tin cơ bản, mức giảm và giới hạn, phạm vi áp dụng theo suất diễn.
+ * Ở chế độ tạo có thể tạo một mã hoặc hàng loạt theo tiền tố; ở chế độ sửa thì nạp sẵn dữ liệu từ {@code initialVoucher}.
+ */
 export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
   isOpen,
   onClose,
@@ -83,14 +90,14 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
   const [bulkCount, setBulkCount] = useState<number>(5);
   const [codePrefix, setCodePrefix] = useState<string>("HALO");
 
-  // section 1: basic information
+  // phần 1: thông tin cơ bản
   const [title, setTitle] = useState("");
   const [code, setCode] = useState("");
   const [startDate, setStartDate] = useState("2026-09-15T00:00");
   const [endDate, setEndDate] = useState("2026-10-15T23:59");
   const [terms, setTerms] = useState("");
 
-  // section 2: discount & limit settings
+  // phần 2: mức giảm và giới hạn
   const [discountType, setDiscountType] = useState<"PERCENTAGE" | "FIXED_AMOUNT">("PERCENTAGE");
   const [discountValue, setDiscountValue] = useState<number>(10);
   const [applyTicketLimitType, setApplyTicketLimitType] = useState<"LIMITED" | "UNLIMITED">("LIMITED");
@@ -99,16 +106,16 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
   const [minTicketsPerOrder, setMinTicketsPerOrder] = useState<number>(1);
   const [maxTicketsPerOrder, setMaxTicketsPerOrder] = useState<number>(5);
 
-  // section 3: apply scope & showtimes
+  // phần 3: phạm vi áp dụng và suất diễn
   const [applyScope, setApplyScope] = useState<"ALL" | "LIMITED_SHOWTIMES">("ALL");
   const [selectedShowtimes, setSelectedShowtimes] = useState<string[]>([]);
   const [showShowtimePicker, setShowShowtimePicker] = useState<boolean>(false);
 
-  // validation errors state
+  // trạng thái lỗi kiểm tra dữ liệu
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // populate ALL form fields when initialVoucher is provided (Edit Mode)
+  // nạp TẤT CẢ trường của form khi có {@code initialVoucher} (chế độ sửa)
   useEffect(() => {
     setErrors({});
     if (initialVoucher) {
@@ -126,7 +133,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
       setApplyScope(scope);
       setShowShowtimePicker(scope === "LIMITED_SHOWTIMES");
 
-      // match either by showtime.id or showtime.label
+      // khớp theo {@code showtime.id} hoặc {@code showtime.label}
       const rawSelected = initialVoucher.applicableShowtimes || [];
       const normalizedIds = rawSelected.map((item) => {
         const found = availableShowtimes.find((st) => st.id === item || st.label === item);
@@ -142,7 +149,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
         setEndDate(toDatetimeLocalInput(initialVoucher.endDate));
       }
     } else {
-      // reset defaults for create mode
+      // đặt lại giá trị mặc định cho chế độ tạo
       setTitle("");
       setCode("");
       setDiscountType("PERCENTAGE");
@@ -161,6 +168,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Chọn hoặc bỏ chọn một suất diễn áp dụng; có ít nhất một suất thì xóa lỗi chưa chọn suất. */
   const toggleShowtimeSelection = (showtimeId: string) => {
     setSelectedShowtimes((prev) => {
       const updated = prev.includes(showtimeId)
@@ -173,17 +181,18 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
     });
   };
 
+  /** Kiểm tra toàn bộ form, ghi lỗi từng trường vào state; trả {@code true} khi không có lỗi. */
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // name promotion
+    // tên chương trình
     if (!title.trim()) {
       newErrors.title = t("Vui lòng nhập tên chương trình khuyến mãi!");
     } else if (title.trim().length > 80) {
       newErrors.title = t("Tên chương trình khuyến mãi không vượt quá 80 ký tự!");
     }
 
-    // voucher code / bnulk settings
+    // mã voucher hoặc cấu hình tạo hàng loạt
     if (!isEditMode && creationMode === "BULK") {
       if (!codePrefix.trim()) {
         newErrors.codePrefix = t("Vui lòng nhập tiền tố mã!");
@@ -206,7 +215,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
       }
     }
 
-    // start & end date
+    // ngày bắt đầu và kết thúc
     if (!startDate) {
       newErrors.startDate = t("Vui lòng chọn thời gian bắt đầu áp dụng!");
     }
@@ -230,14 +239,14 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
       newErrors.discountValue = t("Mức giảm cố định tối thiểu là 1.000 VNĐ!");
     }
 
-    // quantity limited
+    // giới hạn số lượng
     if (applyTicketLimitType === "LIMITED") {
       if (!ticketLimitCount || ticketLimitCount < 1) {
         newErrors.ticketLimitCount = t("Số lượng vé tối đa phải lớn hơn 0!");
       }
     }
 
-    // advanced limited
+    // giới hạn nâng cao
     if (!maxOrdersPerBuyer || maxOrdersPerBuyer < 1) {
       newErrors.maxOrdersPerBuyer = t("Số đơn tối đa/người mua phải lớn hơn 0!");
     }
@@ -250,7 +259,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
       newErrors.maxTicketsPerOrder = t("Số vé tối đa/đơn phải lớn hơn hoặc bằng số vé tối thiểu!");
     }
 
-    // apply scope showtime
+    // phạm vi áp dụng theo suất diễn
     if (applyScope === "LIMITED_SHOWTIMES" && selectedShowtimes.length === 0) {
       newErrors.selectedShowtimes = t("Vui lòng chọn ít nhất 1 suất diễn áp dụng!");
     }
@@ -259,6 +268,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  /** Kiểm tra form rồi dựng dữ liệu voucher và gọi cập nhật (chế độ sửa) hoặc lưu mới; xong thì đóng modal. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -304,7 +314,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-4xl app-bg-card border app-border rounded-2xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
-        {/* Modal Header */}
+        {/* Đầu modal */}
         <div className="p-5 border-b app-border flex items-center justify-between app-bg-subnav">
           <h2 className="text-base font-black app-text-main flex items-center gap-2">
             <FiLayers className="w-5 h-5 text-blue-500" />
@@ -320,7 +330,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} noValidate className="p-6 space-y-8 max-h-[80vh] overflow-y-auto no-scrollbar">
-          {/* Mode Selector (Only displayed in Create Mode) */}
+          {/* Chọn chế độ tạo (chỉ hiện ở chế độ tạo mới) */}
           {!isEditMode && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div
@@ -426,7 +436,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 )}
               </div>
 
-              {/* Code settings for SINGLE vs BULK */}
+              {/* Cài đặt mã cho chế độ đơn lẻ hoặc hàng loạt */}
               {creationMode === "SINGLE" || isEditMode ? (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -585,7 +595,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
             </h3>
 
             <div className="space-y-5">
-              {/* Restyled Promotion Type Radio Cards */}
+              {/* Thẻ chọn loại khuyến mãi */}
               <div className="space-y-2">
                 <label className="text-xs font-bold app-text-main block">{t("Loại khuyến mãi & Mức giảm:")} <span className="text-rose-500">*</span></label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -662,7 +672,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 )}
               </div>
 
-              {/* Total ticket usage limit */}
+              {/* Giới hạn tổng số vé được dùng */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start pt-2">
                 <label className="text-xs font-bold app-text-main pt-2">{t("Tổng số vé được áp dụng:")}</label>
                 <div className="sm:col-span-2 space-y-2">
@@ -722,7 +732,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 </div>
               </div>
 
-              {/* Advanced limits */}
+              {/* Giới hạn nâng cao */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold app-text-main mb-1.5">{t("Số đơn tối đa/Người mua:")}</label>
@@ -791,7 +801,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Phạm vi áp dụng (Showtimes selection) */}
+          {/* Phần 3: Phạm vi áp dụng (chọn suất diễn) */}
           <div className="space-y-4 pt-4 border-t app-border">
             <h3 className="text-xs font-black app-text-main uppercase tracking-wider text-blue-600 dark:text-blue-400">
               {t("3. Phạm vi áp dụng theo suất diễn")}
@@ -841,7 +851,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
                 )}
               </div>
 
-              {/* Showtimes picker panel */}
+              {/* Bảng chọn suất diễn */}
               {applyScope === "LIMITED_SHOWTIMES" && (
                 <div className="p-4 rounded-2xl app-bg-main border app-border space-y-3 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
@@ -897,7 +907,7 @@ export const CreateVoucherModal: React.FC<CreateVoucherModalProps> = ({
             </div>
           </div>
 
-          {/* Modal Footer Actions */}
+          {/* Các nút ở chân modal */}
           <div className="pt-6 border-t app-border flex items-center justify-end gap-3">
             <button
               type="button"

@@ -28,6 +28,7 @@ import {
 } from "react-icons/fi";
 import { FaTicketAlt, FaGem } from "react-icons/fa";
 
+/** Tạo bản nháp biểu mẫu chỉnh sửa hồ sơ từ hồ sơ hiện có, thay giá trị thiếu bằng chuỗi rỗng (giới tính mặc định `OTHER`). */
 function createProfileDraft(profile: UserProfile): UserProfileUpdateRequest {
   return {
     fullName: profile.fullName || "",
@@ -37,6 +38,7 @@ function createProfileDraft(profile: UserProfile): UserProfileUpdateRequest {
   };
 }
 
+/** Trang hồ sơ người dùng gồm các tab thông tin, bảo mật, hội viên, eKYC và vé; tab đang chọn đồng bộ với tham số `tab` trên URL. Cho phép sửa hồ sơ, đổi ảnh đại diện, đổi mật khẩu, sao chép mã hội viên và đăng xuất. */
 export default function Profile() {
   useTranslation();
   const navigate = useNavigate();
@@ -94,6 +96,7 @@ export default function Profile() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [failedAvatar, setFailedAvatar] = useState<string>();
 
+  /** Tải ảnh đại diện lên: chỉ nhận JPG, PNG hoặc WebP tối đa 5 MB, tải lên thư mục `avatars` rồi gán URL vào biểu mẫu. */
   const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -117,7 +120,7 @@ export default function Profile() {
     }
   };
 
-  // password change state
+  // trạng thái đổi mật khẩu
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -127,7 +130,7 @@ export default function Profile() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
-  // copy member ID state
+  // trạng thái sao chép mã hội viên
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -137,6 +140,7 @@ export default function Profile() {
     }
 
     let isMounted = true;
+    /** Tải hồ sơ người dùng từ API và khởi tạo bản nháp biểu mẫu; bỏ qua nếu component đã gỡ. */
     async function loadData() {
       setIsLoading(true);
       try {
@@ -158,6 +162,7 @@ export default function Profile() {
     };
   }, [navigate]);
 
+  /** Chuyển tab, cập nhật tham số `tab` trên URL và xóa các thông báo thành công hoặc lỗi cũ. */
   const handleTabChange = (tab: "info" | "security" | "membership" | "ekyc" | "tickets") => {
     setActiveTab(tab);
     setSearchParams(tab === "info" ? {} : { tab });
@@ -167,10 +172,11 @@ export default function Profile() {
     setPasswordError("");
   };
 
+  /** Kiểm tra biểu mẫu rồi gửi cập nhật hồ sơ lên API; thành công thì làm mới dữ liệu và hiện thông báo trong 4 giây, lỗi thì hiện thông báo lỗi. */
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
 
-    // validate fields
+    // kiểm tra các trường
     const errors = validateProfileForm(formData);
     setFieldErrors(errors);
     if (hasProfileErrors(errors)) return;
@@ -199,6 +205,7 @@ export default function Profile() {
     }
   };
 
+  /** Kiểm tra mật khẩu hiện tại, độ dài tối thiểu 8 ký tự của mật khẩu mới và khớp xác nhận. Hiện chưa gọi API đổi mật khẩu thật, chỉ giả lập độ trễ rồi báo thành công. */
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError("");
@@ -219,7 +226,7 @@ export default function Profile() {
 
     setPasswordSaving(true);
     try {
-      // mock API delay for security verification
+      // giả lập độ trễ API để xác minh bảo mật
       await new Promise((resolve) => setTimeout(resolve, 800));
       setPasswordSuccess(true);
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -231,6 +238,7 @@ export default function Profile() {
     }
   };
 
+  /** Sao chép mã hội viên vào clipboard và hiện trạng thái đã sao chép trong 2 giây. */
   const handleCopyMemberId = () => {
     const memberId = profile.id || "HT-883921-VIP";
     navigator.clipboard.writeText(memberId);
@@ -238,6 +246,7 @@ export default function Profile() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  /** Đăng xuất khỏi Keycloak, phát sự kiện `auth-changed` và quay về trang chủ. */
   const handleLogout = async () => {
     await getKeycloakSession().logout();
     window.dispatchEvent(new Event("auth-changed"));
@@ -250,6 +259,7 @@ export default function Profile() {
     formData.gender !== (profile.gender || "OTHER") ||
     formData.avatarUrl !== (profile.avatarUrl || "");
 
+  /** Hủy các thay đổi chưa lưu bằng cách đặt lại biểu mẫu theo hồ sơ hiện tại. */
   const handleCancelChanges = () => {
     setFormData(createProfileDraft(profile));
     setFailedAvatar(undefined);

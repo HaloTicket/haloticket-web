@@ -3,6 +3,7 @@ import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 
 import { getPasswordRules } from "@/validation/passwordRules";
 
+/** Props của khối yêu cầu mật khẩu: mật khẩu cần kiểm tra và cờ hiện danh sách chi tiết. */
 interface PasswordRequirementsProps { password: string; showDetails?: boolean; }
 
 const requirements = [
@@ -12,6 +13,7 @@ const requirements = [
   { key: "hasUppercase", label: "Có ít nhất 1 ký tự in hoa" },
 ] as const;
 
+/** Hiển thị trạng thái hợp lệ của mật khẩu và từng quy tắc (độ dài, chữ thường và số, ký tự đặc biệt, chữ in hoa) đã đạt hay chưa. */
 export function PasswordRequirements({ password, showDetails = true }: PasswordRequirementsProps) {
   const { t } = useTranslation();
   const rules = getPasswordRules(password);

@@ -13,18 +13,20 @@ import {
 import type { EventDetailData, Showtime, TicketTier } from "@/types";
 import { isTicketInStock } from "@/utils/ticketQuantities";
 
+/** Props của phần lịch diễn: dữ liệu sự kiện và hàm gọi khi chọn một loại vé của một suất. */
 interface EventScheduleProps {
   event: EventDetailData;
   onSelectTicket?: (showtime: Showtime, ticket: TicketTier) => void;
 }
 
+/** Phần lịch diễn và vé: hiển thị các suất theo dạng danh sách (mở rộng để xem vé) hoặc dạng lịch tháng, kèm trạng thái mở bán và còn vé. */
 export const EventSchedule: React.FC<EventScheduleProps> = ({
   event,
   onSelectTicket,
 }) => {
   const { t: translate } = useTranslation();
 
-  // ensure showtimes list calculated dynamically from event startTime & endTime
+  // đảm bảo danh sách suất diễn được tính động từ startTime và endTime của sự kiện
   const showtimes: Showtime[] = useMemo(() => {
     const eventAny = event as any;
     let rawTickets = eventAny.tickets || eventAny.ticketTypes;
@@ -176,11 +178,12 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
   const [selectedCalendarMonth, setSelectedCalendarMonth] = useState<number>(initialMonth);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(initialDay);
 
+  /** Mở hoặc thu gọn vé của một suất diễn (chỉ một suất được mở tại một thời điểm). */
   const handleToggleShowtime = (id: string) => {
     setExpandedShowtimeId((prev) => (prev === id ? "" : id));
   };
 
-  // Calculate distinct available months from showtimes
+  // Tính các tháng riêng biệt có suất diễn
   const availableMonths = useMemo(() => {
     const monthsMap = new Map<number, number>();
     showtimes.forEach((st) => {
@@ -196,7 +199,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
     }));
   }, [showtimes, initialMonth]);
 
-  // Calculate calendar grid days for selectedCalendarMonth
+  // Tính các ngày trong lưới lịch của tháng đang chọn
   const daysInMonth = useMemo(() => {
     const year = showtimes.find((st) => st.monthNumber === selectedCalendarMonth)?.yearNumber || 2026;
     const count = new Date(year, selectedCalendarMonth, 0).getDate();
@@ -224,14 +227,14 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
 
   return (
     <div id="schedule-section" className="mb-10 scroll-mt-24">
-      {/* Section Header with View Toggle Buttons */}
+      {/* Đầu phần kèm nút đổi kiểu xem */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 tracking-tight">
           <FiCalendar className="w-5 h-5 app-text-brand" />
           <span>{translate("Lịch diễn")}</span>
         </h2>
 
-        {/* View Mode Switcher */}
+        {/* Bộ chuyển kiểu xem */}
         <div className="flex items-center bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl border app-border">
           <button
             type="button"
@@ -258,9 +261,9 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
         </div>
       </div>
 
-      {/* Main Container */}
+      {/* Khung chính */}
       <div className="app-bg-card border app-border rounded-3xl p-4 md:p-6 shadow-lg">
-        {/* List view */}
+        {/* Kiểu danh sách */}
         {viewMode === "list" && (
           <div className="space-y-4">
             {showtimes.map((st) => {
@@ -272,7 +275,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                   key={st.id}
                   className="rounded-2xl border app-border overflow-hidden transition-all duration-300 bg-slate-50/50 dark:bg-zinc-900/50"
                 >
-                  {/* Showtime Accordion Header */}
+                  {/* Đầu mục suất diễn dạng accordion */}
                   <div
                     onClick={() => handleToggleShowtime(st.id)}
                     className="p-4 md:p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800/80 transition-colors"
@@ -290,6 +293,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     </div>
 
                     {(() => {
+                      /** Chuyển giá trị ngày (mảng số hoặc chuỗi) thành {@code Date}; không hợp lệ thì trả về {@code null}. */
                       const parseSafeDate = (dateVal: any): Date | null => {
                         if (!dateVal) return null;
                         if (Array.isArray(dateVal)) {
@@ -361,7 +365,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                     })()}
                   </div>
 
-                  {/* Expanded Tickets Area */}
+                  {/* Khu vực vé khi mở rộng */}
                   {isExpanded && (
                     <div className="p-4 md:p-5 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-100/60 dark:bg-zinc-900/80 space-y-3">
                       <h4 className="font-extrabold text-xs md:text-sm app-text-muted uppercase tracking-wider mb-3">
@@ -404,10 +408,10 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
           </div>
         )}
 
-        {/* Calendar view */}
+        {/* Kiểu lịch */}
         {viewMode === "calendar" && (
           <div>
-            {/* Month Selector Bar */}
+            {/* Thanh chọn tháng */}
             <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3 mb-4 overflow-x-auto no-scrollbar">
               <button
                 type="button"
@@ -444,7 +448,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
               </button>
             </div>
 
-            {/* 7-Day Header */}
+            {/* Hàng tiêu đề 7 ngày */}
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold app-text-muted mb-3 py-2 border-b border-slate-200/40 dark:border-slate-800/40">
               <div>{translate("Thứ 2")}</div>
               <div>{translate("Thứ 3")}</div>
@@ -455,7 +459,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
               <div>{translate("Chủ nhật")}</div>
             </div>
 
-            {/* Calendar Days Grid */}
+            {/* Lưới các ngày trong lịch */}
             <div className="grid grid-cols-7 gap-2 mb-6">
               {emptyDaysOffset.map((_, i) => (
                 <div key={`empty-${i}`} className="h-12 md:h-14" />
@@ -489,7 +493,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
               })}
             </div>
 
-            {/* Selected Day Showtimes Info Below Calendar */}
+            {/* Thông tin các suất của ngày được chọn bên dưới lịch */}
             {activeDayShowtimes.length > 0 ? (
               <div className="p-4 md:p-5 rounded-2xl bg-slate-100 dark:bg-zinc-800/80 border app-border space-y-3">
                 <h4 className="font-extrabold text-sm md:text-base app-text-main flex items-center gap-2">
@@ -501,6 +505,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                 </h4>
 
                 {activeDayShowtimes.map((st) => {
+                  /** Chuyển giá trị ngày (mảng số hoặc chuỗi) thành {@code Date}; không hợp lệ thì trả về {@code null}. */
                   const parseSafeDate = (dateVal: any): Date | null => {
                     if (!dateVal) return null;
                     if (Array.isArray(dateVal)) {

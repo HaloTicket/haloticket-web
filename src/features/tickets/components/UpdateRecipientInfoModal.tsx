@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FiX, FiCheck } from 'react-icons/fi';
 
+/** Thông tin người nhận vé do người dùng xác nhận trong hộp thoại (họ tên, liên hệ, địa chỉ, ghi chú). */
 export interface RecipientInfoData {
   recipientName: string;
   phone: string;
@@ -13,6 +14,7 @@ export interface RecipientInfoData {
   note: string;
 }
 
+/** Props của hộp thoại cập nhật thông tin nhận vé; `initialData` điền sẵn họ tên, số điện thoại, email và `isLoading` khóa nút khi đang xử lý. */
 export interface UpdateRecipientInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -50,6 +52,7 @@ const WARDS = [
   'Phường Hải Châu 1',
 ];
 
+/** Hộp thoại (dựng bằng portal) nhập thông tin người nhận vé trước khi thanh toán; không dựng gì khi `isOpen` là false. */
 export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> = ({
   isOpen,
   onClose,
@@ -80,6 +83,7 @@ export const UpdateRecipientInfoModal: React.FC<UpdateRecipientInfoModalProps> =
 
   if (!isOpen) return null;
 
+  /** Chặn gửi form mặc định và trả dữ liệu đã cắt khoảng trắng cho `onConfirm`, số điện thoại kèm mã quốc gia. */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onConfirm({

@@ -9,19 +9,21 @@ import type { PinData, PinnedReport } from "@/types/ai";
 const MAX_TABLE_ROWS = 8;
 const MAX_TABLE_COLUMNS = 4;
 
+/** Định dạng một ô dữ liệu: thiếu hiện dấu gạch, số theo ngôn ngữ hiện tại. */
 function formatCell(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "number") return value.toLocaleString(getLocale());
   return String(value);
 }
 
+/** Định dạng thời điểm chụp báo cáo; thiếu hoặc sai thì trả về chuỗi rỗng. */
 function stamp(value?: string): string {
   if (!value) return "";
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleString(getLocale(), { dateStyle: "short", timeStyle: "short" }) : "";
 }
 
-/** A label + one number per row reads best as bars; everything else is a small table. */
+/** Cặp nhãn và một số trên mỗi dòng hiển thị tốt nhất dưới dạng thanh; các trường hợp khác dùng bảng nhỏ. */
 function Rows({ rows, chartType }: { rows: Record<string, unknown>[]; chartType: string }) {
   const { t } = useTranslation();
   if (rows.length === 0) return <p className="py-3 text-xs app-text-muted">{t("ai.pin.noRows")}</p>;
@@ -52,12 +54,14 @@ function Rows({ rows, chartType }: { rows: Record<string, unknown>[]; chartType:
   );
 }
 
+/** Thẻ một báo cáo đã ghim: đọc lại dữ liệu mới nhất, báo khi chỉ còn bản chụp cũ, cho phép xóa ghim. */
 function PinCard({ pin, onDeleted }: { pin: PinnedReport; onDeleted: (pinId: string) => void }) {
   const { t } = useTranslation();
   const [data, setData] = useState<PinData | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [deleting, setDeleting] = useState(false);
 
+  /** Đọc lại dữ liệu của báo cáo đã ghim. */
   const load = useCallback(async () => {
     setState("loading");
     try {
@@ -72,6 +76,7 @@ function PinCard({ pin, onDeleted }: { pin: PinnedReport; onDeleted: (pinId: str
     queueMicrotask(() => { void load(); });
   }, [load]);
 
+  /** Xóa ghim trên máy chủ rồi báo cho danh sách cha. */
   const remove = async () => {
     setDeleting(true);
     try {
@@ -112,12 +117,13 @@ function PinCard({ pin, onDeleted }: { pin: PinnedReport; onDeleted: (pinId: str
   );
 }
 
-/** Reports the admin pinned from the AI data analysis page. Each one is read again without calling the model. */
+/** Các báo cáo quản trị viên đã ghim từ trang phân tích dữ liệu AI. Mỗi báo cáo được đọc lại mà không gọi mô hình. */
 export function PinnedReports() {
   const { t } = useTranslation();
   const [pins, setPins] = useState<PinnedReport[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
+  /** Tải danh sách báo cáo đã ghim. */
   const load = useCallback(async () => {
     setState("loading");
     try {

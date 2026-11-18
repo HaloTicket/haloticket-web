@@ -1,6 +1,6 @@
 import type { Seat, ZoneBlock, VenueTemplate } from '@/types/seating';
 
-// default preset zones dictionary
+// Từ điển các khu vực (zone) có sẵn dùng chung cho các mẫu sơ đồ
 export const PRESET_ZONES: Record<string, ZoneBlock> = {
   svip: {
     id: 'svip',
@@ -59,7 +59,7 @@ export const PRESET_ZONES: Record<string, ZoneBlock> = {
   },
 };
 
-// generate concert stadium seats
+/** Sinh ghế cho mẫu sân vận động hòa nhạc: hàng Super VIP sát sàn catwalk và các khu phía sau, mỗi ghế có tọa độ và khu vực riêng. */
 function generateConcertStadiumSeats(): Seat[] {
 
   const seats: Seat[] = [];
@@ -140,7 +140,7 @@ function generateConcertStadiumSeats(): Seat[] {
   return seats;
 }
 
-// generate theater arc seats
+/** Sinh ghế cho mẫu nhà hát với các hàng ghế xếp thành vòng cung quanh sân khấu. */
 function generateTheaterArcSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -187,7 +187,7 @@ function generateTheaterArcSeats(): Seat[] {
   return seats;
 }
 
-// generate tech summit seats
+/** Sinh ghế cho mẫu hội nghị công nghệ (tech summit) theo các hàng ghế thẳng. */
 function generateTechSummitSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -234,7 +234,7 @@ function generateTechSummitSeats(): Seat[] {
   return seats;
 }
 
-// generate gala table seats
+/** Sinh ghế cho mẫu tiệc gala, trong đó ghế được xếp quanh từng bàn tròn. */
 function generateGalaSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -276,7 +276,7 @@ function generateGalaSeats(): Seat[] {
   return seats;
 }
 
-// generate auditorium 2 floor seats
+/** Sinh ghế cho mẫu khán phòng hai tầng (tầng trệt và tầng lầu). */
 function generateAuditorium2FloorSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -364,12 +364,12 @@ function generateAuditorium2FloorSeats(): Seat[] {
   return seats;
 }
 
-// generate four seasons liveshow seats
+/** Sinh ghế cho mẫu liveshow Bốn Mùa, chia thành nhiều hạng vé từ SVIP ở giữa ra các khu bên ngoài. */
 function generateLiveshowBonMuaSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
 
-  // Tier 1: SVIP - EM (Center)
+  // Hạng 1: SVIP - EM (khu giữa)
   ['A', 'B'].forEach((row, rIdx) => {
     for (let i = 0; i < 6; i++) {
       seats.push({
@@ -531,12 +531,12 @@ function generateLiveshowBonMuaSeats(): Seat[] {
   return seats;
 }
 
-// generate say hi concert seats
+/** Sinh ghế cho mẫu concert Say Hi gồm bàn President, Sky Lounge và các hạng CAT phía sau. */
 function generateConcertSayHiSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
 
-  // President Table
+  // Bàn President
   for (let i = 0; i < 2; i++) {
     seats.push({
       id: `seat_sh_${seatId++}`,
@@ -550,7 +550,7 @@ function generateConcertSayHiSeats(): Seat[] {
     });
   }
 
-  // Sky Lounge
+  // Khu Sky Lounge (khu có ghế riêng)
   for (let i = 0; i < 3; i++) {
     seats.push({
       id: `seat_sh_${seatId++}`,
@@ -612,7 +612,7 @@ function generateConcertSayHiSeats(): Seat[] {
     });
   }
 
-  // CAT 1A & 1B (Seated rear rows A, B)
+  // CAT 1A và 1B (các hàng A, B có ghế ngồi ở phía sau)
   ['A', 'B'].forEach((row, rIdx) => {
     for (let i = 0; i < 4; i++) {
       // CAT 1A Left
@@ -643,7 +643,7 @@ function generateConcertSayHiSeats(): Seat[] {
   return seats;
 }
 
-// generate chong gai concert seats
+/** Sinh ghế cho mẫu concert Chồng Gái, gồm các hạng Hắc Mã, Bạch Mã và các hàng ghế theo hạng vé. */
 function generateConcertChongGaiSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -693,7 +693,7 @@ function generateConcertChongGaiSeats(): Seat[] {
   return seats;
 }
 
-// generate professional theater seats
+/** Sinh ghế cho mẫu sân khấu rap hát chuyên nghiệp: tầng 1 có hai cánh nghiêng, các hàng giữa chia hai khối ghế bởi lối đi, các hàng cuối liền khối. */
 function generateRapHatChuyenNghiepSeats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -771,9 +771,9 @@ function generateRapHatChuyenNghiepSeats(): Seat[] {
   tang2Rows.forEach((rowLetter, rIdx) => {
     const yPos = 810 + rIdx * 52;
 
-    // Row L - O: Left block (5 seats), Middle aisle gap, Right block (5 seats)
+    // Hàng L đến O: khối trái (5 ghế), khoảng trống lối đi giữa, khối phải (5 ghế)
     if (rIdx < 4) {
-      // Left block
+      // Khối trái
       for (let c = 1; c <= 5; c++) {
         const isSold = rIdx === 2 && (c === 3 || c === 4 || c === 5);
         seats.push({
@@ -788,7 +788,7 @@ function generateRapHatChuyenNghiepSeats(): Seat[] {
           shape: 'circle',
         });
       }
-      // Right block
+      // Khối phải
       for (let c = 6; c <= 10; c++) {
         seats.push({
           id: `seat_rh_${seatId++}`,
@@ -803,7 +803,7 @@ function generateRapHatChuyenNghiepSeats(): Seat[] {
         });
       }
     } else {
-      // Row P - S: Full row (16 seats)
+      // Hàng P đến S: hàng liền (16 ghế)
       for (let c = 1; c <= 16; c++) {
         const isSold = (rIdx === 6 || rIdx === 7) && c >= 5 && c <= 12;
         seats.push({
@@ -824,7 +824,7 @@ function generateRapHatChuyenNghiepSeats(): Seat[] {
   return seats;
 }
 
-// generate 360 degree stadium seats
+/** Sinh ghế cho mẫu sân vận động 360 độ, chia theo các khán đài bao quanh sân. */
 function generateSanVanDong360Seats(): Seat[] {
   const seats: Seat[] = [];
   let seatId = 1;
@@ -900,7 +900,7 @@ function generateSanVanDong360Seats(): Seat[] {
   return seats;
 }
 
-// preset venue templates list
+// Danh sách các mẫu sơ đồ địa điểm có sẵn
 export const PRESET_TEMPLATES: VenueTemplate[] = [
   {
     id: 'san_van_dong_360',

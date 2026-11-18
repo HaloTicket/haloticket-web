@@ -10,6 +10,7 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import type { TicketListing } from "@/types/marketplace";
 
+/** Định dạng số tiền VND, không có phần thập phân. */
 const money = (value: number) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -17,6 +18,7 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+/** Định dạng ngày sự kiện theo ngôn ngữ hiện tại (vi-VN hoặc en-US); thiếu giá trị thì dùng {@code fallback}, không phải ngày hợp lệ thì giữ nguyên chuỗi. */
 const formatEventDate = (val: unknown, locale: string, fallback: string) => {
   if (!val) return fallback;
   const d = new Date(String(val));
@@ -28,6 +30,7 @@ const formatEventDate = (val: unknown, locale: string, fallback: string) => {
   }).format(d);
 };
 
+/** Lấy giờ:phút của sự kiện; thiếu hoặc không hợp lệ thì mặc định 19:00. */
 const formatEventTime = (val?: unknown) => {
   if (!val) return "19:00";
   const d = new Date(String(val));
@@ -37,6 +40,7 @@ const formatEventTime = (val?: unknown) => {
   return `${hours}:${mins}`;
 };
 
+/** Chọn màu chấm và chữ theo tên hạng vé (VVIP, VIP, thường/GA, lầu/ban công, còn lại dùng màu mặc định). */
 const getTierColor = (tierName: string) => {
   const t = tierName.toUpperCase();
   if (t.includes("VVIP")) return { dot: "bg-emerald-400 shadow-emerald-400/80", text: "text-emerald-400" };
@@ -50,12 +54,14 @@ const getTierColor = (tierName: string) => {
   return { dot: "bg-indigo-400 shadow-indigo-400/80", text: "text-indigo-400" };
 };
 
+/** Lấy mã vé của tin đăng; nếu chưa có thì suy ra mã dạng {@code RSL} + 9 chữ số từ id tin đăng. */
 const getListingCode = (listing: TicketListing & { ticketCode?: string | null }) => {
   if (listing.ticketCode) return listing.ticketCode;
   const numOnly = String(listing.id).replace(/\D/g, "");
   return `RSL${(numOnly || "758250945").slice(-9).padEnd(9, "0")}`;
 };
 
+/** Trang danh sách vé bán lại của một sự kiện: tải sự kiện và các tin đăng, lọc theo hạng vé, sắp xếp theo giá và dẫn tới trang thanh toán (yêu cầu đăng nhập). */
 export const ResaleEventDetail = () => {
   const { t, i18n } = useTranslation();
   const { eventId = "" } = useParams();
@@ -73,6 +79,7 @@ export const ResaleEventDetail = () => {
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /** Đóng các menu chọn hạng vé và bộ lọc khi bấm chuột ra ngoài vùng của chúng. */
     const handleClickOutside = (event: MouseEvent) => {
       if (sectionMenuRef.current && !sectionMenuRef.current.contains(event.target as Node)) {
         setShowSectionMenu(false);
@@ -81,6 +88,7 @@ export const ResaleEventDetail = () => {
         setShowFilterMenu(false);
       }
     };
+    /** Đóng các menu khi nhấn Esc. */
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowSectionMenu(false);
@@ -130,6 +138,7 @@ export const ResaleEventDetail = () => {
     return Array.from(set);
   }, [listings]);
 
+  /** Mua một tin đăng: đã đăng nhập thì chuyển tới trang thanh toán vé bán lại, chưa thì mở hộp thoại yêu cầu đăng nhập. */
   const buy = (listing: TicketListing) => {
     const target = `/resale-ticket/${eventId}/ticket/${listing.id}`;
     if (!getKeycloakSession().isAuthenticated()) {
@@ -510,11 +519,14 @@ export const ResaleEventDetail = () => {
           {
             label: t("Đăng nhập"),
             variant: "primary",
+            /** Chuyển tới trang đăng nhập và nhớ đường dẫn mua vé để quay lại sau. */
             onClick: () => {
               if (loginPrompt) navigate(PATHS.LOGIN, { state: { from: loginPrompt } });
             },
           },
-          { label: t("Ở lại trang"), variant: "secondary", onClick: () => setLoginPrompt(null) },
+          { label: t("Ở lại trang"), variant: "secondary",
+            /** Đóng hộp thoại và ở lại trang. */
+            onClick: () => setLoginPrompt(null) },
         ]}
       />
     </>

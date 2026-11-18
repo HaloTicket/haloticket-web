@@ -39,8 +39,10 @@ import {
   FiSliders,
 } from "react-icons/fi";
 
+/** Bố cục khu quản trị: thanh bên điều hướng có huy hiệu số việc chờ xử lý, thanh trên cùng (đồng hồ, độ khả dụng hệ thống, chuông thông báo, menu hồ sơ), ngăn trợ lý AI và vùng nội dung của trang con. */
 export const AdminLayout: React.FC = () => {
   const { t: translate, i18n } = useTranslation();
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại, dùng bản dịch của i18n nếu có. */
   const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
@@ -53,6 +55,7 @@ export const AdminLayout: React.FC = () => {
   const [pendingPayoutsCount, setPendingPayoutsCount] = useState<number>(0);
   const [reconciliationCount, setReconciliationCount] = useState<number>(0);
 
+  /** Đếm số sự kiện chờ duyệt, yêu cầu cập nhật, yêu cầu chi trả và mục đối soát để hiện trên huy hiệu thanh bên; từng nguồn lỗi thì không cộng thêm. */
   const fetchPendingCount = useCallback(async () => {
     try {
       const data = await eventApi.getApprovalEvents("PENDING");
@@ -72,7 +75,7 @@ export const AdminLayout: React.FC = () => {
         console.warn("Failed to fetch pending payouts", e);
       }
       try {
-        // null means a source is unreadable: it adds nothing to the badge (the page itself shows "unknown").
+        // null nghĩa là nguồn không đọc được: không cộng gì vào huy hiệu (trang đó tự hiện "không rõ").
         const summary = await adminReconciliationApi.getSummary();
         setReconciliationCount((summary?.openExceptions ?? 0) + (summary?.paidWithoutTickets ?? 0) + (summary?.stockDiscrepancies ?? 0));
       } catch {
@@ -104,12 +107,13 @@ export const AdminLayout: React.FC = () => {
     getCachedUserProfile()
   );
 
-  // live time clock state
+  // trạng thái đồng hồ thời gian thực
   const [currentTime, setCurrentTime] = useState("");
 
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /** Đọc hồ sơ đã lưu đệm và làm mới từ API khi đã đăng nhập; chưa đăng nhập thì xóa hồ sơ. */
     const checkAuth = () => {
       const authed = getKeycloakSession().isAuthenticated();
       if (authed) {
@@ -125,6 +129,7 @@ export const AdminLayout: React.FC = () => {
       }
     };
 
+    /** Cập nhật hồ sơ từ bản lưu đệm khi hồ sơ người dùng thay đổi. */
     const handleProfileUpdate = () => {
       setUserProfile(getCachedUserProfile());
     };
@@ -144,7 +149,8 @@ export const AdminLayout: React.FC = () => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
     let failures = 0;
-    // 60 s polling that backs off after errors and skips work while the tab is hidden.
+    // thăm dò mỗi 60 giây, giãn dần khi lỗi liên tiếp và bỏ qua khi tab đang ẩn.
+    /** Lấy tình trạng các dịch vụ và tính tỷ lệ phần trăm đang hoạt động (`UP`); lỗi thì tăng số lần thất bại để giãn chu kỳ. */
     const fetchHealth = async () => {
       if (cancelled) return;
       if (!document.hidden) {
@@ -159,7 +165,7 @@ export const AdminLayout: React.FC = () => {
           }
         } catch {
           failures += 1;
-          // no data: do not keep showing an old percentage as if it were current
+          // không có dữ liệu: không giữ phần trăm cũ như thể còn mới
           setSystemUptime(null);
         }
       }
@@ -176,6 +182,7 @@ export const AdminLayout: React.FC = () => {
     };
   }, [userProfile?.roles]);
 
+  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang liên quan nếu thông báo có đích. */
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
@@ -184,6 +191,7 @@ export const AdminLayout: React.FC = () => {
   };
 
 
+  /** Đăng xuất Keycloak, phát các sự kiện `user-updated`, `auth-changed` và chuyển về trang đăng nhập. */
   const handleLogout = async () => {
     setShowProfileMenu(false);
     await getKeycloakSession().logout();
@@ -199,6 +207,7 @@ export const AdminLayout: React.FC = () => {
   ).toUpperCase();
 
   useEffect(() => {
+    /** Cập nhật chuỗi giờ và ngày hiện tại theo ngôn ngữ đang dùng. */
     const updateClock = () => {
       const now = new Date();
       const isEn = i18n.language.startsWith("en");
@@ -215,8 +224,9 @@ export const AdminLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, [i18n.language]);
 
-  // close profile dropdown on click outside
+  // đóng menu hồ sơ khi bấm ra ngoài
   useEffect(() => {
+    /** Đóng menu hồ sơ khi bấm chuột ngoài vùng menu. */
     const handleClickOutside = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setShowProfileMenu(false);
@@ -262,6 +272,7 @@ export const AdminLayout: React.FC = () => {
     })
   }));
 
+  /** Xác định tiêu đề và nhóm của mục điều hướng khớp với đường dẫn hiện tại; không khớp thì dùng tiêu đề mặc định của cổng quản trị. */
   const getSectionTitle = () => {
     const nav = resolveAdminNavigation(location.pathname);
     if (nav) {
@@ -357,7 +368,7 @@ export const AdminLayout: React.FC = () => {
                                 {item.badge}
                               </span>
                             ) : (
-                              // Collapsed mini badge indicator (Clean red circle without dark borders)
+                              // huy hiệu nhỏ khi thanh bên thu gọn (chấm đỏ gọn, không viền tối)
                               item.collapsedBadge !== undefined ? (
                                 <span className={`absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full text-white text-[9px] font-bold flex items-center justify-center shadow-xs ${item.badgeColor?.includes('emerald') ? 'bg-emerald-500' : 'bg-rose-500'}`}>
                                   {item.collapsedBadge}

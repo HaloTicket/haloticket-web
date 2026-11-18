@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiX } from 'react-icons/fi';
 
+/** Props của hộp thoại phím tắt: trạng thái mở và callback đóng. */
 interface ShortcutsDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,12 +25,13 @@ const SHORTCUTS: Array<{ keys: string; action: string }> = [
   { keys: '?', action: 'Mở bảng phím tắt này' },
 ];
 
-// keyboard shortcut cheat sheet of the studio
+/** Bảng phím tắt của studio sơ đồ ghế; đóng bằng Esc, nút đóng hoặc bấm ra ngoài hộp thoại. */
 export const ShortcutsDialog: React.FC<ShortcutsDialogProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
 
   useEffect(() => {
     if (!isOpen) return;
+    /** Đóng hộp thoại khi nhấn Esc. */
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };

@@ -3,6 +3,7 @@ import React from "react";
 import { FiPlus, FiTrash2, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { CustomQuestionItem } from "@/types/organizer";
 
+/** Props của bước 4: phạm vi câu hỏi (theo đơn hoặc theo vé), danh sách câu hỏi, cờ bật khảo sát và các hàm thêm, xóa, cập nhật, quay lại, tiếp tục. */
 interface Step4CustomQuestionsProps {
   enableCustomQuestions?: boolean;
   setEnableCustomQuestions?: (v: boolean) => void;
@@ -16,6 +17,7 @@ interface Step4CustomQuestionsProps {
   onNext: () => void;
 }
 
+/** Bước 4 của form tạo sự kiện (chỉ hiện khi bật khảo sát): chọn phạm vi áp dụng câu hỏi và soạn danh sách câu hỏi thu thập thông tin người mua vé. */
 export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
   enableCustomQuestions = true,
   setEnableCustomQuestions,
@@ -56,7 +58,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Question scope */}
+            {/* Phạm vi câu hỏi */}
             <div className="space-y-2">
               <label className="text-xs font-bold app-text-main">{translate("Phạm vi áp dụng câu hỏi")}</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -94,7 +96,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
               </div>
             </div>
 
-            {/* Questions List */}
+            {/* Danh sách câu hỏi */}
             <div className="space-y-4 pt-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-extrabold app-text-main">{translate("Danh sách câu hỏi thu thập")}</h4>
@@ -169,7 +171,7 @@ export const Step4CustomQuestions: React.FC<Step4CustomQuestionsProps> = ({
         )}
       </div>
 
-      {/* Stepper Nav Buttons */}
+      {/* Các nút điều hướng bước */}
       <div className="flex items-center justify-between pt-4">
         <button
           type="button"

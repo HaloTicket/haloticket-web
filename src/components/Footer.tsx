@@ -16,6 +16,7 @@ import {
   FaAppStoreIos
 } from "react-icons/fa";
 
+/** Chân trang chung: thông tin liên hệ, liên kết hỗ trợ, mạng xã hội, tải ứng dụng và đổi ngôn ngữ. */
 export const Footer: React.FC = () => {
   const { t: translate } = useTranslation();
   return (

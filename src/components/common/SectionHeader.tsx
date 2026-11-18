@@ -3,6 +3,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { FiChevronRight } from "react-icons/fi";
 
+/** Props của đầu mục: tiêu đề, biểu tượng, liên kết "Xem thêm", danh sách tab và tab đang chọn cùng callback đổi tab. */
 interface SectionHeaderProps {
   title: string;
   icon?: React.ReactNode;
@@ -13,6 +14,7 @@ interface SectionHeaderProps {
   className?: string;
 }
 
+/** Đầu một khối nội dung trang chủ: tiêu đề, các tab lọc tùy chọn và liên kết xem thêm; tiêu đề và nhãn tab được dịch qua i18n. */
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
   title,
   icon,
@@ -25,7 +27,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   const { t: translate } = useTranslation();
   return (
     <div className={`flex flex-col md:flex-row md:items-center justify-between mb-5 gap-3 ${className}`}>
-      {/* Title & Tabs Group */}
+      {/* Nhóm tiêu đề và tab */}
       <div className="flex flex-wrap items-center gap-4">
         {title && (
           <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2.5 tracking-tight">
@@ -34,7 +36,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
           </h2>
         )}
 
-        {/* Filter Tabs with Smooth Button Transition Animation */}
+        {/* Tab lọc có hiệu ứng chuyển nút mượt */}
         {tabs && tabs.length > 0 && (
           <div className="relative flex items-center app-bg-subnav p-1 rounded-xl border app-border">
             {tabs.map((tab) => {
@@ -58,7 +60,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         )}
       </div>
 
-      {/* See More Link */}
+      {/* Liên kết xem thêm */}
       {seeMoreLink && (
         <Link
           to={seeMoreLink}

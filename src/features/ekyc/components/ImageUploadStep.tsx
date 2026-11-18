@@ -16,6 +16,7 @@ import {
 import { type ImageMetadata } from "@/utils/imageUtils";
 import { CropModal } from "./CropModal";
 
+/** Props của bước tải ảnh giấy tờ (mặt trước hoặc mặt sau): ảnh, metadata, trạng thái bận và các hàm xử lý. */
 interface ImageUploadStepProps {
   /** 0 = mặt trước, 1 = mặt sau */
   index: 0 | 1;
@@ -26,17 +27,18 @@ interface ImageUploadStepProps {
   rotatingIndex: number | null;
   busy: boolean;
   onFileChange: (index: number, e: ChangeEvent<HTMLInputElement>) => void;
-  /** Called when crop produces a new cropped file */
+  /** Gọi khi thao tác cắt tạo ra tệp ảnh mới */
   onCropConfirm: (index: number, file: File, previewUrl: string) => void;
   onRotate: (index: number, degrees: number) => void;
   onPrev?: () => void;
   onNext: () => void;
   prevLabel?: string;
   nextLabel: string;
-  /** Current raw file (to pass mime type to crop modal) */
+  /** Tệp gốc hiện tại (để truyền loại MIME cho hộp thoại cắt ảnh) */
   currentFile?: File | null;
 }
 
+/** Bước tải ảnh một mặt CCCD: chọn tệp, xem trước, cắt, xoay và cảnh báo chất lượng hoặc hướng ảnh. */
 export function ImageUploadStep({
   index,
   label,
@@ -62,10 +64,12 @@ export function ImageUploadStep({
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [showEditTools, setShowEditTools] = useState(false);
 
+  /** Mở hộp chọn tệp của trình duyệt. */
   const openFilePicker = () => {
     inputRef.current?.click();
   };
 
+  /** Nhận tệp vừa chọn: tệp hợp lệ được chuyển lên làm ảnh mới, tệp sai định dạng hoặc quá 10 MB được giao cho {@code onFileChange} xử lý lỗi. */
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -77,6 +81,7 @@ export function ImageUploadStep({
     onCropConfirm(index, file, url);
   };
 
+  /** Nhận ảnh đã cắt từ hộp thoại, đóng hộp thoại và báo lên cha. */
   const handleCropConfirm = (croppedFile: File, croppedUrl: string) => {
     setShowCrop(false);
     if (cropSrc) URL.revokeObjectURL(cropSrc);
@@ -84,12 +89,14 @@ export function ImageUploadStep({
     onCropConfirm(index, croppedFile, croppedUrl);
   };
 
+  /** Đóng hộp thoại cắt ảnh mà không lưu thay đổi. */
   const handleCropClose = () => {
     setShowCrop(false);
     if (cropSrc) URL.revokeObjectURL(cropSrc);
     setCropSrc(null);
   };
 
+  /** Mở hộp thoại cắt ảnh trên ảnh đang xem trước. */
   const openCropExisting = () => {
     if (preview) {
       setCropSrc(preview);
@@ -111,7 +118,7 @@ export function ImageUploadStep({
       )}
 
       <div className="space-y-5">
-        {/* Header Title & Instruction */}
+        {/* Tiêu đề và hướng dẫn */}
         <div className="space-y-1">
           <h3 className="text-base sm:text-lg font-bold app-text-main">
             {label}
@@ -121,10 +128,10 @@ export function ImageUploadStep({
           </p>
         </div>
 
-        {/* Upload Container or Preview */}
+        {/* Khung tải ảnh hoặc xem trước */}
         {preview ? (
           <div className="rounded-xl border app-border app-bg-card p-4 sm:p-5 space-y-4">
-            {/* Image Preview Box */}
+            {/* Khung xem trước ảnh */}
             <div className="relative max-w-md mx-auto aspect-[16/10] rounded-lg overflow-hidden border app-border bg-slate-950 flex items-center justify-center">
               <img
                 src={preview}
@@ -132,13 +139,13 @@ export function ImageUploadStep({
                 className="w-full h-full object-contain select-none"
               />
 
-              {/* Status Badge */}
+              {/* Nhãn trạng thái */}
               <div className="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-md bg-emerald-600/90 text-white text-xs font-semibold flex items-center gap-1 shadow-sm backdrop-blur-xs">
                 <FiCheck className="w-3.5 h-3.5 stroke-[3]" />
                 <span>{metadata?.isPortrait ? t("Ảnh dọc - Cần xoay") : t("Ảnh đạt yêu cầu")}</span>
               </div>
 
-              {/* Rotating overlay */}
+              {/* Lớp phủ khi đang xoay */}
               {rotatingIndex === index && (
                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white gap-2 z-20">
                   <FiRefreshCw className="w-6 h-6 animate-spin text-blue-400" />
@@ -147,7 +154,7 @@ export function ImageUploadStep({
               )}
             </div>
 
-            {/* Portrait orientation alert if needed */}
+            {/* Cảnh báo hướng ảnh dọc nếu cần */}
             {metadata?.isPortrait && (
               <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
@@ -166,7 +173,7 @@ export function ImageUploadStep({
               </div>
             )}
 
-            {/* Action Bar (Progressive Disclosure) */}
+            {/* Thanh thao tác (hiện dần công cụ) */}
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
@@ -186,7 +193,7 @@ export function ImageUploadStep({
               </button>
             </div>
 
-            {/* Revealed Edit Tools */}
+            {/* Công cụ chỉnh sửa được hiện ra */}
             {showEditTools && (
               <div className="flex flex-wrap items-center justify-center gap-2 pt-3 border-t app-border animate-in fade-in">
                 <button
@@ -228,7 +235,7 @@ export function ImageUploadStep({
             )}
           </div>
         ) : (
-          /* Dropzone Upload Box */
+          /* Khung thả tệp để tải lên */
           <div className="space-y-4">
             <label
               htmlFor={inputId}
@@ -250,7 +257,7 @@ export function ImageUploadStep({
               </div>
             </label>
 
-            {/* Checklist items */}
+            {/* Danh sách các lưu ý */}
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-slate-600 dark:text-zinc-400 pt-1">
               <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
                 <FiCheck className="w-3.5 h-3.5" />
@@ -268,7 +275,7 @@ export function ImageUploadStep({
           </div>
         )}
 
-        {/* Hidden file input */}
+        {/* Ô chọn tệp ẩn */}
         <input
           id={inputId}
           ref={inputRef}
@@ -281,7 +288,7 @@ export function ImageUploadStep({
           onChange={handleInputChange}
         />
 
-        {/* Bottom Navigation */}
+        {/* Điều hướng ở phía dưới */}
         <div className="flex items-center justify-between pt-3 border-t app-border">
           {onPrev ? (
             <button

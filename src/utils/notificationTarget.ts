@@ -2,14 +2,21 @@ import { PATHS } from "@/routes/paths";
 import type { NotificationItem } from "@/types/notification";
 import { eventTargetOfNotification } from "@/utils/notificationLinks";
 
+/** Vai trò người nhận thông báo, quyết định đích đến khi bấm vào thông báo. */
 export type NotificationRole = "customer" | "organizer" | "admin";
 
+/** Phần của thông báo dùng để xác định đích đến: loại, nội dung và biến đi kèm dạng JSON. */
 type Notice = Pick<NotificationItem, "type" | "message" | "variablesJson">;
 
 const PLAIN_CODE = /^[A-Za-z0-9_-]{1,100}$/;
 const SAGA_ID = /Mã lời mời: ([a-f0-9-]{36})/i;
 const ADMIN_EVENT_REF = /EV_[a-zA-Z0-9_-]+/;
 
+/**
+ * Đọc `variablesJson` của thông báo thành đối tượng.
+ *
+ * @returns Đối tượng biến, hoặc đối tượng rỗng nếu thiếu hoặc JSON sai định dạng.
+ */
 function variablesOf(notice: Notice): Record<string, unknown> {
   try {
     const raw = notice.variablesJson;
@@ -18,20 +25,25 @@ function variablesOf(notice: Notice): Record<string, unknown> {
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
     }
   } catch {
-    // malformed JSON: treated as no extra data
+    // JSON sai định dạng: coi như không có dữ liệu bổ sung
   }
   return {};
 }
 
-// the booking code of a notification, only when it is a plain code (never a path or an address)
+/** Mã đặt vé trong thông báo, chỉ nhận khi đó là mã thuần túy (không bao giờ là đường dẫn hay địa chỉ). */
 function bookingCodeOf(notice: Notice): string | null {
   const code = variablesOf(notice).bookingCode;
   return typeof code === "string" && PLAIN_CODE.test(code) ? code : null;
 }
 
+/**
+ * Đích đến của thông báo dành cho quản trị viên theo loại thông báo.
+ *
+ * @returns Đường dẫn, hoặc `null` nếu loại thông báo không có trang tương ứng.
+ */
 function adminTarget(notice: Notice): string | null {
   const type = notice.type || "";
-  // a payment that needs a person (late payment, tickets that could not be issued): the reconciliation page lists it
+  // khoản thanh toán cần người xử lý (thanh toán trễ, vé không phát hành được): trang đối soát liệt kê khoản này
   if (type === "PAYMENT_EXCEPTION") return PATHS.ADMIN_RECONCILIATION;
   if (type === "NEW_EVENT_APPROVAL" || type === "EVENT_UPDATED") return PATHS.ADMIN_EVENTS_APPROVAL;
   if (type.includes("PAYOUT")) return PATHS.ADMIN_FINANCE;
@@ -39,15 +51,19 @@ function adminTarget(notice: Notice): string | null {
 }
 
 /**
- * Where a click on a notification goes, for every kind of bell, toast and inbox. null means "stay where you are": the
- * notification is marked as read and nothing else happens. A type this function does not know never sends anyone to the
- * organiser's event list (the old fallback). Only plain ids and codes from the payload are used, never a link.
+ * Đích đến khi bấm vào một thông báo, dùng chung cho chuông, toast và hộp thư. `null` nghĩa là ở yên tại chỗ: thông báo chỉ được đánh dấu đã đọc.
+ * Loại thông báo chưa biết không bao giờ đưa ai về danh sách sự kiện của nhà tổ chức (hành vi dự phòng cũ).
+ * Chỉ dùng mã và đường dẫn thuần túy lấy từ dữ liệu thông báo, không bao giờ dùng `link`.
+ *
+ * @param notice - Thông báo.
+ * @param role - Vai trò của người đang xem.
+ * @returns Đường dẫn đích, hoặc `null`.
  */
 export function notificationTarget(notice: Notice, role: NotificationRole): string | null {
   if (role === "admin") {
     const known = adminTarget(notice);
     if (known) return known;
-    // an older admin message that names an event (EV_...) opens that event's approval
+    // thông báo cũ dành cho quản trị viên có nêu mã sự kiện (EV_...) thì mở trang duyệt của sự kiện đó
     const ref = notice.message?.match(ADMIN_EVENT_REF)?.[0];
     return ref ? `${PATHS.ADMIN_EVENTS_APPROVAL}?eventId=${ref}` : null;
   }

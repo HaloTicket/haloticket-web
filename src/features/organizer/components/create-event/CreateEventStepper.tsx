@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiAlertCircle, FiCheck, FiChevronRight } from "react-icons/fi";
 
+/** Props của thanh các bước: danh sách tiêu đề, bước hiện tại, hàm khi bấm một bước và các bước cần chỉnh sửa (tùy chọn). */
 interface CreateEventStepperProps {
   stepTitles: string[];
   currentStep: number;
@@ -9,6 +10,7 @@ interface CreateEventStepperProps {
   flaggedSteps?: number[];
 }
 
+/** Thanh điều hướng các bước tạo sự kiện: đánh dấu bước đang làm, bước đã qua và bước bị gắn cờ "Cần chỉnh sửa". */
 export const CreateEventStepper: React.FC<CreateEventStepperProps> = ({
   stepTitles,
   currentStep,

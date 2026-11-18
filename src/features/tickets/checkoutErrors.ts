@@ -1,3 +1,4 @@
+/** Khóa thông báo lỗi (i18n) hiển thị cho người mua khi tạo đơn thất bại. */
 export type CheckoutErrorKey =
   | "tickets.error.soldOut"
   | "tickets.error.stockBusy"
@@ -10,6 +11,7 @@ export type CheckoutErrorKey =
   | "tickets.error.voucherRefused"
   | "tickets.error.unknown";
 
+/** Quy tắc xử lý một mã lỗi: khóa thông báo, và cờ `backToSelection` cho biết có nên đưa người dùng về bước chọn vé không. */
 interface CheckoutErrorRule { key: CheckoutErrorKey; backToSelection: boolean }
 
 export const CHECKOUT_ERROR_CODES: Record<string, CheckoutErrorRule> = {
@@ -26,7 +28,7 @@ export const CHECKOUT_ERROR_CODES: Record<string, CheckoutErrorRule> = {
   VOUCHER_NOT_APPLICABLE: { key: "tickets.error.voucherRefused", backToSelection: false },
 };
 
-/** `detail` is the sentence the server wrote for the buyer (only for a refused voucher, whose reason differs every time). */
+/** `detail` là câu server viết cho người mua (chỉ với voucher bị từ chối, vì lý do mỗi lần một khác). */
 export function resolveCheckoutError(err: unknown): CheckoutErrorRule & { code?: string; detail?: string } {
   const e = err as { response?: { data?: { message?: unknown; code?: unknown } }; message?: unknown } | null;
   const candidates = [e?.response?.data?.message, e?.response?.data?.code, e?.message];

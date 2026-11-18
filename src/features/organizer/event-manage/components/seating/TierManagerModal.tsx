@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { FiX, FiPlus, FiTrash2, FiEdit2, FiTag, FiClock, FiInfo, FiDollarSign, FiChevronRight } from 'react-icons/fi';
 import type { SeatTier, TierManagerModalProps } from '@/types/seating';
 
+/** Modal quản lý hạng vé của sơ đồ ghế: thêm, sửa, xóa hạng vé trong bản nháp cục bộ rồi lưu một lần; ở chế độ chỉ đọc chỉ xem. */
 export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   isOpen,
   onClose,
@@ -15,7 +16,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   const [localTiers, setLocalTiers] = useState<SeatTier[]>(tiers);
   const [editingTierId, setEditingTierId] = useState<string | null>(null);
 
-  // Form states for adding/editing ticket types
+  // Trạng thái biểu mẫu thêm/sửa hạng vé
   const [name, setName] = useState('');
   const [price, setPrice] = useState<number>(0);
   const [isFree, setIsFree] = useState<boolean>(false);
@@ -33,6 +34,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Mở biểu mẫu thêm hạng vé mới với giá trị mặc định (giá 100.000, số lượng 100, mua tối thiểu 1 và tối đa 5). */
   const handleStartAdd = () => {
     setErrorMessage(null);
     setEditingTierId('NEW');
@@ -46,6 +48,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
   };
 
 
+  /** Mở biểu mẫu sửa và nạp dữ liệu của hạng vé được chọn. */
   const handleStartEdit = (tier: SeatTier) => {
     setErrorMessage(null);
     setEditingTierId(tier.id);
@@ -58,6 +61,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setDescription(tier.description || '');
   };
 
+  /** Kiểm tra biểu mẫu (tên bắt buộc, không trùng tên không phân biệt hoa thường) rồi thêm hoặc cập nhật hạng vé vào danh sách cục bộ; hạng vé miễn phí có giá 0. */
   const handleSaveForm = () => {
     setErrorMessage(null);
     if (!name.trim()) {
@@ -95,6 +99,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setEditingTierId(null);
   };
 
+  /** Xóa một hạng vé khỏi danh sách cục bộ; luôn phải giữ lại ít nhất một hạng vé. */
   const handleDeleteItem = (id: string) => {
     setErrorMessage(null);
     if (localTiers.length <= 1) {
@@ -105,6 +110,7 @@ export const TierManagerModal: React.FC<TierManagerModalProps> = ({
     setLocalTiers((prev) => prev.filter((t) => t.id !== id));
   };
 
+  /** Gửi toàn bộ danh sách hạng vé cục bộ cho component cha qua {@code onSaveTiers} rồi đóng modal. */
   const handleSaveAll = () => {
     onSaveTiers?.(localTiers);
     onClose();

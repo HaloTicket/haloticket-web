@@ -5,12 +5,14 @@ import { FiMapPin } from "react-icons/fi";
 import { type EventApiData } from "@/services/eventApi";
 import { venueApi } from "@/services/venueApi";
 
+/** Props của khu vực điểm đến: tiêu đề tùy chọn và số điểm đến tối đa (danh sách sự kiện được nhận nhưng không dùng). */
 interface DestinationsSectionProps {
   title?: string;
   limit?: number;
   events?: EventApiData[];
 }
 
+/** Khu vực điểm đến nổi bật: gộp số sự kiện đã tổ chức theo thành phố từ danh sách địa điểm, lấy các thành phố nhiều nhất và liên kết sang trang sự kiện theo địa điểm. */
 export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ title, limit = 4 }) => {
   const { t: translate } = useTranslation();
   const [destinations, setDestinations] = useState<{name: string, count: number, image: string}[]>([]);
@@ -35,8 +37,8 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ title,
       };
 
       const computedDestinations = Object.entries(cityMap)
-        .sort((a, b) => b[1] - a[1]) // sort by eventsHosted count
-        .slice(0, limit) // take top limit
+        .sort((a, b) => b[1] - a[1]) // sáº¯p xáº¿p theo sá»‘ sá»± kiá»‡n Ä‘Ă£ tá»• chá»©c
+        .slice(0, limit) // láº¥y cĂ¡c thĂ nh phá»‘ Ä‘á»©ng Ä‘áº§u theo limit
         .map(([name, count]) => ({
           name,
           count,
@@ -45,7 +47,7 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ title,
         
       setDestinations(computedDestinations);
     }).catch(() => {
-      // Fallback
+      // Dự phòng: giữ nguyên danh sách rỗng
     });
   }, [limit]);
 
@@ -72,7 +74,7 @@ export const DestinationsSection: React.FC<DestinationsSectionProps> = ({ title,
               loading="lazy"
             />
 
-            {/* Brand Palette Gradient Overlay */}
+            {/* Lớp phủ gradient theo bảng màu thương hiệu */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent flex flex-col justify-end p-4">
               <div className="bg-gradient-to-r from-brand-600/90 to-accent-cyan/90 backdrop-blur-md p-3 rounded-xl border border-white/20 shadow-lg">
                 <h4 className="text-base md:text-xl font-black text-white group-hover:text-accent-cyan transition-colors">

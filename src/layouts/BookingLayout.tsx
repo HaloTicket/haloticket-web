@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import AIChatWidget from "@/components/common/AIChatWidget/AIChatWidget";
 import { ThemeProvider } from "@/context/ThemeContext";
 
+/** Bố cục các trang đặt vé (chọn vé, thanh toán...), bọc nội dung trong `ThemeProvider`. */
 export default function BookingLayout() {
   return (
     <ThemeProvider>

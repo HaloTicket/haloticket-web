@@ -6,9 +6,11 @@ import { userApi } from "@/services/userApi";
 import type { EkycStatusResponse } from "@/types/ekyc";
 import EkycVerification from "@/features/ekyc/EkycVerification";
 
+/** Mục "Tài khoản và bảo mật" của trang cài đặt quản trị: đổi mật khẩu và xem hoặc bắt đầu xác minh eKYC. */
 export default function AccountSecuritySettingsSection() {
   const { i18n } = useTranslation();
   const en = i18n.resolvedLanguage === "en";
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ đang dùng. */
   const copy = (vi: string, english: string) => (en ? english : vi);
   const [status, setStatus] = useState<EkycStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,7 @@ export default function AccountSecuritySettingsSection() {
   const [showKyc, setShowKyc] = useState(false);
   const [updating, setUpdating] = useState(false);
 
+  /** Kiểm tra ba trường mật khẩu rồi gọi API đổi mật khẩu; hiển thị ghi chú lỗi hoặc thông báo thành công. */
   async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!passwords.current || !passwords.next || !passwords.confirm) {
@@ -47,6 +50,7 @@ export default function AccountSecuritySettingsSection() {
     }
   }
 
+  /** Tải lại trạng thái xác minh eKYC từ máy chủ, báo lỗi nếu gọi API thất bại. */
   async function refresh() {
     setLoading(true);
     setError("");
@@ -79,6 +83,7 @@ export default function AccountSecuritySettingsSection() {
   }, [en]);
 
   const verified = status?.status === "APPROVED";
+  /** Dựng một ô thông tin (nhãn và giá trị) cho khối chi tiết xác minh; giá trị trống hiển thị dấu gạch. */
   const detail = (label: string, value?: string | null) => (
     <div className="min-w-0 rounded-lg border border-border/60 bg-card p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>

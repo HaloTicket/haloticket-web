@@ -23,6 +23,12 @@ import { FiRefreshCw, FiCheckCircle, FiInfo, FiAlertCircle, FiArrowRightCircle, 
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { fieldsOnStep, flagLabel, flaggedStepsFor, parseRejectionNotes, quoteStatus, type FlaggedQuote } from "@/utils/rejectionFeedback";
 
+/**
+ * Đảm bảo ảnh có địa chỉ http(s): ảnh {@code blob:} được tải lên qua {@code mediaApi}; lỗi tải lên chỉ ghi log và trả về giá trị gốc.
+ * @param urlOrData - đường dẫn ảnh hoặc blob URL
+ * @param folder - thư mục đích trên S3
+ * @returns địa chỉ ảnh sau xử lý, hoặc {@code null} khi không có ảnh
+ */
 async function ensureS3Url(urlOrData: string | null | undefined, folder: string): Promise<string | null> {
   if (!urlOrData) return null;
   if ((urlOrData.startsWith("http://") || urlOrData.startsWith("https://")) && !urlOrData.startsWith("blob:")) {
@@ -42,7 +48,7 @@ async function ensureS3Url(urlOrData: string | null | undefined, folder: string)
   return urlOrData;
 }
 
-/** What the event, ticket and payout APIs return: every field may be missing, so all are optional. */
+/** Một suất diễn trong dữ liệu API sự kiện (các API sự kiện, vé và tài khoản nhận tiền đều có thể thiếu trường, nên mọi trường đều tùy chọn). */
 interface ApiShowtime {
   id?: string;
   name?: string;
@@ -53,6 +59,7 @@ interface ApiShowtime {
   tickets?: TicketItem[];
 }
 
+/** Một hạng vé trong dữ liệu API (tên, giá, số lượng, giới hạn mua mỗi đơn, trạng thái). */
 interface ApiTicketType extends TicketQuantityFields {
   id?: string | number;
   name?: string;
@@ -65,6 +72,7 @@ interface ApiTicketType extends TicketQuantityFields {
   startTime?: string;
 }
 
+/** Các trường tài khoản nhận tiền và thông tin thuế, có thể xuất hiện ở sự kiện, hồ sơ ban tổ chức hoặc tài khoản thanh toán. */
 interface ApiPayoutFields {
   accountHolder?: string;
   bankAccountHolder?: string;
@@ -78,6 +86,7 @@ interface ApiPayoutFields {
   taxCode?: string;
 }
 
+/** Hồ sơ ban tổ chức từ API, kèm các trường tài khoản nhận tiền. */
 interface ApiOrganizerProfile extends ApiPayoutFields {
   name?: string;
   organizerName?: string;
@@ -87,6 +96,7 @@ interface ApiOrganizerProfile extends ApiPayoutFields {
   businessAddress?: string;
 }
 
+/** Dữ liệu một sự kiện từ API: thông tin chung, suất diễn, vé, cài đặt, câu hỏi, thanh toán và thông tin từ chối duyệt. */
 interface ApiEvent extends ApiPayoutFields {
   title?: string;
   categoryName?: string;
@@ -128,28 +138,34 @@ interface ApiEvent extends ApiPayoutFields {
   rejectionNotes?: string;
 }
 
-// the edit form shows and sends the ISSUED number (initialQuantity), never the remaining stock; sold/held are read-only
+// form sửa hiển thị và gửi số lượng ĐÃ PHÁT HÀNH (initialQuantity), không bao giờ là số còn lại; số đã bán và đang giữ chỉ để đọc
+/** Chuẩn hóa các trường số lượng của vé: số phát hành (mặc định 100) làm tổng số, kèm số đã bán và đang giữ. */
 function issuedQuantityFields(raw: TicketQuantityFields & { quantity?: number | null }) {
   const issued = getInitialQuantity(raw) ?? raw.totalQuantity ?? raw.quantity ?? 100;
   return { totalQuantity: issued, initialQuantity: issued, soldQuantity: getSoldQuantity(raw), heldQuantity: getHeldQuantity(raw) };
 }
 
+/**
+ * Trang sửa thông tin sự kiện của ban tổ chức: nạp dữ liệu sự kiện, hồ sơ ban tổ chức và tài khoản nhận tiền vào form nhiều bước,
+ * chỉ lưu khi dữ liệu thật sự thay đổi, hỗ trợ thu hồi yêu cầu duyệt và đánh dấu các mục bị từ chối để ban tổ chức sửa.
+ */
 export const EventEditInfo: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
 
-  // active stepper step (1 to 5)
+  // bước hiện tại của thanh các bước (1 đến 5)
   const [stepIndex, setCurrentStep] = useState(1);
 
-  // modals & loading state
+  // trạng thái hộp thoại và đang tải
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketItem | null>(null);
   const [isSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Toast notification state
+  // trạng thái thông báo nổi
   const [toastMsg, setToastMsg] = useState<{ text: string; type: "success" | "info" | "error" } | null>(null);
 
+  /** Hiện thông báo nổi trong 4 giây. */
   const showToast = (text: string, type: "success" | "info" | "error" = "success") => {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), 4000);
@@ -160,7 +176,7 @@ export const EventEditInfo: React.FC = () => {
   const [step2Errors, setStep2Errors] = useState<Step2Errors>({});
   const [step5Errors] = useState<Step5Errors>({});
 
-  // EVENT STATUS & INITIAL SNAPSHOT (For change detection)
+  // TRẠNG THÁI SỰ KIỆN VÀ ẢNH CHỤP BAN ĐẦU (để phát hiện thay đổi)
   const [eventStatus, setEventStatus] = useState<string>("PENDING");
   const [showCancelApprovalModal, setShowCancelApprovalModal] = useState(false);
   const [isCancellingApproval, setIsCancellingApproval] = useState(false);
@@ -170,8 +186,8 @@ export const EventEditInfo: React.FC = () => {
   const [rejectedFields, setRejectedFields] = useState<string[]>([]);
   const [rejectedQuotes, setRejectedQuotes] = useState<FlaggedQuote[]>([]);
 
-  // FORM STATE
-  // step 1: event info
+  // DỮ LIỆU FORM
+  // bước 1: thông tin sự kiện
   const [title, setTitle] = useState(t("Sự kiện HaloTicket"));
   const [category, setCategory] = useState(t("Nhạc sống"));
   const [locationType, setLocationType] = useState<"offline" | "online">("offline");
@@ -187,21 +203,21 @@ export const EventEditInfo: React.FC = () => {
   const [organizerInfo, setOrganizerInfo] = useState("");
   const [organizerLogo, setOrganizerLogo] = useState<string | null>(null);
 
-  // step 2: time & ticket
+  // bước 2: thời gian và vé
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tickets, setTickets] = useState<TicketItem[]>([]);
 
-  // step 3: settings
+  // bước 3: cài đặt
   const [isPrivate, setIsPrivate] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
   const [enableCustomQuestions, setEnableCustomQuestions] = useState(false);
 
-  // step 4: questions
+  // bước 4: câu hỏi
   const [questionScope, setQuestionScope] = useState<"order" | "ticket">("order");
   const [questions, setQuestions] = useState<CustomQuestionItem[]>([]);
 
-  // step 5: payment info & VAT invoice
+  // bước 5: thông tin thanh toán và hóa đơn VAT
   const [accountHolder, setAccountHolder] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [bankName, setBankName] = useState("Vietcombank");
@@ -229,11 +245,11 @@ export const EventEditInfo: React.FC = () => {
              dailyDurationMs = (end.getTime() % 86400000) - (start.getTime() % 86400000);
              if (dailyDurationMs < 0) dailyDurationMs += 86400000;
           } else {
-             // overnight showtime
+             // suất diễn qua đêm
              dailyDurationMs = ((24 - startHour) + endHour) * 3600000;
           }
           
-          // fallback if calculated duration is 0, make it at least 1 hour
+          // nếu thời lượng tính ra bằng 0 thì lấy tối thiểu 1 giờ
           if (dailyDurationMs === 0) dailyDurationMs = 3600000;
 
           const currentDate = new Date(start);
@@ -241,7 +257,7 @@ export const EventEditInfo: React.FC = () => {
           
           const tempEnd = new Date(end);
           if (startHour > endHour) {
-            // if overnight, the last showtime starts on the day before tempEnd
+            // nếu qua đêm, suất cuối bắt đầu từ ngày trước ngày của tempEnd
             tempEnd.setDate(tempEnd.getDate() - 1);
           }
           tempEnd.setHours(0, 0, 0, 0);
@@ -283,8 +299,8 @@ export const EventEditInfo: React.FC = () => {
           });
         }
         
-        // the showtime list is derived from the two dates and keeps the sale times the organizer already typed, so it is
-        // set here, in the effect that watches the dates
+        // danh sách suất diễn được suy ra từ hai mốc ngày và giữ lại thời gian mở bán mà ban tổ chức đã nhập,
+        // nên được đặt tại đây, trong effect theo dõi các mốc ngày
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowtimes(prev => newShowtimes.map(ns => {
            const existing = prev.find(p => p.name === ns.name);
@@ -297,15 +313,16 @@ export const EventEditInfo: React.FC = () => {
     } else {
       setShowtimes([]);
     }
-    // the names are written in the language of the moment the dates change; a language switch must not rebuild them,
-    // because the sale times are matched by name
+    // tên suất được viết theo ngôn ngữ tại thời điểm đổi ngày; đổi ngôn ngữ không được dựng lại chúng,
+    // vì thời gian mở bán được ghép theo tên
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate]);
 
   const totalSteps = enableCustomQuestions ? 5 : 4;
-  // without the custom-questions step there are only 4 steps, so a step beyond that falls back to the last one
+  // khi không có bước câu hỏi tùy chỉnh chỉ còn 4 bước, nên bước vượt quá sẽ lùi về bước cuối
   const currentStep = enableCustomQuestions ? stepIndex : Math.min(stepIndex, 4);
 
+  /** Tạo chuỗi JSON ảnh chụp toàn bộ dữ liệu form (cho phép ghi đè từng trường) để so sánh phát hiện thay đổi. */
   const getFormSnapshotString = (
     overrides?: Partial<Record<string, unknown>>
   ) => {
@@ -344,18 +361,19 @@ export const EventEditInfo: React.FC = () => {
     });
   };
 
-  // load ALL existing event data if eventId is available
-  // fetches payout account from payment-service (/api/payments/organizer-payout-account) and event details from event-service
+  // nạp TOÀN BỘ dữ liệu sự kiện hiện có khi có eventId
+  // lấy tài khoản nhận tiền từ payment-service (/api/payments/organizer-payout-account) và chi tiết sự kiện từ event-service
   useEffect(() => {
     if (!eventId) return;
     let isMounted = true;
 
+    /** Nạp tài khoản nhận tiền, hồ sơ ban tổ chức và chi tiết sự kiện (có phương án dự phòng lấy vé từ ticket-service), rồi đổ vào state của form và tạo ảnh chụp ban đầu. */
     const loadAllEventDetails = async () => {
       try {
         const cachedUser = getCachedUserProfile();
         const currentUserId = cachedUser?.id || cachedUser?.keycloakId;
 
-        // 1. fetch real payout account from payment-service via organizerApi
+        // 1. lấy tài khoản nhận tiền thật từ payment-service qua organizerApi
         let payoutAccount: ApiPayoutFields | null = null;
         let orgProfile: ApiOrganizerProfile | null = null;
         if (currentUserId) {
@@ -371,11 +389,11 @@ export const EventEditInfo: React.FC = () => {
           }
         }
 
-        // 2. fetch event details from event-service via eventApi
+        // 2. lấy chi tiết sự kiện từ event-service qua eventApi
         const ev = (await eventApi.getEventById(eventId)) as ApiEvent | null;
         if (!isMounted || !ev) return;
 
-        // step 1 fields
+        // các trường của bước 1
         const loadedTitle = ev.title || t("Sự kiện HaloTicket");
         const loadedCategory = ev.categoryName || ev.category || t("Nhạc sống");
         const loadedLocType = (ev.locationType as "offline" | "online") || "offline";
@@ -398,12 +416,12 @@ export const EventEditInfo: React.FC = () => {
           }
         }
 
-        // organizer fields (with fallback from organizerApi profile or cached user)
+        // các trường ban tổ chức (dự phòng từ hồ sơ organizerApi hoặc người dùng đã lưu đệm)
         const loadedOrgName = ev.organizerName || ev.organizer?.name || orgProfile?.name || orgProfile?.organizerName || cachedUser?.fullName || "";
         const loadedOrgInfo = ev.organizerInfo || ev.organizer?.description || orgProfile?.description || "";
         const loadedOrgLogo = ev.organizerLogo || ev.organizer?.avatar || orgProfile?.avatar || orgProfile?.organizerLogo || null;
 
-        // step 2: dates & tickets
+        // bước 2: thời gian và vé
         const loadedStart = ev.startTime || ev.startDate ? formatDatetimeLocal((ev.startTime || ev.startDate) as string) : "";
         const loadedEnd = ev.endTime || ev.endDate ? formatDatetimeLocal((ev.endTime || ev.endDate) as string) : "";
 
@@ -433,7 +451,7 @@ export const EventEditInfo: React.FC = () => {
           parsedRawT = rawT;
         }
 
-        // filter out accidental showtime objects mistakenly serialized as tickets
+        // loại bỏ các đối tượng suất diễn bị lưu nhầm thành vé
         const showtimeNames = (ev.showtimes || []).map((s) => (s.name || "").trim().toLowerCase());
         const cleanedRawT = parsedRawT.filter((tc) => {
           const tcName = (tc.name || "").trim().toLowerCase();
@@ -459,7 +477,7 @@ export const EventEditInfo: React.FC = () => {
           }));
         }
 
-        // fallback: fetch from ticket-service if empty
+        // dự phòng: lấy từ ticket-service nếu rỗng
         if (loadedTickets.length === 0) {
           try {
             const fetchedTypes = await ticketApi.getTicketTypesByEventId(eventId);
@@ -482,12 +500,12 @@ export const EventEditInfo: React.FC = () => {
           }
         }
 
-        // step 3: Settings
+        // bước 3: cài đặt
         const loadedIsPrivate = typeof ev.isPrivate === "boolean" ? ev.isPrivate : false;
         const loadedConfMsg = ev.confirmationMessage || "";
         const loadedEnableQuestions = typeof ev.enableCustomQuestions === "boolean" ? ev.enableCustomQuestions : false;
 
-        // step 4: Questions
+        // bước 4: câu hỏi
         const loadedQScope: "order" | "ticket" = ev.questionScope === "ticket" ? "ticket" : "order";
         let loadedQuestions: CustomQuestionItem[] = [];
         const rawQ = ev.customQuestions || ev.questions;
@@ -502,7 +520,7 @@ export const EventEditInfo: React.FC = () => {
           loadedQuestions = rawQ;
         }
 
-        // step 5: Real Payment & VAT Invoice fields loaded directly from event-service & payment-service
+        // bước 5: thông tin thanh toán và hóa đơn VAT thật, lấy trực tiếp từ event-service và payment-service
         const loadedAccHolder =
           ev.accountHolder ||
           ev.bankAccountHolder ||
@@ -577,12 +595,12 @@ export const EventEditInfo: React.FC = () => {
         setRejectedFields(loadedRejectedFields);
         setRejectedQuotes(parsedNotes.flaggedQuotes);
         if (loadedStatus === "REJECTED") {
-          // open the wizard on the first section the admin marked, so the organiser lands on what has to change
+          // mở form ở mục đầu tiên mà quản trị viên đã đánh dấu, để ban tổ chức thấy ngay chỗ cần sửa
           const firstFlagged = flaggedStepsFor(loadedRejectedFields, loadedEnableQuestions)[0];
           if (firstFlagged) setCurrentStep(firstFlagged);
         }
 
-        // update React Form States with authentic data from backend services
+        // cập nhật state của form bằng dữ liệu thật từ các dịch vụ backend
         setTitle(loadedTitle);
         setCategory(loadedCategory);
         setLocationType(loadedLocType);
@@ -618,7 +636,7 @@ export const EventEditInfo: React.FC = () => {
         setTaxAddress(loadedTaxAddress);
         setTaxCode(loadedTaxCode);
 
-        // build initial snapshot
+        // dựng ảnh chụp ban đầu
         const snap = JSON.stringify({
           title: loadedTitle,
           category: loadedCategory,
@@ -663,7 +681,7 @@ export const EventEditInfo: React.FC = () => {
     };
   }, [eventId]);
 
-  // dynamic step titles based on enableCustomQuestions
+  // tiêu đề các bước thay đổi theo enableCustomQuestions
   const stepTitles = enableCustomQuestions
     ? [
         t("1. Thông tin sự kiện"),
@@ -679,6 +697,7 @@ export const EventEditInfo: React.FC = () => {
         t("4. Thông tin thanh toán"),
       ];
 
+  /** Kiểm tra bước 1 (tên sự kiện, địa chỉ chi tiết khi tổ chức trực tiếp); hợp lệ thì sang bước 2. */
   const handleStep1Next = () => {
     const errs: Step1Errors = {};
     if (!title.trim()) errs.title = t("Vui lòng nhập tên sự kiện");
@@ -688,6 +707,7 @@ export const EventEditInfo: React.FC = () => {
     setCurrentStep(2);
   };
 
+  /** Kiểm tra bước 2 (thời gian bắt đầu, kết thúc, ít nhất một loại vé); hợp lệ thì sang bước 3. */
   const handleStep2Next = () => {
     const errs: Step2Errors = {};
     if (!startDate) errs.startDate = t("Vui lòng chọn thời gian bắt đầu");
@@ -698,15 +718,18 @@ export const EventEditInfo: React.FC = () => {
     setCurrentStep(3);
   };
 
+  /** Mở hộp thoại sửa với hạng vé được chọn. */
   const handleOpenEditTicketModal = (ticket: TicketItem) => {
     setEditingTicket(ticket);
     setShowAddTicketModal(true);
   };
 
+  /** Xóa hạng vé theo id khỏi danh sách. */
   const handleDeleteTicket = (ticketId: string) => {
     setTickets((prev) => prev.filter((t) => t.id !== ticketId));
   };
 
+  /** Lưu hạng vé từ hộp thoại: thay vé đang sửa hoặc thêm vé mới, rồi đóng hộp thoại. */
   const handleSaveTicket = (ticketData: TicketItem) => {
     if (editingTicket) {
       setTickets((prev) => prev.map((t) => (t.id === editingTicket.id ? ticketData : t)));
@@ -717,6 +740,7 @@ export const EventEditInfo: React.FC = () => {
     setEditingTicket(null);
   };
 
+  /** Thêm một câu hỏi khảo sát mặc định, không bắt buộc, vào cuối danh sách. */
   const handleAddQuestion = () => {
     const newQ: CustomQuestionItem = {
       id: `q-${Date.now()}`,
@@ -728,11 +752,16 @@ export const EventEditInfo: React.FC = () => {
     setQuestions((prev) => [...prev, newQ]);
   };
 
+  /** Xóa câu hỏi theo id khỏi danh sách. */
   const handleDeleteQuestion = (qId: string) => {
     setQuestions((prev) => prev.filter((q) => q.id !== qId));
   };
 
-  // update event info handler (only saves & notifies admin if data actually changed!)
+  // xử lý cập nhật sự kiện (chỉ lưu và báo cho quản trị viên khi dữ liệu thật sự thay đổi)
+  /**
+   * Lưu thay đổi của sự kiện: bỏ qua nếu form không đổi so với ảnh chụp ban đầu, kiểm tra số lượng vé không thấp hơn số đã bán và đang giữ,
+   * tải ảnh lên, cập nhật sự kiện, lưu tài khoản nhận tiền và làm mới ảnh chụp. Khi server trả lỗi đồng bộ vé (502) thì sự kiện vẫn đã lưu nhưng báo lỗi.
+   */
   const handleUpdateEvent = async () => {
     const currentSnap = getFormSnapshotString();
 
@@ -800,14 +829,14 @@ export const EventEditInfo: React.FC = () => {
         status: eventStatus,
       };
 
-      // 1. update event details in event-service
+      // 1. cập nhật chi tiết sự kiện ở event-service
       const eventApiWithUpdate = eventApi as unknown as { updateEvent?: (id: string, p: unknown) => Promise<unknown> };
       let syncFailed = false;
       if (eventId && typeof eventApiWithUpdate.updateEvent === "function") {
         try {
           await eventApiWithUpdate.updateEvent(eventId, payload);
         } catch (updateErr) {
-          // 502 TICKETS_SYNC_FAILED: the event IS saved, so carry on saving the rest but report an error, not success.
+          // 502 TICKETS_SYNC_FAILED: sự kiện ĐÃ được lưu, nên vẫn lưu phần còn lại nhưng báo lỗi chứ không báo thành công
           if (parseEventSaveFailure(updateErr)?.kind !== "ticketsSyncFailed") throw updateErr;
           syncFailed = true;
         }
@@ -815,7 +844,7 @@ export const EventEditInfo: React.FC = () => {
         await eventApi.createEventApprovalRequest(payload);
       }
 
-      // 2. save/sync payout account in payment-service directly
+      // 2. lưu và đồng bộ tài khoản nhận tiền trực tiếp ở payment-service
       const cachedUser = getCachedUserProfile();
       const currentUserId = cachedUser?.id || cachedUser?.keycloakId;
       if (accountHolder && accountNumber) {
@@ -832,10 +861,10 @@ export const EventEditInfo: React.FC = () => {
         });
       }
 
-      // 3. update initial snapshot to match current state
+      // 3. cập nhật ảnh chụp ban đầu cho khớp trạng thái hiện tại
       setInitialSnapshot(currentSnap);
 
-      // 4. show success toast for organizer (an error when the tickets were not synced)
+      // 4. hiện thông báo thành công cho ban tổ chức (báo lỗi nếu vé chưa đồng bộ)
       window.dispatchEvent(new Event(EVENT_TICKETS_SYNC_CHANGED));
       if (syncFailed) {
         showToast(t("tickets.sync.savedNotSynced"), "error");
@@ -846,7 +875,7 @@ export const EventEditInfo: React.FC = () => {
       console.error("Failed to update event details:", err);
       const failure = parseEventSaveFailure(err);
       if (failure) {
-        // The form stays as it is. A sync failure means the event IS saved: the layout banner offers "Sync again".
+        // Form giữ nguyên. Lỗi đồng bộ nghĩa là sự kiện ĐÃ được lưu: banner ở layout đề nghị "Đồng bộ lại"
         showToast(eventSaveFailureMessage(failure, t), "error");
         return;
       }
@@ -856,6 +885,7 @@ export const EventEditInfo: React.FC = () => {
     }
   };
 
+  /** Thu hồi yêu cầu duyệt của sự kiện, chuyển nó về bản nháp và hiện thông báo. */
   const handleCancelApproval = async () => {
     if (!eventId) return;
     setIsCancellingApproval(true);
@@ -881,7 +911,7 @@ export const EventEditInfo: React.FC = () => {
 
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-200">
-      {/* Success / Info / Error Toast Notification */}
+      {/* Thông báo nổi thành công, thông tin hoặc lỗi */}
       {toastMsg && (
         <div
           className={`fixed top-20 right-6 z-50 px-5 py-3.5 rounded-2xl shadow-2xl font-bold text-xs md:text-sm flex items-center gap-3 border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
@@ -899,7 +929,7 @@ export const EventEditInfo: React.FC = () => {
         </div>
       )}
 
-      {/* Top Header & Status Control Bar */}
+      {/* Thanh tiêu đề và điều khiển trạng thái */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -946,7 +976,7 @@ export const EventEditInfo: React.FC = () => {
             </button>
           )}
 
-          {/* Always available Update Button */}
+          {/* Nút cập nhật luôn khả dụng */}
           <button
             type="button"
             disabled={isSubmitting}
@@ -959,7 +989,7 @@ export const EventEditInfo: React.FC = () => {
         </div>
       </div>
 
-      {/* Prominent Rejection Alert Callout Banner if Event Status is REJECTED */}
+      {/* Khung cảnh báo nổi bật khi sự kiện bị từ chối (REJECTED) */}
       {eventStatus === "REJECTED" && (
         <div className="p-5 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-400 space-y-2.5 animate-in fade-in">
           <div className="flex items-center gap-2 font-extrabold text-sm md:text-base">
@@ -1018,7 +1048,7 @@ export const EventEditInfo: React.FC = () => {
         </div>
       )}
 
-      {/* Stepper Navigation Bar */}
+      {/* Thanh các bước */}
       <CreateEventStepper
         stepTitles={stepTitles}
         currentStep={currentStep}
@@ -1036,7 +1066,7 @@ export const EventEditInfo: React.FC = () => {
         </div>
       )}
 
-      {/* Step 1: Event info (Includes Organizer Name, Info, Logo) */}
+      {/* Bước 1: thông tin sự kiện (gồm tên, thông tin và logo ban tổ chức) */}
       {currentStep === 1 && (
         <Step1EventInfo
           title={title}
@@ -1074,7 +1104,7 @@ export const EventEditInfo: React.FC = () => {
         />
       )}
 
-      {/* Step 2: time & ticket */}
+      {/* Bước 2: thời gian và vé */}
       {currentStep === 2 && (
         <Step2TicketsAndTime
           startDate={startDate}
@@ -1097,7 +1127,7 @@ export const EventEditInfo: React.FC = () => {
         />
       )}
 
-      {/* Step 3: settings */}
+      {/* Bước 3: cài đặt */}
       {currentStep === 3 && (
         <Step3Settings
           isPrivate={isPrivate}
@@ -1111,7 +1141,7 @@ export const EventEditInfo: React.FC = () => {
         />
       )}
 
-      {/* Step 4: questions (Only rendered when survey questions toggle is ENABLED) */}
+      {/* Bước 4: câu hỏi (chỉ hiển thị khi bật câu hỏi khảo sát) */}
       {isQuestionStep && (
         <Step4CustomQuestions
           enableCustomQuestions={enableCustomQuestions}
@@ -1127,7 +1157,7 @@ export const EventEditInfo: React.FC = () => {
         />
       )}
 
-      {/* Step 5 (or Step 4 if questions disabled): Payment Info & VAT Invoice */}
+      {/* Bước 5 (hoặc bước 4 nếu tắt câu hỏi): thông tin thanh toán và hóa đơn VAT */}
       {isLastStep && (
         <Step5PaymentInfo
           accountHolder={accountHolder}
@@ -1154,7 +1184,7 @@ export const EventEditInfo: React.FC = () => {
         />
       )}
 
-      {/* Add or Edit Ticket Modal */}
+      {/* Hộp thoại thêm hoặc sửa vé */}
       {showAddTicketModal && (
         <AddTicketModal
           initialTicket={editingTicket}
@@ -1166,10 +1196,10 @@ export const EventEditInfo: React.FC = () => {
         />
       )}
 
-      {/* Success submitted modal */}
+      {/* Hộp thoại gửi thành công */}
       {isSubmitted && <SuccessSubmittedModal title={title} />}
 
-      {/* Confirmation Modal: Hoàn tác yêu cầu duyệt */}
+      {/* Hộp thoại xác nhận: hoàn tác yêu cầu duyệt */}
       <ConfirmModal
         isOpen={showCancelApprovalModal}
         title={t("Hủy yêu cầu duyệt sự kiện")}

@@ -2,8 +2,8 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 import { parseJwt } from "@/services/userApi";
 
 /**
- * True when the access token itself carries ROLE_ADMIN. The gateway and the AI service decide by the token and not by the
- * roles stored in the user profile, so a screen that depends on those services must ask the same question.
+ * Trả về true khi chính access token mang vai trò ROLE_ADMIN. Gateway và dịch vụ AI quyết định theo token chứ không theo
+ * vai trò lưu trong hồ sơ người dùng, nên màn hình phụ thuộc vào các dịch vụ đó phải hỏi cùng một câu hỏi.
  */
 export function isAdminToken(): boolean {
   const token = getKeycloakSession().getCurrentToken();

@@ -9,6 +9,7 @@ import type {
 } from "@/types";
 
 export const ticketApi = {
+  /** Lấy toàn bộ vé của người dùng hiện tại; tự duyệt từng trang (100 vé/trang) cho tới trang cuối. Ném lỗi `INVALID_TICKET_RESPONSE` nếu phản hồi sai cấu trúc. */
   getMyTickets: async (): Promise<OwnedTicketApiResponse[]> => {
     const tickets: OwnedTicketApiResponse[] = [];
     for (let page = 0; ; page++) {
@@ -22,11 +23,12 @@ export const ticketApi = {
     }
   },
 
+  /** Lấy chi tiết một vé theo mã vé. */
   getMyTicket: async (ticketId: string): Promise<OwnedTicketApiResponse> => {
     return axiosClient.get<unknown, OwnedTicketApiResponse>(`/tickets/${encodeURIComponent(ticketId)}`);
   },
 
-  // get ticket types for an event
+  /** Lấy các loại vé của một sự kiện. Trả về mảng rỗng nếu lỗi. */
   getTicketTypesByEventId: async (eventId: string): Promise<TicketTypeApiResponse[]> => {
     try {
       const response: unknown = await axiosClient.get(`/tickets/types/event/${eventId}`);
@@ -40,12 +42,12 @@ export const ticketApi = {
     }
   },
 
-  // get ALL ticket types for an event
+  /** Lấy toàn bộ loại vé của sự kiện (dùng lại `getTicketTypesByEventId`). */
   getAllTicketTypesByEventId: async (eventId: string): Promise<TicketTypeApiResponse[]> => {
     return ticketApi.getTicketTypesByEventId(eventId);
   },
 
-  // get single ticket type by id
+  /** Lấy một loại vé theo id; trả về `null` nếu không có hoặc lỗi. */
   getTicketTypeById: async (id: string): Promise<TicketTypeApiResponse | null> => {
     try {
       const response: unknown = await axiosClient.get(`/tickets/types/${encodeURIComponent(id)}`);
@@ -58,7 +60,7 @@ export const ticketApi = {
     }
   },
 
-  // get ticket types for a showtime
+  /** Lấy các loại vé của một suất diễn. Trả về mảng rỗng nếu lỗi. */
   getTicketTypesByShowtimeId: async (showtimeId: string): Promise<TicketTypeApiResponse[]> => {
     try {
       const response: unknown = await axiosClient.get(`/tickets/types/showtime/${showtimeId}`);
@@ -72,7 +74,7 @@ export const ticketApi = {
     }
   },
 
-  // sync/save ticket types for an event
+  /** Đồng bộ (lưu) danh sách loại vé của sự kiện. Lỗi 403 được ném lại; các lỗi khác trả về mảng rỗng. */
   syncTicketTypesForEvent: async (eventId: string, requests: TicketTypeApiRequest[]): Promise<TicketTypeApiResponse[]> => {
     try {
       const response: unknown = await axiosClient.post(`/tickets/types/sync/${eventId}`, requests);
@@ -87,7 +89,7 @@ export const ticketApi = {
     }
   },
 
-  // get seat layout for an event
+  /** Lấy sơ đồ ghế của sự kiện; trả về `null` nếu lỗi. */
   getSeatLayoutByEventId: async (eventId: string): Promise<SeatLayoutApiResponse | null> => {
     try {
       const response: unknown = await axiosClient.get(`/tickets/seat-layouts/event/${eventId}`);
@@ -101,7 +103,7 @@ export const ticketApi = {
     }
   },
 
-  // save seat layout draft
+  /** Lưu bản nháp sơ đồ ghế của sự kiện. Ném lại lỗi nếu thất bại. */
   saveSeatLayoutDraft: async (eventId: string, data: SeatLayoutApiRequest): Promise<SeatLayoutApiResponse | null> => {
     try {
       const response: unknown = await axiosClient.put(`/tickets/seat-layouts/event/${eventId}/draft`, data);
@@ -115,7 +117,7 @@ export const ticketApi = {
     }
   },
 
-  // publish seat layout
+  /** Xuất bản sơ đồ ghế của sự kiện. Ném lại lỗi nếu thất bại. */
   publishSeatLayout: async (eventId: string, data: SeatLayoutApiRequest): Promise<SeatLayoutApiResponse | null> => {
     try {
       const response: unknown = await axiosClient.post(`/tickets/seat-layouts/event/${eventId}/publish`, data);
@@ -129,7 +131,7 @@ export const ticketApi = {
     }
   },
 
-  // get realtime seat status map
+  /** Lấy bản đồ trạng thái ghế theo thời gian thực (theo suất diễn nếu có); trả về đối tượng rỗng nếu lỗi. */
   getSeatStatus: async (eventId: string, showtimeId?: string): Promise<Record<string, string>> => {
     try {
       const url = showtimeId ? `/tickets/seat-status?eventId=${eventId}&showtimeId=${showtimeId}` : `/tickets/seat-status?eventId=${eventId}`;

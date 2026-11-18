@@ -19,6 +19,7 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { OrderDetailsModal } from "@/features/organizer/event-manage/components/OrderDetailsModal";
 import * as XLSX from "xlsx";
 
+/** Props của hộp thoại đơn hàng của một sự kiện: trạng thái mở, hàm đóng, mã và tên sự kiện. */
 interface AdminEventOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,6 +27,7 @@ interface AdminEventOrdersModalProps {
   eventTitle: string;
 }
 
+/** Hộp thoại liệt kê đơn hàng của một sự kiện cho quản trị viên: tìm kiếm, lọc trạng thái, phân trang, xem chi tiết đơn và xuất Excel hoặc CSV. */
 export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
   isOpen,
   onClose,
@@ -47,28 +49,29 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
   const [seatZones, setSeatZones] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
 
-  // combine multiple tables/sources
+  // gom hạng vé từ nhiều bảng và nguồn
   useEffect(() => {
     if (!isOpen || !eventId) return;
 
     let isMounted = true;
 
+    /** Tải loại vé và khu ghế của sự kiện từ nhiều nguồn để tra tên hạng vé; mỗi nguồn lỗi thì bỏ qua. */
     async function loadAllTicketSources() {
       const collectedTypes: any[] = [];
       const collectedZones: any[] = [];
 
       try {
-        // base ticket types by event (all without deduplication)
+        // các loại vé gốc theo sự kiện (giữ tất cả, không loại trùng)
         const baseTypes = await ticketApi.getAllTicketTypesByEventId(eventId).catch(() => []);
         if (Array.isArray(baseTypes)) {
           collectedTypes.push(...baseTypes);
         }
 
-        // event details & showtimes
+        // chi tiết sự kiện và các suất diễn
         const eventData = await eventApi.getEventById(eventId).catch(() => null);
         const showtimes: any[] = (eventData as any)?.showtimes || [];
 
-        // ticket types for every showtime
+        // loại vé của từng suất diễn
         if (showtimes.length > 0) {
           const showtimeResults = await Promise.all(
             showtimes.map((st) =>
@@ -82,7 +85,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
           });
         }
 
-        // seat layout & zones
+        // sơ đồ ghế và các khu
         const layout = await ticketApi.getSeatLayoutByEventId(eventId).catch(() => null);
         if (layout?.zones && Array.isArray(layout.zones)) {
           collectedZones.push(...layout.zones);
@@ -100,7 +103,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
               collectedTypes.push(...draft.tiers);
             }
           } catch {
-            // ignore json parse error
+            // bỏ qua lỗi phân tích JSON
           }
         }
 
@@ -120,14 +123,12 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
     };
   }, [isOpen, eventId]);
 
-  // combined dictionary from all tables:
-  // - ID -> Tier Name
-  // - Unit Price -> Tier Name
+  // từ điển gộp từ mọi nguồn:\n// - mã -> tên hạng vé\n// - đơn giá -> tên hạng vé
   const { idToNameMap, priceToNameMap } = useMemo(() => {
     const idMap = new Map<string, string>();
     const priceMap = new Map<number, string>();
 
-    // populate from ticket_types
+    // bổ sung từ loại vé
     ticketTypes.forEach((t) => {
       if (t.id && t.name) idMap.set(String(t.id).toLowerCase(), t.name);
       if (t.ticketTypeId && t.name) idMap.set(String(t.ticketTypeId).toLowerCase(), t.name);
@@ -136,7 +137,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
       }
     });
 
-    // populate from seat_zones
+    // bổ sung từ khu ghế
     seatZones.forEach((z) => {
       if (z.id && z.name) idMap.set(String(z.id).toLowerCase(), z.name);
       if (z.ticketTypeId && z.name) {
@@ -150,26 +151,27 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
     return { idToNameMap: idMap, priceToNameMap: priceMap };
   }, [ticketTypes, seatZones]);
 
+  /** Kiểm tra chuỗi có đúng dạng UUID hay không. */
   const isUuid = (val: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
-  // resolves the true ticket tier name by combining all sources
+  /** Xác định tên hạng vé thật của một dòng đơn bằng cách kết hợp mọi nguồn: khớp mã, khớp đơn giá, tên có sẵn, rồi giá gần nhất (lệch dưới 30%). */
   const getTicketName = useCallback(
     (item: any) => {
       const typeId = String(item?.ticketTypeId || item?.id || "").toLowerCase();
       const unitPrice = Number(item?.unitPrice || 0);
 
-      // direct ID match from all tables (ticket_types, showtimes, seat_zones)
+      // khớp trực tiếp theo mã trong mọi nguồn (loại vé, suất diễn, khu ghế)
       if (typeId && idToNameMap.has(typeId)) {
         return idToNameMap.get(typeId)!;
       }
 
-      // exact match by Unit Price to event tier
+      // khớp chính xác đơn giá với hạng vé của sự kiện
       if (unitPrice > 0 && priceToNameMap.has(unitPrice)) {
         return priceToNameMap.get(unitPrice)!;
       }
 
-      // item properties if valid name
+      // dùng các thuộc tính của dòng nếu là tên hợp lệ
       if (item?.ticketTypeName && !isUuid(item.ticketTypeName)) {
         return item.ticketTypeName;
       }
@@ -177,7 +179,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
       if (item?.zoneName) return item.zoneName;
       if (item?.name && !isUuid(item.name)) return item.name;
 
-      // closest price match among event tiers
+      // khớp đơn giá gần nhất trong các hạng vé của sự kiện
       if (unitPrice > 0 && priceToNameMap.size > 0) {
         let closestName = "";
         let minDiff = Infinity;
@@ -201,7 +203,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
     [idToNameMap, priceToNameMap]
   );
 
-  // load orders
+  /** Tải trang đơn hàng của sự kiện theo từ khóa và phân trang; lọc trạng thái được áp dụng trên trang đã tải. */
   const fetchOrders = useCallback(async () => {
     if (!isOpen || !eventId) return;
     setLoading(true);
@@ -240,6 +242,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Định dạng số tiền VND theo vi-VN, không lấy phần thập phân. */
   const formatVnd = (amount: number) =>
     new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -247,6 +250,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
       maximumFractionDigits: 0,
     }).format(amount || 0);
 
+  /** Huy hiệu màu và biểu tượng theo trạng thái đơn hàng. */
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PAID":
@@ -280,13 +284,13 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
     }
   };
 
-  // export event orders report (Excel & CSV)
+  /** Xuất báo cáo đơn hàng của sự kiện ra Excel hoặc CSV. */
   const handleExport = async (formatType: "xlsx" | "csv") => {
     if (exporting) return;
     setExporting(true);
     try {
       toast.info(t("Đang trích xuất toàn bộ dữ liệu đơn hàng..."));
-      // fetch all bookings up to 5000
+      // lấy toàn bộ đơn, tối đa 5000
       const res: any = await eventApi.getEventBookings(
         eventId,
         searchQuery,
@@ -465,7 +469,7 @@ export const AdminEventOrdersModal: React.FC<AdminEventOrdersModalProps> = ({
 
         {/* Modal Window */}
         <div className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col app-bg-card border app-border rounded-lg shadow-2xl z-10 text-[var(--text-main)]">
-          {/* Header */}
+          {/* Đầu trang */}
           <div className="flex items-center justify-between p-4 sm:p-5 border-b app-border app-bg-subnav">
             <div className="min-w-0 pr-4">
               <div className="flex items-center gap-2 flex-wrap">

@@ -5,11 +5,13 @@ import { FiArrowLeft, FiCheck, FiCopy, FiCreditCard, FiRefreshCw } from "react-i
 import { payoutApi } from "@/services/payoutApi";
 import type { PayoutDetail, PayoutStatus } from "@/types";
 
+/** Chi tiết yêu cầu rút tiền kèm các trường bổ sung: ngày kết thúc sự kiện, tiền hoàn và thời gian xử lý dự kiến. */
 type FinancePayoutDetail = PayoutDetail & {
   eventEndAt?: string;
   refunds?: number | string;
   processingTime?: string;
 };
+/** Một bước trong tiến trình yêu cầu: tiêu đề, các trạng thái thuộc bước, thời điểm, thông điệp và giai đoạn (xong, hiện tại, sắp tới, thất bại). */
 type Step = { title: string; states: PayoutStatus[]; date?: string; message?: string; phase: "done" | "current" | "upcoming" | "failed" };
 const statusNames: Record<string, string> = {
   PENDING: "Đang xét duyệt", APPROVED: "Đã phê duyệt", PROCESSING: "Đang chuyển", COMPLETED: "Hoàn tất",
@@ -20,21 +22,29 @@ const badgeClass: Record<string, string> = {
   COMPLETED: "bg-emerald-50 text-emerald-800 ring-emerald-200", FAILED: "bg-rose-50 text-rose-800 ring-rose-200", REJECTED: "bg-rose-50 text-rose-800 ring-rose-200",
   NEEDS_VERIFICATION: "bg-orange-50 text-orange-800 ring-orange-200", CANCELLED: "bg-slate-100 text-slate-700 ring-slate-200", DISPUTE: "bg-orange-50 text-orange-800 ring-orange-200",
 };
+/** Định dạng số tiền (chuỗi hoặc số nguyên) theo kiểu Việt Nam kèm ký hiệu ₫; giá trị rỗng hoặc không hợp lệ trả về dấu gạch. */
 const currency = (value: unknown) => {
   if (value === null || value === undefined || value === "") return "—";
   try { return `${BigInt(String(value)).toLocaleString("vi-VN")} ₫`; } catch { return "—"; }
 };
+/** Định dạng ngày giờ theo vi-VN (hoặc chỉ ngày khi {@code dateOnly}); trả về chuỗi rỗng nếu thiếu hoặc không hợp lệ. */
 const dateTime = (value?: string, dateOnly = false) => {
   if (!value) return "";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? "" : parsed.toLocaleString("vi-VN", dateOnly ? { dateStyle: "medium" } : { dateStyle: "medium", timeStyle: "short" });
 };
+/** Ngày sự kiện đã định dạng, hoặc dòng thông báo nếu chưa có. */
 const eventDate = (value?: string) => dateTime(value, true) || "Chưa có ngày sự kiện";
+/** Mục dòng thời gian, chấp nhận cả hai dạng trường của API (thời điểm {@code occurredAt} hoặc {@code at}, thông điệp {@code publicMessage} hoặc {@code reason}). */
 type TimelineCompatibilityEntry = { status: string; occurredAt?: string; publicMessage?: string; at?: string; reason?: string };
+/** Lấy thời điểm của một mục dòng thời gian. */
 const timelineEntryTime = (entry?: TimelineCompatibilityEntry) => entry?.occurredAt || entry?.at;
+/** Lấy thông điệp hiển thị của một mục dòng thời gian. */
 const timelineEntryMessage = (entry?: TimelineCompatibilityEntry) => entry?.publicMessage || entry?.reason;
+/** Tìm mục gần nhất trong dòng thời gian có trạng thái đã cho. */
 const lastStatusEntry = (payout: PayoutDetail, status: string) => (payout.timeline as TimelineCompatibilityEntry[] | undefined)?.findLast((entry) => entry.status === status);
 
+/** Dựng các bước tiến trình của yêu cầu từ trạng thái và dòng thời gian; bước chuyển tiền chỉ hiện khi yêu cầu đã hoặc từng ở giai đoạn đang chuyển. */
 function payoutSteps(payout: PayoutDetail): Step[] {
   const status = payout.status;
   const rejectedOrCancelled = status === "REJECTED" || status === "CANCELLED";
@@ -65,6 +75,7 @@ function payoutSteps(payout: PayoutDetail): Step[] {
   });
 }
 
+/** Trang chi tiết yêu cầu rút tiền của tổ chức: tiến trình, thông tin khoản tiền, tài khoản nhận; tự tải lại mỗi 30 giây khi chưa ở trạng thái cuối, cho phép hủy yêu cầu đang chờ duyệt và sao chép mã yêu cầu. */
 export default function WithdrawalDetail() {
   const { id = "" } = useParams();
   const [payout, setPayout] = useState<FinancePayoutDetail | null>(null);
@@ -74,6 +85,7 @@ export default function WithdrawalDetail() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  /** Tải chi tiết yêu cầu từ API; lỗi 403 hoặc 404 được báo là không tìm thấy hoặc không có quyền xem. */
   const reload = useCallback(async () => {
     setLoading(true); setError("");
     try { setPayout(await payoutApi.getOrganizerPayout(id) as FinancePayoutDetail); }
@@ -92,6 +104,7 @@ export default function WithdrawalDetail() {
     const timer = window.setInterval(() => { void reload(); }, 30_000);
     return () => window.clearInterval(timer);
   }, [payout, reload]);
+  /** Hủy yêu cầu đang chờ duyệt rồi tải lại; lỗi 409 (yêu cầu vừa được cập nhật) cũng đóng hộp thoại và tải lại trạng thái mới. */
   const cancel = async () => {
     if (!payout) return;
     setCancelling(true); setActionError("");
@@ -103,6 +116,7 @@ export default function WithdrawalDetail() {
       await reload();
     } finally { setCancelling(false); }
   };
+  /** Sao chép mã yêu cầu vào clipboard và hiện trạng thái đã sao chép trong 1,8 giây. */
   const copyId = async () => {
     try {
       await navigator.clipboard.writeText(payout?.id || id);
@@ -146,6 +160,7 @@ export default function WithdrawalDetail() {
   </main>;
 }
 
+/** Một dòng nhãn và giá trị trong phần thông tin khoản tiền. */
 function DetailRow({ label, value }: { label: string; value: string }) {
   return <div className="flex items-start justify-between gap-3"><dt className="text-[#62769c]">{label}</dt><dd className="text-right font-medium text-[#101c48]">{value}</dd></div>;
 }

@@ -28,9 +28,12 @@ import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
 import { TablePagination } from "@/components/common/TablePagination";
 import { OrderCard } from "./OrderCard";
 
+/** Bộ lọc tab ở danh sách vé của tôi. */
 export type TicketFilter = "ALL" | "UPCOMING" | "USED" | "TRANSFERRED";
+/** Trạng thái vé dùng cho giao diện, đã quy đổi từ trạng thái thô của backend. */
 export type TicketUiStatus = "UPCOMING" | "USED" | "SELLING" | "GIFTING" | "TRANSFERRED" | "CANCELLED";
 
+/** Một vé đã ghép thông tin sự kiện, suất diễn và chỗ ngồi để hiển thị trong danh sách và hộp thoại xem vé. */
 export interface TicketItem {
   id: string;
   bookingId?: string;
@@ -61,7 +64,7 @@ export interface TicketItem {
   seatName?: string;
 }
 
-/** an order groups tickets that share the same bookingCode */
+/** đơn hàng gom các vé có cùng bookingCode */
 export interface OrderGroup {
   orderKey: string;
   bookingCode: string;
@@ -77,7 +80,7 @@ export interface OrderGroup {
   tickets: TicketItem[];
   totalAmount: number;
   quantity: number;
-  /** Ticket ownership status, not a payment status. */
+  /** Trạng thái sở hữu của vé, không phải trạng thái thanh toán. */
   status: TicketUiStatus;
   rawStatus: string;
   acquisitionType?: string;
@@ -93,6 +96,7 @@ export const STATUS_PRESENTATION: Record<TicketUiStatus, { labelKey: string; cla
   CANCELLED: { labelKey: "Đã hủy", className: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300", dotColor: "bg-rose-500" },
 };
 
+/** Quy đổi trạng thái vé thô của backend sang `TicketUiStatus` (ví dụ `LOCKED_FOR_RESALE` thành `SELLING`); trạng thái lạ rơi về nhánh mặc định. */
 export function mapTicketStatus(status?: string | null): TicketUiStatus {
   const s = (status || "").trim().toUpperCase();
   switch (s) {
@@ -111,14 +115,15 @@ export function mapTicketStatus(status?: string | null): TicketUiStatus {
 }
 
 /**
- * Parses API date strings safely.
- * Backend LocalDateTime represents Asia/Ho_Chi_Minh (UTC+7).
- * If no timezone offset is provided, appends +07:00 to ensure consistent evaluation across timezones.
+ * Phân tích chuỗi ngày giờ của API một cách an toàn.
+ * LocalDateTime của backend thuộc múi giờ Asia/Ho_Chi_Minh (UTC+7).
+ * Nếu không có phần bù múi giờ thì thêm +07:00 để kết quả nhất quán ở mọi múi giờ.
  */
 export function parseApiDateTime(value?: string | number[] | null): Date | null {
   if (!value) return null;
   if (Array.isArray(value)) {
     const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+    /** Thêm số 0 phía trước để mỗi thành phần ngày giờ đủ hai chữ số. */
     const pad = (n: number) => String(n).padStart(2, "0");
     const isoString = `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:${pad(second)}+07:00`;
     const d = new Date(isoString);
@@ -179,6 +184,7 @@ export function formatTicketSeat(ticket: {
   return `Vé tự do, ${typeName}`;
 }
 
+/** Định dạng thời gian sự kiện theo giờ Việt Nam; trả chuỗi báo chưa có lịch khi thiếu hoặc sai giá trị. */
 export function formatEventTime(value?: string) {
   if (!value) return "Chưa cập nhật lịch";
   const date = parseApiDateTime(value) || new Date(value);
@@ -192,6 +198,7 @@ export function formatEventTime(value?: string) {
   }).format(date);
 }
 
+/** Ghép thông tin sự kiện và suất diễn vào danh sách vé thô của API: tải sự kiện theo từng `eventId` (lỗi thì coi như không có), tính trạng thái giao diện và đánh dấu vé của sự kiện đã kết thúc là đã dùng. */
 export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<TicketItem[]> {
   if (!items || !Array.isArray(items)) return [];
   const eventIds = [...new Set(items.map((item) => item.eventId).filter(Boolean))];
@@ -217,7 +224,7 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
     const endsAt = typeof showtime?.endTime === "string" ? showtime.endTime
       : typeof event?.endTime === "string" ? event.endTime : undefined;
 
-    // Check if event or showtime has ended
+    // kiểm tra sự kiện hoặc suất diễn đã kết thúc chưa
     let isEnded = false;
     if (endsAt) {
       const parsedEnd = parseApiDateTime(endsAt);
@@ -246,7 +253,7 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
     });
 
     let mappedStatus = mapTicketStatus(rawStatus);
-    // If ticket is VALID / SELLING / GIFTING but event has ended, map to USED (History)
+    // nếu vé VALID / SELLING / GIFTING nhưng sự kiện đã kết thúc thì chuyển thành USED (lịch sử)
     if (isEnded && ["UPCOMING", "SELLING", "GIFTING"].includes(mappedStatus)) {
       mappedStatus = "USED";
     }
@@ -282,7 +289,7 @@ export async function hydrateTickets(items: OwnedTicketApiResponse[]): Promise<T
   });
 }
 
-/** Group tickets into orders by bookingCode or bookingId */
+/** Gom vé thành các đơn theo bookingCode hoặc bookingId */
 export function groupTicketsIntoOrders(tickets: TicketItem[]): OrderGroup[] {
   const map = new Map<string, TicketItem[]>();
   tickets.forEach((t) => {
@@ -297,7 +304,7 @@ export function groupTicketsIntoOrders(tickets: TicketItem[]): OrderGroup[] {
     const bookingCode = first.bookingCode || first.bookingId || first.id;
     const totalAmount = group.reduce((sum, t) => sum + t.totalAmount, 0);
 
-    // derive order status from tickets
+    // suy ra trạng thái đơn từ các vé
     const statuses = group.map((t) => t.status);
     let orderStatus: TicketUiStatus = first.status;
     if (statuses.some((s) => s === "UPCOMING")) orderStatus = "UPCOMING";
@@ -329,6 +336,7 @@ export function groupTicketsIntoOrders(tickets: TicketItem[]): OrderGroup[] {
   });
 }
 
+/** Vẽ vé lên canvas (thông tin sự kiện và mã QR) rồi tải về dạng ảnh PNG; lỗi được ghi log và bỏ qua. */
 export function downloadTicketAsImage(ticket: TicketItem) {
   try {
     const canvas = document.createElement("canvas");
@@ -361,6 +369,7 @@ export function downloadTicketAsImage(ticket: TicketItem) {
     const image = new Image();
     image.crossOrigin = "Anonymous";
     image.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrValue)}`;
+    /** Xuất canvas hiện tại thành tệp PNG tên `HaloTicket_<id>.png` và kích hoạt tải xuống. */
     const save = () => {
       try {
         const link = document.createElement("a");
@@ -377,7 +386,7 @@ export function downloadTicketAsImage(ticket: TicketItem) {
         context.fillRect(740, 125, 250, 250);
         context.drawImage(image, 752, 137, 226, 226);
       } catch {
-        // Tainted canvas fallback
+        // dự phòng khi canvas bị tainted (không vẽ được QR)
       }
       save();
     };
@@ -387,6 +396,7 @@ export function downloadTicketAsImage(ticket: TicketItem) {
   }
 }
 
+/** Nhãn trạng thái vé có màu theo `TicketUiStatus`. */
 export function StatusBadge({ status }: { status: TicketUiStatus }) {
   const { t } = useTranslation();
   const presentation = STATUS_PRESENTATION[status];
@@ -410,6 +420,7 @@ export interface TicketViewerProps {
   onGift?: (ticket: TicketItem) => void;
 }
 
+/** Hộp thoại xem vé điện tử: hiển thị thông tin vé, mã đặt chỗ và QR (chỉ lộ khi vé còn hiệu lực), kèm nút đăng bán lại và tặng vé. */
 export function TicketViewer({ ticket, onClose, onResale, onGift }: TicketViewerProps) {
   const { t } = useTranslation();
   const [copiedCode, setCopiedCode] = useState(false);
@@ -426,6 +437,7 @@ export function TicketViewer({ ticket, onClose, onResale, onGift }: TicketViewer
     cachedProfile?.email ||
     t("Khách hàng");
 
+  /** Sao chép mã đặt chỗ (hoặc id vé) vào clipboard và hiện trạng thái đã sao chép trong 2 giây. */
   const copyBookingCode = async () => {
     const codeToCopy = ticket.bookingCode || ticket.id;
     if (!codeToCopy) return;
@@ -704,10 +716,12 @@ export function TicketViewer({ ticket, onClose, onResale, onGift }: TicketViewer
   );
 }
 
+/** Props của trang vé của tôi; `embedded` bật chế độ nhúng trong trang khác. */
 interface MyTicketsProps {
   embedded?: boolean;
 }
 
+/** Danh sách lời mời tặng vé đang chờ của người dùng hiện tại, tải một lần khi dựng. */
 function GiftInvitations() {
   const { t } = useTranslation();
   const [invitations, setInvitations] = useState<Awaited<ReturnType<typeof marketplaceApi.getMyGiftInvitations>>>([]);
@@ -781,6 +795,7 @@ function GiftInvitations() {
   );
 }
 
+/** Trang vé của tôi: tải vé, lọc theo tab và từ khóa, gom theo đơn, phân trang phía client, và mở hộp thoại xem vé, đăng bán lại, tặng vé. */
 export default function MyTickets({ embedded = false }: MyTicketsProps) {
   const { t } = useTranslation();
   const [tickets, setTickets] = useState<TicketItem[]>([]);
@@ -794,6 +809,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
   const [giftTicket, setGiftTicket] = useState<TicketItem>();
   const [currentPage, setCurrentPage] = useState(1);
 
+  /** Tải lại danh sách vé từ API, ghép thông tin sự kiện và ghi nhận lỗi tải để hiển thị. */
   const loadTickets = useCallback(async () => {
     try {
       setLoading(true);
@@ -813,9 +829,11 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
     if (!embedded) window.scrollTo(0, 0);
     loadTickets();
 
+    /** Tải lại vé khi cửa sổ lấy lại focus. */
     const handleFocus = () => {
       loadTickets();
     };
+    /** Tải lại vé khi tab trình duyệt chuyển sang trạng thái hiển thị. */
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         loadTickets();
@@ -829,7 +847,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
     };
   }, [embedded, loadTickets]);
 
-  // Group tickets into orders (1 order per bookingCode)
+  // Gom vé thành các đơn (mỗi bookingCode một đơn)
   const allOrders = useMemo(() => groupTicketsIntoOrders(tickets), [tickets]);
 
   const counts = useMemo(
@@ -882,7 +900,7 @@ export default function MyTickets({ embedded = false }: MyTicketsProps) {
     });
   }, [allOrders, activeTab, searchQuery]);
 
-  // client-side pagination
+  // phân trang phía client
   const [pageSize, setPageSize] = useState(10);
   const currentTotalElements = filteredOrders.length;
   const currentTotalPages = Math.ceil(currentTotalElements / pageSize) || 1;

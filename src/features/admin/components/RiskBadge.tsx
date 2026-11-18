@@ -1,11 +1,13 @@
 import { useTranslation } from "react-i18next";
 import type { AiRiskScoreResponse } from "@/types/ai";
 
+/** Phần dữ liệu của kết quả đánh giá rủi ro mà huy hiệu cần dùng. */
 type BadgeSource = Pick<AiRiskScoreResponse, "risk_level" | "risk_score" | "complete" | "coverage">;
 
+/** Props của huy hiệu rủi ro: kết quả đánh giá, có hiện điểm hay không, lớp CSS thêm. */
 interface RiskBadgeProps {
   assessment?: BadgeSource | null;
-  /** Show the 0-100 score next to the level. */
+  /** Hiện điểm 0-100 bên cạnh mức rủi ro. */
   showScore?: boolean;
   className?: string;
 }
@@ -17,10 +19,7 @@ const LEVEL_CLASS: Record<string, string> = {
 };
 const NEUTRAL_CLASS = "border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-300";
 
-/**
- * Risk level badge shared by the review queue and the detail page.
- * A LOW level from an incomplete assessment is never drawn green: it is a neutral dashed "Low (incomplete)".
- */
+/**\n * Huy hiệu mức rủi ro dùng chung cho hàng đợi duyệt và trang chi tiết.\n * Mức LOW của đánh giá chưa đầy đủ không bao giờ tô xanh: hiện kiểu trung tính nét đứt "Thấp (chưa đầy đủ)".\n */
 export function RiskBadge({ assessment, showScore = false, className = "" }: RiskBadgeProps) {
   const { t } = useTranslation();
   if (!assessment) {

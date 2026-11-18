@@ -4,6 +4,7 @@ import { FiAlertCircle, FiCheck, FiLoader } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { useMarketplaceSaga } from "./hooks/useMarketplaceSaga";
 
+/** Trang kết quả giao dịch mua vé bán lại: theo dõi saga theo {@code sagaId} và hiển thị đang xử lý, thành công hoặc thất bại. */
 export function ResaleTransactionResult() {
   const { t } = useTranslation();
   const { sagaId = "" } = useParams<{ sagaId: string }>();

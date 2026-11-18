@@ -11,6 +11,7 @@ import { EventCard } from "@/components/common/EventCard";
 import DateFilterModal from "./components/DateFilterModal";
 import AdvancedFilterModal from "./components/AdvancedFilterModal";
 
+/** Trang tìm kiếm và lọc sự kiện theo từ khóa, thành phố, danh mục, ngày và bộ lọc nâng cao; hỗ trợ tìm theo ngữ nghĩa bằng AI khi có từ khóa. */
 export default function EventSearch() {
   const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -42,11 +43,11 @@ export default function EventSearch() {
   const [aiRetryTick, setAiRetryTick] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // filter modal toggle states
+  // trạng thái bật tắt các hộp thoại bộ lọc
   const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState<boolean>(false);
 
-  // active filter values
+  // giá trị các bộ lọc đang áp dụng
   const [selectedDatePreset, setSelectedDatePreset] = useState<string>("Tất cả các ngày");
   const [selectedLocation, setSelectedLocation] = useState<string>(cityParam || "Toàn quốc");
   const [, setIsFree] = useState<boolean>(false);
@@ -55,8 +56,9 @@ export default function EventSearch() {
   const dateFilterRef = useRef<HTMLDivElement>(null);
   const advancedFilterRef = useRef<HTMLDivElement>(null);
 
-  // close modals on click outside
+  // đóng các hộp thoại khi bấm ra ngoài
   useEffect(() => {
+    /** Đóng hộp thoại lọc ngày và lọc nâng cao khi bấm ra ngoài vùng của chúng. */
     const handleClickOutside = (e: MouseEvent) => {
       if (dateFilterRef.current && !dateFilterRef.current.contains(e.target as Node)) {
         setIsDateModalOpen(false);
@@ -69,7 +71,7 @@ export default function EventSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // fetch all real events from Backend API
+  // tải toàn bộ sự kiện thật từ API backend
   useEffect(() => {
     let isMounted = true;
     eventApi.getAllEvents().then((data) => {
@@ -83,7 +85,7 @@ export default function EventSearch() {
     };
   }, []);
 
-  // natural language / semantic search with AI when queryParam changes
+  // tìm kiếm theo ngữ nghĩa và ngôn ngữ tự nhiên bằng AI khi từ khóa thay đổi
   useEffect(() => {
     if (!queryParam.trim()) {
       setAiEvents([]);
@@ -98,7 +100,7 @@ export default function EventSearch() {
       if (isMounted && res && Array.isArray(res.events) && res.events.length > 0) {
         setAiDegraded(res.degraded === true || res.search_mode === "keyword");
         setAiEvents(res.events as unknown as EventApiData[]);
-        // if query looks like a natural sentence or has ai param, auto-activate AI mode
+        // nếu từ khóa giống một câu tự nhiên hoặc có tham số ai thì tự bật chế độ AI
         if (aiParam || queryParam.split(" ").length >= 3) {
           setIsAiMode(true);
         }
@@ -106,7 +108,7 @@ export default function EventSearch() {
       if (isMounted) setIsAiSearching(false);
     }).catch((err: unknown) => {
       if (!isMounted) return;
-      // Fall back to the plain keyword search, but tell the user why.
+      // Quay về tìm kiếm từ khóa thường, đồng thời báo cho người dùng biết lý do.
       setAiEvents([]);
       setIsAiMode(false);
       setAiError(resolveAiError(err));
@@ -118,12 +120,12 @@ export default function EventSearch() {
     };
   }, [queryParam, aiParam, aiRetryTick]);
 
-  // determine which event list to use: AI semantic search vs normal keyword search
+  // chọn danh sách sự kiện: tìm ngữ nghĩa bằng AI hay tìm từ khóa thường
   const baseEvents = (isAiMode && aiEvents.length > 0) ? aiEvents : allEvents;
 
-  // filter events based on active search parameters
+  // lọc sự kiện theo các tham số tìm kiếm đang áp dụng
   const filteredEvents = baseEvents.filter((ev: EventApiData) => {
-    // if not in AI mode, apply text query filter
+    // nếu không ở chế độ AI thì áp dụng bộ lọc từ khóa
     if (!isAiMode && queryParam) {
       const q = queryParam.toLowerCase();
       const matchTitle = ev.title?.toLowerCase().includes(q);
@@ -133,17 +135,17 @@ export default function EventSearch() {
       if (!matchTitle && !matchLoc && !matchAddress && !matchCategory) return false;
     }
 
-    // location filter
+    // lọc theo địa điểm
     if (selectedLocation !== "Toàn quốc") {
       const loc = selectedLocation.toLowerCase();
       const matchLoc = ev.address?.toLowerCase().includes(loc) || ev.locationName?.toLowerCase().includes(loc) || (ev as any).city?.toLowerCase().includes(loc);
       if (!matchLoc) return false;
     }
 
-    // The navigation category also applies when the search page is reused.
+    // Danh mục từ thanh điều hướng cũng được áp dụng khi trang tìm kiếm được dùng lại.
     if (slug && (!routeCategory || ev.categoryName !== routeCategory.name)) return false;
 
-    // category filter
+    // lọc theo danh mục
     if (selectedCategory !== "Tất cả") {
       if (ev.categoryName !== selectedCategory) return false;
     }
@@ -151,13 +153,13 @@ export default function EventSearch() {
     return true;
   });
 
-  // split into upcoming vs past events
+  // tách sự kiện sắp diễn ra khỏi sự kiện đã kết thúc
   const upcomingEvents = filteredEvents.filter((ev: EventApiData & { isEnded?: boolean }) => !ev.isEnded);
 
   return (
     <div className="min-h-screen bg-[#f4f4f5] dark:bg-[#27272a] text-zinc-900 dark:text-zinc-100 pb-16 transition-colors duration-300">
       <div className="container mx-auto px-4 md:px-8 pt-8">
-        {/* Top Search Result Header & Filter Actions Bar */}
+        {/* Tiêu đề kết quả tìm kiếm và thanh thao tác lọc */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold app-text-main tracking-tight">
@@ -170,9 +172,9 @@ export default function EventSearch() {
             )}
           </div>
 
-          {/* Filter Bar Buttons */}
+          {/* Các nút của thanh lọc */}
           <div className="flex items-center gap-3 self-end sm:self-auto flex-wrap">
-            {/* AI Semantic Search Toggle */}
+            {/* Nút bật tắt tìm kiếm ngữ nghĩa bằng AI */}
             {queryParam && (
               <button
                 type="button"
@@ -193,7 +195,7 @@ export default function EventSearch() {
                 )}
               </button>
             )}
-            {/* Date Filter Button */}
+            {/* Nút lọc ngày */}
             <div ref={dateFilterRef} className="relative">
               <button
                 type="button"
@@ -218,7 +220,7 @@ export default function EventSearch() {
               />
             </div>
 
-            {/* Advanced Filter Button */}
+            {/* Nút lọc nâng cao */}
             <div ref={advancedFilterRef} className="relative">
               <button
                 type="button"
@@ -250,7 +252,7 @@ export default function EventSearch() {
           </div>
         </div>
 
-        {/* AI search failed: keyword results are shown instead */}
+        {/* Tìm kiếm AI thất bại: hiển thị kết quả theo từ khóa thay thế */}
         {aiError && queryParam.trim() && (
           <div
             role="alert"
@@ -273,7 +275,7 @@ export default function EventSearch() {
           </div>
         )}
 
-        {/* AI Semantic Search Banner */}
+        {/* Biểu ngữ tìm kiếm ngữ nghĩa bằng AI */}
         {isAiMode && queryParam && (
           <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
@@ -301,7 +303,7 @@ export default function EventSearch() {
           </div>
         )}
 
-        {/* Loading Spinner State */}
+        {/* Trạng thái đang tải */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4" />
@@ -309,7 +311,7 @@ export default function EventSearch() {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Upcoming Events */}
+            {/* Sự kiện sắp diễn ra */}
             <div>
               <div className="flex items-center gap-3 mb-6">
                 <span className="flex items-center gap-1.5 font-extrabold text-lg md:text-xl app-text-main">

@@ -3,19 +3,22 @@ import { useTranslation } from "react-i18next";
 
 import NotificationModal from "@/components/common/NotificationModal";
 
+/** Props của hộp thoại hết phiên: hàm đăng nhập lại và hàm đăng xuất tùy chọn. */
 interface SessionExpiredModalHostProps {
   onLoginAgain: () => void | Promise<void>;
   onLogout?: () => void | Promise<void>;
 }
 
+/** Hộp thoại không thể đóng, hiện khi nhận sự kiện {@code session-expired}, buộc người dùng đăng nhập lại hoặc đăng xuất. */
 export function SessionExpiredModalHost({ onLoginAgain, onLogout }: SessionExpiredModalHostProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    /** Mở hộp thoại hết phiên, trừ khi đang ở trang đăng nhập hoặc trang xác thực. */
     const handleSessionExpired = () => {
-      // do not open if already on login or auth screens
+      // không mở nếu đang ở màn hình đăng nhập hoặc xác thực
       const path = window.location.pathname;
       if (path.startsWith("/login") || path.startsWith("/auth/")) {
         return;
@@ -27,10 +30,11 @@ export function SessionExpiredModalHost({ onLoginAgain, onLogout }: SessionExpir
     return () => window.removeEventListener("session-expired", handleSessionExpired);
   }, []);
 
+  /** Đóng hộp thoại rồi gọi {@code onLoginAgain}; bỏ qua nếu đang xử lý. */
   const handleContinueLogin = async () => {
     if (submitting) return;
     setSubmitting(true);
-    setOpen(false); // close immediately so it does not persist onto login page
+    setOpen(false); // đóng ngay để hộp thoại không còn lại ở trang đăng nhập
     try {
       await onLoginAgain();
     } finally {
@@ -38,10 +42,11 @@ export function SessionExpiredModalHost({ onLoginAgain, onLogout }: SessionExpir
     }
   };
 
+  /** Đóng hộp thoại rồi gọi {@code onLogout}, nếu không có thì dùng {@code onLoginAgain}. */
   const handleConfirmLogout = async () => {
     if (submitting) return;
     setSubmitting(true);
-    setOpen(false); // close immediately
+    setOpen(false); // đóng ngay
     try {
       if (onLogout) {
         await onLogout();

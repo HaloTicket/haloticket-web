@@ -11,12 +11,14 @@ import { getAdminEventReports, type AdminEventReport } from "@/services/adminRep
 import { filtersFromSearch, formatHcmInstant, isValidReportPeriod, money, number, reportQuery, reportRequestError, summarizeTimeline, hcmToday } from "@/utils/reportUtils";
 import { reportStatusText, reportText } from "@/utils/reportTranslations";
 
+/** Trang chi tiết báo cáo của một sự kiện: số liệu tổng hợp, biểu đồ diễn biến theo thời gian và danh sách đơn trong kỳ lọc lấy từ URL. */
 export default function AdminEventReportDetail() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t: rawT, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage?.startsWith("en") ? "en-US" : "vi-VN";
+  /** Dịch chuỗi báo cáo sang ngôn ngữ hiện tại trước khi đưa cho i18n. */
   const t = (value: string, options?: Record<string, unknown>) => rawT(reportText(value, locale === "en-US" ? "en" : "vi"), options);
   const filters = useMemo(() => filtersFromSearch(searchParams.toString()), [searchParams]);
   const validPeriod = isValidReportPeriod(filters.from, filters.to) && filters.to <= hcmToday();

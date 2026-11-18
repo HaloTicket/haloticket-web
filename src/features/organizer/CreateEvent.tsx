@@ -22,7 +22,7 @@ import { normalizeTicketsForSave } from "@/utils/ticketQuantities";
 import { eventSaveFailureMessage, parseEventSaveFailure } from "@/utils/eventSaveErrors";
 import { PATHS } from "@/routes/paths";
 
-/** A showtime as it comes back from a saved draft (any field may be missing). */
+/** Một suất diễn khi đọc lại từ bản nháp đã lưu (trường nào cũng có thể thiếu). */
 interface DraftShowtime {
   id?: string;
   name?: string;
@@ -32,7 +32,7 @@ interface DraftShowtime {
   saleEndTime?: string;
 }
 
-/** The payout account fields read back from the organizer profile or the local cache. */
+/** Các trường tài khoản nhận tiền đọc lại từ hồ sơ ban tổ chức hoặc bộ nhớ đệm cục bộ. */
 interface PayoutAccountInfo {
   accountHolder?: string;
   accountNumber?: string;
@@ -44,6 +44,7 @@ interface PayoutAccountInfo {
   taxCode?: string;
 }
 
+/** Dữ liệu sự kiện nháp hoặc đang chờ duyệt lấy từ API, gồm cả các trường mở rộng của form tạo sự kiện (một số trường có thể là chuỗi JSON). */
 interface DraftEventItem extends Partial<EventApiData> {
   id: string;
   category?: string;
@@ -77,6 +78,13 @@ interface DraftEventItem extends Partial<EventApiData> {
   eventApprovalStatus?: string;
 }
 
+/**
+ * Đảm bảo ảnh có địa chỉ http(s) trên S3: ảnh {@code blob:} hoặc {@code data:image/} sẽ được tải lên qua {@code mediaApi}.
+ * Nếu tải lên lỗi thì ghi log và trả về giá trị gốc.
+ * @param urlOrData - đường dẫn ảnh, blob URL hoặc dữ liệu base64
+ * @param folder - thư mục đích trên S3
+ * @returns địa chỉ ảnh sau xử lý, hoặc {@code null} khi không có ảnh
+ */
 async function ensureS3Url(urlOrData: string | null | undefined, folder: string): Promise<string | null> {
   if (!urlOrData) return null;
   if ((urlOrData.startsWith("http://") || urlOrData.startsWith("https://")) && !urlOrData.startsWith("blob:")) {
@@ -103,16 +111,20 @@ async function ensureS3Url(urlOrData: string | null | undefined, folder: string)
   return urlOrData;
 }
 
+/**
+ * Trang tạo sự kiện của ban tổ chức: form nhiều bước (thông tin, thời gian và vé, cài đặt, câu hỏi tùy chọn, thanh toán).
+ * Kiểm tra eKYC khi vào trang, khôi phục bản nháp, tự động lưu nháp sau mỗi thay đổi và gửi yêu cầu duyệt ở bước cuối.
+ */
 export const CreateEvent: React.FC = () => {
   const { t: translate } = useTranslation();
-  // scroll to top on mount
+  // cuộn lên đầu trang khi vào màn hình
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, []);
 
   const navigate = useNavigate();
 
-  // modals state
+  // trạng thái các hộp thoại
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showEkycModal, setShowEkycModal] = useState(false);
   const [showAddTicketModal, setShowAddTicketModal] = useState(false);
@@ -121,7 +133,7 @@ export const CreateEvent: React.FC = () => {
   const [savedEventIdForSync, setSavedEventIdForSync] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // eKYC check on mount
+  // kiểm tra điều kiện eKYC khi vào trang
   useEffect(() => {
     let active = true;
     ekycApi.getOrganizerEligibility()
@@ -135,7 +147,7 @@ export const CreateEvent: React.FC = () => {
         }
       })
       .catch(() => {
-        // endpoint offline/error or 403 forbidden
+        // dịch vụ không phản hồi, lỗi hoặc bị từ chối 403
         if (active) {
           setShowEkycModal(true);
         }
@@ -143,18 +155,18 @@ export const CreateEvent: React.FC = () => {
     return () => { active = false; };
   }, []);
 
-  // active stepper step (1 to 5)
+  // bước hiện tại của thanh các bước (1 đến 5)
   const [currentStep, setCurrentStep] = useState(1);
 
-  // FORM ERRORS & DRAFT STATE
+  // LỖI FORM VÀ TRẠNG THÁI NHÁP
   const [step1Errors, setStep1Errors] = useState<Step1Errors>({});
   const [step2Errors, setStep2Errors] = useState<Step2Errors>({});
   const [step5Errors, setStep5Errors] = useState<Step5Errors>({});
   const [isOrganizerPreFilled, setIsOrganizerPreFilled] = useState(false);
   const [draftSavedToast, setDraftSavedToast] = useState<string | null>(null);
 
-  // FORM STATE
-  // step 1: event info
+  // DỮ LIỆU FORM
+  // bước 1: thông tin sự kiện
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Nhạc sống");
   const [locationType, setLocationType] = useState<"offline" | "online">("offline");
@@ -170,7 +182,7 @@ export const CreateEvent: React.FC = () => {
   const [organizerInfo, setOrganizerInfo] = useState("");
   const [organizerLogo, setOrganizerLogo] = useState<string | null>(null);
 
-  // step 2: time & ticket
+  // bước 2: thời gian và vé
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tickets, setTickets] = useState<TicketItem[]>([]);
@@ -193,11 +205,11 @@ export const CreateEvent: React.FC = () => {
              dailyDurationMs = (end.getTime() % 86400000) - (start.getTime() % 86400000);
              if (dailyDurationMs < 0) dailyDurationMs += 86400000;
           } else {
-             // overnight showtime
+             // suất diễn qua đêm
              dailyDurationMs = ((24 - startHour) + endHour) * 3600000;
           }
           
-          // fallback if calculated duration is 0, make it at least 1 hour
+          // nếu thời lượng tính ra bằng 0 thì lấy tối thiểu 1 giờ
           if (dailyDurationMs === 0) dailyDurationMs = 3600000;
 
           const currentDate = new Date(start);
@@ -205,7 +217,7 @@ export const CreateEvent: React.FC = () => {
           
           const tempEnd = new Date(end);
           if (startHour > endHour) {
-            // if overnight, the last showtime starts on the day before tempEnd
+            // nếu qua đêm, suất cuối bắt đầu từ ngày trước ngày của tempEnd
             tempEnd.setDate(tempEnd.getDate() - 1);
           }
           tempEnd.setHours(0, 0, 0, 0);
@@ -247,8 +259,8 @@ export const CreateEvent: React.FC = () => {
           });
         }
         
-        // the showtime list is derived from the two dates and keeps the sale times the organizer already typed, so it is
-        // set here, in the effect that watches the dates
+        // danh sách suất diễn được suy ra từ hai mốc ngày và giữ lại thời gian mở bán mà ban tổ chức đã nhập,
+        // nên được đặt tại đây, trong effect theo dõi các mốc ngày
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowtimes(prev => newShowtimes.map(ns => {
            const existing = prev.find(p => p.name === ns.name);
@@ -263,16 +275,16 @@ export const CreateEvent: React.FC = () => {
     }
   }, [startDate, endDate]);
 
-  // step 3: settings
+  // bước 3: cài đặt
   const [isPrivate, setIsPrivate] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
   const [enableCustomQuestions, setEnableCustomQuestions] = useState(false);
 
-  // step 4: questions (only if enableCustomQuestions = true)
+  // bước 4: câu hỏi (chỉ khi enableCustomQuestions = true)
   const [questionScope, setQuestionScope] = useState<"order" | "ticket">("order");
   const [questions, setQuestions] = useState<CustomQuestionItem[]>([]);
 
-  // step 5: payment info & VAT invoice
+  // bước 5: thông tin thanh toán và hóa đơn VAT
   const [accountHolder, setAccountHolder] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [bankName, setBankName] = useState("Vietcombank");
@@ -286,6 +298,7 @@ export const CreateEvent: React.FC = () => {
   const currentEventIdRef = useRef<string | null>(null);
   const isInitialLoadingRef = useRef<boolean>(true);
 
+  /** Cập nhật id sự kiện hiện tại: ghi vào ref (để các hàm bất đồng bộ đọc được giá trị mới nhất) và vào state. */
   const updateCurrentEventId = (id: string | null) => {
     currentEventIdRef.current = id;
     setCurrentEventId(id);
@@ -295,17 +308,18 @@ export const CreateEvent: React.FC = () => {
   const [autoSaveStatus, setAutoSaveStatus] = useState<"saving" | "saved" | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  // restore draft/pending event 
+  // khôi phục sự kiện nháp hoặc đang chờ duyệt
   useEffect(() => {
     let isMounted = true;
 
+    /** Nạp hồ sơ ban tổ chức để điền sẵn, rồi nạp sự kiện nháp (theo tham số {@code id} trên URL hoặc bản nháp DRAFT của người dùng) và đổ vào các state của form. */
     const loadOrganizerAndDbDraft = async () => {
       isInitialLoadingRef.current = true;
       try {
         const cachedUser = getCachedUserProfile();
         const currentUserId = cachedUser?.id || cachedUser?.keycloakId;
 
-        // fetch organizer profile
+        // lấy hồ sơ ban tổ chức
         if (currentUserId) {
           try {
             const orgProfile = await organizerApi.getOrganizerProfile(currentUserId);
@@ -316,12 +330,12 @@ export const CreateEvent: React.FC = () => {
               setIsOrganizerPreFilled(true);
             }
           } catch {
-            // expected to fail with 403 if user hasn't verified ekyc
+            // dự kiến lỗi 403 nếu người dùng chưa xác thực eKYC
             console.log("Organizer profile not found or forbidden, falling back to empty.");
           }
         }
 
-        // check URL for event id or query DB for draft
+        // lấy id sự kiện từ URL hoặc tìm bản nháp trong DB
         const urlParams = new URLSearchParams(window.location.search);
         const draftIdParam = urlParams.get("id");
         if (draftIdParam) {
@@ -332,7 +346,7 @@ export const CreateEvent: React.FC = () => {
         if (draftIdParam) {
           draftEventData = (await eventApi.getEventById(draftIdParam)) as unknown as DraftEventItem;
         } else {
-          // find existing DRAFT status event
+          // tìm sự kiện đang ở trạng thái DRAFT
           const allEvents = await eventApi.getAllEvents();
           if (Array.isArray(allEvents)) {
             draftEventData = (allEvents.find(
@@ -376,7 +390,7 @@ export const CreateEvent: React.FC = () => {
             try {
               galleryList = JSON.parse(draftEventData.galleryImages);
             } catch {
-              // ignore JSON parse failure
+              // bỏ qua lỗi phân tích JSON
             }
           }
           if (galleryList.length === 0 && desc) {
@@ -396,7 +410,7 @@ export const CreateEvent: React.FC = () => {
           if (draftEventData.showtimes) {
             let parsedShowtimes = draftEventData.showtimes;
             if (typeof parsedShowtimes === "string") {
-              try { parsedShowtimes = JSON.parse(parsedShowtimes); } catch { /* keep the raw value; it is ignored below when it is not an array */ }
+              try { parsedShowtimes = JSON.parse(parsedShowtimes); } catch { /* giữ nguyên giá trị gốc; phía dưới sẽ bỏ qua nếu không phải mảng */ }
             }
             if (Array.isArray(parsedShowtimes) && parsedShowtimes.length > 0) {
               const mappedShowtimes = parsedShowtimes.map((st: DraftShowtime) => ({
@@ -417,7 +431,7 @@ export const CreateEvent: React.FC = () => {
               try {
                 parsedTickets = JSON.parse(parsedTickets);
               } catch {
-                // ignore JSON parse failure
+                // bỏ qua lỗi phân tích JSON
               }
             }
             if (Array.isArray(parsedTickets)) {
@@ -459,7 +473,7 @@ export const CreateEvent: React.FC = () => {
               try {
                 parsedQList = JSON.parse(parsedQList);
               } catch {
-                // ignore JSON parse failure
+                // bỏ qua lỗi phân tích JSON
               }
             }
             if (Array.isArray(parsedQList)) setQuestions(parsedQList as CustomQuestionItem[]);
@@ -519,7 +533,8 @@ export const CreateEvent: React.FC = () => {
     };
   }, []);
 
-  // clear draft & reset form
+  // xóa nháp và đặt lại form
+  /** Xóa trạng thái nháp trong form (không xóa bản ghi trên server), quay về bước 1 và hiện thông báo trong 3 giây. */
   const handleClearDraft = () => {
     updateCurrentEventId(null);
     setEventStatus("DRAFT");
@@ -555,6 +570,10 @@ export const CreateEvent: React.FC = () => {
     setTimeout(() => setDraftSavedToast(null), 3000);
   };
 
+  /**
+   * Tải ảnh poster, banner, logo và thư viện ảnh lên S3 song song, đồng thời cập nhật state sang địa chỉ mới.
+   * @returns các địa chỉ ảnh đã tải lên; thư viện đã loại bỏ ảnh lỗi
+   */
   const processAllImagesToS3 = async (
     poster: string | null,
     banner: string | null,
@@ -583,7 +602,7 @@ export const CreateEvent: React.FC = () => {
     };
   };
 
-  // real-time auto-save
+  // tự động lưu theo thời gian thực
   useEffect(() => {
     if (isSubmitted || isSubmitting || isInitialLoadingRef.current) return;
 
@@ -700,7 +719,8 @@ export const CreateEvent: React.FC = () => {
     isSubmitting
   ]);
 
-  // save draft function manually
+  // lưu nháp thủ công
+  /** Lưu nháp ngay theo yêu cầu của người dùng: tải ảnh lên, gửi dữ liệu form với trạng thái DRAFT (hoặc PENDING nếu đang chờ duyệt) và hiện thông báo. */
   const handleSaveDraft = async () => {
     try {
       const cachedUser = getCachedUserProfile();
@@ -772,7 +792,7 @@ export const CreateEvent: React.FC = () => {
 
 
 
-  // dynamic step titles
+  // tiêu đề các bước thay đổi theo việc có bật câu hỏi tùy chỉnh hay không
   const stepTitles = enableCustomQuestions
     ? [
       translate("1. Thông tin sự kiện"),
@@ -788,7 +808,8 @@ export const CreateEvent: React.FC = () => {
       translate("4. Thông tin thanh toán")
     ];
 
-  // step validations
+  // kiểm tra dữ liệu từng bước
+  /** Kiểm tra bước 1 (tên sự kiện, địa điểm, mô tả, ban tổ chức); hợp lệ thì chuyển sang bước 2. */
   const handleStep1Next = () => {
     const errs: Step1Errors = {};
     if (!title.trim()) errs.title = translate("Vui lòng nhập tên sự kiện!");
@@ -806,6 +827,7 @@ export const CreateEvent: React.FC = () => {
     }
   };
 
+  /** Kiểm tra bước 2 (thời gian bắt đầu và kết thúc, ít nhất một hạng vé); hợp lệ thì chuyển sang bước 3. */
   const handleStep2Next = () => {
     const errs: Step2Errors = {};
     if (!startDate) errs.startDate = translate("Vui lòng chọn thời gian bắt đầu sự kiện!");
@@ -827,7 +849,8 @@ export const CreateEvent: React.FC = () => {
 
   const [editingTicket, setEditingTicket] = useState<TicketItem | null>(null);
 
-  // handle add or edit ticket
+  // thêm mới hoặc sửa hạng vé
+  /** Lưu hạng vé từ hộp thoại: cập nhật nếu id đã có, ngược lại thêm mới, rồi đóng hộp thoại. */
   const handleSaveTicket = (savedTicket: TicketItem) => {
     const exists = tickets.some((t) => t.id === savedTicket.id);
     if (exists) {
@@ -839,17 +862,20 @@ export const CreateEvent: React.FC = () => {
     setEditingTicket(null);
   };
 
+  /** Mở hộp thoại sửa với hạng vé được chọn. */
   const handleOpenEditTicketModal = (ticket: TicketItem) => {
     setEditingTicket(ticket);
     setShowAddTicketModal(true);
   };
 
-  // delete ticket
+  // xóa hạng vé
+  /** Xóa hạng vé theo id khỏi danh sách. */
   const handleDeleteTicket = (id: string) => {
     setTickets(tickets.filter((t) => t.id !== id));
   };
 
-  // handle add question
+  // thêm câu hỏi
+  /** Thêm một câu hỏi dạng văn bản mặc định, không bắt buộc, vào cuối danh sách câu hỏi. */
   const handleAddQuestion = () => {
     const newQ: CustomQuestionItem = {
       id: `q_${Date.now()}`,
@@ -861,12 +887,14 @@ export const CreateEvent: React.FC = () => {
     setQuestions([...questions, newQ]);
   };
 
-  // handle delete question
+  // xóa câu hỏi
+  /** Xóa câu hỏi theo id khỏi danh sách. */
   const handleDeleteQuestion = (id: string) => {
     setQuestions(questions.filter((q) => q.id !== id));
   };
 
-  // final submit event request
+  // gửi yêu cầu duyệt sự kiện ở bước cuối
+  /** Kiểm tra thông tin thanh toán bắt buộc, tải ảnh lên rồi gửi yêu cầu duyệt (trạng thái PENDING). Khi lỗi thì hiện thông báo và giữ nguyên dữ liệu form. */
   const handleSubmitApprovalRequest = async () => {
     const errs: Step5Errors = {};
     if (!accountHolder.trim()) errs.accountHolder = translate("Vui lòng nhập tên chủ tài khoản!");
@@ -883,7 +911,7 @@ export const CreateEvent: React.FC = () => {
       const { uploadedPoster, uploadedBanner, uploadedLogo, uploadedGallery } =
         await processAllImagesToS3(posterImage, bannerImage, organizerLogo, galleryImages);
 
-      // build event creation request payload
+      // dựng dữ liệu yêu cầu tạo sự kiện
       const cachedUser = getCachedUserProfile();
       const currentUserId = cachedUser?.id || cachedUser?.keycloakId || "user_default_id";
 
@@ -931,14 +959,14 @@ export const CreateEvent: React.FC = () => {
         taxAddress
       };
 
-      // send event approval request via api-gateway
+      // gửi yêu cầu duyệt sự kiện qua api-gateway
       const res = (await eventApi.createEventApprovalRequest(payload)) as Record<string, unknown> | null;
       if (res && typeof res.id === "string") {
         updateCurrentEventId(res.id);
       }
       setEventStatus("PENDING");
 
-      // save organizer profile to storage for future auto pre-fill
+      // lưu hồ sơ ban tổ chức vào bộ nhớ cục bộ để tự điền sẵn lần sau
       localStorage.setItem(
         "halo_organizer_profile",
         JSON.stringify({
@@ -948,7 +976,7 @@ export const CreateEvent: React.FC = () => {
         })
       );
 
-      // Clear draft after successful submission
+      // xóa bản nháp cục bộ sau khi gửi thành công
       localStorage.removeItem("halo_draft_event");
 
       setIsSubmitted(true);
@@ -956,7 +984,7 @@ export const CreateEvent: React.FC = () => {
       console.error("Failed to submit event approval request", error);
       const failure = parseEventSaveFailure(error);
       if (failure) {
-        // real error, not success; the form keeps its data. When the event was saved, remember its id so a retry updates it.
+        // lỗi thật, không phải thành công; form giữ nguyên dữ liệu. Nếu sự kiện đã được lưu thì nhớ id để lần thử lại sẽ cập nhật
         if (failure.kind === "ticketsSyncFailed" && failure.eventId) {
           updateCurrentEventId(failure.eventId);
           setSavedEventIdForSync(failure.eventId);
@@ -972,14 +1000,14 @@ export const CreateEvent: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen app-bg-page transition-colors duration-300 pb-20">
-      {/* Toast Notification Banner for Draft Save */}
+      {/* Banner thông báo đã lưu nháp */}
       {draftSavedToast && (
         <div className="fixed top-20 right-6 z-50 bg-blue-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top duration-300">
           <span>{translate(draftSavedToast)}</span>
         </div>
       )}
 
-      {/* Main Container */}
+      {/* Khung chứa chính */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 pt-6">
         {submitError && (
           <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
@@ -987,7 +1015,7 @@ export const CreateEvent: React.FC = () => {
             {savedEventIdForSync && <Link to={PATHS.EVENT_MANAGE(savedEventIdForSync)} className="min-h-11 inline-flex items-center rounded-lg bg-rose-600 px-4 text-xs font-bold text-white">{translate("Mở trang quản lý sự kiện")}</Link>}
           </div>
         )}
-        {/* Real-time Auto-Save Status Banner */}
+        {/* Banner trạng thái tự động lưu */}
         <div className="flex flex-wrap items-center justify-between gap-3 app-bg-card border app-border rounded-xl px-4 py-2.5 mb-4 shadow-2xs">
           <div className="flex items-center gap-2 text-xs font-bold">
             {autoSaveStatus === "saving" ? (
@@ -1019,14 +1047,14 @@ export const CreateEvent: React.FC = () => {
           )}
         </div>
 
-        {/* Stepper Navigation Bar */}
+        {/* Thanh các bước */}
         <CreateEventStepper
           stepTitles={stepTitles}
           currentStep={currentStep}
           onStepClick={(stepNum) => setCurrentStep(stepNum)}
         />
 
-        {/* Step 1: Event info */}
+        {/* Bước 1: thông tin sự kiện */}
         {currentStep === 1 && (
           <Step1EventInfo
             title={title}
@@ -1064,7 +1092,7 @@ export const CreateEvent: React.FC = () => {
           />
         )}
 
-        {/* Step 2: time & ticket */}
+        {/* Bước 2: thời gian và vé */}
         {currentStep === 2 && (
           <Step2TicketsAndTime
             startDate={startDate}
@@ -1087,7 +1115,7 @@ export const CreateEvent: React.FC = () => {
           />
         )}
 
-        {/* Step 3: settings */}
+        {/* Bước 3: cài đặt */}
         {currentStep === 3 && (
           <Step3Settings
             isPrivate={isPrivate}
@@ -1101,7 +1129,7 @@ export const CreateEvent: React.FC = () => {
           />
         )}
 
-        {/* Step 4: questions (Only rendered when survey questions toggle is ENABLED) */}
+        {/* Bước 4: câu hỏi (chỉ hiển thị khi bật câu hỏi khảo sát) */}
         {enableCustomQuestions && currentStep === 4 && (
           <Step4CustomQuestions
             enableCustomQuestions={enableCustomQuestions}
@@ -1117,7 +1145,7 @@ export const CreateEvent: React.FC = () => {
           />
         )}
 
-        {/* Step 5: payment info & VAT invoice (Step 4 when survey disabled, Step 5 when enabled) */}
+        {/* Bước 5: thông tin thanh toán và hóa đơn VAT (là bước 4 khi tắt khảo sát, bước 5 khi bật) */}
         {((!enableCustomQuestions && currentStep === 4) || (enableCustomQuestions && currentStep === 5)) && (
           <Step5PaymentInfo
             accountHolder={accountHolder}
@@ -1145,10 +1173,10 @@ export const CreateEvent: React.FC = () => {
         )}
       </div>
 
-      {/* Modal 1: notice */}
+      {/* Hộp thoại 1: thông báo */}
       {showNoticeModal && <NoticeModal onClose={() => setShowNoticeModal(false)} />}
 
-      {/* Modal eKYC required */}
+      {/* Hộp thoại yêu cầu eKYC */}
       <EkycRequiredModal 
         isOpen={showEkycModal} 
         onClose={() => {
@@ -1160,7 +1188,7 @@ export const CreateEvent: React.FC = () => {
         }} 
       />
 
-      {/* Modal 2: create or edit ticket */}
+      {/* Hộp thoại 2: tạo hoặc sửa vé */}
       {showAddTicketModal && (
         <AddTicketModal
           initialTicket={editingTicket}
@@ -1172,7 +1200,7 @@ export const CreateEvent: React.FC = () => {
         />
       )}
 
-      {/* Modal 3: success submitted */}
+      {/* Hộp thoại 3: đã gửi thành công */}
       {isSubmitted && <SuccessSubmittedModal title={title} />}
     </div>
   );

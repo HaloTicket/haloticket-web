@@ -4,6 +4,7 @@ import { AdminModal } from '../../../../components/admin/AdminModal';
 import { FiMapPin, FiUsers, FiHome } from 'react-icons/fi';
 import { CustomSelect } from '@/components/common/CustomSelect';
 
+/** Dữ liệu biểu mẫu thêm hoặc sửa địa điểm. */
 export interface VenueFormData {
   id?: string;
   name: string;
@@ -16,6 +17,7 @@ export interface VenueFormData {
   isPublic?: boolean;
 }
 
+/** Props của hộp thoại địa điểm: trạng thái mở, hàm đóng, hàm gửi (trả về `true` nếu lưu thành công) và địa điểm đang sửa. */
 interface VenueModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,6 +25,7 @@ interface VenueModalProps {
   editingVenue?: VenueFormData | null;
 }
 
+/** Hộp thoại thêm hoặc sửa địa điểm; đặt lại biểu mẫu mỗi khi mở lại hoặc đổi địa điểm đang sửa. */
 export const VenueModal: React.FC<VenueModalProps> = ({
   isOpen,
   onClose,
@@ -54,6 +57,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
     setError("");
   }
 
+  /** Kiểm tra tên, địa chỉ, thành phố và sức chứa rồi gửi; khóa chống gửi hai lần và chỉ đóng hộp thoại khi lưu thành công. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitLock.current) return;
@@ -88,7 +92,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Venue Name */}
+        {/* Tên địa điểm */}
         <div>
           <label htmlFor="venue-name" className="block text-sm font-semibold app-text-main mb-1.5">
             {translate("Tên địa điểm")} <span className="text-red-500">*</span>
@@ -107,7 +111,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
           </div>
         </div>
 
-        {/* Address */}
+        {/* Địa chỉ */}
         <div>
           <label htmlFor="venue-address" className="block text-sm font-semibold app-text-main mb-1.5">
             {translate("Địa chỉ chi tiết")} <span className="text-red-500">*</span>
@@ -126,7 +130,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
           </div>
         </div>
 
-        {/* City & Capacity */}
+        {/* Thành phố và sức chứa */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="venue-city" className="block text-sm font-semibold app-text-main mb-1.5">
@@ -163,7 +167,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
           </div>
         </div>
 
-        {/* Venue Type, Scope & Verification Status */}
+        {/* Loại, phạm vi và trạng thái xác minh địa điểm */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label htmlFor="venue-scope" className="block text-sm font-semibold app-text-main mb-1.5">
@@ -214,7 +218,7 @@ export const VenueModal: React.FC<VenueModalProps> = ({
 
         {error && <p role="alert" aria-label={translate("Không thể lưu địa điểm")} className="rounded-lg border border-red-500/30 p-3 text-sm text-red-600">{error}</p>}
 
-        {/* Modal Actions */}
+        {/* Thao tác của hộp thoại */}
         <div className="flex justify-end gap-3 pt-4 border-t app-border">
           <button
             type="button"

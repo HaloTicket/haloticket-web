@@ -20,6 +20,7 @@ import {
 } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 
+/** Props của sidebar quản lý sự kiện: dữ liệu sự kiện, vai trò của người dùng, trạng thái mở (mobile) và thu gọn, cùng hàm đóng và thu gọn. */
 interface EventManageSidebarProps {
   eventData?: {
     bannerUrl?: string;
@@ -34,6 +35,10 @@ interface EventManageSidebarProps {
   onToggleCollapse: () => void;
 }
 
+/**
+ * Sidebar điều hướng của khu quản lý sự kiện, nhóm theo mục (báo cáo, vận hành...). Mỗi mục hiện hay không tùy vai trò:
+ * chủ sở hữu và quản trị có toàn quyền, quản lý xem được phần báo cáo, nhân viên check-in chỉ thấy check-in.
+ */
 export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
   eventData,
   myRole,
@@ -139,7 +144,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           } ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
         <div className="space-y-4 overflow-y-auto no-scrollbar">
-          {/* Header Brand & Collapse Toggle */}
+          {/* Thương hiệu và nút thu gọn ở đầu sidebar */}
           <div
             className={`pb-3 border-b app-border flex ${isCollapsed ? "flex-col items-center gap-2.5" : "items-center justify-between"
               }`}
@@ -164,7 +169,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
               )}
             </Link>
 
-            {/* Mobile close button */}
+            {/* Nút đóng trên màn hình nhỏ */}
             <button
               type="button"
               onClick={onCloseSidebar}
@@ -173,7 +178,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
               <FiX className="w-5 h-5" />
             </button>
 
-            {/* Desktop Collapse/Expand Button */}
+            {/* Nút thu gọn hoặc mở rộng trên máy tính */}
             <button
               type="button"
               onClick={onToggleCollapse}
@@ -184,7 +189,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
             </button>
           </div>
 
-          {/* Quick Back Link to My Events */}
+          {/* Liên kết quay nhanh về danh sách sự kiện của tôi */}
           <Link
             to={PATHS.MY_EVENTS}
             onClick={onCloseSidebar}
@@ -196,7 +201,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
             {!isCollapsed && <span>{t("Sự kiện của tôi")}</span>}
           </Link>
 
-          {/* Event Header Banner Card */}
+          {/* Thẻ banner tên sự kiện */}
           <div className={`p-2.5 app-bg-subnav rounded-xl border app-border flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
             <div className="w-9 h-9 rounded-lg overflow-hidden bg-blue-600 shrink-0">
               <img
@@ -221,7 +226,7 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
             )}
           </div>
 
-          {/* Navigation Links with Spacious Hover Spacing */}
+          {/* Các liên kết điều hướng */}
           <nav className="space-y-4 pt-1">
             {navGroups.map((group) => (
               <div key={group.groupTitle} className="space-y-1.5">
@@ -256,14 +261,14 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
           </nav>
         </div>
 
-        {/* Footer Language Switcher */}
+        {/* Chuyển ngôn ngữ ở chân sidebar */}
         <div className={`pt-3 border-t app-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
           {!isCollapsed && <span className="text-xs font-bold app-text-muted">{t("Ngôn ngữ")}</span>}
           <LanguageSwitcher direction="up" />
         </div>
       </aside>
 
-      {/* Mobile Backdrop */}
+      {/* Lớp nền mờ trên màn hình nhỏ */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-xs lg:hidden"

@@ -5,12 +5,17 @@ import { FaTicketAlt } from "react-icons/fa";
 import type { EventDetailData } from "@/types";
 import { isTicketInStock } from "@/utils/ticketQuantities";
 
+/** Props của thanh tiêu đề dính: sự kiện hiển thị, trạng thái hiện/ẩn và hàm xử lý khi bấm nút mua vé. */
 interface EventStickyHeaderProps {
   event: EventDetailData;
   isVisible: boolean;
   onBuyTicketsClick: () => void;
 }
 
+/**
+ * Thanh tiêu đề dính ở đầu trang chi tiết sự kiện: hiện tên, địa điểm và nút mua vé khi người dùng cuộn qua phần đầu trang.
+ * Nhãn và trạng thái khóa của nút được suy ra từ thời gian mở bán và tồn kho vé của các suất diễn.
+ */
 export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
   event,
   isVisible,
@@ -21,6 +26,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
   const salesStatus = React.useMemo(() => {
     const now = new Date();
     
+    /** Chuyển giá trị ngày (mảng [năm, tháng, ngày, giờ, phút, giây] hoặc chuỗi) thành {@code Date}; trả về {@code null} nếu rỗng hoặc không hợp lệ. */
     const parseSafeDate = (dateVal: any): Date | null => {
       if (!dateVal) return null;
       if (Array.isArray(dateVal)) {
@@ -33,7 +39,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
       return d;
     };
     
-    // fallbacks to global sale times if needed
+    // dùng thời gian mở bán chung của sự kiện khi suất diễn không có mốc riêng
     const globalSaleStart = parseSafeDate(event.ticketSaleStartDate);
     const globalSaleEnd = parseSafeDate(event.ticketSaleEndDate);
 
@@ -60,7 +66,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
           }
         }
 
-        // check ticket availability for this showtime
+        // kiểm tra còn vé của suất diễn này
         if (Array.isArray(st.tickets)) {
           hasTicketInventory ||= st.tickets.length > 0;
           st.tickets.forEach((t: any) => {
@@ -69,12 +75,12 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
             }
           });
         } else {
-          // if no specific tickets attached, assume available if showtime is active
+          // suất diễn không gắn vé cụ thể: coi là còn vé (trạng thái mở bán xét ở trên)
           hasAnyTicketsAvailable = true;
         }
       });
     } else {
-      // no showtimes, fallback to global checking
+      // không có suất diễn: kiểm tra theo thời gian bán vé chung
       const isUpcoming = globalSaleStart && now < globalSaleStart;
       const isEnded = globalSaleEnd && now > globalSaleEnd;
       if (isUpcoming) {
@@ -111,7 +117,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
       };
     }
 
-    // default catch-all
+    // mặc định: đã ngừng bán
     return { isClosed: true, buttonText: translate("Ngừng Bán vé") };
   }, [event]);
 
@@ -120,7 +126,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
       className={`fixed top-0 inset-x-0 z-[100] h-18 app-bg-header backdrop-blur-xl border-b app-border shadow-2xl transition-all duration-300 flex items-center justify-between px-4 md:px-12 lg:px-16 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
         }`}
     >
-      {/* Left Event Title & Location (Bigger & Clearer) */}
+      {/* Bên trái: tên sự kiện và địa điểm */}
       <div className="flex items-center gap-6 min-w-0 pr-4">
         <h3 className="text-base md:text-lg lg:text-xl font-extrabold app-text-main truncate max-w-lg md:max-w-2xl tracking-tight">
           {event.title}
@@ -131,7 +137,7 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right CTA Button */}
+      {/* Bên phải: nút mua vé */}
       <button
         type="button"
         disabled={salesStatus.isClosed}

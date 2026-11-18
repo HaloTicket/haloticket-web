@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 import { createPortal } from "react-dom";
 import { useRef } from "react";
 
+/** Xem trước trong `iframe`: sao chép style của trang hiện tại vào tài liệu của iframe và dựng `children` vào đó bằng portal, để media query theo khổ di động hoạt động đúng. */
 function IframePreview({ children, className }: { children: React.ReactNode; className?: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
@@ -24,10 +25,10 @@ function IframePreview({ children, className }: { children: React.ReactNode; cla
     const doc = iframe.contentDocument;
     if (!doc) return;
     
-    // Inject styles and meta
+    // Chèn style và meta
     const head = doc.head;
     
-    // Add viewport meta tag so mobile media queries work correctly
+    // Thêm thẻ meta viewport để media query cho di động hoạt động đúng
     const meta = doc.createElement("meta");
     meta.name = "viewport";
     meta.content = "width=device-width, initial-scale=1.0";
@@ -37,7 +38,7 @@ function IframePreview({ children, className }: { children: React.ReactNode; cla
       head.appendChild(el.cloneNode(true));
     });
     
-    // Setup html and body classes
+    // Đặt class cho thẻ html và body
     doc.documentElement.className = document.documentElement.className;
     doc.body.className = document.body.className;
     
@@ -59,6 +60,7 @@ function IframePreview({ children, className }: { children: React.ReactNode; cla
   );
 }
 
+/** Khung xem trước trang chủ giống trình duyệt, chuyển được giữa desktop và di động, tự tính độ phóng theo bề rộng cửa sổ. */
 function HomepageLivePreview({ 
   banners, 
   sections,
@@ -73,6 +75,7 @@ function HomepageLivePreview({
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
+    /** Tính lại độ phóng khi đổi thiết bị, chế độ mở rộng hoặc kích thước cửa sổ. */
     const handleResize = () => {
       if (device === "mobile") {
         setZoom(1);
@@ -91,7 +94,7 @@ function HomepageLivePreview({
 
   return (
     <div className="app-bg-card border app-border rounded-md overflow-hidden flex flex-col shadow-sm transition-all duration-300" style={{ height: "calc(100vh - 110px)" }}>
-      {/* Browser Chrome */}
+      {/* Thanh trình duyệt giả */}
       <div className="bg-[#565656] dark:bg-[#1E1E20] border-b app-border p-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5 ml-2 w-16">
           <div className="w-2.5 h-2.5 rounded-full bg-rose-400"></div>
@@ -111,7 +114,7 @@ function HomepageLivePreview({
         </div>
       </div>
       
-      {/* Viewport container */}
+      {/* Khung hiển thị */}
       <div className="flex-1 app-bg-main overflow-hidden flex justify-center py-4 relative">
         <div className="absolute inset-0 overflow-y-auto custom-scrollbar flex justify-center py-4">
           <div 
@@ -161,7 +164,7 @@ const DEFAULT_SECTIONS: EventSection[] = [
   { id: "SEC_10", title: "Điểm đến thú vị", type: "locations", limit: 4 },
 ];
 
-/** The message the backend sent, so a failed save says why. */
+/** Lấy thông điệp lỗi do backend trả về để thông báo lưu thất bại nói rõ lý do; không có thì dùng thông điệp mặc định (kèm trường hợp 403). */
 function apiErrorMessage(error: unknown, fallback: string): string {
   const e = error as { response?: { status?: number; data?: { message?: string; error?: string; detail?: string } } };
   const body = e.response?.data;
@@ -171,6 +174,10 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Trang cấu hình trang chủ của admin: sửa banner và các khối sự kiện, xem trước trực tiếp và xuất bản.
+ * Nếu chưa có cấu hình nào được lưu thì dùng bố cục mẫu, chỉ lưu khi admin bấm xuất bản.
+ */
 export function HomepageConfig() {
   const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
@@ -193,10 +200,10 @@ export function HomepageConfig() {
         const sectionData = Array.isArray(sectionRes) ? sectionRes : (sectionRes as { data?: EventSection[] } | null)?.data;
         setBanners(Array.isArray(bannerData) ? bannerData : []);
         if (Array.isArray(sectionData) && sectionData.length > 0) {
-          setSections(sectionData); // whatever is saved is shown as it is, however few sections
+          setSections(sectionData); // cấu hình đã lưu được hiển thị nguyên trạng, dù chỉ có vài khối
           setUsingTemplate(false);
         } else {
-          setSections(DEFAULT_SECTIONS); // nothing saved yet: start from the template, published only when the admin saves
+          setSections(DEFAULT_SECTIONS); // chưa lưu gì: bắt đầu từ bố cục mẫu, chỉ được xuất bản khi admin bấm lưu
           setUsingTemplate(true);
         }
         setLoadError(null);
@@ -212,12 +219,14 @@ export function HomepageConfig() {
     };
   }, [reloadKey]);
 
+  /** Tải lại cấu hình trang chủ sau lỗi. */
   const retry = () => {
     setIsLoading(true);
     setLoadError(null);
     setReloadKey((k) => k + 1);
   };
 
+  /** Xuất bản: lưu banner rồi các khối nội dung; chặn nếu có banner thiếu ảnh và báo riêng khi chỉ lưu được banner. */
   const handleSave = async () => {
     const missingImage = banners.find((b) => !b.imageUrl);
     if (missingImage) {
@@ -263,7 +272,7 @@ export function HomepageConfig() {
         </p>
       )}
 
-      {/* Actions */}
+      {/* Các nút hành động */}
       <div className="flex justify-end mb-4">
         <button
           onClick={handleSave}
@@ -285,7 +294,7 @@ export function HomepageConfig() {
           </div>
         </div>
         
-        {/* Sticky floating expand/collapse button */}
+        {/* Nút nổi mở/thu gọn thanh cài đặt */}
         <div className="absolute -left-3 top-6 z-10">
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

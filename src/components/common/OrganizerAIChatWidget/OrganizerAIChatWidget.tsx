@@ -15,14 +15,21 @@ import type { OrganizerChatMessage } from '@/types/ai';
 import OrganizerAIChatMessage from './OrganizerAIChatMessage';
 import { isAdminToken } from '@/utils/adminAccess';
 
-// message ids are only React keys; made outside the component because they are created in event handlers
+// id tin nhắn chỉ dùng làm key của React; tạo ngoài component vì được sinh trong các hàm xử lý sự kiện
+/** Sinh id ngẫu nhiên (UUID) cho một tin nhắn mới. */
 const newMessageId = () => crypto.randomUUID();
 
+/** Props của khung chat trợ lý AI cho ban tổ chức: id và tên sự kiện đang xem (nếu không truyền thì lấy `eventId` từ route). */
 interface OrganizerAIChatWidgetProps {
   eventId?: string;
   eventTitle?: string;
 }
 
+/**
+ * Khung chat nổi của trợ lý AI dành cho ban tổ chức: lưu lịch sử trong `localStorage` (khóa `organizer_ai_chat_history`),
+ * gọi agent qua `aiApi.chatWithOrganizerAgent` và hiện các giai đoạn xử lý giả lập trong lúc chờ. Chỉ dùng được với token admin;
+ * người khác thấy nút thông báo tính năng đang nâng cấp.
+ */
 export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({ 
   eventId: propEventId, 
   eventTitle: propEventTitle 
@@ -39,7 +46,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // initialize messages from localStorage
+  // khởi tạo danh sách tin nhắn từ localStorage
   const [messages, setMessages] = useState<OrganizerChatMessage[]>(() => {
     const saved = localStorage.getItem('organizer_ai_chat_history');
     if (saved) {
@@ -47,7 +54,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
         const parsed = JSON.parse(saved);
         return parsed.map((m: Omit<OrganizerChatMessage, 'timestamp'> & { timestamp: string }) => ({ ...m, timestamp: new Date(m.timestamp) }));
       } catch {
-        // ignore
+        // bỏ qua
       }
     }
     return [
@@ -60,6 +67,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     ];
   });
 
+  /** Cuộn khung tin nhắn xuống cuối. */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -69,6 +77,11 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     localStorage.setItem('organizer_ai_chat_history', JSON.stringify(messages));
   }, [messages, isOpen]);
 
+  /**
+   * Gửi một tin của người dùng tới agent và thêm câu trả lời (hoặc tin báo lỗi kết nối) vào hội thoại.
+   * Bỏ qua khi nội dung rỗng hoặc đang chờ phản hồi.
+   * @param textToSend nội dung người dùng nhập
+   */
   const sendMessage = async (textToSend: string) => {
     const cleanText = textToSend.trim();
     if (!cleanText || isLoading) return;
@@ -83,7 +96,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Dynamic pipeline visual stages simulation for UX feedback
+    // Giả lập các giai đoạn của pipeline để người dùng thấy tiến độ trong lúc chờ
     setCurrentPipelineStage('Phân tích mục tiêu & lập kế hoạch');
     const stageTimer1 = setTimeout(() => {
       setCurrentPipelineStage('Truy xuất cơ sở dữ liệu thực tế');
@@ -93,7 +106,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     }, 1400);
 
     try {
-      // Exclude initial greeting message from history
+      // Bỏ tin chào đầu tiên khỏi lịch sử gửi đi
       const history = messages.slice(1).map(m => ({
         role: m.sender === 'user' ? 'user' : 'assistant',
         content: m.text
@@ -140,12 +153,13 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
     }
   };
 
+  /** Gửi nội dung ô nhập hiện tại rồi xóa ô nhập. */
   const handleSendMessage = () => {
     sendMessage(inputText);
     setInputText('');
   };
 
-  // data assistant reads event data through the AI service, which is limited to administrators for now.
+  // Trợ lý dữ liệu đọc dữ liệu sự kiện qua dịch vụ AI, hiện chỉ dành cho quản trị viên.
   if (!isAdminToken()) {
     return (
       <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2">
@@ -169,7 +183,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
 
   return (
     <>
-      {/* Chat Window */}
+      {/* Cửa sổ chat */}
       {isOpen && (
         <div className={`fixed z-100 bg-white dark:bg-[#18181b] shadow-[0_12px_40px_rgb(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.6)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden origin-bottom-right transition-all duration-300 ease-in-out ${
           isExpanded 
@@ -177,7 +191,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
             : 'bottom-5 right-4 sm:right-6 w-[95vw] sm:w-110 md:w-115 lg:w-120 h-160 max-h-[85vh] rounded-2xl animate-in fade-in zoom-in-95'
         }`}>
 
-          {/* Header */}
+          {/* Tiêu đề */}
           <div className="gradient-btn p-4 flex justify-between items-center text-white shadow-sm">
             <div>
               <h3 className="font-bold flex items-center gap-2">
@@ -230,7 +244,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
             </div>
           </div>
 
-          {/* Active Pipeline Status Bar when AI is thinking */}
+          {/* Thanh trạng thái pipeline khi AI đang xử lý */}
           {isLoading && currentPipelineStage && (
             <div className="bg-gray-50 dark:bg-[#202024] border-b border-gray-100 dark:border-gray-800 px-3.5 py-1.5 flex items-center justify-between text-xs text-brand-primary dark:text-brand-accent">
               <div className="flex items-center gap-2">
@@ -242,7 +256,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
             </div>
           )}
 
-          {/* Messages Area */}
+          {/* Khu vực tin nhắn */}
           <div className="flex-1 p-4 overflow-y-auto bg-gray-50/50 dark:bg-[#18181b]">
             {messages.map((msg) => (
               <OrganizerAIChatMessage 
@@ -261,7 +275,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Suggestions Chips for Organizers */}
+          {/* Gợi ý nhanh cho ban tổ chức */}
           {messages.length <= 3 && (
             <div className="px-3 py-2 bg-gray-50/80 dark:bg-[#18181b]/80 border-t border-gray-100 dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               {[
@@ -284,7 +298,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
             </div>
           )}
 
-          {/* Input Area */}
+          {/* Khu vực nhập liệu */}
           <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#18181b]">
             <div className="flex items-end gap-2 bg-gray-50 dark:bg-[#27272a] p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/30 transition-all shadow-inner">
               <textarea
@@ -314,7 +328,7 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
         </div>
       )}
 
-      {/* Floating Button - identical circular button with centered icon */}
+      {/* Nút nổi tròn có biểu tượng ở giữa */}
       {!isOpen && (
         <div className="fixed bottom-8 right-8 z-50">
           <button

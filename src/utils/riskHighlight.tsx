@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import type { RiskReasonItem } from "@/types/ai";
 
-/** Quoted evidence of the given field (default: the description), longest first, without duplicates. */
+/**
+ * Các đoạn trích dẫn bằng chứng của một trường (mặc định là mô tả), đoạn dài trước, không trùng lặp.
+ *
+ * @param items - Danh sách lý do rủi ro.
+ * @param field - Tên trường cần lấy.
+ */
 export function evidenceQuotes(items: RiskReasonItem[] | undefined, field = "description"): string[] {
   const seen = new Set<string>();
   for (const item of items ?? []) {
@@ -14,8 +19,11 @@ export function evidenceQuotes(items: RiskReasonItem[] | undefined, field = "des
 }
 
 /**
- * Splits `text` into plain strings and <mark> nodes for every quote found in it (first occurrence of each quote).
- * Built as React nodes, so the text is always escaped; a quote that is not in the text is skipped.
+ * Tách `text` thành chuỗi thường và các nút `<mark>` cho mỗi đoạn trích dẫn có trong đó (lần xuất hiện đầu tiên của mỗi đoạn), gộp các đoạn chồng nhau.
+ * Dựng bằng React node nên văn bản luôn được thoát ký tự; đoạn trích dẫn không có trong văn bản thì bị bỏ qua.
+ *
+ * @param text - Văn bản gốc.
+ * @param quotes - Các đoạn cần làm nổi bật.
  */
 export function highlightEvidence(text: string, quotes: string[]): ReactNode[] {
   const ranges: Array<[number, number]> = [];

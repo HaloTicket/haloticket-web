@@ -35,5 +35,17 @@ Object.assign(REPORT_VI, {
   "You do not have permission to access the report data source.": "Bạn không có quyền truy cập nguồn dữ liệu báo cáo.",
   "Too many payments to aggregate for this period. Narrow the date range.": "Có quá nhiều đơn thanh toán trong kỳ để tổng hợp. Vui lòng thu hẹp khoảng thời gian.",
 });
+/**
+ * Dịch một chuỗi của trang báo cáo sang ngôn ngữ đích; không có bản dịch thì trả về chính chuỗi gốc.
+ *
+ * @param value - Chuỗi cần dịch.
+ * @param language - `vi` hoặc `en`.
+ */
 export function reportText(value: string, language: "vi" | "en"): string { return language === "en" ? REPORT_EN[value] ?? value : REPORT_VI[value] ?? value; }
+/**
+ * Dịch trạng thái sự kiện trong báo cáo sang ngôn ngữ đích; không có bản dịch thì trả về chính giá trị gốc.
+ *
+ * @param value - Mã trạng thái.
+ * @param language - `vi` hoặc `en`.
+ */
 export function reportStatusText(value: string, language: "vi" | "en"): string { return language === "vi" ? REPORT_STATUS_VI[value] ?? value : REPORT_EN[value] ?? value; }

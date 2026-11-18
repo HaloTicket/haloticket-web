@@ -15,9 +15,11 @@ import type { OwnedTicketApiResponse } from "@/types/ticket";
 import type { TicketItem } from "./MyTickets";
 import { TransferTicketSelection, useTransferTickets } from "./components/TransferTicketSelection";
 
+/** Props chung của các hộp thoại thao tác vé; `onChanged` được gọi để tải lại danh sách sau khi thao tác xong. */
 interface ModalProps { ticket: TicketItem; onClose: () => void; onChanged: () => void }
 const fieldClass = "min-h-11 w-full rounded-lg border app-border app-bg-card px-3 py-2 text-sm app-text-main focus:outline-none focus:ring-2 focus:ring-blue-500";
 
+/** Khung hộp thoại dựng bằng portal: khóa cuộn trang, đưa focus vào hộp, giữ focus trong hộp khi bấm Tab, đóng bằng Escape và trả focus về phần tử trước đó khi đóng. */
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null);
@@ -49,6 +51,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
   </div>, document.body);
 }
 
+/** Phần đầu của luồng nhiều bước: thanh các bước và thông tin vé đang thao tác. */
 function FlowHeader({ ticket, steps, step }: { ticket: TicketItem; steps: string[]; step: number }) {
   return <>
     <ol className="flex gap-3 border-b app-border py-4 text-xs">
@@ -63,6 +66,7 @@ function FlowHeader({ ticket, steps, step }: { ticket: TicketItem; steps: string
   </>;
 }
 
+/** Danh sách các vé đã chọn kèm số lượng để người dùng xem lại trước khi xác nhận. */
 function SelectedTickets({ tickets }: { tickets: OwnedTicketApiResponse[] }) {
   const { t } = useTranslation();
   return <div className="overflow-hidden rounded-xl border app-border">
@@ -74,6 +78,7 @@ function SelectedTickets({ tickets }: { tickets: OwnedTicketApiResponse[] }) {
   </div>;
 }
 
+/** Khung báo lỗi; nếu lỗi liên quan eKYC thì kèm liên kết tới trang xác minh. */
 function ErrorNotice({ message }: { message: string }) {
   const { t } = useTranslation();
   if (!message) return null;
@@ -81,6 +86,7 @@ function ErrorNotice({ message }: { message: string }) {
     {message}{message.includes("eKYC") && <Link to={PATHS.EKYC} className="mt-2 block font-semibold underline">{t("Xác minh eKYC ngay")}</Link>}
   </div>;
 }
+/** Đổi lỗi trả về từ API (mã lỗi trong nội dung phản hồi) thành thông báo tiếng Việt dễ hiểu; mã lạ dùng thông báo chung. */
 function getErrorMessage(error: unknown, t: (k: string) => string) {
   const data = (error as { response?: { data?: unknown } })?.response?.data;
   const code = JSON.stringify(data || (error instanceof Error ? error.message : ""));
@@ -99,6 +105,7 @@ function getErrorMessage(error: unknown, t: (k: string) => string) {
   return t("Không thể hoàn tất thao tác. Vui lòng kiểm tra trạng thái vé và thử lại.");
 }
 
+/** Theo dõi saga đăng bán hoặc tặng vé qua `useMarketplaceSaga` và hiện kết quả; gọi `onChanged` một lần khi saga kết thúc. */
 function SagaNotice({ sagaId, gift, count, onChanged }: { sagaId: string; gift?: boolean; count: number; onChanged: () => void }) {
   const { t } = useTranslation();
   const { saga, error } = useMarketplaceSaga(sagaId, { stopOnWaitingRecipient: gift });
@@ -114,12 +121,14 @@ function SagaNotice({ sagaId, gift, count, onChanged }: { sagaId: string; gift?:
   </div>;
 }
 
+/** Nội dung bước chọn vé: hiện trạng thái đang tải, lỗi kèm nút thử lại, hoặc danh sách vé để chọn. */
 function SelectionContent({ selection }: { selection: ReturnType<typeof useTransferTickets> }) {
   const { t } = useTranslation();
   if (selection.loading) return <p role="status" className="py-8 text-center text-sm app-text-muted">{t("Đang tải vé trong đơn hàng…")}</p>;
   if (selection.error) return <><ErrorNotice message={selection.error} /><Button variant="outline" onClick={selection.retry}>{t("Thử lại")}</Button></>;
   return <TransferTicketSelection tickets={selection.tickets} selectedIds={selection.selectedIds} onChange={selection.setSelectedIds} />;
 }
+/** Hộp thoại đăng bán lại vé lên chợ vé: chọn vé, kiểm tra điều kiện (eKYC, chính sách), đặt giá trong khoảng cho phép, đồng ý điều khoản rồi tạo tin đăng. */
 export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const { t } = useTranslation();
   const selection = useTransferTickets(ticket.id);
@@ -146,6 +155,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const sellerFeeAmount = Math.round(totalPrice * (sellerFeePercent / 100));
   const netSellerReceives = Math.max(0, totalPrice - sellerFeeAmount);
 
+  /** Kiểm tra điều kiện đăng bán: eKYC của người bán và điều kiện từng vé, lấy khoảng giá chung cho phép; hợp lệ thì sang bước 2 với giá tối thiểu làm giá mặc định. */
   const check = async () => {
     if (!count || busy) return;
     setBusy(true); setError("");
@@ -167,6 +177,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
     } catch (cause) { setError(getErrorMessage(cause, t)); }
     finally { setBusy(false); }
   };
+  /** Tạo tin đăng bán lại với khóa yêu cầu (`requestKey`) chống gửi trùng, rồi chờ kết quả saga. */
   const submit = async () => {
     if (busy || !priceValid || !accepted || !count) return;
     setBusy(true); setError("");
@@ -273,6 +284,7 @@ export function ResaleTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   </ModalShell>;
 }
 
+/** Hộp thoại tặng vé: chọn vé, nhập email người nhận, tìm người nhận, đồng ý điều khoản rồi tạo lời mời tặng. */
 export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const { t } = useTranslation();
   const selection = useTransferTickets(ticket.id);
@@ -286,6 +298,7 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
   const [sagaId, setSagaId] = useState("");
   const requestKey = useRef(crypto.randomUUID());
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  /** Tìm người nhận theo email; từ chối nếu là chính người dùng, báo lỗi nếu không tìm thấy. */
   const findRecipient = async () => {
     if (!emailValid || busy) return;
     setBusy(true); setError("");
@@ -296,6 +309,7 @@ export function GiftTicketModal({ ticket, onClose, onChanged }: ModalProps) {
     } catch { setRecipient(undefined); setError(t("Không tìm thấy tài khoản HaloTicket với email này. Vui lòng kiểm tra lại.")); }
     finally { setBusy(false); }
   };
+  /** Tạo lời mời tặng vé gửi tới người nhận kèm lời nhắn, rồi lưu `sagaId` để theo dõi. */
   const submit = async () => {
     if (busy || !recipient || !accepted || !selection.selectedIds.length) return;
     setBusy(true); setError("");

@@ -4,10 +4,11 @@ import { FiCamera, FiCameraOff } from "react-icons/fi";
 
 import { SCAN_REPEAT_WINDOW_MS, cameraErrorState, type ScannerState } from "./scannerSupport";
 
+/** Props của {@code ScannerPanel}: callback nhận mã quét và cờ báo trang đang bận. */
 interface ScannerPanelProps {
-  /** Called once per code read (the same code again only after SCAN_REPEAT_WINDOW_MS). */
+  /** Được gọi một lần cho mỗi mã đọc được (cùng mã đó chỉ được báo lại sau {@code SCAN_REPEAT_WINDOW_MS}). */
   onScan: (code: string) => void;
-  /** True while the page is busy with the last scan; codes read meanwhile are dropped. */
+  /** {@code true} khi trang đang bận với lượt quét trước; các mã đọc được trong lúc đó bị bỏ qua. */
   busy?: boolean;
 }
 
@@ -17,6 +18,10 @@ const STATE_TEXT: Record<Exclude<ScannerState, "off" | "starting" | "scanning">,
   error: "Không mở được camera. Thử lại hoặc nhập mã bằng tay.",
 };
 
+/**
+ * Bảng điều khiển quét mã QR bằng camera: nút bật hoặc tắt camera, khung video và thông báo lỗi quyền hoặc thiết bị.
+ * Thư viện {@code qr-scanner} chỉ được nạp khi bắt đầu quét; mã lặp lại liên tiếp bị lọc bớt.
+ */
 export const ScannerPanel: React.FC<ScannerPanelProps> = ({ onScan, busy = false }) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -29,16 +34,18 @@ export const ScannerPanel: React.FC<ScannerPanelProps> = ({ onScan, busy = false
   useEffect(() => { busyRef.current = busy; }, [busy]);
   useEffect(() => { onScanRef.current = onScan; }, [onScan]);
 
+  /** Dừng và hủy bộ quét đang chạy (nếu có) rồi đưa trạng thái về {@code off}. */
   const stop = useCallback(() => {
     const scanner = scannerRef.current;
     scannerRef.current = null;
     if (scanner) {
-      try { scanner.stop(); } catch { /* already stopped */ }
-      try { scanner.destroy(); } catch { /* already destroyed */ }
+      try { scanner.stop(); } catch { /* đã dừng rồi */ }
+      try { scanner.destroy(); } catch { /* đã hủy rồi */ }
     }
     setState("off");
   }, []);
 
+  /** Nhận mã đọc được: bỏ mã rỗng, bỏ khi đang bận hoặc khi trùng mã vừa quét trong khoảng chống lặp, còn lại báo cho {@code onScan}. */
   const handleCode = useCallback((raw: string) => {
     const code = (raw ?? "").trim();
     if (!code || busyRef.current) return;
@@ -49,6 +56,7 @@ export const ScannerPanel: React.FC<ScannerPanelProps> = ({ onScan, busy = false
     onScanRef.current(code);
   }, []);
 
+  /** Mở camera và bắt đầu quét; đặt trạng thái không có camera, bị từ chối hoặc lỗi khi không khởi động được. */
   const start = useCallback(async () => {
     if (scannerRef.current || !videoRef.current) return;
     setState("starting");
@@ -74,14 +82,15 @@ export const ScannerPanel: React.FC<ScannerPanelProps> = ({ onScan, busy = false
       const scanner = scannerRef.current;
       scannerRef.current = null;
       if (scanner) {
-        try { scanner.destroy(); } catch { /* ignore */ }
+        try { scanner.destroy(); } catch { /* bỏ qua */ }
       }
       setState(cameraErrorState(err));
     }
   }, [handleCode]);
 
-  // the camera must not keep running when the person leaves the page or switches to another tab
+  // camera không được chạy tiếp khi người dùng rời trang hoặc chuyển sang tab khác
   useEffect(() => {
+    /** Tắt camera khi tab bị ẩn. */
     const onHide = () => { if (document.hidden) stop(); };
     document.addEventListener("visibilitychange", onHide);
     return () => {
@@ -89,7 +98,7 @@ export const ScannerPanel: React.FC<ScannerPanelProps> = ({ onScan, busy = false
       const scanner = scannerRef.current;
       scannerRef.current = null;
       if (scanner) {
-        try { scanner.stop(); scanner.destroy(); } catch { /* ignore */ }
+        try { scanner.stop(); scanner.destroy(); } catch { /* bỏ qua */ }
       }
     };
   }, [stop]);

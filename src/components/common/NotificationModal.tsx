@@ -9,9 +9,12 @@ import {
   FiX,
 } from "react-icons/fi";
 
+/** Kiểu thông báo, quyết định biểu tượng mặc định. */
 export type NotificationModalVariant = "info" | "success" | "warning" | "error";
+/** Kiểu nút hành động, quyết định màu nút. */
 export type NotificationModalActionVariant = "primary" | "secondary" | "danger";
 
+/** Một nút hành động của hộp thoại: nhãn, hàm xử lý, kiểu và cờ vô hiệu. */
 export interface NotificationModalAction {
   label: string;
   onClick: () => void | Promise<void>;
@@ -19,6 +22,7 @@ export interface NotificationModalAction {
   disabled?: boolean;
 }
 
+/** Props của hộp thoại thông báo: trạng thái mở, tiêu đề, nội dung, danh sách nút, kiểu, biểu tượng và khả năng đóng. */
 export interface NotificationModalProps {
   open: boolean;
   title: string;
@@ -44,6 +48,10 @@ const defaultIcons: Record<NotificationModalVariant, ReactNode> = {
   error: <FiAlertCircle className="h-5 w-5 text-rose-500 shrink-0" aria-hidden="true" />,
 };
 
+/**
+ * Hộp thoại thông báo dựng qua portal: tự focus nút đầu tiên khi mở và trả focus về phần tử cũ khi đóng.
+ * Esc hoặc bấm nền chỉ đóng được khi `dismissible`.
+ */
 export function NotificationModal({
   open,
   title,
@@ -65,6 +73,7 @@ export function NotificationModal({
     const previouslyFocused = document.activeElement as HTMLElement | null;
     firstActionRef.current?.focus();
 
+    /** Đóng hộp thoại khi nhấn Escape (nếu cho phép đóng). */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && dismissible) onClose?.();
     };
@@ -92,7 +101,7 @@ export function NotificationModal({
         aria-describedby={messageId}
         className="app-bg-card app-border w-full max-w-[400px] rounded-2xl border p-6 shadow-xl animate-in zoom-in-95 duration-150"
       >
-        {/* Header with inline icon */}
+        {/* Đầu hộp thoại có biểu tượng cùng hàng */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             {icon ?? defaultIcons[variant]}
@@ -112,12 +121,12 @@ export function NotificationModal({
           )}
         </div>
 
-        {/* Description */}
+        {/* Mô tả */}
         <div id={messageId} className="app-text-muted mt-3 text-sm leading-6">
           {message}
         </div>
 
-        {/* Action Buttons */}
+        {/* Các nút hành động */}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {actions.map((action, index) => (
             <button

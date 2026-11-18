@@ -13,22 +13,26 @@ import { isPasswordValid } from "@/validation/passwordRules";
 import { getAuthErrorMessage, secondsUntil, type LocalizedError } from "@/services/authApi";
 import { PATHS } from "@/routes/paths";
 
+/** Dữ liệu đăng ký: email và mật khẩu. */
 export interface RegistrationData {
   email: string;
   password: string;
 }
 
+/** Dữ liệu xác minh OTP khi đăng ký: thông tin đăng ký cùng mã OTP và mã phiên. */
 export interface RegistrationOtpData extends RegistrationData {
   otp: string;
   challengeId: string;
 }
 
+/** Phiên thử thách OTP do máy chủ cấp: mã phiên, hạn dùng và thời điểm được gửi lại mã. */
 export interface AuthChallenge {
   challengeId: string;
   expiresAt: string;
   resendAvailableAt: string;
 }
 
+/** Props của trang đăng ký: các hàm gọi API gửi, xác minh, gửi lại OTP và đăng nhập Google. */
 interface RegisterProps {
   onSubmit: (data: RegistrationData) => Promise<AuthChallenge>;
   onVerifyOtp: (data: RegistrationOtpData) => Promise<void>;
@@ -36,6 +40,7 @@ interface RegisterProps {
   onGoogleLogin: () => Promise<void>;
 }
 
+/** Trang đăng ký ba bước (biểu mẫu, nhập OTP, hoàn tất), kèm đăng ký nhanh bằng Google. */
 export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleLogin }: RegisterProps) {
   useTranslation();
   const [email, setEmail] = useState("");
@@ -64,6 +69,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
     return () => window.clearInterval(timer);
   }, [cooldown]);
 
+  /** Khi biểu mẫu hợp lệ, gửi yêu cầu cấp OTP, chuyển sang bước nhập OTP và bắt đầu đếm ngược gửi lại. */
   async function requestOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canContinue) return;
@@ -81,6 +87,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
     }
   }
 
+  /** Kiểm tra OTP đủ 6 chữ số và còn hạn, rồi gửi xác minh để hoàn tất đăng ký. */
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
@@ -106,6 +113,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
     }
   }
 
+  /** Gửi lại OTP khi hết thời gian chờ và không có yêu cầu nào đang chạy. */
   async function resendOtp() {
     if (!challenge || cooldown || isSubmitting) return;
     setError(undefined);
@@ -228,7 +236,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             </div>
           </div>
 
-          {/* Password Field */}
+          {/* Ô mật khẩu */}
           <PasswordField
             autoComplete="new-password"
             id="register-password"
@@ -239,7 +247,7 @@ export default function Register({ onSubmit, onVerifyOtp, onResendOtp, onGoogleL
             value={password}
           />
 
-          {/* Confirm Password Field */}
+          {/* Ô nhập lại mật khẩu */}
           <PasswordField
             autoComplete="new-password"
             error={

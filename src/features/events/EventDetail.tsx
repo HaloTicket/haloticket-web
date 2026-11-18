@@ -14,6 +14,7 @@ import { FiGrid } from "react-icons/fi";
 
 import type { EventDetailData, EventApiData } from "@/types";
 
+/** Trang chi tiết sự kiện: banner, mô tả, lịch và vé, ban tổ chức, sự kiện gợi ý, thanh tiêu đề dính khi cuộn và nút mua vé (yêu cầu đăng nhập trước khi chọn vé). */
 export default function EventDetail() {
   const { t: translate } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -24,7 +25,7 @@ export default function EventDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"desc" | "schedule" | "organizer">("desc");
 
-  // always scroll to top when opening event detail page & fetch event data from API
+  // luôn cuộn lên đầu khi mở trang chi tiết sự kiện, đồng thời tải dữ liệu sự kiện từ API
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     let isMounted = true;
@@ -41,7 +42,7 @@ export default function EventDetail() {
     eventApi.getEventById(id).then((data) => {
       if (isMounted) {
         setEventData(data as unknown as EventDetailData);
-        // log view asynchronously without blocking UI
+        // ghi nhận lượt xem bất đồng bộ, không chặn giao diện
         void eventApi.logEventView(id);
       }
     }).catch(() => {
@@ -63,8 +64,9 @@ export default function EventDetail() {
     };
   }, [id]);
 
-  // scroll listener for sticky header bar on scroll
+  // lắng nghe cuộn trang để hiện thanh tiêu đề dính
   useEffect(() => {
+    /** Hiện thanh tiêu đề dính khi cuộn quá 350 điểm ảnh. */
     const handleScroll = () => {
       if (window.scrollY > 350) {
         setIsStickyVisible(true);
@@ -77,15 +79,17 @@ export default function EventDetail() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  /** Đi tới trang chọn vé; nếu không chỉ rõ suất diễn thì tự chọn suất đang mở bán duy nhất, hoặc cuộn tới phần lịch để người dùng chọn. Chưa đăng nhập thì lưu đích và chuyển sang trang đăng nhập. */
   const handleGoToSelectTicket = (showtimeId?: string) => {
     let target = `/events/${id}/select-ticket`;
     if (typeof showtimeId === "string") {
       target = `/events/${id}/select-ticket?showtimeId=${showtimeId}`;
     } else {
-      // check active showtimes
+      // kiểm tra các suất diễn đang mở bán
       if (!eventData) return;
       
       const now = new Date();
+      /** Chuyển giá trị ngày mở bán (mảng số hoặc chuỗi, số) thành {@code Date}; không hợp lệ thì trả về {@code null}. */
       const parseSaleDate = (value: unknown): Date | null => {
         if (Array.isArray(value)) {
           const [year, month, day, hour = 0, minute = 0, second = 0] = value as number[];
@@ -149,6 +153,7 @@ export default function EventDetail() {
     );
   }
 
+  /** Đặt tab đang chọn và cuộn mượt tới phần tương ứng của trang. */
   const scrollToSection = (sectionId: "desc" | "schedule" | "organizer") => {
     setActiveTab(sectionId);
     const elementId =
@@ -165,22 +170,22 @@ export default function EventDetail() {
 
   return (
     <div className="event-detail-screen w-full transition-colors duration-300">
-      {/* Fixed Top Header Bar on Scroll */}
+      {/* Thanh tiêu đề cố định khi cuộn */}
       <EventStickyHeader
         event={eventData}
         isVisible={isStickyVisible}
         onBuyTicketsClick={handleGoToSelectTicket}
       />
 
-      {/* Main Container with side margins */}
+      {/* Khung chính có lề hai bên */}
       <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-6 md:py-8">
-        {/* Hero Section (Banner + Info Card) */}
+        {/* Phần đầu trang (banner và thẻ thông tin) */}
         <EventHero
           event={eventData}
           onBuyTicketsClick={handleGoToSelectTicket}
         />
 
-        {/* Navigation Tabs (Giới thiệu, Thông tin / Lịch chiếu, Ban tổ chức / Chính sách) */}
+        {/* Các tab điều hướng (Giới thiệu, Thông tin / Lịch chiếu, Ban tổ chức / Chính sách) */}
         <div className="event-detail-tabs sticky top-0 z-20 backdrop-blur-md border-b app-border mb-8 -mx-6 px-6 md:-mx-12 md:px-12 lg:-mx-16 lg:px-16 pt-3 pb-0 shadow-2xs">
           <div className="flex items-center gap-8 overflow-x-auto scrollbar-hide">
             <button
@@ -230,16 +235,16 @@ export default function EventDetail() {
           </div>
         </div>
 
-        {/* Content Sections */}
+        {/* Các phần nội dung */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-6">
-          {/* Main Content Column */}
+          {/* Cột nội dung chính */}
           <div className="lg:col-span-12 space-y-8">
-            {/* Collapsible Event Description & Gallery */}
+            {/* Mô tả sự kiện và thư viện ảnh, có thể thu gọn */}
             <div id="event-desc-section">
               <EventDescription event={eventData} />
             </div>
 
-            {/* Schedule & Tickets */}
+            {/* Lịch diễn và vé */}
             <div id="event-schedule-section">
               <EventSchedule
                 event={eventData}
@@ -247,14 +252,14 @@ export default function EventDetail() {
               />
             </div>
 
-            {/* Organizer Section */}
+            {/* Phần ban tổ chức */}
             <div id="event-organizer-section">
               <EventOrganizer organizer={eventData.organizer} event={eventData} />
             </div>
           </div>
         </div>
 
-        {/* Recommended Events Section */}
+        {/* Phần sự kiện gợi ý */}
         <div className="mt-8 mb-8 pt-8 border-t border-slate-200/60 dark:border-slate-800/60">
           <h2 className="text-xl md:text-2xl font-extrabold app-text-main flex items-center gap-2 mb-6 tracking-tight">
             <FiGrid className="w-5 h-5 app-text-brand" />
@@ -278,7 +283,7 @@ export default function EventDetail() {
         </div>
       </div>
 
-      {/* Bottom spacing for mobile sticky CTA bar */}
+      {/* Khoảng đệm phía dưới cho thanh CTA dính trên di động */}
       <div className="lg:hidden h-20" />
     </div>
   );

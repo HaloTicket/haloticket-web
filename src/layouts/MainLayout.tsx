@@ -5,6 +5,7 @@ import ScrollToTop from "@/components/common/ScrollToTop";
 import AIChatWidget from "@/components/common/AIChatWidget/AIChatWidget";
 import { ThemeProvider } from "@/context/ThemeContext";
 
+/** Bố cục các trang công khai: đầu trang, nội dung trang con và chân trang; riêng trang eKYC (`/ekyc`) được xử lý khác. */
 export default function MainLayout() {
   const location = useLocation();
   const isEkyc = location.pathname.startsWith("/ekyc");

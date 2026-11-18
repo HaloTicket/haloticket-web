@@ -1,14 +1,16 @@
-// Shapes the ticket service answers for the door: GET /tickets/checkin/events/{id}/summary, /page and /search.
+// Các dạng dữ liệu ticket service trả về cho cổng soát vé: GET /tickets/checkin/events/{id}/summary, /page và /search.
 
+/** Thống kê check-in của một nhóm (theo suất diễn hoặc loại vé): tổng vé và số vé đã vào cổng. */
 export interface CheckinSummaryGroup {
-  /** showtime id or ticket type id; null for tickets that belong to no showtime */
+  /** id suất diễn hoặc id loại vé; `null` với vé không thuộc suất diễn nào */
   id: string | null;
-  /** the ticket type name; null for a showtime group (the page knows the showtime names) */
+  /** tên loại vé; `null` với nhóm theo suất diễn (trang đã biết tên suất diễn) */
   name: string | null;
   total: number;
   checkedIn: number;
 }
 
+/** Tổng quan check-in của sự kiện, chia theo suất diễn và theo loại vé. */
 export interface CheckinSummary {
   eventId: string;
   total: number;
@@ -18,6 +20,7 @@ export interface CheckinSummary {
   generatedAt?: string;
 }
 
+/** Một dòng check-in đã ghi nhận: vé, ghế và thời điểm vào cổng. */
 export interface CheckinRow {
   checkinId?: string;
   ticketId?: string;
@@ -32,6 +35,7 @@ export interface CheckinRow {
   seat?: string | null;
 }
 
+/** Một trang kết quả danh sách check-in. */
 export interface CheckinPage {
   content: CheckinRow[];
   /** 0-based */
@@ -41,11 +45,12 @@ export interface CheckinPage {
   totalPages: number;
 }
 
+/** Kết quả tra cứu vé tại cổng: thông tin vé, chủ vé (đã che) và trạng thái check-in. */
 export interface CheckinLookupItem {
   ticketId: string;
   shortCode: string;
   bookingId?: string | null;
-  /** the owner is masked by the server (first characters only) */
+  /** chủ vé được server che (chỉ giữ vài ký tự đầu) */
   ownerMasked?: string | null;
   ticketTypeName?: string | null;
   seatName?: string | null;
@@ -57,6 +62,6 @@ export interface CheckinLookupItem {
   ticketStatus: string;
   checkedIn: boolean;
   checkedInAt?: string | null;
-  /** only for a ticket that can still enter, and only when the caller may scan */
+  /** chỉ có với vé còn có thể vào cổng, và chỉ khi người gọi được phép quét */
   qrCodeHash?: string | null;
 }

@@ -5,6 +5,7 @@ import { formatCurrency } from "@/utils/formatters";
 import type { VietQrPayloadResponse } from "@/types";
 import { paymentApi } from "@/services/paymentApi";
 
+/** Props của hộp thoại thanh toán VietQR; `onSuccess` gọi khi thanh toán xác nhận xong, `onTimeout` gọi khi hết thời gian chờ. */
 interface VietQrModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +16,7 @@ interface VietQrModalProps {
   expiresAt?: number;
 }
 
+/** Hộp thoại hiện mã VietQR và thông tin chuyển khoản, đếm ngược thời gian giữ chỗ, và thăm dò trạng thái thanh toán cho tới khi xác nhận hoặc hết hạn. */
 export default function VietQrModal({
   isOpen,
   onClose,
@@ -28,7 +30,8 @@ export default function VietQrModal({
   const [copiedAccountNo, setCopiedAccountNo] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  // get target expiresAt timestamp from prop or localStorage
+  // lấy mốc hết hạn từ prop expiresAt hoặc từ localStorage
+  /** Trả mốc hết hạn (mili giây): ưu tiên prop `expiresAt` còn hiệu lực, rồi đơn đang chờ trong `localStorage`, cuối cùng là 15 phút kể từ bây giờ. */
   const getTargetExpiresAt = () => {
     if (expiresAt && expiresAt > Date.now()) return expiresAt;
     try {
@@ -48,7 +51,7 @@ export default function VietQrModal({
   );
   const [isExpired, setIsExpired] = useState<boolean>(false);
 
-  // sync target timestamp when modal opens or expiresAt prop changes
+  // đồng bộ mốc hết hạn khi mở hộp thoại hoặc khi prop expiresAt đổi
   useEffect(() => {
     if (isOpen) {
       const target = getTargetExpiresAt();
@@ -59,12 +62,13 @@ export default function VietQrModal({
     }
   }, [isOpen, expiresAt]);
 
-  // RequestAnimationFrame based smooth timer
+  // đồng hồ mượt dùng requestAnimationFrame
   useEffect(() => {
     if (!isOpen || isExpired) return;
     let animationFrameId: number;
     let lastSecond = -1;
 
+    /** Mỗi khung hình tính lại số giây còn lại, chỉ cập nhật state khi giây đổi; hết giờ thì đánh dấu hết hạn. */
     const tick = () => {
       const now = Date.now();
       const remaining = Math.max(0, Math.floor((targetExpiresAt - now) / 1000));
@@ -85,13 +89,14 @@ export default function VietQrModal({
     return () => cancelAnimationFrame(animationFrameId);
   }, [isOpen, isExpired, targetExpiresAt, onTimeout]);
 
-  // poll for payment status every 3 seconds while modal is open
+  // thăm dò trạng thái thanh toán mỗi 3 giây khi hộp thoại đang mở
   useEffect(() => {
     if (!isOpen || !bookingId || isExpired) return;
 
     let isMounted = true;
     let timerId: NodeJS.Timeout;
 
+    /** Hỏi trạng thái thanh toán; hoàn tất thì gọi `onSuccess` và dừng, ngược lại hẹn lần kiểm tra sau 3 giây. */
     const checkStatus = async () => {
       if (!isMounted) return;
       try {
@@ -102,7 +107,7 @@ export default function VietQrModal({
           (payment.status === "COMPLETED" || payment.status === "PAID" || payment.status === "SUCCESS")
         ) {
           onSuccess();
-          return; // stop polling
+          return; // dừng thăm dò
         }
       } catch (err) {
         console.warn("Polling payment status error:", err);
@@ -113,9 +118,10 @@ export default function VietQrModal({
       }
     };
 
-    // initial call
+    // gọi lần đầu ngay
     checkStatus();
 
+    /** Kiểm tra trạng thái ngay khi tab trình duyệt hiện lại. */
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         checkStatus();
@@ -133,6 +139,7 @@ export default function VietQrModal({
 
   if (!isOpen || !vietQrData) return null;
 
+  /** Sao chép văn bản vào clipboard và bật nhãn đã sao chép của số tài khoản hoặc nội dung chuyển khoản trong 2 giây. */
   const copyToClipboard = (text: string, type: "account" | "content") => {
     navigator.clipboard.writeText(text);
     if (type === "account") {
@@ -144,6 +151,7 @@ export default function VietQrModal({
     }
   };
 
+  /** Xử lý nút kiểm tra thủ công: xác minh thanh toán một lần và gọi `onSuccess` nếu đã hoàn tất. */
   const handleManualCheck = async () => {
     try {
       setIsVerifying(true);
@@ -161,6 +169,7 @@ export default function VietQrModal({
     }
   };
 
+  /** Đổi số giây thành chuỗi `mm:ss`. */
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;

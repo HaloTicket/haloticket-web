@@ -23,6 +23,7 @@ import { PATHS } from "@/routes/paths";
 import { resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
 import type { NotificationItem, UserProfile } from "@/types";
 
+/** Props của thanh đầu trang quản trị: trạng thái thu gọn, giao diện sáng tối, hồ sơ, thông báo, menu tài khoản và các callback tương ứng. */
 interface AdminHeaderProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -44,11 +45,13 @@ interface AdminHeaderProps {
   onLogout: () => void;
 }
 
+/** Thanh đầu trang quản trị: tiêu đề theo mục đang mở, ô tìm kiếm (trên trang duyệt sự kiện), chuông thông báo, đổi giao diện, ngôn ngữ và menu tài khoản. */
 export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, userProfile, notifications, unreadCount, loading, error, onRetry, showProfileMenu, onToggleProfileMenu, onCloseProfileMenu, onMobileOpen, mobileMenuButtonRef, onMarkAllAsRead, onNotificationClick, onLogout }: AdminHeaderProps) {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const profileRef = useRef<HTMLDivElement>(null);
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const { preferences } = useAdminPreferences(preferenceIdentity(userProfile));
   const safeName = userProfile?.fullName && (!preferences.hideEmail || !userProfile.fullName.includes("@")) ? userProfile.fullName : label("Tài khoản", "Account");
@@ -59,7 +62,9 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
 
   useEffect(() => {
     if (!showProfileMenu) return;
+    /** Đóng menu tài khoản khi bấm ra ngoài vùng menu. */
     const closeOutside = (event: MouseEvent) => { if (!profileRef.current?.contains(event.target as Node)) onCloseProfileMenu(); };
+    /** Đóng menu tài khoản khi nhấn Escape. */
     const closeEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onCloseProfileMenu(); };
     document.addEventListener("mousedown", closeOutside);
     document.addEventListener("keydown", closeEscape);
@@ -117,7 +122,7 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
 
         {showProfileMenu && (
           <div className="absolute right-0 top-full mt-2 w-64 app-bg-card rounded-xl shadow-lg border app-border p-2 z-50 animate-in fade-in zoom-in duration-200" role="menu">
-            {/* Top Admin Info Card */}
+            {/* Thẻ thông tin quản trị viên */}
             <div className="flex items-center justify-between bg-blue-600/10 rounded-lg p-3 mb-2">
               <div className="flex items-center gap-2 text-blue-600 font-bold text-xs">
                 <LuShieldCheck size={16} />
@@ -135,7 +140,7 @@ export function AdminHeader({ collapsed, onToggleCollapse, isDark, toggleTheme, 
               </Link>
             </div>
 
-            {/* Menu Navigation Links */}
+            {/* Liên kết điều hướng trong menu */}
             <nav className="flex flex-col gap-1">
               <Link
                 to={PATHS.ADMIN_DASHBOARD}

@@ -1,5 +1,7 @@
+/** Kiểu thống kê doanh thu: gần đây (7 ngày), theo tháng, theo năm hoặc khoảng tùy chọn. */
 export type RevenuePeriod = "recent" | "month" | "year" | "custom";
 
+/** Tính khoảng ngày cho kiểu thống kê: năm thì cả năm, tháng thì cả tháng của {@code value}, gần đây thì 7 ngày kết thúc tại {@code value}. */
 export function revenueRange(period: Exclude<RevenuePeriod, "custom">, value: string) {
   if (period === "year") return { from: `${value.slice(0, 4)}-01-01`, to: `${value.slice(0, 4)}-12-31` };
   if (period === "month") {
@@ -12,7 +14,7 @@ export function revenueRange(period: Exclude<RevenuePeriod, "custom">, value: st
   return { from: end.toISOString().slice(0, 10), to: value.slice(0, 10) };
 }
 
-/** Format API day/month labels without UTC conversion shifting the day. */
+/** Định dạng nhãn ngày hoặc tháng từ API thành dd/MM/yyyy hoặc MM/yyyy mà không bị lệch ngày do đổi múi giờ UTC. */
 export function formatRevenueDate(value: unknown): string {
   const text = String(value ?? "");
   const match = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(text);

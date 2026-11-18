@@ -4,9 +4,9 @@ import type { NotificationItem } from "@/types/notification";
 const PLAIN_ID = /^[A-Za-z0-9_-]{1,100}$/;
 
 /**
- * Where a click on an event approval notification goes: the edit page of that very event when the notification carries its id
- * (variablesJson.eventId), otherwise the list of the organiser's events. Only the id is used, never the `link` of the payload,
- * and only when it is a plain id, so a notification can not send anyone to another path or address.
+ * Đích đến khi bấm vào thông báo duyệt sự kiện: trang chỉnh sửa đúng sự kiện đó nếu thông báo mang theo mã (`variablesJson.eventId`),
+ * nếu không thì về danh sách sự kiện của nhà tổ chức. Chỉ dùng mã sự kiện, không bao giờ dùng `link` trong dữ liệu thông báo,
+ * và chỉ khi đó là mã thuần túy, để thông báo không thể đưa ai tới đường dẫn hay địa chỉ khác.
  */
 export function eventTargetOfNotification(notification: Pick<NotificationItem, "variablesJson">): string {
   try {
@@ -16,7 +16,7 @@ export function eventTargetOfNotification(notification: Pick<NotificationItem, "
       if (typeof parsed.eventId === "string" && PLAIN_ID.test(parsed.eventId)) return PATHS.EVENT_MANAGE_EDIT(parsed.eventId);
     }
   } catch {
-    // malformed JSON: fall back to the list
+    // JSON sai định dạng: quay về danh sách
   }
   return PATHS.MY_EVENTS;
 }

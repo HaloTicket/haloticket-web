@@ -2,11 +2,13 @@ import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { FiArrowUp } from "react-icons/fi";
 
+/** Nút tròn cố định góc dưới phải, hiện khi trang đã cuộn quá 300px và cuộn mượt về đầu trang khi bấm. */
 export const ScrollToTop: React.FC = () => {
   const { t: translate } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    /** Bật hiện nút khi `scrollY` lớn hơn 300px, ngược lại ẩn. */
     const toggleVisibility = () => {
       if (window.scrollY > 300) {
         setIsVisible(true);
@@ -19,6 +21,7 @@ export const ScrollToTop: React.FC = () => {
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
+  /** Cuộn mượt về đầu trang. */
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,

@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+/** Một tab trạng thái: giá trị, nhãn, số lượng (huy hiệu) và biểu tượng tùy chọn. */
 export interface AdminStatusTabOption {
   value: string;
   label: string;
@@ -8,12 +9,14 @@ export interface AdminStatusTabOption {
   icon?: ReactNode;
 }
 
+/** Props của thanh tab trạng thái: giá trị đang chọn, danh sách tab và hàm đổi tab. */
 export interface AdminStatusTabsProps {
   value: string;
   options: AdminStatusTabOption[];
   onChange: (value: string) => void;
 }
 
+/** Thanh tab lọc theo trạng thái; hỗ trợ phím mũi tên trái/phải, Home và End để chuyển tab theo vòng. */
 export function AdminStatusTabs({ value, options, onChange }: AdminStatusTabsProps) {
   const { t } = useTranslation();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);

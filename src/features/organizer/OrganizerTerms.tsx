@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { FiChevronRight, FiChevronDown, FiShield, FiCheckCircle } from "react-icons/fi";
 
+/** Trang điều khoản dành cho ban tổ chức: hiển thị các mục quy định (hàng hóa cấm, quảng cáo, kiểm duyệt nội dung) dạng danh sách mở rộng thu gọn được. */
 export const OrganizerTerms: React.FC = () => {
   const { t: translate } = useTranslation();
   const [openSection, setOpenSection] = useState<number | null>(null);
@@ -38,6 +39,7 @@ export const OrganizerTerms: React.FC = () => {
     }
   ];
 
+  /** Mở mục điều khoản được chọn, hoặc đóng lại nếu mục đó đang mở. */
   const toggleSection = (id: number) => {
     setOpenSection(openSection === id ? null : id);
   };
@@ -45,7 +47,7 @@ export const OrganizerTerms: React.FC = () => {
   return (
     <div className="w-full min-h-screen app-bg-page p-4 md:p-8 space-y-6">
 
-      {/* Main Container Card */}
+      {/* Khung thẻ chứa nội dung chính */}
       <div className="w-full max-w-4xl app-bg-card border app-border rounded-2xl p-4 md:p-6 shadow-sm space-y-3">
         {termSections.map((sec) => {
           const isOpen = openSection === sec.id;

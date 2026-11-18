@@ -39,6 +39,7 @@ import {
 } from "@/utils/seatMapHelpers";
 import { formatCurrency } from "@/utils/formatters";
 
+/** Trang gán hạng vé vào khu vực của sơ đồ ghế: xem sơ đồ chỉ đọc, gán hạng vé cho từng khu (kiểm tra số ghế không vượt số vé), xem thử giao diện khán giả, xuất ảnh và lưu đồng bộ lên backend. */
 export const EventSeatingAssigner: React.FC = () => {
   const { t } = useTranslation();
   const { eventId: urlEventId } = useParams<{ eventId: string }>();
@@ -63,6 +64,7 @@ export const EventSeatingAssigner: React.FC = () => {
   const [selectedZoneModal, setSelectedZoneModal] = useState<ZoneBlock | null>(null);
   const [zoneTicketQuantity, setZoneTicketQuantity] = useState<number>(1);
 
+  /** Bật hoặc thoát chế độ toàn màn hình cho khu làm việc. */
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
       studioRef.current?.requestFullscreen?.().catch(() => { });
@@ -72,12 +74,13 @@ export const EventSeatingAssigner: React.FC = () => {
   };
 
   useEffect(() => {
+    /** Cập nhật cờ toàn màn hình theo trạng thái thật của trình duyệt (kể cả khi người dùng thoát bằng phím Esc). */
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
-  // custom confirmation modal state
+  // trạng thái hộp thoại xác nhận tùy chỉnh
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -86,6 +89,7 @@ export const EventSeatingAssigner: React.FC = () => {
     onConfirm: () => void;
   } | null>(null);
 
+  /** Hiện thông báo nổi trong 4 giây. */
   const showToast = (type: "success" | "error" | "warning" | "info", text: string) => {
     const id = `toast_${Date.now()}_${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, text }]);
@@ -94,10 +98,11 @@ export const EventSeatingAssigner: React.FC = () => {
     }, 4000);
   };
 
-  // fetch Event, Draft SeatMap, and Tiers
+  // nạp sự kiện, bản nháp sơ đồ ghế và các hạng vé
   useEffect(() => {
     let isMounted = true;
 
+    /** Nạp tên sự kiện, hạng vé (từ ticket-service, dự phòng từ dữ liệu sự kiện) và bản nháp sơ đồ từ backend hoặc localStorage, rồi đồng bộ hạng vé vào các khu vực. */
     async function loadData() {
       try {
         const eventRes = await eventApi.getEventById(activeEventId);
@@ -105,7 +110,7 @@ export const EventSeatingAssigner: React.FC = () => {
           setEventName(((eventRes as any).title as string) || t("Sự kiện"));
         }
 
-        // fetch ticket tiers first
+        // nạp các hạng vé trước
         let mappedTiers: SeatTier[] = [];
         const tiersRes = await ticketApi.getTicketTypesByEventId(activeEventId);
         if (tiersRes && tiersRes.length > 0) {
@@ -122,13 +127,13 @@ export const EventSeatingAssigner: React.FC = () => {
             description: t.description || "",
           }));
 
-          // deduplicate by name 
+          // loại trùng theo tên
           mappedTiers = mappedTiers.filter((t, index, self) =>
             index === self.findIndex((tc) => tc.name.trim().toLowerCase() === t.name.trim().toLowerCase())
           );
         }
 
-        // fallback to eventRes tickets if tiersRes was empty
+        // dự phòng: lấy vé từ dữ liệu sự kiện nếu ticket-service không trả về hạng vé nào
         if (mappedTiers.length === 0 && eventRes) {
           const rawEvTickets = (eventRes as any)?.tickets || (eventRes as any)?.ticketsData;
           let parsedTickets: any[] = [];
@@ -169,7 +174,7 @@ export const EventSeatingAssigner: React.FC = () => {
 
         const effectiveLoadedTiers = mappedTiers.length > 0 ? mappedTiers : [];
 
-        // fetch draft layout
+        // nạp bản nháp bố cục
         let doc: SeatMapDocument | null = null;
         const draftRes = await ticketApi.getSeatLayoutByEventId(activeEventId);
 
@@ -181,9 +186,9 @@ export const EventSeatingAssigner: React.FC = () => {
           }
         }
 
-        // if backend draft is missing or empty, check localStorage draft
+        // nếu bản nháp ở backend thiếu hoặc rỗng thì dùng bản nháp trong localStorage
         if (!doc || (!doc.zones && !doc.seats) || (Object.keys(doc.zones || {}).length === 0 && (doc.seats || []).length === 0)) {
-          // the draft is keyed by event id only: a key built from the event name could belong to another event
+          // bản nháp chỉ được khóa theo id sự kiện: khóa dựng từ tên sự kiện có thể thuộc về sự kiện khác
           const localStr = localStorage.getItem(`haloticket_seatmap_draft_${activeEventId}`);
           if (localStr) {
             try {
@@ -198,7 +203,7 @@ export const EventSeatingAssigner: React.FC = () => {
           if (doc) {
             const rawZones = safeClone(doc.zones || {});
 
-            // pair zone.tierId with DB ticket type IDs (by ID match or Tier Name match)
+            // ghép zone.tierId với id loại vé trong DB (khớp theo id hoặc theo tên hạng vé)
             const syncedZones: Record<string, ZoneBlock> = {};
             Object.entries(rawZones).forEach(([zId, z]) => {
               let tierId = z.tierId;
@@ -216,7 +221,7 @@ export const EventSeatingAssigner: React.FC = () => {
               };
             });
 
-            // if draftRes returns seatZones array from DB, use backend ticketTypeId if present
+            // nếu draftRes trả về mảng seatZones từ DB thì dùng ticketTypeId của backend khi có
             if (draftRes?.zones && Array.isArray(draftRes.zones)) {
               draftRes.zones.forEach((sz: any) => {
                 if (sz.id && syncedZones[sz.id] && sz.ticketTypeId) {
@@ -233,7 +238,7 @@ export const EventSeatingAssigner: React.FC = () => {
               setCanvasSettings(doc.canvasSettings);
             }
           } else if (draftRes?.zones && Array.isArray(draftRes.zones) && draftRes.zones.length > 0) {
-            // construct zones from backend draftRes.zones array
+            // dựng các khu vực từ mảng draftRes.zones của backend
             const syncedZones: Record<string, ZoneBlock> = {};
             draftRes.zones.forEach((z: any) => {
               let parsedPoints = undefined;
@@ -264,7 +269,7 @@ export const EventSeatingAssigner: React.FC = () => {
             });
             setZones(syncedZones);
           } else {
-            // no draft or seatmap configured: keep empty layout, do NOT load mock preset templates
+            // chưa có bản nháp hoặc sơ đồ nào: giữ bố cục rỗng, KHÔNG nạp các mẫu giả định
             setZones({});
             setSeats([]);
             setStages([]);
@@ -287,6 +292,7 @@ export const EventSeatingAssigner: React.FC = () => {
     [backendTiers]
   );
 
+  /** Gán hạng vé cho khu vực (id rỗng thì bỏ gán). */
   const applyZoneTier = (zoneId: string, tierId: string) => {
     const currentZone = zones[zoneId];
     if (!currentZone) return;
@@ -303,17 +309,18 @@ export const EventSeatingAssigner: React.FC = () => {
     }));
   };
 
+  /** Xử lý đổi hạng vé của khu vực: bỏ gán nếu rỗng, ngược lại từ chối khi số ghế của khu hoặc tổng số ghế các khu cùng hạng vượt số lượng vé mở bán, còn hợp lệ thì gán. */
   const handleUpdateZoneTier = (zoneId: string, tierId: string) => {
     const currentZone = zones[zoneId];
     if (!currentZone) return;
 
-    // clear tier assignment
+    // bỏ gán hạng vé
     if (!tierId) {
       applyZoneTier(zoneId, '');
       return;
     }
 
-    // seat count vs ticket totalQuantity Warning Check across all zones sharing this tier
+    // kiểm tra cảnh báo số ghế so với totalQuantity của vé, tính trên mọi khu cùng hạng vé
     const targetTier = effectiveTiers.find((t) => t.id === tierId);
     const otherZonesWithTier = Object.values(zones).filter(
       (z) => z.id !== zoneId && z.tierId === tierId
@@ -346,7 +353,8 @@ export const EventSeatingAssigner: React.FC = () => {
     applyZoneTier(zoneId, tierId);
   };
 
-  // export Seat Map as PNG Image (White background + centered large title)
+  // xuất sơ đồ ghế ra ảnh PNG (nền trắng, tiêu đề lớn ở giữa)
+  /** Dựng SVG sơ đồ ghế, vẽ lên canvas nền trắng và tải xuống dạng PNG. */
   const handleExportPNG = () => {
     const payload: SeatMapDocument = {
       version: '2.0',
@@ -390,11 +398,12 @@ export const EventSeatingAssigner: React.FC = () => {
     img.src = url;
   };
 
+  /** Lưu phần gán hạng vé: đồng bộ các loại vé lên backend, ánh xạ id hạng vé cũ sang id thật cho khu vực và ghế, rồi xuất bản bố cục sơ đồ. */
   const handleSaveAssignments = async () => {
     try {
       setIsSaving(true);
 
-      // 1. dync ticket tiers (types) to backend DB
+      // 1. đồng bộ các hạng vé (loại vé) lên DB backend
       let syncedTiers: SeatTier[] = effectiveTiers;
       if (effectiveTiers && effectiveTiers.length > 0) {
         const requests = effectiveTiers.map((t) => ({
@@ -426,7 +435,7 @@ export const EventSeatingAssigner: React.FC = () => {
         }
       }
 
-      // map old tier IDs to real synced DB tier IDs
+      // ánh xạ id hạng vé cũ sang id hạng vé thật đã đồng bộ trong DB
       const tierIdMap = new Map<string, string>();
       effectiveTiers.forEach((oldTier) => {
         const matchedNewTier = syncedTiers.find(
@@ -437,7 +446,7 @@ export const EventSeatingAssigner: React.FC = () => {
         }
       });
 
-      // update zones with real synced DB tier IDs
+      // cập nhật khu vực với id hạng vé thật trong DB
       const updatedZones: Record<string, ZoneBlock> = {};
       Object.entries(zones).forEach(([zId, z]) => {
         const mappedTierId = z.tierId ? (tierIdMap.get(z.tierId) || z.tierId) : undefined;
@@ -447,7 +456,7 @@ export const EventSeatingAssigner: React.FC = () => {
         };
       });
 
-      // update seats with real synced DB tier IDs
+      // cập nhật ghế với id hạng vé thật trong DB
       const updatedSeats = seats.map((s) => {
         const zone = updatedZones[s.zoneId];
         const mappedTierId = s.tierId
@@ -462,7 +471,7 @@ export const EventSeatingAssigner: React.FC = () => {
       setZones(updatedZones);
       setSeats(updatedSeats);
 
-      // 2. publish seat layout
+      // 2. xuất bản bố cục sơ đồ ghế
       const payload: SeatMapDocument = {
         version: "2.0",
         timestamp: new Date().toISOString(),
@@ -521,7 +530,7 @@ export const EventSeatingAssigner: React.FC = () => {
         onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
       />
 
-      {/* Top Header Card */}
+      {/* Thẻ tiêu đề phía trên */}
       <div className="app-bg-card border app-border rounded-2xl p-5 md:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -540,7 +549,7 @@ export const EventSeatingAssigner: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
-          {/* Attendee Preview Toggle */}
+          {/* Nút bật tắt xem thử của khán giả */}
           <button
             type="button"
             onClick={() => setIsAttendeePreviewMode((prev) => !prev)}
@@ -553,7 +562,7 @@ export const EventSeatingAssigner: React.FC = () => {
             <span>{isAttendeePreviewMode ? t("Chế độ Gán Vé") : t("Xem Trực Quan Mua Vé")}</span>
           </button>
 
-          {/* Export PNG Image Button */}
+          {/* Nút xuất ảnh PNG */}
           <button
             type="button"
             onClick={handleExportPNG}
@@ -585,11 +594,11 @@ export const EventSeatingAssigner: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Grid: Assigner Inspector / Attendee Preview + Canvas Studio */}
+      {/* Lưới chính: bảng gán hạng vé hoặc xem thử khán giả, kèm canvas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {!isAttendeePreviewMode ? (
           <>
-            {/* Left Canvas: Read-Only Locked SeatMap Preview */}
+            {/* Bên trái: canvas xem sơ đồ chỉ đọc, đã khóa */}
             <div className="lg:col-span-8 app-bg-card border app-border rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between border-b app-border pb-3 px-1">
                 <h3 className="text-xs font-extrabold app-text-main flex items-center gap-2">
@@ -653,7 +662,7 @@ export const EventSeatingAssigner: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Inspector: Zone & Tier Assignment Panel (Fixed/Sticky Under Header) */}
+            {/* Bên phải: bảng gán khu vực và hạng vé (cố định dưới tiêu đề) */}
             <div className="lg:col-span-4 app-bg-card border app-border rounded-2xl p-5 shadow-sm space-y-5 sticky top-4 z-20">
               <div className="flex items-center justify-between border-b app-border pb-3">
                 <h3 className="text-sm font-extrabold app-text-main flex items-center gap-2">
@@ -675,7 +684,7 @@ export const EventSeatingAssigner: React.FC = () => {
                 </p>
               </div>
 
-              {/* Zones List */}
+              {/* Danh sách khu vực */}
               <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
                 {totalZones === 0 ? (
                   <div className="p-6 text-center text-xs app-text-muted">
@@ -749,7 +758,7 @@ export const EventSeatingAssigner: React.FC = () => {
           </>
         ) : (
           <>
-            {/* Left: Canvas Studio in Preview Mode */}
+            {/* Bên trái: canvas ở chế độ xem thử */}
             <div className="lg:col-span-8 app-bg-card border app-border rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between border-b app-border pb-3 px-1">
                 <h3 className="text-xs font-extrabold app-text-main flex items-center gap-2">
@@ -823,7 +832,7 @@ export const EventSeatingAssigner: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Attendee Preview Inspector Panel */}
+            {/* Bên phải: bảng xem thử của khán giả */}
             <div className="lg:col-span-4 sticky top-4 z-20">
               <AttendeePreview
                 cart={attendeeCart}
@@ -839,7 +848,7 @@ export const EventSeatingAssigner: React.FC = () => {
         )}
       </div>
 
-      {/* Zone Ticket Selector Modal for Preview Mode */}
+      {/* Hộp thoại chọn vé theo khu vực ở chế độ xem thử */}
       {selectedZoneModal && (
         <div className="seat-studio-modal-backdrop" onMouseDown={() => setSelectedZoneModal(null)}>
           <div className="seat-studio-modal max-w-md p-6 space-y-4" onMouseDown={(e) => e.stopPropagation()}>
@@ -919,7 +928,7 @@ export const EventSeatingAssigner: React.FC = () => {
         </div>
       )}
 
-      {/* Tier Manager Modal */}
+      {/* Hộp thoại quản lý hạng vé */}
       <TierManagerModal
         isOpen={isTierModalOpen}
         onClose={() => setIsTierModalOpen(false)}
@@ -965,7 +974,7 @@ export const EventSeatingAssigner: React.FC = () => {
         }}
       />
 
-      {/* Custom Confirmation Modal */}
+      {/* Hộp thoại xác nhận tùy chỉnh */}
       {confirmModal && (
         <ConfirmModal
           isOpen={confirmModal.isOpen}

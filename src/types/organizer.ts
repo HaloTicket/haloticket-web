@@ -1,3 +1,4 @@
+/** Một hạng vé trong form tạo hoặc sửa sự kiện của người tổ chức, kèm số lượng đã bán và đang giữ. */
 export interface TicketItem {
   id: string;
   name: string;
@@ -15,6 +16,7 @@ export interface TicketItem {
   showtimeId?: string;
 }
 
+/** Một suất diễn trong form sự kiện: thời gian diễn, thời gian mở bán và các hạng vé. */
 export interface ShowtimeItem {
   id?: string;
   name: string;
@@ -25,6 +27,7 @@ export interface ShowtimeItem {
   tickets?: TicketItem[];
 }
 
+/** Một câu hỏi tùy chỉnh người tổ chức đặt ra cho người mua vé. */
 export interface CustomQuestionItem {
   id: string;
   title: string;
@@ -35,6 +38,7 @@ export interface CustomQuestionItem {
   [key: string]: unknown;
 }
 
+/** Hồ sơ người tổ chức dùng trong form tạo sự kiện (tên, giới thiệu, logo). */
 export interface OrganizerProfile {
   name: string;
   info: string;
@@ -42,6 +46,7 @@ export interface OrganizerProfile {
   isExisting: boolean;
 }
 
+/** Dữ liệu hồ sơ người tổ chức do backend trả về: liên hệ, mã số thuế, địa chỉ và tài khoản ngân hàng. */
 export interface OrganizerProfileData {
   id?: string;
   userId?: string;
@@ -61,6 +66,7 @@ export interface OrganizerProfileData {
   [key: string]: unknown;
 }
 
+/** Thông báo lỗi của từng trường ở bước 1 (thông tin cơ bản) của form tạo sự kiện. */
 export interface Step1Errors {
   title?: string;
   category?: string;
@@ -72,12 +78,14 @@ export interface Step1Errors {
   organizerInfo?: string;
 }
 
+/** Thông báo lỗi của từng trường ở bước 2 (thời gian và vé) của form tạo sự kiện. */
 export interface Step2Errors {
   startDate?: string;
   endDate?: string;
   tickets?: string;
 }
 
+/** Thông báo lỗi của từng trường ở bước 5 (thanh toán) của form tạo sự kiện. */
 export interface Step5Errors {
   accountHolder?: string;
   accountNumber?: string;

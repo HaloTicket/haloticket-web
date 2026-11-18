@@ -6,7 +6,7 @@ import type { MiniMapProps } from '@/types/seating';
 const MAP_WIDTH = 180;
 const MAP_HEIGHT = 116;
 
-// minimap navigation component
+/** Bản đồ thu nhỏ của sơ đồ ghế: vẽ ghế, sân khấu và khu theo tỉ lệ, kèm khung vùng đang xem; bấm vào đâu thì cuộn canvas tới đó. */
 export const MiniMap: React.FC<MiniMapProps> = ({
     seats,
     stages,
@@ -26,7 +26,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
     const scaledContentH = canvasHeight * scale;
     const zoom = zoomLevel / 100;
 
-    // handle navigation on minimap click
+    /** Đổi vị trí bấm trên bản đồ thu nhỏ thành tọa độ cuộn và gọi {@code onNavigate} để đưa vùng xem về giữa điểm đó. */
     const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = (e.clientX - rect.left) / scale;

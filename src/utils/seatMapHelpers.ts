@@ -10,7 +10,7 @@ import type {
     ZoneShape,
 } from '@/types/seating';
 
-// default canvas settings
+/** Cài đặt khung vẽ mặc định của sơ đồ chỗ ngồi. */
 export const DEFAULT_CANVAS_SETTINGS: CanvasSettings = {
     width: 1500,
     height: 1050,
@@ -20,7 +20,7 @@ export const DEFAULT_CANVAS_SETTINGS: CanvasSettings = {
     backgroundLabel: 'MẶT BẰNG SỰ KIỆN',
 };
 
-// default event ticket tiers
+/** Các hạng vé mặc định của sự kiện dùng khi chưa có cấu hình vé. */
 export const DEFAULT_EVENT_TICKET_TIERS: SeatTier[] = [
     {
         id: 'tier-vvip',
@@ -64,21 +64,25 @@ export const DEFAULT_EVENT_TICKET_TIERS: SeatTier[] = [
     },
 ];
 
-// currency formatter
+/**
+ * Định dạng giá vé (VNĐ), hoặc "Chưa gán giá" khi chưa có giá.
+ *
+ * @param value - Giá vé.
+ */
 export const formatCurrency = (value?: number) =>
     typeof value === 'number' ? `${value.toLocaleString('vi-VN')} đ` : 'Chưa gán giá';
 
-// find ticket tier by id
+/** Tìm hạng vé theo mã; trả về `undefined` nếu không có mã hoặc không tìm thấy. */
 export const getTierById = (tiers: SeatTier[], tierId?: string) =>
     tierId ? tiers.find((tier) => tier.id === tierId) : undefined;
 
-// get ticket tier for zone
+/** Lấy hạng vé được gán cho khu vực. */
 export const getTierForZone = (
     zone: ZoneBlock | undefined,
     tiers: SeatTier[]
 ): SeatTier | undefined => getTierById(tiers, zone?.tierId);
 
-// get ticket tier for seat
+/** Lấy hạng vé của ghế: ưu tiên hạng gán riêng cho ghế, nếu không có thì dùng hạng của khu vực chứa ghế. */
 export const getTierForSeat = (
     seat: Seat,
     zones: Record<string, ZoneBlock> | ZoneBlock[] | undefined | null,
@@ -90,13 +94,13 @@ export const getTierForSeat = (
     return getTierForZone(zone, tiers);
 };
 
-// get color for zone
+/** Lấy màu hiển thị của khu vực: theo hạng vé, nếu không có thì theo màu của khu vực, cuối cùng là màu xám mặc định. */
 export const getZoneColor = (
     zone: ZoneBlock | undefined,
     tiers: SeatTier[]
 ): string => getTierForZone(zone, tiers)?.color || zone?.color || '#64748b';
 
-// get clip path for zone shape
+/** Lấy giá trị CSS `clip-path` cho hình dạng khu vực; hình `polygon` dùng đường cắt tùy chỉnh nếu có. Hình khác trả về `undefined`. */
 export const getZoneClipPath = (
     shape?: ZoneShape | string,
     customClipPath?: string
@@ -119,7 +123,7 @@ export const getZoneClipPath = (
     }
 };
 
-// get clip path for element shape
+/** Lấy giá trị CSS `clip-path` cho hình dạng của phần tử cấu trúc; hình không cần cắt trả về `undefined`. */
 export const getElementClipPath = (shape?: ElementShape) => {
     if (shape === 'ellipse') return 'ellipse(50% 50% at 50% 50%)';
     if (shape === 'trapezoid') return 'polygon(8% 0, 92% 0, 100% 100%, 0 100%)';
@@ -127,11 +131,22 @@ export const getElementClipPath = (shape?: ElementShape) => {
     return undefined;
 };
 
-// snap value to grid
+/**
+ * Làm tròn giá trị theo lưới; khi tắt bắt dính thì chỉ làm tròn về số nguyên.
+ *
+ * @param value - Giá trị cần làm tròn.
+ * @param gridSize - Kích thước ô lưới.
+ * @param enabled - Bật bắt dính lưới.
+ */
 export const snapValue = (value: number, gridSize: number, enabled = true) =>
     enabled ? Math.round(value / gridSize) * gridSize : Math.round(value);
 
-// clone venue template for current event
+/**
+ * Sao chép mẫu địa điểm cho sự kiện hiện tại: bỏ gán hạng vé và giá, mở khóa và hiện mọi phần tử, đặt lại trạng thái ghế (chỉ giữ ghế dành cho người khuyết tật).
+ *
+ * @param template - Mẫu địa điểm.
+ * @param ticketTiers - Hạng vé của sự kiện hiện tại.
+ */
 export const cloneTemplateForCurrentEvent = (
     template: VenueTemplate,
     ticketTiers: SeatTier[]
@@ -141,7 +156,7 @@ export const cloneTemplateForCurrentEvent = (
             id,
             {
                 ...zone,
-                // Preserve layout color only as a visual hint. Current event pricing is not copied.
+                // Chỉ giữ màu của bố cục làm gợi ý trực quan; không sao chép giá của sự kiện hiện tại.
                 tierId: undefined,
                 price: undefined,
                 color: zone.color || '#64748b',
@@ -172,7 +187,11 @@ export const cloneTemplateForCurrentEvent = (
     };
 };
 
-// build seat map document
+/**
+ * Dựng tài liệu sơ đồ chỗ ngồi (phiên bản 2.0) kèm thời điểm tạo từ các thành phần của trình thiết kế.
+ *
+ * @param args - Tên, mẫu địa điểm, cài đặt khung vẽ, khu vực, sân khấu, cấu trúc, ghế và hạng vé.
+ */
 export const buildSeatMapDocument = (args: {
     name?: string;
     venueTemplateId?: string;
@@ -195,13 +214,18 @@ export const buildSeatMapDocument = (args: {
     ticketTiers: args.ticketTiers,
 });
 
-// safely clone object
+/** Sao chép sâu một đối tượng bằng `structuredClone`, hoặc bằng JSON nếu môi trường không hỗ trợ. */
 export const safeClone = <T,>(value: T): T => {
     if (typeof structuredClone === 'function') return structuredClone(value);
     return JSON.parse(JSON.stringify(value)) as T;
 };
 
-// check if seat position is inside zone bounds
+/**
+ * Kiểm tra ghế có nằm trong khu vực không (có biên đệm 12 px), tính cả trường hợp khu vực bị xoay.
+ *
+ * @param seat - Tọa độ của ghế.
+ * @param zone - Khu vực cần kiểm tra.
+ */
 export const isSeatInsideZone = (seat: { x: number; y: number }, zone: ZoneBlock): boolean => {
   const zX = zone.x || 0;
   const zY = zone.y || 0;
@@ -236,7 +260,11 @@ export const isSeatInsideZone = (seat: { x: number; y: number }, zone: ZoneBlock
   );
 };
 
-// find matching zone for seat position
+/**
+ * Tìm khu vực đầu tiên chứa vị trí của ghế.
+ *
+ * @returns Mã khu vực, hoặc `null` nếu không có khu vực nào chứa.
+ */
 export const findZoneForSeat = (
   seat: { x: number; y: number },
   zones: Record<string, ZoneBlock> | ZoneBlock[] | undefined | null
@@ -250,7 +278,13 @@ export const findZoneForSeat = (
   return null;
 };
 
-// reassign zones for seat array
+/**
+ * Gán lại khu vực cho các ghế: ghế còn nằm trong khu vực hiện tại thì giữ nguyên, ngược lại chuyển sang khu vực chứa nó (nếu có).
+ *
+ * @param seats - Danh sách ghế.
+ * @param zones - Các khu vực.
+ * @returns Danh sách ghế mới; giữ nguyên nếu không có khu vực nào.
+ */
 export const reassignSeatZones = (
   seats: Seat[],
   zones: Record<string, ZoneBlock> | ZoneBlock[] | undefined | null
@@ -273,7 +307,12 @@ export const reassignSeatZones = (
   });
 };
 
-// Generate valid SVG string for seat map document
+/**
+ * Tạo chuỗi SVG hợp lệ của sơ đồ chỗ ngồi: nền trắng, tiêu đề, sân khấu, khu vực và ghế (màu theo ghế, hạng vé hoặc khu vực).
+ *
+ * @param doc - Dữ liệu sơ đồ.
+ * @returns Chuỗi SVG.
+ */
 export const generateSeatMapSVG = (doc: {
   canvasSettings?: CanvasSettings;
   stages?: any[];
@@ -287,21 +326,21 @@ export const generateSeatMapSVG = (doc: {
   const h = doc.canvasSettings?.height || 1050;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`;
   
-  // Background - Pure White
+  // Nền trắng
   svg += `<rect width="100%" height="100%" fill="#ffffff"/>`;
 
-  // Event Name / Seat Map Title - Centered at top, large and clear
+  // Tên sự kiện / tiêu đề sơ đồ: căn giữa phía trên, cỡ lớn và rõ ràng
   const titleText = (doc.name || 'SƠ ĐỒ PHÂN BỔ GHẾ SỰ KIỆN').toUpperCase();
   svg += `<text x="${w / 2}" y="55" fill="#0f172a" font-size="28" font-weight="900" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">${titleText}</text>`;
   svg += `<line x1="${w / 2 - 200}" y1="70" x2="${w / 2 + 200}" y2="70" stroke="#cbd5e1" stroke-width="2"/>`;
 
-  // Draw Stages
+  // Vẽ sân khấu
   (doc.stages || []).forEach((stg) => {
     const rot = stg.rotation ? ` transform="rotate(${stg.rotation} ${stg.x + stg.width / 2} ${stg.y + stg.height / 2})"` : '';
     svg += `<g${rot}><rect x="${stg.x}" y="${stg.y}" width="${stg.width}" height="${stg.height}" rx="12" fill="${stg.color || '#6366f1'}" stroke="#4f46e5" stroke-width="2"/><text x="${stg.x + stg.width / 2}" y="${stg.y + stg.height / 2}" fill="#ffffff" font-size="16" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="middle">${stg.label || 'SÂN KHẤU'}</text></g>`;
   });
 
-  // Draw Zones
+  // Vẽ khu vực
   const zoneList = !doc.zones ? [] : Array.isArray(doc.zones) ? doc.zones : Object.values(doc.zones);
   zoneList.forEach((z) => {
     const zX = z.x ?? 0;
@@ -313,7 +352,7 @@ export const generateSeatMapSVG = (doc: {
     svg += `<g${rot}><rect x="${zX}" y="${zY}" width="${zW}" height="${zH}" rx="${z.curvature || 12}" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="2.5"/><text x="${zX + zW / 2}" y="${zY + 28}" fill="${color}" font-size="14" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">${z.name || z.centerText || ''}</text></g>`;
   });
 
-  // Draw Seats
+  // Vẽ ghế
   (doc.seats || []).forEach((seat) => {
     const zone = Array.isArray(doc.zones) ? doc.zones.find((z) => z.id === seat.zoneId) : doc.zones?.[seat.zoneId];
     const tier = doc.ticketTiers?.find((t) => t.id === (seat.tierId || zone?.tierId));
@@ -325,7 +364,12 @@ export const generateSeatMapSVG = (doc: {
   return svg;
 };
 
-// generate Gala Table and surrounding seats with customizable seat count
+/**
+ * Tạo bàn tiệc (gala) hình tròn và các ghế xếp quanh bàn; số ghế giới hạn từ 2 đến 24.
+ *
+ * @param args - Số bàn, tâm bàn, số ghế, bán kính (tùy chọn), khu vực và hạng vé.
+ * @returns Cấu trúc bàn và danh sách ghế.
+ */
 export const generateGalaTableSeats = (args: {
   tableNumber: number;
   centerX: number;
@@ -352,7 +396,7 @@ export const generateGalaTableSeats = (args: {
   };
 
   const seats: Seat[] = [];
-  const distance = r + 24; // Distance from center to seat
+  const distance = r + 24; // Khoảng cách từ tâm bàn tới ghế
   for (let i = 0; i < count; i++) {
     const angle = (i * 2 * Math.PI) / count - Math.PI / 2;
     const sx = Math.round(args.centerX + distance * Math.cos(angle));
@@ -376,6 +420,12 @@ export const generateGalaTableSeats = (args: {
   return { tableStructure, seats };
 };
 
+/**
+ * Tạo nhãn hàng ghế theo thứ tự: tiền tố số thì cộng dần, tiền tố chữ thì tăng theo kiểu cột Excel (A, B, ..., Z, AA, AB...).
+ *
+ * @param startPrefix - Nhãn hàng đầu tiên, mặc định `A`.
+ * @param rowIndex - Chỉ số hàng, bắt đầu từ 0.
+ */
 export const getRowLabel = (startPrefix: string, rowIndex: number): string => {
   const clean = (startPrefix || 'A').trim().toUpperCase();
   if (/^\d+$/.test(clean)) {

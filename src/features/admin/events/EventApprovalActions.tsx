@@ -11,32 +11,36 @@ import type { ApprovalEventItem } from "@/types";
 import type { AiRiskScoreResponse, RiskReasonItem } from "@/types/ai";
 import { FLAG_FIELDS, buildRejectionNotes, quotesFromRisk, type FlaggedQuote } from "@/utils/rejectionFeedback";
 
-/** Reasons that count (found something, weight above 0), one per line; the plain `reasons` list is the fallback. */
+/** Các lý do được tính (có phát hiện và trọng số lớn hơn 0), mỗi lý do một dòng; nếu không có thì dùng danh sách `reasons` dạng chuỗi thuần. */
 function reasonLines(score: AiRiskScoreResponse): string[] {
   const items = (score.reason_items ?? []).filter((item) => item.status !== "not_assessed" && item.weight > 0 && item.message.trim());
   if (items.length > 0) return items.map((item) => item.message.trim());
   return (score.reasons ?? []).filter((reason) => reason.trim());
 }
 
+/** Props của cụm thao tác duyệt sự kiện: sự kiện đang xét, callback sau khi thành công và các mục rủi ro làm bằng chứng. */
 interface EventApprovalActionsProps {
   event: ApprovalEventItem;
   onSuccess: () => void;
   riskItems?: RiskReasonItem[];
 }
 
+/** Cụm nút phê duyệt, từ chối hoặc hoàn tác phê duyệt một sự kiện, kèm hộp thoại xác nhận, lý do, các mục bị đánh dấu và đoạn trích gửi cho ban tổ chức. */
 export function EventApprovalActions({ event, onSuccess, riskItems }: EventApprovalActionsProps) {
   const { t } = useTranslation();
   const [dialog, setDialog] = useState<"approve" | "reject" | "revert" | null>(null);
   const [reason, setReason] = useState<string>("");
   const [notes, setNotes] = useState("");
-  // sections and quotes start from the risk evidence and stay under the admin's control once touched
+  // các mục và đoạn trích ban đầu lấy từ bằng chứng rủi ro, sau khi quản trị viên chỉnh sửa thì do họ quyết định
   const candidateQuotes = quotesFromRisk(riskItems);
   const hasEvidence = (riskItems ?? []).some((item) => item.status !== "not_assessed" && item.weight > 0 && (item.evidence?.length ?? 0) > 0);
   const defaultFlags = candidateQuotes.length > 0 ? ["title"] : hasEvidence ? [] : ["posterImage"];
   const [manualFlags, setManualFlags] = useState<string[] | null>(null);
   const flaggedFields = manualFlags ?? defaultFlags;
+  /** Ghi đè danh sách mục bị đánh dấu bằng kết quả của hàm cập nhật (thay cho giá trị mặc định). */
   const setFlaggedFields = (update: (current: string[]) => string[]) => setManualFlags(update(flaggedFields));
   const [unchecked, setUnchecked] = useState<string[]>([]);
+  /** Khóa nhận dạng một đoạn trích gồm trường và nội dung. */
   const quoteKey = (quote: FlaggedQuote) => `${quote.field}|${quote.text}`;
   const sentQuotes = candidateQuotes.filter((quote) => !unchecked.includes(quoteKey(quote)));
   const [pending, setPending] = useState(false);
@@ -46,12 +50,14 @@ export function EventApprovalActions({ event, onSuccess, riskItems }: EventAppro
   const actionable = event.eventApprovalStatus === "PENDING" || event.eventApprovalStatus === "UPDATE_PENDING";
   const isApproved = event.eventApprovalStatus === "APPROVED";
 
+  /** Đóng hộp thoại và xóa lỗi, trừ khi đang gửi yêu cầu. */
   const close = () => {
     if (pendingRef.current) return;
     setDialog(null);
     setError(false);
   };
 
+  /** Thực hiện hành động đang mở (duyệt, hoàn tác hoặc từ chối), ghi nhận quyết định cho AI và báo danh sách duyệt tải lại. */
   const confirm = async () => {
     if (!dialog || pendingRef.current) return;
     pendingRef.current = true;

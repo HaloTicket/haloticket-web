@@ -3,7 +3,7 @@ import type { VoucherItem, VoucherCreateData } from "@/types";
 import { isForbiddenError } from "@/utils/httpError";
 
 export const voucherApi = {
-  // get all vouchers for an event
+  /** Lấy tất cả voucher của một sự kiện. Lỗi 403 được ném lại; lỗi khác trả về mảng rỗng. */
   getVouchersByEvent: async (eventId: string): Promise<VoucherItem[]> => {
     try {
       const response: unknown = await axiosClient.get(`/events/${eventId}/vouchers`);
@@ -18,7 +18,7 @@ export const voucherApi = {
     }
   },
 
-  // create single or bulk vouchers
+  /** Tạo một voucher hoặc nhiều voucher cùng lúc; luôn trả về dạng mảng. */
   createVoucher: async (eventId: string, data: VoucherCreateData): Promise<VoucherItem[]> => {
     try {
       const response: unknown = await axiosClient.post(`/events/${eventId}/vouchers`, data);
@@ -35,7 +35,7 @@ export const voucherApi = {
     }
   },
 
-  // update voucher
+  /** Cập nhật voucher. */
   updateVoucher: async (voucherId: string, data: Partial<VoucherCreateData>): Promise<VoucherItem | null> => {
     try {
       const response: unknown = await axiosClient.put(`/events/vouchers/${voucherId}`, data);
@@ -46,7 +46,7 @@ export const voucherApi = {
     }
   },
 
-  // toggle voucher active status
+  /** Bật hoặc tắt trạng thái hoạt động của voucher. */
   toggleVoucherStatus: async (voucherId: string): Promise<VoucherItem | null> => {
     try {
       const response: unknown = await axiosClient.patch(`/events/vouchers/${voucherId}/status`);
@@ -57,7 +57,7 @@ export const voucherApi = {
     }
   },
 
-  // delete voucher
+  /** Xóa voucher theo id. */
   deleteVoucher: async (voucherId: string): Promise<boolean> => {
     try {
       await axiosClient.delete(`/events/vouchers/${voucherId}`);

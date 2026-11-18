@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCheckCircle, FiInfo, FiChevronDown, FiChevronUp, FiMaximize2, FiSun, FiCrop, FiRotateCw } from "react-icons/fi";
 
+/** Khối hướng dẫn thu gọn được về chuẩn ảnh đầu vào của VNPT eKYC: độ phân giải tối thiểu, tốt, rất tốt và các tiêu chí chất lượng. */
 export const VnptInputStandardsGuide: React.FC = () => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="rounded-2xl border app-border app-bg-card shadow-xs overflow-hidden transition-all">
-      {/* Header Bar */}
+      {/* Thanh tiêu đề */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -40,16 +41,16 @@ export const VnptInputStandardsGuide: React.FC = () => {
         </div>
       </button>
 
-      {/* Expanded Content Matching Official VNPT Specification */}
+      {/* Nội dung mở rộng theo đặc tả chính thức của VNPT */}
       {expanded && (
         <div className="p-4 sm:p-6 border-t app-border bg-slate-50/50 dark:bg-zinc-900/40 space-y-5 animate-in fade-in duration-200">
-          {/* Resolution Specification 3-Column Grid */}
+          {/* Lưới ba cột về độ phân giải */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
               {t("1. Yêu cầu độ phân giải ảnh (Rộng x Cao - WxH)")}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Minimum */}
+              {/* Tối thiểu */}
               <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-center space-y-1">
                 <p className="text-base font-extrabold app-text-main">600 × 900 px</p>
                 <p className="text-[11px] text-slate-500 dark:text-zinc-400">{t("Rộng x Cao (WxH)")}</p>
@@ -58,7 +59,7 @@ export const VnptInputStandardsGuide: React.FC = () => {
                 </span>
               </div>
 
-              {/* Good (HD) */}
+              {/* Tốt (HD) */}
               <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/30 text-center space-y-1">
                 <p className="text-base font-extrabold text-blue-700 dark:text-blue-300">720 × 1080 px</p>
                 <p className="text-[11px] text-blue-600/70 dark:text-blue-300/70">{t("Chuẩn HD (Khuyên dùng)")}</p>
@@ -67,7 +68,7 @@ export const VnptInputStandardsGuide: React.FC = () => {
                 </span>
               </div>
 
-              {/* Best (Full HD) */}
+              {/* Rất tốt (Full HD) */}
               <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/30 text-center space-y-1">
                 <p className="text-base font-extrabold text-emerald-700 dark:text-emerald-300">1080 × 1920 px</p>
                 <p className="text-[11px] text-emerald-600/70 dark:text-emerald-300/70">{t("Chuẩn Full HD")}</p>
@@ -78,7 +79,7 @@ export const VnptInputStandardsGuide: React.FC = () => {
             </div>
           </div>
 
-          {/* Detailed Criteria List */}
+          {/* Danh sách tiêu chí chi tiết */}
           <div className="space-y-2.5 pt-2">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
               {t("2. Quy định hình ảnh hợp lệ")}

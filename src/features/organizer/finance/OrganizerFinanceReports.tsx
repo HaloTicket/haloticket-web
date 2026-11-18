@@ -7,11 +7,13 @@ import { downloadOrganizerFinanceWorkbook, type FinanceExportColumn, type Financ
 
 import { revenueRange } from "./revenuePeriods";
 
+/** Một điểm của chuỗi doanh thu theo ngày: ngày, doanh thu gộp và tiền hoàn. */
 export interface OrganizerRevenueSeriesItem {
   date: string;
   grossAmount: string | number;
   refundAmount: string | number;
 }
+/** Props của hộp thoại xem trước và xuất báo cáo tài chính: dữ liệu sự kiện, yêu cầu rút tiền, chuỗi doanh thu, khoảng ngày, trạng thái tải/lỗi và các callback đổi bộ lọc. */
 export interface OrganizerFinanceReportsProps {
   events: EventSettlement[];
   payouts: PayoutResponse[];
@@ -28,22 +30,30 @@ export interface OrganizerFinanceReportsProps {
   onRangeChange?: (from: string, to: string) => void;
 }
 
+/** Loại báo cáo: doanh thu, số dư theo sự kiện, yêu cầu rút tiền hoặc hoàn tiền. */
 type ReportType = "revenue" | "settlements" | "payouts" | "refunds";
+/** Trường ngày dùng để lọc yêu cầu rút tiền: ngày tạo hoặc ngày chuyển tiền. */
 type DateField = "createdAt" | "transferredAt";
+/** Cột của bảng báo cáo, kèm cách căn lề. */
 type ReportColumn = FinanceExportColumn & { align?: "left" | "right" };
+/** Một dòng dữ liệu của bảng báo cáo. */
 type ReportRow = Record<string, unknown>;
 const reportLabels: Record<ReportType, string> = { revenue: "Doanh thu", settlements: "Số dư theo sự kiện", payouts: "Yêu cầu rút tiền", refunds: "Hoàn tiền" };
 const statusNames: Record<string, string> = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", PROCESSING: "Đang xử lý", COMPLETED: "Hoàn tất", FAILED: "Thất bại", NEEDS_VERIFICATION: "Cần xác minh", REJECTED: "Từ chối", CANCELLED: "Đã hủy", DISPUTE: "Tạm giữ" };
+/** Chuyển giá trị sang {@code bigint}; chuỗi không phải số nguyên thì trả về 0. */
 const toBigInt = (value: unknown): bigint => {
   const raw = String(value ?? "").trim();
   return /^-?\d+$/.test(raw) ? BigInt(raw) : 0n;
 };
+/** Định dạng số tiền {@code bigint} theo kiểu Việt Nam kèm ký hiệu ₫. */
 const money = (value: bigint) => `${value.toLocaleString("vi-VN")} ₫`;
+/** Kiểm tra ngày (lấy 10 ký tự đầu dạng yyyy-MM-dd) có nằm trong khoảng từ-đến không; bỏ trống một đầu nghĩa là không giới hạn đầu đó. */
 const inRange = (dateValue: string | undefined, from: string, to: string) => {
   if (!dateValue) return false;
   const day = /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? dateValue : dateValue.slice(0, 10);
   return (!from || day >= from) && (!to || day <= to);
 };
+/** Định dạng ngày theo kiểu vi-VN; giá trị rỗng trả về dấu gạch, chuỗi không phải ngày giữ nguyên. */
 const formatDate = (value: unknown) => {
   if (typeof value !== "string" || !value) return "—";
   const date = new Date(value);
@@ -70,6 +80,7 @@ const refundColumns: ReportColumn[] = [
   { key: "date", label: "Ngày ghi nhận" }, { key: "refundAmount", label: "Hoàn tiền tổng hợp (VND)", align: "right" },
 ];
 
+/** Hộp thoại xem trước báo cáo tài chính của tổ chức: chọn loại báo cáo, sự kiện, khoảng ngày, xem bảng dữ liệu kèm dòng tổng và xuất ra Excel. */
 export function OrganizerFinanceReports({ events, payouts, series, from, to, refundDataAvailable = false, refundDataNote, loading = false, error = "", onRetry, eventId = "", onEventChange, onRangeChange }: OrganizerFinanceReportsProps) {
   const [reportType, setReportType] = useState<ReportType>("revenue");
   const [payoutDateField, setPayoutDateField] = useState<DateField>("createdAt");
@@ -78,6 +89,7 @@ export function OrganizerFinanceReports({ events, payouts, series, from, to, ref
   const defaultFilename = `Bao_cao_${reportType}_${from || "bat-dau"}_${to || "hien-tai"}`;
   const filename = (customFilename.trim().replace(/\.xlsx$/i, "").replace(/[<>:"/\\|?*]/g, "_").split("").filter(char => char.charCodeAt(0) >= 32).join("").slice(0, 120) || defaultFilename) + ".xlsx";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  /** Áp dụng khoảng ngày nhanh (gần đây, tháng, năm) tính từ hôm nay theo múi giờ Việt Nam. */
   const chooseRange = (value: string) => {
     const range = value === "recent" || value === "month" || value === "year" ? revenueRange(value, today) : null;
     if (range) onRangeChange?.(range.from, range.to);
@@ -138,6 +150,7 @@ export function OrganizerFinanceReports({ events, payouts, series, from, to, ref
   }, [reportType, events, payouts, series, from, to, eventId, payoutDateField, refundDataAvailable, refundDataNote]);
 
   const tableRows = report.records.map((record) => record);
+  /** Xuất báo cáo hiện tại ra Excel (thêm dòng Tổng cộng ở cuối) và báo kết quả bằng toast; bỏ qua khi đang xuất, đang tải, có lỗi hoặc không có dữ liệu. */
   const exportCurrent = async () => {
     if (exporting || loading || error || !report.records.length) return;
     setExporting(true);

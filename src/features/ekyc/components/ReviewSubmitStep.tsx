@@ -10,6 +10,7 @@ import {
 } from "react-icons/fi";
 import { type ImageMetadata } from "@/utils/imageUtils";
 
+/** Props của bước xem lại: ba ảnh, metadata, trạng thái đồng ý và các hàm xoay, quay lại bước chỉnh sửa. */
 interface ReviewStepProps {
   previews: (string | null)[];
   metadatas: (ImageMetadata | null)[];
@@ -24,6 +25,7 @@ interface ReviewStepProps {
   returnUrl: string;
 }
 
+/** Bước xem lại cả ba ảnh (CCCD mặt trước, mặt sau, khuôn mặt), cho phép xoay hoặc quay lại sửa, và đồng ý để gửi xác minh. */
 export function ReviewSubmitStep({
   previews,
   metadatas,
@@ -42,6 +44,7 @@ export function ReviewSubmitStep({
     {
       index: 0,
       label: t("CCCD mặt trước"),
+      /** Quay về bước 1 (ảnh mặt trước). */
       goToStep: () => onGoToStep(1),
       icon: <FiCreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
       changeLabel: t("Thay đổi"),
@@ -52,6 +55,7 @@ export function ReviewSubmitStep({
     {
       index: 1,
       label: t("CCCD mặt sau"),
+      /** Quay về bước 2 (ảnh mặt sau). */
       goToStep: () => onGoToStep(2),
       icon: <FiCreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
       changeLabel: t("Thay đổi"),
@@ -62,6 +66,7 @@ export function ReviewSubmitStep({
     {
       index: 2,
       label: t("Khuôn mặt"),
+      /** Quay về bước 3 (chụp khuôn mặt). */
       goToStep: () => onGoToStep(3),
       icon: <FiCamera className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
       changeLabel: t("Chụp lại"),
@@ -73,7 +78,7 @@ export function ReviewSubmitStep({
 
   return (
     <div className="space-y-5">
-      {/* Step Header */}
+      {/* Tiêu đề bước */}
       <div className="space-y-1">
         <h3 className="text-base sm:text-lg font-bold app-text-main">
           {t("Kiểm tra thông tin")}
@@ -83,7 +88,7 @@ export function ReviewSubmitStep({
         </p>
       </div>
 
-      {/* 3 Review Cards with perfectly uniform grid and height */}
+      {/* Ba thẻ xem lại, lưới và chiều cao đồng đều */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {sides.map((side) => {
           const preview = previews[side.index];
@@ -96,7 +101,7 @@ export function ReviewSubmitStep({
               className="p-3.5 sm:p-4 rounded-xl border app-border app-bg-card flex flex-col justify-between h-full space-y-3 shadow-2xs"
             >
               <div className="space-y-3">
-                {/* Card Header: Icon, Title & Status */}
+                {/* Đầu thẻ: biểu tượng, tiêu đề và trạng thái */}
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold app-text-main flex items-center gap-1.5 min-w-0 truncate">
                     {side.icon}
@@ -121,7 +126,7 @@ export function ReviewSubmitStep({
                   )}
                 </div>
 
-                {/* Preview Image Box (Same Aspect Ratio across all cards) */}
+                {/* Khung ảnh xem trước (cùng tỷ lệ ở mọi thẻ) */}
                 <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-900/90 dark:bg-zinc-950 border app-border flex items-center justify-center">
                   {preview ? (
                     <img
@@ -140,7 +145,7 @@ export function ReviewSubmitStep({
                   )}
                 </div>
 
-                {/* Uniform Rotate Controls Row (Equal height on all 3 cards) */}
+                {/* Hàng nút xoay đồng đều (cùng chiều cao ở cả 3 thẻ) */}
                 {hasFile && side.canRotate ? (
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
@@ -169,7 +174,7 @@ export function ReviewSubmitStep({
                 )}
               </div>
 
-              {/* Bottom Action Button (Always aligned at the bottom) */}
+              {/* Nút thao tác ở đáy thẻ (luôn căn đáy) */}
               <button
                 type="button"
                 onClick={side.goToStep}
@@ -182,7 +187,7 @@ export function ReviewSubmitStep({
         })}
       </div>
 
-      {/* Consent Checkbox */}
+      {/* Ô đồng ý */}
       <label className="flex items-start gap-3 text-xs sm:text-sm p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/40 border app-border cursor-pointer hover:bg-slate-100/60 transition-colors">
         <input
           type="checkbox"
@@ -196,7 +201,7 @@ export function ReviewSubmitStep({
         </span>
       </label>
 
-      {/* Submit Bar */}
+      {/* Thanh gửi */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t app-border">
         <button
           type="button"

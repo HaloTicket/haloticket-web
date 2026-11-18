@@ -1,10 +1,12 @@
-// What the check-in screen tells the person at the gate. The ticket service answers a scan in two ways:
-//  - HTTP 200 with a body { status, code, ... }: SUCCESS, ALREADY_USED (status DUPLICATED) or TICKET_LOCKED (status INVALID);
-//  - HTTP 400 with { code, message } for WRONG_EVENT, WRONG_SHOWTIME, TICKET_NOT_FOUND, OUTSIDE_CHECKIN_WINDOW.
-// A 403 means the signed-in person may not scan this event. Texts are Vietnamese keys for i18n (the page calls t()).
+// Nội dung màn hình check-in báo cho người đứng cổng. Dịch vụ vé trả lời một lượt quét theo hai cách:
+//  - HTTP 200 kèm body { status, code, ... }: SUCCESS, ALREADY_USED (status DUPLICATED) hoặc TICKET_LOCKED (status INVALID);
+//  - HTTP 400 kèm { code, message } cho WRONG_EVENT, WRONG_SHOWTIME, TICKET_NOT_FOUND, OUTSIDE_CHECKIN_WINDOW.
+// HTTP 403 nghĩa là người đang đăng nhập không có quyền quét sự kiện này. Các văn bản là khóa tiếng Việt cho i18n (trang gọi t()).
 
+/** Mức độ của kết quả quét: thành công, cảnh báo hoặc lỗi (quyết định màu, âm thanh và độ rung). */
 export type CheckinTone = "success" | "warning" | "error";
 
+/** Kết quả một lượt check-in để màn hình hiển thị: mức độ, mã, tiêu đề, mô tả và thông tin vé nếu có. */
 export interface CheckinOutcome {
   tone: CheckinTone;
   code: string;
@@ -12,10 +14,11 @@ export interface CheckinOutcome {
   detail: string;
   ticketTypeName?: string;
   seatName?: string;
-  // for a ticket already used: when it went in the first time
+  // với vé đã dùng: thời điểm vé vào cổng lần đầu
   checkedInAt?: string;
 }
 
+/** Một thông báo mẫu gắn với mã kết quả. */
 interface Message { tone: CheckinTone; title: string; detail: string }
 
 const MESSAGES: Record<string, Message> = {
@@ -35,6 +38,7 @@ const MESSAGES: Record<string, Message> = {
   UNKNOWN: { tone: "error", title: "Không check-in được", detail: "Có lỗi xảy ra, thử lại sau ít phút." },
 };
 
+/** Phần body của câu trả lời quét vé mà dịch vụ vé gửi về (các trường đều có thể thiếu). */
 interface ScanBody {
   status?: string | null;
   code?: string | null;
@@ -43,6 +47,7 @@ interface ScanBody {
   checkedInAt?: string | null;
 }
 
+/** Dựng kết quả hiển thị từ mã; mã lạ chuyển thành {@code UNKNOWN}, thông tin vé và giờ vào cổng chỉ lấy khi có. */
 function build(code: string, body?: ScanBody | null): CheckinOutcome {
   const message = MESSAGES[code] ?? MESSAGES.UNKNOWN;
   const outcome: CheckinOutcome = { tone: message.tone, code: MESSAGES[code] ? code : "UNKNOWN", title: message.title, detail: message.detail };
@@ -52,7 +57,7 @@ function build(code: string, body?: ScanBody | null): CheckinOutcome {
   return outcome;
 }
 
-/** The body of an HTTP 200 answer to a scan. Never reports success for DUPLICATED or INVALID. */
+/** Chuyển body của câu trả lời HTTP 200 thành kết quả; không bao giờ báo thành công cho DUPLICATED hoặc INVALID. */
 export function outcomeFromResponse(body: ScanBody | null | undefined): CheckinOutcome {
   if (!body) return build("UNKNOWN");
   const status = (body.status ?? "").toUpperCase();
@@ -61,16 +66,16 @@ export function outcomeFromResponse(body: ScanBody | null | undefined): CheckinO
   if (status === "INVALID") return build(code in MESSAGES ? code : "TICKET_LOCKED", body);
   if (code === "SUCCESS") return build("SUCCESS", body);
   if (code in MESSAGES && code !== "UNKNOWN") return build(code, body);
-  // no explicit failure marker and no known code: a body with a check-in time is a completed check-in
+  // không có dấu hiệu thất bại rõ ràng và không có mã quen thuộc: body có giờ check-in thì coi là đã check-in xong
   return body.checkedInAt && !status.length ? build("SUCCESS", body) : build("UNKNOWN", body);
 }
 
-/** A scan that could not be sent and was stored (or not) in the offline queue. */
+/** Kết quả cho lượt quét không gửi được và đã được lưu (hoặc không lưu được) vào hàng chờ ngoại tuyến. */
 export function outcomeFromQueue(result: "added" | "duplicate" | "full"): CheckinOutcome {
   return build(result === "added" ? "QUEUED" : result === "duplicate" ? "QUEUE_DUPLICATE" : "QUEUE_FULL");
 }
 
-/** An axios error from the scan request. */
+/** Kết quả suy ra từ lỗi axios của yêu cầu quét: 403 là không có quyền, còn lại dựa vào mã lỗi trong body. */
 export function outcomeFromError(err: unknown): CheckinOutcome {
   const response = (err as { response?: { status?: number; data?: { code?: string } } } | null)?.response;
   if (response?.status === 403) return build("FORBIDDEN");

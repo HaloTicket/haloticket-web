@@ -3,6 +3,7 @@ import { t as translate } from "@/i18n";
 import { useId, useState, type ReactNode } from "react";
 import { FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 
+/** Props của ô mật khẩu: nhãn, giá trị, hàm đổi giá trị, lỗi hiển thị và biểu tượng bên trái. */
 interface PasswordFieldProps {
   autoComplete: string;
   error?: string;
@@ -16,6 +17,7 @@ interface PasswordFieldProps {
   leftIcon?: ReactNode;
 }
 
+/** Ô nhập mật khẩu có nút hiện hoặc ẩn mật khẩu và thông báo lỗi dưới ô. */
 export function PasswordField({
   autoComplete,
   error,

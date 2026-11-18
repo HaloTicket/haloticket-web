@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { FiAlertTriangle } from "react-icons/fi";
 
+/** Props của hộp thoại xác nhận admin: nội dung, nhãn nút, kiểu nguy hiểm, trạng thái đang xử lý và khả năng đóng. */
 export interface AdminConfirmModalProps {
   title: string;
   subtitle?: string;
@@ -16,6 +17,10 @@ export interface AdminConfirmModalProps {
   maxWidth?: string;
 }
 
+/**
+ * Hộp thoại xác nhận (AlertDialog) cho thao tác của admin. Không cho đóng bằng Esc hay nút Hủy khi đang `pending`
+ * hoặc `dismissible` là false; trả focus về phần tử trước đó khi đóng.
+ */
 export function AdminConfirmModal({ title, subtitle, confirmText = "Xác nhận", cancelText = "Hủy bỏ", isDanger = true, onClose, onConfirm, children, pending = false, dismissible = true, maxWidth = "max-w-lg" }: AdminConfirmModalProps) {
   const canClose = dismissible && !pending;
   const cancelRef = useRef<HTMLButtonElement>(null);

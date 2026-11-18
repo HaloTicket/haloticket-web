@@ -4,6 +4,7 @@ import { toast as sonnerToast } from "sonner";
 import type { NotificationItem } from "@/types";
 import { claimNotificationToast } from "@/utils/notificationToastSession";
 
+/** Props của toast thông báo: thông báo cần hiện, callback bấm/đóng, chữ nút, màu nhấn và cờ bật/tắt. */
 export interface NotificationToastProps {
   toast: NotificationItem | null;
   onToastClick: (toast: NotificationItem) => void;
@@ -13,9 +14,10 @@ export interface NotificationToastProps {
   enabled?: boolean;
 }
 
+/** Rút gọn nội dung thông báo: đổi số dạng khoa học sang định dạng vi-VN; với thông báo phê duyệt, cập nhật hoặc xem xét chỉ giữ phần tên trong ngoặc kép. */
 function compactMessage(message?: string): string | undefined {
   if (!message) return undefined;
-  // format any scientific numbers like 7.6E8đ into readable format
+  // đổi số dạng khoa học như 7.6E8đ thành dạng dễ đọc
   let text = message.replace(/(\d+(?:\.\d+)?)[eE]\+?(\d+)/g, (match) => {
     try {
       const num = Number(match);
@@ -31,6 +33,10 @@ function compactMessage(message?: string): string | undefined {
   return text;
 }
 
+/**
+ * Thành phần không có giao diện riêng: hiện toast sonner cho thông báo mới, mỗi thông báo chỉ hiện một lần nhờ
+ * `claimNotificationToast`. Khi `enabled` là false thì chỉ đánh dấu đã nhận và gọi `onClose`.
+ */
 export function NotificationToast({
   toast,
   onToastClick,
@@ -57,6 +63,7 @@ export function NotificationToast({
     }
     const id = claimNotificationToast(toast.userId, toast.id, contentKey);
     if (!id) return;
+    /** Gọi `onClose` nếu toast vừa đóng vẫn là toast hiện tại. */
     const closeCurrent = () => { if (currentToastId.current === id) handlers.current.onClose(); };
     sonnerToast.custom((toastId) => (
       <div className="app-bg-card border app-border shadow-lg rounded-xl p-4 w-full sm:w-[356px] flex flex-col pointer-events-auto">
