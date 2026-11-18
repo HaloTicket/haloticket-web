@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
+/** Trang hiển thị khi đường dẫn không tồn tại (404). */
 export default function NotFound() {
   useTranslation();
   return (

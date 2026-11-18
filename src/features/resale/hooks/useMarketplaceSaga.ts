@@ -4,6 +4,7 @@ import type { MarketplaceSagaResponse } from "@/types/marketplace";
 
 const terminalStates = new Set(["COMPLETED", "FAILED", "COMPENSATED"]);
 
+/** Hook theo dõi một saga chợ vé bằng cách gọi API lấy trạng thái lặp lại, giãn dần từ 1 giây tới tối đa 10 giây. Dừng khi saga ở trạng thái kết thúc, hoặc khi đang `WAITING_RECIPIENT` nếu bật `stopOnWaitingRecipient`; gặp lỗi vẫn thử lại. Trả về `saga`, `loading`, `error`. */
 export function useMarketplaceSaga(sagaId?: string, options?: { stopOnWaitingRecipient?: boolean }) {
   const [saga, setSaga] = useState<MarketplaceSagaResponse | null>(null);
   const [loading, setLoading] = useState(Boolean(sagaId));
@@ -21,6 +22,7 @@ export function useMarketplaceSaga(sagaId?: string, options?: { stopOnWaitingRec
     setLoading(true);
     setError(null);
 
+    /** Gọi API lấy saga một lần rồi tự đặt lịch lần kế tiếp với độ trễ tăng gấp đôi, trừ khi saga đã kết thúc hoặc hook đã bị hủy. */
     const poll = async () => {
       try {
         const result = await marketplaceApi.getSaga(sagaId);

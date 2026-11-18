@@ -29,8 +29,10 @@ import { TablePagination } from "@/components/common/TablePagination";
 import type { UserProfile } from "@/types";
 import type { OrganizerProfileData } from "@/types/organizer";
 
+/** Tab lọc danh sách sự kiện: sắp diễn ra, đã qua, chờ duyệt, nháp. */
 type MyEventTab = "upcoming" | "past" | "pending" | "draft";
 
+/** Một sự kiện trong danh sách của ban tổ chức (dữ liệu từ API, các trường có thể thiếu). */
 interface OrganizerEventItem {
   id?: string;
   _id?: string;
@@ -67,6 +69,10 @@ interface OrganizerEventItem {
   }>;
 }
 
+/**
+ * Trang "Sự kiện của tôi" của ban tổ chức: liệt kê các sự kiện do người dùng sở hữu hoặc được phân quyền, chia theo tab, có tìm kiếm và phân trang.
+ * Cho phép thu hồi yêu cầu duyệt với sự kiện đang chờ duyệt.
+ */
 export const MyEvents: React.FC = () => {
   const { t: translate } = useTranslation();
   const [activeTab, setActiveTab] = useState<MyEventTab>("upcoming");
@@ -81,6 +87,7 @@ export const MyEvents: React.FC = () => {
   const [myOrganizerProfile, setMyOrganizerProfile] = useState<OrganizerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  /** Xử lý bấm "Tạo sự kiện": nếu chưa đủ điều kiện eKYC thì chặn điều hướng và mở hộp thoại yêu cầu xác thực. */
   const handleCreateEventClick = async (e: React.MouseEvent) => {
     try {
       const eligibility = await ekycApi.getOrganizerEligibility();
@@ -89,17 +96,18 @@ export const MyEvents: React.FC = () => {
         setShowEkycModal(true);
       }
     } catch {
-      // if error or endpoint offline, proceed
+      // lỗi hoặc dịch vụ không phản hồi thì vẫn cho đi tiếp
     }
   };
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // bumped to read the list again after the organiser takes a review request back
+  // tăng giá trị này để tải lại danh sách sau khi ban tổ chức thu hồi yêu cầu duyệt
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    /** Tải hồ sơ người dùng, hồ sơ ban tổ chức và toàn bộ sự kiện; bỏ qua kết quả nếu component đã bị hủy. */
     const fetchEvents = async () => {
       try {
         const user = await userApi.getProfile();
@@ -127,6 +135,7 @@ export const MyEvents: React.FC = () => {
     };
   }, [reloadKey]);
 
+  /** Thu hồi yêu cầu duyệt của sự kiện đang chọn, đóng các hộp thoại rồi tải lại danh sách. */
   const handleCancelApproval = async () => {
     if (!cancellingEvent?.id) return;
     setIsCancelling(true);
@@ -142,6 +151,7 @@ export const MyEvents: React.FC = () => {
     }
   };
 
+  /** Kiểm tra sự kiện có thuộc về người dùng hiện tại không: là nhân sự được gán, hoặc khớp ban tổ chức theo userId, id/tên hồ sơ ban tổ chức, họ tên hay email. */
   const isMyEvent = (ev: OrganizerEventItem): boolean => {
     const user = currentUser || getCachedUserProfile();
     if (!user) return false;
@@ -153,27 +163,28 @@ export const MyEvents: React.FC = () => {
     const orgId = ev.organizer?.id;
     const orgName = (ev.organizer?.name || "").toLowerCase();
 
-    // check staff assignments
+    // kiểm tra danh sách nhân sự được gán
     if (ev.staffAssignments && ev.staffAssignments.some(s => s.email === currentEmail)) {
       return true;
     }
 
-    // direct match on organizer userId
+    // khớp trực tiếp theo userId của ban tổ chức
     if (orgUserId && currentUserId && orgUserId === currentUserId) return true;
 
-    // match on organizer profile id or name
+    // khớp theo id hoặc tên hồ sơ ban tổ chức
     if (myOrganizerProfile) {
       if (orgId && myOrganizerProfile.id && orgId === myOrganizerProfile.id) return true;
       if (orgName && myOrganizerProfile.name && orgName === myOrganizerProfile.name.toLowerCase()) return true;
     }
 
-    // match on full name or email of user
+    // khớp theo họ tên hoặc email của người dùng
     if (user.fullName && orgName && orgName === user.fullName.toLowerCase()) return true;
     if (currentEmail && orgName && orgName === currentEmail.toLowerCase()) return true;
 
     return false;
   };
 
+  /** Suy ra tab của sự kiện: đã qua nếu quá thời gian kết thúc, nếu không thì dựa trên trạng thái duyệt; trạng thái lạ coi là chờ duyệt. */
   const getEventTabStatus = (ev: OrganizerEventItem): string => {
     if (ev.endTime && new Date(ev.endTime) < new Date()) {
       return "past";
@@ -184,7 +195,7 @@ export const MyEvents: React.FC = () => {
     if (status === "DRAFT") return "draft";
     if (status === "ENDED" || status === "PASSED" || status === "COMPLETED") return "past";
     if (status === "APPROVED" || status === "UPCOMING" || status === "ACTIVE" || status === "ONGOING") return "upcoming";
-    return "pending"; // default newly created events to pending
+    return "pending"; // sự kiện mới tạo mặc định ở trạng thái chờ duyệt
   };
 
   const myEventsOnly = eventsList.filter(isMyEvent);
@@ -206,6 +217,7 @@ export const MyEvents: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
   const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  /** Xử lý bấm hành động trên thẻ sự kiện: với sự kiện chờ duyệt (hoặc chờ duyệt cập nhật) thì mở hộp thoại chi tiết yêu cầu duyệt. */
   const handleActionClick = (ev?: OrganizerEventItem) => {
     if (activeTab === "pending" || ev?.eventApprovalStatus === "PENDING" || ev?.eventApprovalStatus === "UPDATE_PENDING") {
       if (ev) setSelectedPendingEvent(ev);
@@ -215,9 +227,9 @@ export const MyEvents: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen app-bg-page p-4 md:p-8 space-y-6">
-      {/* Search Bar & Tab Navigation Filters */}
+      {/* Thanh tìm kiếm và các tab lọc trạng thái */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Search Input Box */}
+        {/* Ô nhập tìm kiếm */}
         <div className="flex items-center gap-2 app-bg-card border app-border rounded-xl p-1.5 shadow-xs max-w-md w-full">
           <div className="flex items-center gap-2 flex-1 pl-3">
             <FiSearch className="w-4 h-4 text-zinc-400" />
@@ -238,7 +250,7 @@ export const MyEvents: React.FC = () => {
             {translate("Tìm kiếm")} </button>
         </div>
 
-        {/* Status Tabs Navigation */}
+        {/* Các tab trạng thái */}
         <div className="inline-flex p-1.5 app-bg-card border app-border rounded-xl shadow-xs overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1 min-w-max">
             {tabs.map((tab) => (
@@ -269,7 +281,7 @@ export const MyEvents: React.FC = () => {
         </div>
       </div>
 
-      {/* Amber Alert Box when on Pending tab */}
+      {/* Hộp cảnh báo màu vàng khi ở tab chờ duyệt */}
       {activeTab === "pending" && (
         <div className="w-full p-4 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs md:text-sm shadow-xs flex items-center gap-2.5">
           <FiAlertTriangle className="w-5 h-5 shrink-0 text-slate-900" />
@@ -278,7 +290,7 @@ export const MyEvents: React.FC = () => {
         </div>
       )}
 
-      {/* Main Full Width Content List */}
+      {/* Danh sách nội dung chính, rộng toàn khung */}
       <div className="w-full space-y-6">
         {isLoading ? (
           <div className="w-full app-bg-card border app-border rounded-2xl p-12 flex flex-col items-center justify-center space-y-3 min-h-[300px]">
@@ -286,7 +298,7 @@ export const MyEvents: React.FC = () => {
             <p className="text-xs font-bold app-text-muted">{translate("Đang tải danh sách sự kiện...")}</p>
           </div>
         ) : filteredEvents.length === 0 ? (
-          /* Empty State Illustration */
+          /* Hình minh họa khi danh sách trống */
           <div className="w-full app-bg-card border app-border rounded-2xl p-12 md:p-16 flex flex-col items-center justify-center text-center space-y-4 shadow-sm min-h-[380px]">
             <div className="w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
               <FiInbox className="w-10 h-10 stroke-[1.5]" />
@@ -310,7 +322,7 @@ export const MyEvents: React.FC = () => {
             </Link>
           </div>
         ) : (
-          /* List of Events Cards (Horizontal Layout with Royal Blue Theme) */
+          /* Danh sách thẻ sự kiện (bố cục ngang, tông xanh hoàng gia) */
           <div className="space-y-4">
             {paginatedEvents.map((ev, idx) => {
               const eventImg = ev.bannerUrl || ev.thumbnailUrl || ev.posterImage || ev.image || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=800&q=80";
@@ -323,14 +335,14 @@ export const MyEvents: React.FC = () => {
                   key={ev.id || ev._id || `event-item-${idx}`}
                   className="app-bg-card border app-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
                 >
-                  {/* Main Card Top Section */}
+                  {/* Phần trên của thẻ */}
                   <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
-                    {/* Poster Image 16:9 */}
+                    {/* Ảnh poster tỷ lệ 16:9 */}
                     <div className="w-full sm:w-48 aspect-[16/9] rounded-xl overflow-hidden bg-slate-800 shrink-0">
                       <img src={eventImg} alt={ev.title || translate("Sự kiện")} className="w-full h-full object-cover" />
                     </div>
 
-                    {/* Event Information */}
+                    {/* Thông tin sự kiện */}
                     <div className="space-y-2 flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <h3 className="text-base md:text-lg font-extrabold app-text-main">
@@ -360,7 +372,7 @@ export const MyEvents: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Bottom Action Bar with 5 icons (Royal Blue Theme) */}
+                  {/* Thanh hành động phía dưới với 5 biểu tượng (tông xanh hoàng gia) */}
                   <div className="border-t app-border bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-5 text-center divide-x app-border">
                     {activeTab === "upcoming" ? (
                       <>
@@ -468,7 +480,7 @@ export const MyEvents: React.FC = () => {
               );
             })}
 
-            {/* Table Pagination */}
+            {/* Phân trang */}
             <TablePagination
               currentPage={currentPage}
               totalPages={totalPages}

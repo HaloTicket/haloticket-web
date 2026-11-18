@@ -6,16 +6,19 @@ import { FiUser } from "react-icons/fi";
 import { PATHS } from "@/routes/paths";
 import { getAuthErrorMessage, secondsUntil, type LocalizedError } from "@/services/authApi";
 
+/** Dữ liệu yêu cầu khôi phục mật khẩu: email hoặc số điện thoại đã đăng ký. */
 export interface PasswordRecoveryRequest {
   identifier: string;
 }
 
+/** Phiên thử thách OTP do máy chủ cấp: mã phiên, hạn dùng và thời điểm được gửi lại mã. */
 interface Challenge {
   challengeId: string;
   expiresAt: string;
   resendAvailableAt: string;
 }
 
+/** Props của trang quên mật khẩu: ba hàm gọi API để yêu cầu, xác minh và gửi lại OTP. */
 interface ForgotPasswordProps {
   onSubmit: (data: PasswordRecoveryRequest) => Promise<Challenge>;
   onVerifyOtp: (
@@ -25,6 +28,7 @@ interface ForgotPasswordProps {
   onResendOtp: (challengeId: string) => Promise<Challenge>;
 }
 
+/** Trang quên mật khẩu gồm hai bước: nhập định danh để nhận OTP, rồi nhập OTP; xác minh thành công thì chuyển sang trang đặt lại mật khẩu kèm token. */
 export default function ForgotPassword({
   onSubmit,
   onVerifyOtp,
@@ -49,6 +53,7 @@ export default function ForgotPassword({
     return () => window.clearInterval(timer);
   }, [cooldown]);
 
+  /** Gửi yêu cầu cấp OTP, lưu phiên thử thách, chuyển sang bước nhập OTP và bắt đầu đếm ngược gửi lại. */
   async function requestOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
@@ -67,6 +72,7 @@ export default function ForgotPassword({
     }
   }
 
+  /** Kiểm tra OTP đủ 6 chữ số và còn hạn, xác minh với máy chủ rồi điều hướng sang trang đặt lại mật khẩu. */
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
@@ -93,6 +99,7 @@ export default function ForgotPassword({
     }
   }
 
+  /** Gửi lại OTP khi hết thời gian chờ và không có yêu cầu nào đang chạy. */
   async function resendOtp() {
     if (!challenge || cooldown || isSubmitting) return;
     setError(undefined);

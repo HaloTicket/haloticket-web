@@ -35,17 +35,20 @@ import { approvalListUrl, displayApprovalStatus, normalizeApprovalEvents } from 
 import type { ApprovalEventRecord } from "@/utils/approvalModel";
 import { isTicketInStock } from "@/utils/ticketQuantities";
 
+/** Định dạng ngày giờ ngắn theo vi-VN; giá trị sai thì trả về chuỗi gốc. */
 function displayDate(value?: string): string | undefined {
   if (!value) return undefined;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : value;
 }
 
+/** Lấy tên khu từ trường {@code zoneName} khi bản ghi dùng tên trường khác. */
 function altZoneName(zone: object): string | undefined {
   const value = (zone as { zoneName?: unknown }).zoneName;
   return typeof value === "string" ? value : undefined;
 }
 
+/** Trang chi tiết hồ sơ duyệt sự kiện: thông tin sự kiện, đánh giá rủi ro AI, trùng lịch địa điểm, xem trước sơ đồ ghế và các thao tác duyệt. */
 export function EventApprovalDetail() {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -63,6 +66,7 @@ export function EventApprovalDetail() {
   const [showSeatMapModal, setShowSeatMapModal] = useState(false);
   const requestVersion = useRef(0);
 
+  /** Kiểm tra sự kiện có trùng thời gian với sự kiện khác (chưa bị từ chối) tại cùng địa điểm hay không. */
   const checkVenueCollision = (currentEvent: ApprovalEventRecord, allEvents: ApprovalEventRecord[]) => {
     const venueName = (currentEvent.locationName || currentEvent.address || "").toLowerCase().trim();
     if (!venueName) {
@@ -85,7 +89,7 @@ export function EventApprovalDetail() {
       const evStart = new Date(ev.startTime || ev.submittedAt || Date.now()).getTime();
       const evEnd = new Date(ev.endTime || evStart + 4 * 3600000).getTime();
 
-      // check overlap
+      // kiểm tra giao nhau về thời gian
       return curStart < evEnd && curEnd > evStart;
     });
 
@@ -103,6 +107,7 @@ export function EventApprovalDetail() {
     }
   };
 
+  /** Tải sơ đồ ghế của sự kiện; không có hoặc lỗi thì để trống. */
   const loadSeatLayout = useCallback(async (targetId: string) => {
     try {
       const layout = await ticketApi.getSeatLayoutByEventId(targetId);
@@ -116,10 +121,11 @@ export function EventApprovalDetail() {
     }
   }, []);
 
+  /** Tải hồ sơ sự kiện từ danh sách duyệt, bỏ qua kết quả của lần gọi cũ. */
   const loadEvent = useCallback(async () => {
     const version = ++requestVersion.current;
     try {
-      // the approval list is the only confirmed admin source
+      // danh sách duyệt là nguồn quản trị duy nhất đã được xác nhận
       const data = await eventApi.getApprovalEvents("ALL");
       const normalized = normalizeApprovalEvents(data);
       const found = normalized.find((item) => item.id === eventId) ?? null;
@@ -128,7 +134,7 @@ export function EventApprovalDetail() {
         setResolvedId(eventId);
         setState(found ? "ready" : "missing");
 
-        // automatically check venue schedule collision with other events
+        // tự động kiểm tra trùng lịch địa điểm với các sự kiện khác
         if (found) {
           checkVenueCollision(found, normalized);
           loadSeatLayout(found.id);
@@ -142,7 +148,7 @@ export function EventApprovalDetail() {
     }
   }, [eventId]);
 
-  // Parse seat layout into interactive Canvas document
+  // Chuyển sơ đồ ghế thành tài liệu cho canvas tương tác
   const parsedCanvasDoc = useMemo<{
     stages: StageElement[];
     structures: StructureElement[];
@@ -205,7 +211,7 @@ export function EventApprovalDetail() {
     return null;
   }, [seatLayout]);
 
-  // Format description text preserving linebreaks and paragraphs
+  // Định dạng mô tả, giữ nguyên xuống dòng và đoạn văn
   const rawDesc = event?.description || event?.descriptionText || "";
   const formattedDescription = useMemo(() => {
     if (!rawDesc) return "";
@@ -218,7 +224,8 @@ export function EventApprovalDetail() {
       .join("");
   }, [rawDesc]);
 
-  // multi-layer risk assessment; the server keeps the stored result for unchanged content, nothing is cached in the browser
+  // đánh giá rủi ro nhiều tầng; máy chủ giữ kết quả đã lưu nếu nội dung không đổi, trình duyệt không lưu đệm gì
+  /** Gọi AI đánh giá rủi ro của sự kiện (có thể buộc chấm lại); lỗi thì hiện thông báo thay vì điểm 0. */
   const runRiskAssessment = useCallback(async (targetEvent: ApprovalEventRecord, refresh: boolean = false) => {
     setIsAnalyzingRisk(true);
     setRiskError(null);
@@ -236,7 +243,7 @@ export function EventApprovalDetail() {
       setRiskScore(score);
     } catch (error) {
       console.error("Risk assessment failed:", error);
-      // Failures are shown, never rendered as a green 0.
+      // Lỗi được hiển thị, không bao giờ hiện như điểm 0 màu xanh.
       setRiskScore(null);
       setRiskError(getAiErrorMessage(error));
     } finally {
@@ -271,7 +278,7 @@ export function EventApprovalDetail() {
         <main className="space-y-5 min-w-0">
           {(event.bannerUrl || event.posterImage) && <div className="overflow-hidden rounded-lg shadow-xs border app-border app-bg-card"><img src={event.bannerUrl || event.posterImage} alt="" className="h-52 w-full object-cover sm:h-64" /></div>}
           
-          {/* Multi-layer risk assessment: AI only suggests, the admin decides */}
+          {/* Đánh giá rủi ro nhiều tầng: AI chỉ gợi ý, quản trị viên quyết định */}
           <div aria-busy={isAnalyzingRisk} className="rounded-lg border app-border app-bg-card p-4 shadow-xs">
             {(isAnalyzingRisk && !riskScore) || (!riskError && !riskScore) ? (
               <p role="status" className="flex items-center gap-2 text-xs app-text-muted">
@@ -301,7 +308,7 @@ export function EventApprovalDetail() {
             </dl>
           </section>
 
-          {/* Venue Collision Card */}
+          {/* Thẻ trùng lịch địa điểm */}
           {collisionInfo && (
             <section className={`rounded-lg p-4 border flex items-start gap-3 shadow-xs ${
               collisionInfo.hasCollision 
@@ -330,7 +337,7 @@ export function EventApprovalDetail() {
             </section>
           )}
 
-          {/* SeatMap Preview Section */}
+          {/* Phần xem trước sơ đồ ghế */}
           <section className="rounded-lg shadow-xs border app-border app-bg-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -387,7 +394,7 @@ export function EventApprovalDetail() {
             )}
           </section>
 
-          {/* SeatMap Modal with Real Interactive Canvas */}
+          {/* Hộp thoại sơ đồ ghế với canvas tương tác thật */}
           {showSeatMapModal && seatLayout && createPortal(
             <div className="fixed inset-0 min-h-screen w-screen z-[99999] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in">
               <div className="relative w-full max-w-5xl h-[85vh] flex flex-col rounded-2xl border app-border app-bg-card shadow-2xl overflow-hidden">

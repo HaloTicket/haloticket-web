@@ -6,6 +6,7 @@ import type { TicketItem } from "@/types/organizer";
 import { SeatCanvas } from "@/features/organizer/event-manage/components/seating/SeatCanvas";
 import { formatCurrency } from "@/utils/formatters";
 
+/** Props của màn gán vé vào sơ đồ: tài liệu sơ đồ, danh sách hạng vé, hàm gán hạng vé cho khu vực và hàm hoàn tất (tùy chọn). */
 interface SeatMapTicketAssignerProps {
   seatMapDocument: SeatMapDocument;
   tickets: TicketItem[];
@@ -13,6 +14,7 @@ interface SeatMapTicketAssignerProps {
   onSave?: () => void;
 }
 
+/** Màn gán hạng vé vào từng khu vực của sơ đồ ghế: danh sách khu vực và trạng thái đã gán bên trái, canvas chỉ xem bên phải. */
 export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
   seatMapDocument,
   tickets,
@@ -30,13 +32,16 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
   const zonesList = Object.values(seatMapDocument.zones || {});
   const currentSelectedZone = selectedZoneId ? seatMapDocument.zones[selectedZoneId] : null;
 
+  /** Hàm rỗng thay cho cập nhật ghế, vì canvas ở chế độ chỉ xem. */
   const dummySetSeats = () => {};
+  /** Hàm rỗng thay cho cập nhật sân khấu, vì canvas ở chế độ chỉ xem. */
   const dummySetStages = () => {};
+  /** Hàm rỗng thay cho cập nhật công trình, vì canvas ở chế độ chỉ xem. */
   const dummySetStructures = () => {};
 
   return (
     <div className="flex flex-col h-[750px] w-full app-bg-card border app-border rounded-2xl overflow-hidden shadow-2xl">
-      {/* Top Header */}
+      {/* Thanh tiêu đề phía trên */}
       <div className="flex items-center justify-between px-6 py-3 border-b app-border bg-slate-50 dark:bg-slate-900/60">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
@@ -61,7 +66,7 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Side Panel: Zones & Ticket Tier Selection */}
+        {/* Bảng bên trái: chọn khu vực và hạng vé */}
         <div className="w-80 border-r app-border p-5 bg-slate-50/50 dark:bg-slate-900/30 overflow-y-auto no-scrollbar space-y-6">
           <div className="space-y-2">
             <h4 className="text-xs font-extrabold uppercase tracking-wider app-text-muted">{t("1. Danh sách Khu vực (Zones)")}</h4>
@@ -149,7 +154,7 @@ export const SeatMapTicketAssigner: React.FC<SeatMapTicketAssignerProps> = ({
           )}
         </div>
 
-        {/* Right Side Canvas (Read-only visual layout mode) */}
+        {/* Canvas bên phải (chế độ chỉ xem) */}
         <div className="flex-1 bg-slate-900 overflow-auto relative p-4 flex items-center justify-center">
           <SeatCanvas
             seats={seatMapDocument.seats || []}

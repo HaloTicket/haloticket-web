@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { PATHS } from "@/routes/paths";
 import { FiX } from "react-icons/fi";
 
+/** Props của hộp thoại yêu cầu đăng nhập: trạng thái mở, hàm đóng, tiêu đề, nội dung và đường dẫn quay lại sau đăng nhập. */
 export interface LoginRequiredModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,6 +14,10 @@ export interface LoginRequiredModalProps {
   redirectUrl?: string;
 }
 
+/**
+ * Hộp thoại mời khách đăng nhập hoặc đăng ký, dựng qua portal. Đóng bằng Esc hoặc bấm nền; khoá cuộn trang khi mở.
+ * Trước khi chuyển trang, lưu `redirectUrl` vào `sessionStorage` (khóa `haloticket_auth_redirect`).
+ */
 export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
   isOpen,
   onClose,
@@ -26,6 +31,7 @@ export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    /** Đóng hộp thoại khi nhấn Escape. */
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -42,12 +48,14 @@ export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Lưu đường dẫn quay lại, đóng hộp thoại rồi chuyển tới trang đăng nhập. */
   const handleGoToLogin = () => {
     if (redirectUrl) sessionStorage.setItem("haloticket_auth_redirect", redirectUrl);
     onClose();
     navigate(PATHS.LOGIN);
   };
 
+  /** Lưu đường dẫn quay lại, đóng hộp thoại rồi chuyển tới trang đăng ký. */
   const handleGoToRegister = () => {
     if (redirectUrl) sessionStorage.setItem("haloticket_auth_redirect", redirectUrl);
     onClose();
@@ -65,7 +73,7 @@ export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
       aria-labelledby="login-modal-title"
     >
       <div className="relative w-full max-w-[360px] rounded-2xl app-bg-card border app-border p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-center">
-        {/* Close Button */}
+        {/* Nút đóng */}
         <button
           type="button"
           onClick={onClose}
@@ -75,7 +83,7 @@ export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
           <FiX className="w-4 h-4" />
         </button>
 
-        {/* Title & Message */}
+        {/* Tiêu đề và nội dung */}
         <div className="space-y-2 pt-2">
           <h3
             id="login-modal-title"
@@ -91,7 +99,7 @@ export const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Các nút hành động */}
         <div className="pt-2 space-y-3">
           <div className="grid grid-cols-2 gap-2.5">
             <button

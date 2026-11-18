@@ -12,13 +12,16 @@ import {
 } from "react-icons/fi";
 import { toast } from "sonner";
 
+/** Props của hộp thoại cấu hình cảnh báo: trạng thái mở và hàm đóng. */
 interface AlertConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/** Hộp thoại cấu hình kênh cảnh báo tự động (Email, Telegram, Zalo), lưu cấu hình vào localStorage và hướng dẫn chạy script giám sát. */
 export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onClose }) => {
   const { t, i18n } = useTranslation();
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [adminEmail, setAdminEmail] = useState(() => {
     return localStorage.getItem("haloticket_alert_emails") || "vutkd23405@gmail.com, tcminhangiang@gmail.com";
@@ -40,6 +43,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
+    /** Giả lập gửi cảnh báo kiểm thử: chỉ đợi một khoảng ngắn rồi hiện thông báo, không gọi máy chủ. */
     const handleTestAlert = () => {
     setIsSendingTest(true);
     setTimeout(() => {
@@ -48,6 +52,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
     }, 1200);
   };
 
+  /** Lưu cấu hình các kênh cảnh báo vào localStorage rồi đóng hộp thoại. */
   const handleSaveConfig = () => {
     localStorage.setItem("haloticket_alert_emails", adminEmail);
     localStorage.setItem("haloticket_alert_telegram_token", telegramToken);
@@ -60,6 +65,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
 
   const commandStr = "python haloticket-backend/scripts/monitoring/alert_notifier.py --watch --interval 60";
 
+  /** Sao chép lệnh chạy script giám sát vào clipboard. */
   const handleCopyCmd = () => {
     navigator.clipboard.writeText(commandStr);
     setCopiedCmd(true);
@@ -70,7 +76,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="relative w-full max-w-3xl max-h-[97vh] overflow-y-auto app-bg-card border app-border rounded-lg shadow-2xl p-6 text-[var(--text-main)] space-y-5">
-        {/* Header */}
+        {/* Đầu trang */}
         <div className="flex items-center justify-between border-b app-border pb-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
@@ -92,9 +98,9 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Inputs */}
+        {/* Ô nhập liệu */}
         <div className="space-y-4 text-xs">
-          {/* Email Settings */}
+          {/* Cấu hình email */}
           <div className="space-y-1.5 p-3.5 rounded-lg border app-border app-bg-subnav">
             <label className="font-bold flex items-center gap-1.5 app-text-main">
               <FiMail className="w-4 h-4 text-blue-500" />
@@ -112,7 +118,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
             </span>
           </div>
 
-          {/* Telegram Bot Settings */}
+          {/* Cấu hình bot Telegram */}
           <div className="space-y-1.5 p-3.5 rounded-lg border app-border app-bg-subnav">
             <label className="font-bold flex items-center justify-between app-text-main">
               <span className="flex items-center gap-1.5">
@@ -150,7 +156,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
             </span>
           </div>
 
-          {/* Zalo Settings */}
+          {/* Cấu hình Zalo */}
           <div className="space-y-1.5 p-3.5 rounded-lg border app-border app-bg-subnav">
             <label className="font-bold flex items-center gap-1.5 app-text-main">
               <FiMessageSquare className="w-4 h-4 text-emerald-500" />
@@ -183,7 +189,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
             </span>
           </div>
 
-          {/* Automated Watchdog Command */}
+          {/* Lệnh giám sát tự động */}
           <div className="space-y-1.5 p-3.5 rounded-lg border app-border bg-slate-900 text-slate-100">
             <div className="flex items-center justify-between">
               <span className="font-bold flex items-center gap-1.5 text-xs text-sky-400">
@@ -207,7 +213,7 @@ export const AlertConfigModal: React.FC<AlertConfigModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
-        {/* Footer actions */}
+        {/* Thao tác cuối hộp thoại */}
         <div className="flex items-center justify-between pt-3 border-t app-border">
           <button
             type="button"

@@ -10,20 +10,24 @@ import type { EkycStatusResponse } from "@/types/ekyc";
 import type { UserProfile, UserProfileUpdateRequest } from "@/types";
 import { CustomSelect } from "@/components/common/CustomSelect";
 
+/** Props của mục hồ sơ: hồ sơ hiện tại và cờ che email cá nhân. */
 interface ProfileSettingsSectionProps {
   profile: UserProfile | null;
   hideEmail: boolean;
 }
 
 const fieldClass = "w-full min-h-9 px-3.5 bg-slate-50 dark:bg-[#1E1E20] focus:bg-white dark:focus:bg-[#171719] rounded-md border app-border focus:border-blue-500 text-[11px] sm:text-xs app-text-main outline-none transition-all";
+/** Tách họ tên thành họ (các từ đầu) và tên (từ cuối cùng). */
 const splitName = (value: string) => {
   const parts = value.trim().split(/\s+/).filter(Boolean);
   return { familyName: parts.slice(0, -1).join(" "), givenName: parts.at(-1) || "" };
 };
 
+/** Mục "Hồ sơ" của cài đặt quản trị: sửa họ tên, giới tính, số điện thoại, ảnh đại diện và hiển thị trạng thái xác minh danh tính. */
 export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSettingsSectionProps) {
   const { i18n } = useTranslation();
   const en = i18n.resolvedLanguage === "en";
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ đang dùng. */
   const copy = (vi: string, english: string) => en ? english : vi;
   const [current, setCurrent] = useState<UserProfile | null>(profile);
   const [verified, setVerified] = useState(false);
@@ -58,6 +62,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
     return () => { active = false; };
   }, []);
 
+  /** Kiểm tra họ tên rồi gửi cập nhật hồ sơ lên máy chủ; chỉ chạy khi hồ sơ đã đồng bộ và không có tác vụ đang chạy. */
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!verified || saving || uploading) return;
@@ -83,6 +88,7 @@ export default function ProfileSettingsSection({ profile, hideEmail }: ProfileSe
     }
   }
 
+  /** Kiểm tra loại tệp (JPG, PNG, WebP) và dung lượng (tối đa 5 MB), tải ảnh lên thư mục {@code avatars} và gán URL vào biểu mẫu; chưa lưu hồ sơ. */
   async function uploadAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";

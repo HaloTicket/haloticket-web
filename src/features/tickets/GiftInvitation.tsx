@@ -8,8 +8,10 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { PATHS } from "@/routes/paths";
 
+/** Dữ liệu lời mời tặng vé do API marketplace trả về. */
 type Invitation = Awaited<ReturnType<typeof marketplaceApi.getGiftInvitation>>;
 
+/** Trang người nhận mở từ liên kết lời mời tặng vé (`sagaId`, `token`). Yêu cầu đăng nhập, tải thông tin lời mời và sự kiện, cho nhận hoặc từ chối vé, và thăm dò trạng thái mỗi 3 giây khi đang `WAITING_TRANSFER`. */
 export default function GiftInvitation() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
@@ -73,6 +75,7 @@ export default function GiftInvitation() {
     );
   }
 
+  /** Nhận vé được tặng: gọi API chấp nhận và cập nhật trạng thái; lỗi eKYC được map sang thông báo riêng. */
   const accept = async () => {
     setBusy(true);
     setError("");
@@ -90,6 +93,7 @@ export default function GiftInvitation() {
     finally { setBusy(false); }
   };
 
+  /** Từ chối lời mời tặng vé, đặt trạng thái cục bộ thành `DECLINED` khi thành công. */
   const decline = async () => {
     setBusy(true);
     setError("");
@@ -106,7 +110,7 @@ export default function GiftInvitation() {
 
   const seatLabel = [invitation?.row, invitation?.seat].filter(Boolean).join("-");
 
-  /* ──── Success state ──── */
+  /* Trạng thái thành công */
   if (state === "COMPLETED") {
     return (
       <main className="flex min-h-[60vh] items-center justify-center app-bg-page app-text-main px-4 py-12">
@@ -139,7 +143,7 @@ export default function GiftInvitation() {
     );
   }
 
-  /* ──── Failed / Compensated state ──── */
+  /* Trạng thái thất bại hoặc đã hoàn tác */
   if (["FAILED", "COMPENSATED"].includes(state)) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center app-bg-page app-text-main px-4 py-12">
@@ -159,7 +163,7 @@ export default function GiftInvitation() {
     );
   }
 
-  /* ──── Declined state ──── */
+  /* Trạng thái đã từ chối */
   if (state === "DECLINED") {
     return (
       <main className="flex min-h-[60vh] items-center justify-center app-bg-page app-text-main px-4 py-12">

@@ -13,6 +13,7 @@ const BEEP: Record<CheckinTone, Array<{ freq: number; ms: number }>> = {
 
 let audioContext: AudioContext | null = null;
 
+/** Phát tiếng bíp theo mức kết quả (số nốt và tần số khác nhau); bỏ qua nếu trình duyệt không có Web Audio. */
 function beep(tone: CheckinTone): void {
   const Ctor = typeof window === "undefined" ? undefined : (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
   if (!Ctor) return;
@@ -35,11 +36,11 @@ function beep(tone: CheckinTone): void {
       at += note.ms / 1000 + 0.06;
     }
   } catch {
-    // sound is a convenience: a browser that refuses audio must not break the scan
+    // âm thanh chỉ là tiện ích: trình duyệt từ chối phát âm thanh thì không được làm hỏng lượt quét
   }
 }
 
-/** Short vibration and beep for a scan result, only where the browser supports them. */
+/** Rung ngắn và phát tiếng bíp báo kết quả quét, chỉ khi trình duyệt hỗ trợ. */
 export function giveCheckinFeedback(tone: CheckinTone): void {
   try {
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(VIBRATION[tone]);

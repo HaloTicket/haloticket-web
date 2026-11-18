@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { adminConfigApi } from "@/services/adminConfigApi";
 
+/** Props của hộp thoại lọc nâng cao: trạng thái mở, hàm đóng, hàm áp dụng bộ lọc và giá trị hiện tại. */
 interface AdvancedFilterModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -10,6 +11,7 @@ interface AdvancedFilterModalProps {
   currentCategory?: string;
 }
 
+/** Hộp thoại lọc nâng cao theo địa điểm, sự kiện miễn phí và danh mục (danh mục đang hoạt động lấy từ API); đồng bộ lại giá trị hiện tại mỗi khi mở. */
 export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
   isOpen,
   onClose,
@@ -50,12 +52,14 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Đưa các bộ lọc về mặc định (toàn quốc, không miễn phí, mọi danh mục). */
   const handleReset = () => {
     setSelectedLocation("Toàn quốc");
     setIsFree(false);
     setSelectedCategory("Tất cả");
   };
 
+  /** Gửi bộ lọc đã chọn lên cha rồi đóng hộp thoại. */
   const handleApply = () => {
     onApply({
       location: selectedLocation,
@@ -67,7 +71,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
 
   return (
     <div className="absolute top-full right-0 z-50 mt-2 w-[85vw] sm:w-[360px] app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in slide-in-from-top-2">
-      {/* Location Section */}
+      {/* Phần địa điểm */}
       <div className="space-y-3">
         <h4 className="font-extrabold text-xs md:text-sm app-text-main">
           {translate("Vị trí")}</h4>
@@ -92,7 +96,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
 
       <hr className="border-slate-200/60 dark:border-slate-800/60" />
 
-      {/* Price Section */}
+      {/* Phần giá */}
       <div className="flex items-center justify-between">
         <div>
           <h4 className="font-extrabold text-xs md:text-sm app-text-main">
@@ -100,7 +104,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
           <span className="text-xs font-semibold app-text-muted">{translate("Miễn phí")}</span>
         </div>
 
-        {/* Toggle Switch */}
+        {/* Công tắc bật tắt */}
         <button
           type="button"
           onClick={() => setIsFree(!isFree)}
@@ -116,7 +120,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
 
       <hr className="border-slate-200/60 dark:border-slate-800/60" />
 
-      {/* Category Section */}
+      {/* Phần danh mục */}
       <div className="space-y-3">
         <h4 className="font-extrabold text-xs md:text-sm app-text-main">
           {translate("Thể loại")}</h4>
@@ -140,7 +144,7 @@ export const AdvancedFilterModal: React.FC<AdvancedFilterModalProps> = ({
         </div>
       </div>
 
-      {/* Action Footer Buttons */}
+      {/* Các nút thao tác ở chân hộp thoại */}
       <div className="flex items-center gap-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
         <button
           type="button"

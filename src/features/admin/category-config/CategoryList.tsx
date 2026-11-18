@@ -10,14 +10,17 @@ import { adminConfigApi } from "@/services/adminConfigApi";
 import { mediaApi } from "@/services/mediaApi";
 import { toast } from "sonner";
 
+/** Bộ lọc hiển thị danh mục: tất cả, đang hiện hoặc đang ẩn. */
 type VisibilityFilter = "all" | "visible" | "hidden";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const inputClass =
   "w-full px-3 min-h-9 text-xs rounded-md border app-border bg-slate-50 dark:bg-[#1E1E20] focus:bg-white dark:focus:bg-[#171719] outline-none focus:border-blue-500 transition-colors app-text-main";
 
+/** Danh mục đang hiển thị khi không ở trạng thái {@code INACTIVE} và {@code active} không bị tắt. */
 const isVisible = (c: Category) => c.status !== "INACTIVE" && c.active !== false;
 
+/** Tạo slug từ tên: bỏ dấu tiếng Việt, đổi {@code đ} thành {@code d}, chữ thường, ký tự lạ thành dấu gạch ngang. */
 function slugify(text: string): string {
   return text
     .normalize("NFD")
@@ -29,7 +32,7 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** The message the backend sent, so the admin sees why a save failed (a duplicate name, an invalid value...). */
+/** Thông báo lỗi do backend trả về để quản trị viên biết vì sao lưu thất bại (trùng tên, giá trị không hợp lệ...). */
 function apiErrorMessage(error: unknown, fallback: string): string {
   const e = error as { response?: { status?: number; data?: { message?: string; error?: string; detail?: string } }; message?: string };
   const body = e.response?.data;
@@ -40,11 +43,13 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Lấy mảng danh mục từ phản hồi API (mảng trần hoặc bọc trong {@code data}); không hợp lệ thì trả mảng rỗng. */
 function unwrap(res: unknown): Category[] {
   const data = Array.isArray(res) ? res : (res as { data?: unknown } | null)?.data;
   return Array.isArray(data) ? (data as Category[]) : [];
 }
 
+/** Sắp xếp danh mục theo {@code sortOrder}, giữ thứ tự gốc khi bằng nhau, mục thiếu thứ tự xếp cuối. */
 function sortedByOrder(list: Category[]): Category[] {
   return list
     .map((c, index) => ({ c, index }))
@@ -52,6 +57,7 @@ function sortedByOrder(list: Category[]): Category[] {
     .map(({ c }) => c);
 }
 
+/** Công tắc bật tắt hiển thị của một danh mục. */
 function VisibilitySwitch({ checked, onChange, label, disabled }: { checked: boolean; onChange: () => void; label: string; disabled?: boolean }) {
   return (
     <button
@@ -70,6 +76,7 @@ function VisibilitySwitch({ checked, onChange, label, disabled }: { checked: boo
   );
 }
 
+/** Màn cấu hình danh mục sự kiện: tìm kiếm, lọc, kéo thả sắp xếp, ẩn hiện, tạo và sửa danh mục. */
 export function CategoryList() {
   const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -120,6 +127,7 @@ export function CategoryList() {
     };
   }, [reloadKey]);
 
+  /** Tải lại danh sách danh mục sau lỗi. */
   const retry = () => {
     setIsLoading(true);
     setLoadError(null);
@@ -143,7 +151,8 @@ export function CategoryList() {
 
   const visibleCount = categories.filter(isVisible).length;
 
-  // ---- order ----
+  // ---- thứ tự ----
+  /** Dịch một danh mục lên hoặc xuống `delta` vị trí. */
   const move = (id: string, delta: number) => {
     setCategories((prev) => {
       const from = prev.findIndex((c) => c.id === id);
@@ -155,6 +164,7 @@ export function CategoryList() {
     });
   };
 
+  /** Đổi chỗ danh mục đang kéo khi rê qua một danh mục khác; chỉ hoạt động khi không lọc hay tìm kiếm. */
   const handleDragOver = (e: React.DragEvent, overId: string) => {
     e.preventDefault();
     if (!draggedId || draggedId === overId || !canReorder) return;
@@ -169,6 +179,7 @@ export function CategoryList() {
     });
   };
 
+  /** Lưu thứ tự danh mục hiện tại lên máy chủ. */
   const saveOrder = async () => {
     setIsSavingOrder(true);
     try {
@@ -182,6 +193,7 @@ export function CategoryList() {
     }
   };
 
+  /** Hoàn tác thứ tự về lần lưu gần nhất. */
   const resetOrder = () => {
     setCategories((prev) => {
       const byId = new Map(prev.map((c) => [c.id, c]));
@@ -189,7 +201,8 @@ export function CategoryList() {
     });
   };
 
-  // ---- show / hide ----
+  // ---- ẩn / hiện ----
+  /** Áp dụng trạng thái hiển thị mới cho một danh mục và đồng bộ danh sách. */
   const applyVisibility = async (cat: Category, visible: boolean) => {
     setBusyId(cat.id);
     const next = { ...cat, status: visible ? "ACTIVE" : "INACTIVE", active: visible };
@@ -204,12 +217,14 @@ export function CategoryList() {
     }
   };
 
+  /** Bật hiển thị ngay; ẩn thì phải qua hộp thoại xác nhận. */
   const toggleVisibility = (cat: Category) => {
-    if (isVisible(cat)) setHidingCategory(cat); // hiding needs a confirmation: events cannot pick it any more
+    if (isVisible(cat)) setHidingCategory(cat); // ẩn cần xác nhận vì sự kiện không thể chọn danh mục này nữa
     else void applyVisibility(cat, true);
   };
 
-  // ---- create / edit ----
+  // ---- tạo / sửa ----
+  /** Mở hộp thoại tạo mới hoặc sửa một danh mục. */
   const openModal = (cat?: Category) => {
     setFormError(null);
     setUploadMode("url");
@@ -225,13 +240,16 @@ export function CategoryList() {
     setIsModalOpen(true);
   };
 
+  /** Đóng hộp thoại, trừ khi đang lưu. */
   const closeModal = () => {
     if (!isSubmitting) setIsModalOpen(false);
   };
 
+  /** Cập nhật tên và tự sinh slug theo tên nếu slug chưa được sửa tay. */
   const onNameChange = (name: string) =>
     setFormData((prev) => ({ ...prev, name, slug: slugEdited ? prev.slug : slugify(name) }));
 
+  /** Tải ảnh lên, hiện ảnh tạm ngay và thay bằng URL thật khi xong; lỗi thì xóa ảnh. */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -252,6 +270,7 @@ export function CategoryList() {
     }
   };
 
+  /** Kiểm tra tên, slug và trùng lặp; trả thông báo lỗi hoặc `null` nếu hợp lệ. */
   const validate = (): string | null => {
     const name = (formData.name || "").trim();
     const slug = (formData.slug || "").trim();
@@ -264,6 +283,7 @@ export function CategoryList() {
     return null;
   };
 
+  /** Kiểm tra rồi tạo mới hoặc cập nhật danh mục. */
   const handleSave = async () => {
     const problem = validate();
     if (problem) {
@@ -311,7 +331,7 @@ export function CategoryList() {
 
   return (
     <div className="space-y-4">
-      {/* toolbar */}
+      {/* thanh công cụ */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
@@ -377,7 +397,7 @@ export function CategoryList() {
         <p className="text-xs app-text-muted">{t("Xóa ô tìm kiếm và chọn \"Tất cả\" để sắp xếp lại thứ tự.")}</p>
       )}
 
-      {/* list */}
+      {/* danh sách */}
       <div className="app-bg-card border app-border rounded-lg overflow-hidden">
         <div className="hidden md:grid grid-cols-[2rem_3rem_minmax(0,1fr)_6rem_7rem_5.5rem] items-center gap-3 px-4 py-2 border-b app-border app-bg-subnav text-[10px] font-semibold uppercase tracking-wider app-text-muted">
           <span />

@@ -1,4 +1,9 @@
-// A short, human-readable name of the browser and system, sent with a check-in so the scan log can tell devices apart.
+/**
+ * Tên ngắn gọn dễ đọc của trình duyệt và hệ điều hành, gửi kèm lượt check-in để nhật ký quét phân biệt được thiết bị.
+ *
+ * @param userAgent - Chuỗi user agent; mặc định lấy từ `navigator` (rỗng nếu chạy ngoài trình duyệt).
+ * @returns Chuỗi dạng `Web Chrome / Windows`, tối đa 80 ký tự.
+ */
 export function describeDevice(userAgent: string = typeof navigator === "undefined" ? "" : navigator.userAgent): string {
   const ua = userAgent || "";
   const browser =

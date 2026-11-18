@@ -1,5 +1,6 @@
 import React from "react";
 
+/** Props của huy hiệu: nội dung, biến thể màu, lớp CSS thêm và biểu tượng đứng trước. */
 interface BadgeProps {
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "success" | "resale" | "warning" | "danger" | "dark";
@@ -7,6 +8,7 @@ interface BadgeProps {
   icon?: React.ReactNode;
 }
 
+/** Huy hiệu nhỏ dạng viên thuốc, màu theo `variant`. */
 export const Badge: React.FC<BadgeProps> = ({
   children,
   variant = "primary",

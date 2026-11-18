@@ -19,6 +19,7 @@ import { getKeycloakSession } from "@/services/keycloakSession";
 import { PATHS } from "@/routes/paths";
 import type { VietQrPayloadResponse } from "@/types";
 
+/** Trang thanh toán gồm 2 bước: (1) nhập thông tin người mua và trả lời câu hỏi tùy chỉnh của sự kiện, (2) chọn phương thức thanh toán và xem tóm tắt đơn. Đơn đang giữ chỗ đọc từ `localStorage`; hết 15 phút thì nhả ghế và báo hết hạn. */
 export default function Checkout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function Checkout() {
   const eventIdParam = searchParams.get("eventId");
   const showtimeIdParam = searchParams.get("showtimeId");
 
-  // load pending order data from localStorage or fallback
+  // tải dữ liệu đơn đang chờ từ localStorage, nếu không có thì dùng giá trị dự phòng
   const [order] = useState<
     BookingOrderData & {
       eventPoster?: string | null;
@@ -60,9 +61,10 @@ export default function Checkout() {
   const activeEventId = order.eventId || eventIdParam;
   const activeShowtimeId = order.showtimeId || showtimeIdParam;
 
-  // step navigation: 1 = Customer Info Form & Questionnaire, 2 = Payment Methods & Summary
+  // các bước: 1 = biểu mẫu thông tin khách và câu hỏi, 2 = phương thức thanh toán và tóm tắt
   const [step, setStep] = useState<number>(1);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  /** Hiện thông báo tạm thời ở góc màn hình và tự gỡ sau 4 giây. */
   const showToast = (type: "success" | "error" | "warning" | "info", text: string) => {
     const id = `toast_${Date.now()}_${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, text }]);
@@ -71,24 +73,25 @@ export default function Checkout() {
     }, 4000);
   };
 
-  // cancel order confirmation modal state (image 1)
+  // trạng thái hộp thoại xác nhận hủy đơn
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
 
-  // recipient info modal state (image 3)
+  // trạng thái hộp thoại thông tin người nhận
   const [isRecipientModalOpen, setIsRecipientModalOpen] = useState(false);
 
-  // vietQR modal state
+  // trạng thái hộp thoại VietQR
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
   const [vietQrData, setVietQrData] = useState<VietQrPayloadResponse | null>(null);
   const [activeBookingId, setActiveBookingId] = useState<string>("");
   const [activeBookingCode, setActiveBookingCode] = useState<string>("");
 
-  // custom questions loaded from event-service
+  // câu hỏi tùy chỉnh tải từ event-service
   const [customQuestions, setCustomQuestions] = useState<CustomQuestionItem[]>([]);
   const [eventPosterUrl, setEventPosterUrl] = useState<string | null>(order.eventPoster || null);
   const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
 
-  // 15-minute countdown timer synced with expiresAt timestamp in localStorage
+  // đồng hồ đếm ngược 15 phút, đồng bộ với mốc expiresAt lưu trong localStorage
+  /** Lấy mốc hết hạn giữ chỗ (mili giây) từ đơn đang chờ trong `localStorage`: ưu tiên `expiresAt`, nếu không có thì lấy `timestamp` cộng 15 phút. */
   const getExpiresAt = () => {
     try {
       const saved = localStorage.getItem("haloticket_pending_order");
@@ -122,7 +125,7 @@ export default function Checkout() {
       setTimeLeft(remaining);
       if (remaining <= 0) {
         clearInterval(timer);
-        // release seats on timeout
+        // nhả ghế khi hết thời gian
         const userId = localStorage.getItem("haloticket_session_id");
         if (userId && order?.seatIds) {
           order.seatIds.forEach((seatId: string) => {
@@ -136,10 +139,11 @@ export default function Checkout() {
     return () => clearInterval(timer);
   }, [expiresAtTimestamp, activeEventId, order?.seatIds]);
 
-  // listen to browser back button (popstate) to display cancel order confirm modal (image 1)
+  // lắng nghe nút Back của trình duyệt (popstate) để hiện hộp thoại xác nhận hủy đơn
   useEffect(() => {
     window.history.pushState(null, "", window.location.href);
 
+    /** Chặn thao tác Back: đẩy lại trạng thái lịch sử và mở hộp thoại xác nhận hủy đơn. */
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
       window.history.pushState(null, "", window.location.href);
@@ -152,6 +156,7 @@ export default function Checkout() {
     };
   }, []);
 
+  /** Tách số giây còn lại thành phút và giây, mỗi phần đủ hai chữ số. */
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -163,11 +168,12 @@ export default function Checkout() {
 
   const timerDisplay = formatTimer(timeLeft);
 
-  // fetch event details to load customQuestions and poster image
+  // tải chi tiết sự kiện để lấy customQuestions và ảnh poster
   useEffect(() => {
     if (!activeEventId) return;
     let isMounted = true;
 
+    /** Gọi API lấy sự kiện, cập nhật ảnh poster và phân tích danh sách câu hỏi tùy chỉnh; bỏ qua kết quả nếu component đã gỡ. */
     async function fetchEventDetails() {
       try {
         const ev = (await eventApi.getEventById(activeEventId || "")) as Record<string, unknown> | null;
@@ -203,16 +209,17 @@ export default function Checkout() {
 
   const hasCustomQuestions = customQuestions.length > 0;
 
-  // questionnaire form state (step 1) - Auto load from logged in user profile
+  // trạng thái biểu mẫu câu hỏi (bước 1), tự điền từ hồ sơ người dùng đã đăng nhập
   const [fullName, setFullName] = useState("");
   const [phoneOrCccd, setPhoneOrCccd] = useState("");
   const [email, setEmail] = useState("");
   const [agreedTerms1, setAgreedTerms1] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // load profile from userApi
+  // tải hồ sơ từ userApi
   useEffect(() => {
     let isMounted = true;
+    /** Lấy hồ sơ người dùng và điền sẵn họ tên, số điện thoại, email vào biểu mẫu nếu có. */
     async function loadUserProfile() {
       try {
         const user = await userApi.getProfile();
@@ -231,7 +238,7 @@ export default function Checkout() {
     };
   }, []);
 
-  // voucher & discount state
+  // trạng thái voucher và giảm giá
   const [voucherInput, setVoucherInput] = useState("");
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -240,11 +247,12 @@ export default function Checkout() {
   const subtotalAmount = order.totalAmount ?? ((order.price || 0) * (order.quantity || 1));
   const finalTotal = Math.max(0, subtotalAmount - discountAmount);
 
+  /** Áp dụng mã voucher người dùng nhập: tra cứu theo mã, kiểm tra còn hiệu lực và áp dụng cho suất diễn, tính số tiền giảm (không vượt quá tạm tính). Báo lỗi nếu mã không hợp lệ. */
   const handleApplyVoucher = async () => {
     const code = voucherInput.trim().toUpperCase();
     if (!code) return;
 
-    // the server finds the voucher by the typed code (the public list hides codes) and decides again when the order is created
+    // server tìm voucher theo mã được nhập (danh sách công khai ẩn mã) và sẽ quyết định lại khi tạo đơn
     const matchedVoucher = activeEventId ? await eventApi.lookupVoucher(activeEventId, code) : null;
     if (!matchedVoucher || !(matchedVoucher.status === "ACTIVE" || matchedVoucher.isActive === true)) {
       setVoucherError(t("Mã khuyến mãi không hợp lệ hoặc đã hết hạn."));
@@ -252,9 +260,9 @@ export default function Checkout() {
       return;
     }
 
-    // dates, quantity left and per-order limits are checked by the server when the order is created
+    // ngày hiệu lực, số lượng còn lại và giới hạn mỗi đơn do server kiểm tra khi tạo đơn
 
-    // check showtime applicability
+    // kiểm tra voucher có áp dụng cho suất diễn này không
     if (matchedVoucher.applyScope === "LIMITED_SHOWTIMES") {
       if (!activeShowtimeId || !matchedVoucher.applicableShowtimes?.includes(activeShowtimeId)) {
         setVoucherError(t("Mã khuyến mãi không áp dụng cho suất diễn này."));
@@ -270,7 +278,7 @@ export default function Checkout() {
       discount = matchedVoucher.discountValue || 0;
     }
     
-    // cap discount if greater than subtotal
+    // giới hạn giảm giá không vượt quá tạm tính
     discount = Math.min(discount, subtotalAmount);
 
     setDiscountAmount(discount);
@@ -279,6 +287,7 @@ export default function Checkout() {
     showToast("success", t("Đã áp dụng mã giảm {{discount}}!", { discount: formatCurrency(discount) }));
   };
 
+  /** Bỏ voucher đã áp dụng, đưa giảm giá về 0 và xóa ô nhập. */
   const handleRemoveVoucher = () => {
     setAppliedVoucher(null);
     setDiscountAmount(0);
@@ -287,12 +296,13 @@ export default function Checkout() {
     showToast("info", t("Đã hủy áp dụng mã giảm giá."));
   };
 
-  // payment state (step 2)
+  // trạng thái thanh toán (bước 2)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("vnpay");
   const [agreedTerms2, setAgreedTerms2] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // validate step 1 and proceed to payment
+  // kiểm tra bước 1 rồi chuyển sang thanh toán
+  /** Kiểm tra họ tên, số điện thoại hoặc CCCD và các câu hỏi bắt buộc; hợp lệ thì chuyển sang bước 2, ngược lại hiện lỗi biểu mẫu. */
   const handleProceedToPayment = () => {
     if (!fullName.trim()) {
       setFormError(t("Vui lòng nhập Họ & Tên của bạn."));
@@ -307,7 +317,7 @@ export default function Checkout() {
       return;
     }
 
-    // validate custom questions if marked as required (isRequired === true)
+    // kiểm tra các câu hỏi tùy chỉnh bắt buộc (isRequired === true)
     if (hasCustomQuestions) {
       for (const q of customQuestions) {
         if (q.isRequired) {
@@ -330,7 +340,8 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // click payment button -> validate terms & open recipient info modal
+  // bấm nút thanh toán: kiểm tra đã đồng ý điều khoản rồi mở hộp thoại thông tin người nhận
+  /** Mở hộp thoại thông tin người nhận nếu người dùng đã đồng ý điều khoản dịch vụ; chưa đồng ý thì hiện cảnh báo. */
   const handleOpenPaymentModal = () => {
     if (!agreedTerms2) {
       showToast("warning", t("Vui lòng đọc kỹ và đồng ý với điều khoản dịch vụ trước khi tiếp tục."));
@@ -341,7 +352,8 @@ export default function Checkout() {
 
 
 
-  // final order submission after recipient info confirmation
+  // gửi đơn hàng sau khi xác nhận thông tin người nhận
+  /** Tạo đơn: yêu cầu đã đăng nhập (chưa thì chuyển tới trang đăng nhập), gửi đặt vé, lưu cache vé và tóm tắt đơn, rồi chuyển sang cổng thanh toán đã chọn. */
   const handleFinalPaymentSubmit = async (recipientData: RecipientInfoData) => {
     try {
       void recipientData;
@@ -354,10 +366,10 @@ export default function Checkout() {
 
       setIsSubmitting(true);
       const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
-      // a general-admission order has no seats; do not invent one from the zone id
+      // đơn vé không chỗ ngồi thì không có ghế; không tự suy ra ghế từ mã khu vực
       const seatIds = order.seatIds && order.seatIds.length > 0 ? order.seatIds : [];
 
-      // use logged in user ID
+      // dùng ID người dùng đã đăng nhập
       const profile = await userApi.getProfile().catch(() => null);
       const userId = profile?.keycloakId || "ANONYMOUS";
       let bookingId = activeBookingId;
@@ -385,7 +397,7 @@ export default function Checkout() {
         setActiveBookingCode(bookingCode);
       }
 
-      // save to my_tickets cache - 1 physical ticket per seat or per quantity
+      // lưu vào cache my_tickets, mỗi ghế hoặc mỗi đơn vị số lượng là một vé
       const newTickets: any[] = [];
       let globalTicketIdx = 0;
       
@@ -450,7 +462,7 @@ export default function Checkout() {
       const existingMyTickets = JSON.parse(localStorage.getItem("haloticket_my_tickets") || "[]");
       localStorage.setItem("haloticket_my_tickets", JSON.stringify([...newTickets, ...existingMyTickets]));
       
-      // save order summary for success screen
+      // lưu tóm tắt đơn cho màn hình thành công
       localStorage.setItem("haloticket_last_order", JSON.stringify({
          bookingId: bookingId,
          eventTitle: order.eventTitle,
@@ -458,7 +470,7 @@ export default function Checkout() {
          totalAmount: finalTotalAmount,
          quantity: seatIds.length
       }));
-      // option 1: VNPay gateway
+      // phương án 1: cổng VNPay
       if (selectedPaymentMethod === "vnpay") {
         const vnpayUrl = await paymentApi.createVnPayUrl(
           finalTotalAmount,
@@ -471,7 +483,7 @@ export default function Checkout() {
         }
       }
 
-      // option 2: VietQR / SePay fast transfer
+      // phương án 2: chuyển khoản nhanh VietQR / SePay
       if (selectedPaymentMethod === "vietqr" || selectedPaymentMethod === "sepay") {
         const qrPayload = await paymentApi.createVietQrPayload(finalTotalAmount, bookingCode, bookingId);
         if (qrPayload) {
@@ -482,7 +494,7 @@ export default function Checkout() {
         }
       }
 
-      // option 3: MoMo e-wallet
+      // phương án 3: ví MoMo
       if (selectedPaymentMethod === "momo") {
         const momoUrl = await paymentApi.createMoMoUrl(
           finalTotalAmount,
@@ -495,7 +507,7 @@ export default function Checkout() {
         }
       }
 
-      // option 4: ZaloPay e-wallet
+      // phương án 4: ví ZaloPay
       if (selectedPaymentMethod === "zalopay") {
         const zalopayUrl = await paymentApi.createZaloPayUrl(
           finalTotalAmount,
@@ -508,7 +520,7 @@ export default function Checkout() {
         }
       }
 
-      // option 5: ShopeePay e-wallet
+      // phương án 5: ví ShopeePay
       if (selectedPaymentMethod === "shopeepay") {
         const shopeepayUrl = await paymentApi.createShopeePayUrl(
           finalTotalAmount,
@@ -521,7 +533,7 @@ export default function Checkout() {
         }
       }
 
-      // fallback direct confirmation
+      // xác nhận trực tiếp khi không có cổng thanh toán
       localStorage.removeItem("haloticket_pending_order");
       setIsRecipientModalOpen(false);
       navigate(PATHS.ORDER_DETAIL(bookingCode || activeBookingId));
@@ -1169,7 +1181,7 @@ export default function Checkout() {
           navigate(PATHS.ORDER_DETAIL(activeBookingCode || activeBookingId));
         }}
         onTimeout={() => {
-          // Release seats on timeout
+          // nhả ghế khi hết thời gian
           if (activeBookingId) {
             bookingApi.cancelBooking(activeBookingId).catch(console.error);
           }
@@ -1190,7 +1202,7 @@ export default function Checkout() {
       <CancelOrderModal
         open={showCancelConfirmModal}
         onCancelOrder={() => {
-          // Release seats when cancelled manually
+          // nhả ghế khi người dùng hủy thủ công
           if (activeBookingId) {
             bookingApi.cancelBooking(activeBookingId).catch(console.error);
           }

@@ -2,15 +2,18 @@ import { useTranslation } from "react-i18next";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
+/** Props của hộp thoại gửi duyệt thành công: tiêu đề sự kiện (chưa dùng trong giao diện) và hàm đóng tùy chọn. */
 interface SuccessSubmittedModalProps {
   title?: string;
   onClose?: () => void;
 }
 
+/** Hộp thoại báo sự kiện đã gửi và đang chờ duyệt, kèm thông tin liên hệ HaloTicket. */
 export const SuccessSubmittedModal: React.FC<SuccessSubmittedModalProps> = ({ onClose }) => {
   const { t: translate } = useTranslation();
   const navigate = useNavigate();
 
+  /** Đóng hộp thoại: gọi {@code onClose} nếu có, nếu không thì chuyển về trang {@code /organizer/my-events}. */
   const handleClose = () => {
     if (onClose) {
       onClose();

@@ -23,6 +23,7 @@ import { EkycConfirmationStep } from "./components/EkycConfirmationStep";
 import { userApi, type UserProfile } from "@/services/userApi";
 import { rotateImageFile, readImageMetadata, type ImageMetadata } from "@/utils/imageUtils";
 
+/** Trang xác minh danh tính (eKYC) qua VNPT: chọn ảnh CCCD mặt trước, mặt sau, chụp khuôn mặt, xem lại, gửi xác minh và xác nhận thông tin sau khi được duyệt. */
 export default function EkycVerification() {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
@@ -49,7 +50,7 @@ export default function EkycVerification() {
   const inFlight = useRef(false);
   const previewUrls = useRef<(string | null)[]>([null, null, null]);
 
-  // Reset inFlight on unmount to prevent stale lock across hot-reloads
+  // Đặt lại inFlight khi unmount để tránh khóa cũ còn sót qua các lần hot-reload
   useEffect(() => {
     return () => { inFlight.current = false; };
   }, []);
@@ -77,7 +78,7 @@ export default function EkycVerification() {
     return () => { active = false; };
   }, [refresh, params, t]);
 
-  // Clean up object URLs on unmount
+  // Giải phóng các object URL khi unmount
   useEffect(() => {
     return () => {
       previewUrls.current.forEach((url) => {
@@ -86,6 +87,7 @@ export default function EkycVerification() {
     };
   }, []);
 
+  /** Kiểm tra và nhận tệp ảnh ở vị trí {@code index} (JPEG hoặc PNG, tối đa 10 MB), tạo ảnh xem trước và đọc metadata; tệp không hợp lệ thì xóa lựa chọn và báo lỗi. */
   const handleFileSelect = (index: number, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (
@@ -120,7 +122,7 @@ export default function EkycVerification() {
     }
   };
 
-  /** Called by ImageUploadStep after crop modal confirms */
+  /** Được ImageUploadStep gọi sau khi người dùng xác nhận cắt ảnh. */
   const handleCropConfirm = (index: number, croppedFile: File, croppedUrl: string) => {
     setError("");
     if (previewUrls.current[index]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[index]!);
@@ -132,7 +134,7 @@ export default function EkycVerification() {
     });
   };
 
-  /** Called by FaceCaptureStep after webcam photo is captured */
+  /** Được FaceCaptureStep gọi sau khi chụp xong ảnh chân dung bằng webcam. */
   const handleFaceCapture = (file: File, url: string) => {
     setError("");
     if (previewUrls.current[2]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[2]!);
@@ -144,7 +146,7 @@ export default function EkycVerification() {
     });
   };
 
-  /** Called by FaceCaptureStep when retaking portrait */
+  /** Được FaceCaptureStep gọi khi người dùng chụp lại ảnh chân dung. */
   const handleFaceRetake = () => {
     if (previewUrls.current[2]?.startsWith("blob:")) URL.revokeObjectURL(previewUrls.current[2]!);
     previewUrls.current[2] = null;
@@ -153,6 +155,7 @@ export default function EkycVerification() {
     setMetadatas((c) => [c[0], c[1], null]);
   };
 
+  /** Xoay ảnh ở vị trí {@code index} theo số độ cho trước rồi cập nhật tệp, ảnh xem trước và metadata; bỏ qua khi đang bận. */
   const handleRotate = async (index: number, degrees: number) => {
     const currentFile = files[index];
     if (!currentFile || busy || rotatingIndex !== null) return;
@@ -178,6 +181,7 @@ export default function EkycVerification() {
     }
   };
 
+  /** Gửi ba ảnh lên VNPT để xác minh: tạo phiên, gọi xác minh rồi hiển thị kết quả (từ chối kèm lý do, đang chờ, hoặc được duyệt và chuyển sang bước 5). */
   async function submit() {
     if (inFlight.current || !consent || !files[0] || !files[1] || !files[2]) {
       return;
@@ -193,7 +197,7 @@ export default function EkycVerification() {
       const finalStatus = verifyResult;
       setStatus(finalStatus);
 
-      // If rejected, show error message from verifyResult
+      // Nếu bị từ chối, hiển thị thông báo lỗi theo mã lý do trong verifyResult
       if (verifyResult.status === "REJECTED") {
         if (verifyResult.reasonCode === "OCR_DATA_INCOMPLETE") {
           setError(t("Không đọc được đầy đủ thông tin từ CCCD. Vui lòng chụp rõ nét hơn."));
@@ -216,7 +220,7 @@ export default function EkycVerification() {
         } else {
           setError(t("Xác minh không thành công. Vui lòng kiểm tra lại ảnh CCCD và ảnh chân dung rồi thử lại."));
         }
-        // Don't reset form for rejected cases - let user retry
+        // Không đặt lại biểu mẫu khi bị từ chối để người dùng thử lại
         inFlight.current = false;
         setBusy(false);
         return;
@@ -237,7 +241,7 @@ export default function EkycVerification() {
       setMetadatas([null, null, null]);
       setConsent(false);
       setUploadVersion((v) => v + 1);
-      // Show success message based on returned status and switch to step 5
+      // Hiển thị thông báo thành công theo trạng thái trả về và chuyển sang bước 5
       if (finalStatus.status === "APPROVED") {
         void userApi.getProfile().then(setUserProfile);
         setSuccessMessage(t("Xác minh CCCD & Khuôn mặt thành công! Vui lòng kiểm tra lại thông tin cá nhân và tài khoản nhận tiền."));
@@ -264,6 +268,7 @@ export default function EkycVerification() {
     }
   }
 
+  /** Chuyển sang bước xác minh được chọn. */
   const activateStep = (step: 1 | 2 | 3 | 4 | 5) => {
     setCurrentStep(step);
   };
@@ -271,7 +276,7 @@ export default function EkycVerification() {
   return (
     <div className="app-bg-page app-text-main py-8 sm:py-12 px-4 sm:px-6 lg:px-8 selection:bg-blue-500 selection:text-white">
       <div className="max-w-2xl w-full mx-auto space-y-5">
-        {/* Top Back Navigation */}
+        {/* Liên kết quay lại ở đầu trang */}
         <div className="flex items-center justify-between">
           <Link
             to={returnUrl}
@@ -285,7 +290,7 @@ export default function EkycVerification() {
           </span>
         </div>
 
-        {/* Page Title & Clean Status */}
+        {/* Tiêu đề trang và trạng thái gọn */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight app-text-main">
@@ -312,7 +317,7 @@ export default function EkycVerification() {
           </p>
         </div>
 
-        {/* Compact Stepper */}
+        {/* Thanh các bước gọn */}
         <div className="w-full app-bg-card border app-border rounded-xl px-3 sm:px-4 py-2.5 shadow-2xs">
           <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-2 sm:gap-4">
             {[
@@ -363,10 +368,10 @@ export default function EkycVerification() {
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Vùng nội dung chính */}
         <div className="space-y-6">
 
-          {/* LOADING STATE */}
+          {/* TRẠNG THÁI ĐANG TẢI */}
           {loading && (
             <div className="app-bg-card app-border rounded-xl border p-8 sm:p-12 text-center space-y-4 shadow-2xs">
               <div className="w-12 h-12 rounded-lg bg-blue-600 text-white flex items-center justify-center mx-auto shadow-sm">
@@ -381,7 +386,7 @@ export default function EkycVerification() {
             </div>
           )}
 
-          {/* ERROR / OFFLINE STATE */}
+          {/* TRẠNG THÁI LỖI HOẶC MẤT KẾT NỐI */}
           {!loading && !status && (
             <div role="alert" className="app-bg-card app-border rounded-xl border p-6 sm:p-8 space-y-5 animate-in fade-in">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
@@ -427,7 +432,7 @@ export default function EkycVerification() {
             </div>
           )}
 
-          {/* SUCCESS BANNER (submit succeeded) */}
+          {/* BANNER THÀNH CÔNG (gửi xác minh xong) */}
           {successMessage && (
             <div role="status" className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
               <FiCheckCircle className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
@@ -446,7 +451,7 @@ export default function EkycVerification() {
             </div>
           )}
 
-          {/* ERROR BANNER (submit failed) */}
+          {/* BANNER LỖI (gửi xác minh thất bại) */}
           {error && status && (
             <div role="alert" className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
               <FiAlertCircle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
@@ -457,7 +462,7 @@ export default function EkycVerification() {
             </div>
           )}
 
-          {/* APPROVED STATE: Load personal info & payment confirmation */}
+          {/* TRẠNG THÁI ĐÃ DUYỆT: tải thông tin cá nhân và xác nhận thanh toán */}
           {status?.status === "APPROVED" && (
             <div className="space-y-8 animate-in fade-in">
               <EkycConfirmationStep
@@ -474,7 +479,7 @@ export default function EkycVerification() {
                 }}
               />
 
-              {/* Collapsible Digital Identity Card & Privileges */}
+              {/* Thẻ danh tính số và quyền lợi, có thể thu gọn */}
               <div className="max-w-md mx-auto w-full pt-2 border-t app-border text-center">
                 <details className="group">
                   <summary className="text-xs font-bold text-slate-500 hover:app-text-main cursor-pointer list-none inline-flex items-center gap-1.5 py-2 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
@@ -483,7 +488,7 @@ export default function EkycVerification() {
                     <FiChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
                   </summary>
                   <div className="mt-4 text-left space-y-4">
-                    {/* Digital Identity Card */}
+                    {/* Thẻ danh tính số */}
                     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white p-6 shadow-xl border border-blue-500/30">
                       <div className="flex items-center justify-between pb-3 border-b border-white/10">
                         <div className="flex items-center gap-2">
@@ -524,7 +529,7 @@ export default function EkycVerification() {
             </div>
           )}
 
-          {/* PENDING STATE */}
+          {/* TRẠNG THÁI ĐANG CHỜ */}
           {status?.status === "PENDING" && (
             <div className="app-bg-card app-border rounded-3xl border p-8 sm:p-12 space-y-6 shadow-md text-center animate-in fade-in">
               <div className="relative w-20 h-20 mx-auto">
@@ -566,10 +571,10 @@ export default function EkycVerification() {
             </div>
           )}
 
-          {/* UPLOAD & VERIFICATION CONTAINER */}
+          {/* KHUNG TẢI ẢNH VÀ XÁC MINH */}
           {status && status.status !== "APPROVED" && status.status !== "PENDING" && (
             <div className="space-y-6">
-              {/* Wizard Form */}
+              {/* Biểu mẫu nhiều bước */}
               <form
                 key={uploadVersion}
                 className="app-bg-card app-border rounded-xl border p-5 sm:p-7 space-y-6 shadow-xs"
@@ -578,7 +583,7 @@ export default function EkycVerification() {
                   void submit();
                 }}
               >
-                {/* TAB 1 */}
+                {/* BƯỚC 1 */}
                 <div className={currentStep === 1 ? "block" : "hidden"}>
                   <ImageUploadStep
                     index={0}
@@ -597,7 +602,7 @@ export default function EkycVerification() {
                   />
                 </div>
 
-                {/* TAB 2 */}
+                {/* BƯỚC 2 */}
                 <div className={currentStep === 2 ? "block" : "hidden"}>
                   <ImageUploadStep
                     index={1}
@@ -618,7 +623,7 @@ export default function EkycVerification() {
                   />
                 </div>
 
-                {/* TAB 3: Chụp khuôn mặt */}
+                {/* BƯỚC 3: Chụp khuôn mặt */}
                 <div className={currentStep === 3 ? "block" : "hidden"}>
                   <FaceCaptureStep
                     isActive={currentStep === 3}
@@ -632,7 +637,7 @@ export default function EkycVerification() {
                   />
                 </div>
 
-                {/* TAB 4: Kiểm tra thông tin & Gửi xác minh */}
+                {/* BƯỚC 4: Kiểm tra thông tin và gửi xác minh */}
                 <div className={currentStep === 4 ? "block" : "hidden"}>
                   <ReviewSubmitStep
                     previews={previews}

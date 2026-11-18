@@ -12,6 +12,7 @@ import {
 
 export type { GoogleAccountSuggestion };
 
+/** Props của nút Google: kế thừa thuộc tính nút gốc; có hàm bấm, thông báo lỗi ngoài, hàm bắt lỗi và tài khoản gợi ý. */
 export interface GoogleAuthButtonProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "children" | "type"> {
   onClick: () => void | Promise<void>;
@@ -20,6 +21,7 @@ export interface GoogleAuthButtonProps
   suggestedAccount?: GoogleAccountSuggestion | null;
 }
 
+/** Nút đăng nhập Google: hiển thị tài khoản gợi ý (hoặc tài khoản Google đã lưu) nếu có, ngược lại hiện nút "Tiếp tục với Google". */
 export function GoogleAuthButton({
   error,
   onClick,
@@ -34,14 +36,14 @@ export function GoogleAuthButton({
   const [requestError, setRequestError] = useState<string>();
   const [imgError, setImgError] = useState(false);
 
-  // Subscribe to external localStorage changes without cascading render warnings
+  // Theo dõi thay đổi localStorage bên ngoài mà không gây cảnh báo render lan truyền
   const storedAccount = useSyncExternalStore(
     subscribeGoogleAccount,
     getSavedGoogleAccount,
     () => null,
   );
 
-  // Suggested account prop takes precedence over stored account
+  // Prop tài khoản gợi ý được ưu tiên hơn tài khoản đã lưu
   const rawAccount = suggestedAccount !== undefined ? suggestedAccount : storedAccount;
   const account = useMemo(() => {
     if (!rawAccount) return null;
@@ -52,6 +54,7 @@ export function GoogleAuthButton({
     };
   }, [rawAccount]);
 
+  /** Chạy {@code onClick}, bật trạng thái chờ; lỗi hủy đăng nhập thì bỏ qua, lỗi khác hiện thông báo thử lại. */
   async function handleClick() {
     if (isPending || disabled) return;
 

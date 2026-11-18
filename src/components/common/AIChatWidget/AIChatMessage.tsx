@@ -30,11 +30,16 @@ import type { SeatMapDocument, SeatTier } from '@/types/seating';
 import { formatCurrency } from '@/utils/formatters';
 import { SeatCanvas } from '@/features/organizer/event-manage/components/seating/SeatCanvas';
 
+/** Props của bảng chọn vé tương tác: dữ liệu vé/suất diễn do AI trả về và callback gửi tin nhắn. */
 interface InteractiveTicketSelectorProps {
   data: any;
   onSendMessage?: (text: string, hiddenContext?: string) => void;
 }
 
+/**
+ * Bảng chọn vé ngay trong khung chat: chọn suất diễn, chỉnh số lượng từng hạng vé (theo giới hạn mua tối thiểu/tối đa mỗi đơn),
+ * rồi tạo đơn tạm trong `localStorage` và chuyển sang trang thanh toán. Trả về `null` khi không có suất diễn.
+ */
 const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ data, onSendMessage }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -43,9 +48,9 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
   const eventTitle = data.event_title || t("Sự kiện");
   const hasSeatmap = Boolean(data.has_seatmap);
 
-  // active showtime index
+  // chỉ số suất diễn đang chọn
   const [selectedShowtimeIdx, setSelectedShowtimeIdx] = useState(0);
-  // quantities for current tickets: { [ticketId]: number }
+  // số lượng đã chọn theo từng vé: { [ticketId]: number }
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
   const [chatError, setChatError] = useState<string | null>(null);
 
@@ -58,7 +63,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
 
   const currentShowtime = showtimes[selectedShowtimeIdx] || showtimes[0];
 
-  // resolve tickets from showtime, or fallback to event-level tickets or other showtimes
+  // lấy vé từ suất diễn; nếu trống thì dùng vé cấp sự kiện hoặc vé của các suất khác
   const directTickets = (currentShowtime.tickets && Array.isArray(currentShowtime.tickets) && currentShowtime.tickets.length > 0)
     ? currentShowtime.tickets
     : (data.tickets && Array.isArray(data.tickets) && data.tickets.length > 0)
@@ -75,7 +80,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
     return Object.values(map);
   }, [directTickets]);
 
-  // if still empty, fetch live tickets from ticketApi / eventApi
+  // nếu vẫn trống thì lấy vé thực từ ticketApi / eventApi
   useEffect(() => {
     if (resolvedDirectTickets.length > 0) return;
     if (!eventId && !currentShowtime.id) return;
@@ -83,6 +88,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
     let isMounted = true;
     setIsFetchingTickets(true);
 
+    /** Lấy danh sách hạng vé thực theo thứ tự suất diễn, sự kiện, chi tiết sự kiện (dùng nguồn đầu tiên có dữ liệu) và chuẩn hóa trường. */
     const loadLiveTickets = async () => {
       try {
         let liveList: any[] = [];
@@ -130,6 +136,14 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
 
   const tickets = resolvedDirectTickets.length > 0 ? resolvedDirectTickets : fetchedTickets;
 
+  /**
+   * Tăng hoặc giảm số lượng một hạng vé, tuân thủ giới hạn `min` và `max`: giảm xuống dưới `min` thì về 0,
+   * tăng quá `max` thì giữ nguyên và báo lỗi.
+   * @param ticketId id hạng vé
+   * @param delta lượng thay đổi (dương hoặc âm)
+   * @param max số vé tối đa mỗi đơn
+   * @param min số vé tối thiểu mỗi đơn
+   */
   const updateQuantity = (ticketId: string, delta: number, max: number = 10, min: number = 1) => {
     setChatError(null);
     setTicketQuantities(prev => {
@@ -152,7 +166,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
     return sum + qty * (tItem.price || 0);
   }, 0);
 
-  // status badge styling
+  /** Trả về huy hiệu trạng thái bán (đang bán, ngừng bán, hết vé, sắp mở bán) với nhãn tùy chọn. */
   const getStatusBadge = (status: string, label: string) => {
     switch (status) {
       case 'ON_SALE':
@@ -187,6 +201,10 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
     }
   };
 
+  /**
+   * Kiểm tra số lượng từng hạng vé theo giới hạn mua, tạo đơn tạm (vé tự do, không chọn ghế) lưu vào
+   * `localStorage` với hạn giữ 15 phút rồi chuyển tới `/checkout`. Không làm gì nếu chưa chọn vé hoặc suất chưa mở bán.
+   */
   const handleProceedToCheckout = () => {
     setChatError(null);
     if (totalSelectedTickets === 0 || currentShowtime.status !== 'ON_SALE') return;
@@ -219,7 +237,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
       }
     }
 
-    // generate GA or ticket placeholder seat identifiers with sequential numbers
+    // sinh mã ghế giữ chỗ cho vé tự do (GA) theo số thứ tự
     const gaSeatIds: string[] = [];
     const seatNames: Record<string, string> = {};
     let globalIdx = 0;
@@ -267,7 +285,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
 
   return (
     <div className="mt-2.5 flex flex-col gap-2.5 p-3 bg-white dark:bg-[#222226] rounded-xl border border-brand-primary/30 shadow-xs w-full animate-in fade-in-50 duration-200">
-      {/* Header */}
+      {/* Đầu bảng */}
       <div className="flex items-center justify-between gap-1.5 border-b border-gray-100 dark:border-gray-800 pb-2">
         <div className="min-w-0 flex-1">
           <h4 className="font-extrabold text-brand-primary text-xs sm:text-sm truncate">{eventTitle}</h4>
@@ -290,7 +308,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         )}
       </div>
 
-      {/* Showtimes Selector: Horizontal Scrollable List */}
+      {/* Chọn suất diễn: danh sách cuộn ngang */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between text-[11px] font-bold text-gray-700 dark:text-gray-300">
           <span className="flex items-center gap-1">
@@ -336,7 +354,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
           })}
         </div>
 
-        {/* Notice banner if showtime is not open for sale */}
+        {/* Thông báo khi suất diễn chưa mở bán */}
         {isShowtimeNotOpen && (
           <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
             <AlertCircle size={14} className="shrink-0" />
@@ -350,7 +368,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
           </div>
         )}
 
-        {/* Constraint validation error notice */}
+        {/* Thông báo lỗi ràng buộc số lượng */}
         {chatError && (
           <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] text-rose-700 dark:text-rose-300 animate-in fade-in">
             <AlertCircle size={14} className="shrink-0 text-rose-500" />
@@ -359,7 +377,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         )}
       </div>
 
-      {/* Ticket Types for Selected Showtime */}
+      {/* Các hạng vé của suất đang chọn */}
       <div className="flex flex-col gap-1.5 mt-0.5">
         <div className="flex items-center justify-between">
           <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 truncate">
@@ -399,7 +417,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
                     : "border-gray-200 dark:border-gray-700/60 bg-gray-50/70 dark:bg-[#1e1e22]"
                 } ${isDisabled ? "opacity-60" : ""}`}
               >
-                {/* Ticket Info */}
+                {/* Thông tin vé */}
                 <div className="flex-1 min-w-0 pr-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
@@ -435,7 +453,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
                   </div>
                 </div>
 
-                {/* Right: Quantity Controls or Status Tag */}
+                {/* Bên phải: nút chỉnh số lượng hoặc nhãn trạng thái */}
                 {isShowtimeNotOpen ? (
                   <div className="shrink-0 flex items-center">
                     {currentShowtime.status === 'UPCOMING' && (
@@ -494,7 +512,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         </div>
       </div>
 
-      {/* Summary and Action Buttons */}
+      {/* Tổng kết và các nút hành động */}
       <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs">
           <span className="text-gray-500 dark:text-gray-400">
@@ -506,7 +524,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
         </div>
 
         <div className="flex flex-col gap-1.5">
-          {/* Direct Proceed to Checkout Button */}
+          {/* Nút đi thẳng tới thanh toán */}
           <button
             type="button"
             disabled={totalSelectedTickets === 0 || currentShowtime.status !== 'ON_SALE'}
@@ -518,7 +536,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
             <ArrowRight size={13} />
           </button>
 
-          {/* Seatmap link if event has seatmap */}
+          {/* Liên kết sơ đồ ghế nếu sự kiện có sơ đồ */}
           {hasSeatmap && (
             <a
               href={`/events/${eventId}/select-ticket?showtimeId=${currentShowtime.id}`}
@@ -537,6 +555,7 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
   );
 };
 
+/** Props của trình xem sơ đồ ghế trong chat: id và tên sự kiện, ảnh sơ đồ dự phòng và callback gửi tin nhắn. */
 interface InteractiveSeatmapViewerProps {
   eventId: string;
   eventTitle?: string;
@@ -544,6 +563,10 @@ interface InteractiveSeatmapViewerProps {
   onSendMessage?: (content: string, hiddenContext?: string) => void;
 }
 
+/**
+ * Trình xem sơ đồ ghế tương tác trong khung chat (chế độ khán giả, chỉ xem): tải bố cục ghế và hạng vé của sự kiện,
+ * vẽ bằng `SeatCanvas`; nếu không có bố cục thì dùng ảnh sơ đồ, còn không thì báo chưa có sơ đồ. Hỗ trợ phóng toàn màn hình.
+ */
 const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
   eventId,
   eventTitle: initialEventTitle,
@@ -568,6 +591,7 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
     }
 
     let isMounted = true;
+    /** Tải bố cục ghế (bản nháp từ API, dự phòng `localStorage`) cùng hạng vé; gắn hạng vé vào bố cục nếu bố cục chưa có. */
     async function loadLayout() {
       try {
         setIsLoading(true);
@@ -642,6 +666,10 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
     )
   );
 
+  /**
+   * Dựng nội dung vùng vẽ: trạng thái đang tải, sơ đồ ghế, ảnh sơ đồ hoặc thông báo chưa có sơ đồ.
+   * @param full có đang ở chế độ toàn màn hình hay không
+   */
   const renderCanvasContent = (full: boolean) => {
     if (isLoading) {
       return (
@@ -714,7 +742,7 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
   return (
     <>
       <div className="mt-2.5 flex flex-col gap-2 p-3 bg-white dark:bg-[#222226] rounded-xl border border-brand-primary/30 shadow-xs w-full overflow-hidden animate-in fade-in-50 duration-200">
-        {/* Header */}
+        {/* Đầu khung */}
         <div className="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-2 shrink-0">
           <div className="flex items-center gap-1.5 min-w-0">
             <Map size={14} className="text-brand-primary shrink-0" />
@@ -747,12 +775,12 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
           </div>
         </div>
 
-        {/* Main Canvas / Image Area */}
+        {/* Vùng vẽ sơ đồ chính */}
         <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-950/5 dark:bg-black/30 flex items-center justify-center h-[380px] sm:h-[430px]">
           {renderCanvasContent(false)}
         </div>
 
-        {/* Legend & Quick Actions */}
+        {/* Chú giải và thao tác nhanh */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-[11px] shrink-0">
           {tiers.length > 0 ? (
             <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar py-0.5 max-w-full">
@@ -788,12 +816,12 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
         </div>
       </div>
 
-      {/* Fullscreen Portal Modal */}
+      {/* Hộp thoại toàn màn hình qua portal */}
       {isFullscreen &&
         createPortal(
           <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md p-3 sm:p-6 flex items-center justify-center animate-in fade-in duration-200">
             <div className="relative w-full h-full max-w-7xl max-h-[96vh] rounded-2xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col overflow-hidden">
-              {/* Header */}
+              {/* Đầu khung */}
               <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-zinc-900/80 shrink-0">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0">
@@ -832,14 +860,14 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
                 </div>
               </div>
 
-              {/* Fullscreen Canvas Area */}
+              {/* Vùng vẽ toàn màn hình */}
               <div className="relative flex-1 min-h-0 w-full p-2 sm:p-4 bg-gray-100/50 dark:bg-black/40 flex flex-col overflow-hidden">
                 <div className="relative flex-1 min-h-0 w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
                   {renderCanvasContent(true)}
                 </div>
               </div>
 
-              {/* Footer Legend */}
+              {/* Chú giải ở chân khung */}
               {tiers.length > 0 && (
                 <div className="flex items-center justify-between gap-3 px-5 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-zinc-900/80 text-xs shrink-0 overflow-x-auto">
                   <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar">
@@ -872,11 +900,16 @@ const InteractiveSeatmapViewer: React.FC<InteractiveSeatmapViewerProps> = ({
   );
 };
 
+/** Props của một tin nhắn trong khung chat AI: tin nhắn và callback gửi tin (kèm ngữ cảnh ẩn). */
 interface AIChatMessageProps {
   message: AiChatMessage;
   onSendMessage?: (text: string, hiddenContext?: string) => void;
 }
 
+/**
+ * Bong bóng một tin nhắn trong khung chat AI cho khách: văn bản Markdown và các hành động giàu nội dung do AI trả về
+ * (khoanh vùng ghế, xác nhận đặt vé, sơ đồ ghế, bảng chọn vé...).
+ */
 const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -908,7 +941,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
           ) : null
         )}
 
-        {/* if the AI ​​calls a tool to highlight a seat or requests confirmation */}
+        {/* khi AI gọi công cụ khoanh vùng ghế hoặc yêu cầu xác nhận */}
         {message.actions && message.actions.length > 0 && (
           <div className="mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-700/60 text-xs flex flex-col gap-1.5">
             {message.actions.map((action, idx) => {
@@ -1100,7 +1133,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
                   const dataStr = action.database_data;
                   const parsed = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
                   
-                  // New rich format with showtimes & status
+                  // Định dạng mới đầy đủ: có suất diễn và trạng thái
                   if (parsed?.showtimes && Array.isArray(parsed.showtimes)) {
                     return (
                       <InteractiveTicketSelector
@@ -1111,7 +1144,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
                     );
                   }
 
-                  // Fallback for legacy flat array
+                  // Dự phòng cho định dạng cũ: mảng vé phẳng
                   const tickets = typeof parsed?.data === 'string' ? JSON.parse(parsed.data) : (parsed?.data || []);
                   if (Array.isArray(tickets) && tickets.length > 0) {
                     const fallbackData = {

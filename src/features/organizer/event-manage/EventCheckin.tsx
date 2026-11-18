@@ -43,10 +43,12 @@ const TONE_STYLES: Record<CheckinTone, { box: string; icon: string; Icon: React.
   },
 };
 
+/** Tính phần trăm {@code done} trên {@code total}, làm tròn và giới hạn tối đa 100; trả về 0 khi {@code total} không dương. */
 function percent(done: number, total: number): number {
   return total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
 }
 
+/** Tạo nhãn cho suất diễn từ thời gian bắt đầu (định dạng vi-VN); không đọc được thời gian thì dùng số thứ tự {@code #n}. */
 function showtimeLabel(show: Record<string, unknown>, index: number): string {
   const raw = (show.startTime ?? show.fullDateTime ?? show.startDateTime) as string | undefined;
   const date = raw ? new Date(raw) : null;
@@ -54,6 +56,7 @@ function showtimeLabel(show: Record<string, unknown>, index: number): string {
   return `#${index + 1}`;
 }
 
+/** Thanh tiến độ có thuộc tính trợ năng {@code progressbar}, độ rộng theo tỷ lệ {@code done}/{@code total}. */
 const ProgressBar: React.FC<{ done: number; total: number; label: string }> = ({ done, total, label }) => (
   <div
     role="progressbar"
@@ -67,6 +70,10 @@ const ProgressBar: React.FC<{ done: number; total: number; label: string }> = ({
   </div>
 );
 
+/**
+ * Màn check-in của sự kiện: bộ đếm số người đã vào cổng (làm mới định kỳ), quét hoặc nhập mã vé, tìm vé theo đơn, mã vé, ghế hoặc hạng vé,
+ * danh sách người đã vào theo trang, và hàng đợi các lượt quét chưa gửi được lên server (tự gửi lại khi có mạng).
+ */
 export const EventCheckin: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -75,11 +82,11 @@ export const EventCheckin: React.FC = () => {
   const [outcome, setOutcome] = useState<CheckinOutcome | null>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // door counter
+  // bộ đếm cổng vào
   const [summary, setSummary] = useState<CheckinSummary | null>(null);
   const [summaryFailed, setSummaryFailed] = useState(false);
 
-  // who already entered: one server page at a time
+  // danh sách người đã vào: mỗi lần lấy một trang từ server
   const [page, setPage] = useState<CheckinPage | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -87,18 +94,19 @@ export const EventCheckin: React.FC = () => {
   const [showtimeNames, setShowtimeNames] = useState<Record<string, string>>({});
   const [listError, setListError] = useState(false);
 
-  // search for a ticket by order, ticket code, seat or type
+  // tìm vé theo đơn hàng, mã vé, ghế hoặc hạng vé
   const [searchText, setSearchText] = useState("");
   const [searchResults, setSearchResults] = useState<CheckinLookupItem[] | null>(null);
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchFailed, setSearchFailed] = useState(false);
 
-  // scans that could not reach the server
+  // các lượt quét chưa gửi được lên server
   const queue = useMemo(() => createCheckinQueue(), []);
   const [queued, setQueued] = useState(() => (eventId ? queue.size(eventId) : 0));
   const [syncNote, setSyncNote] = useState<string | null>(null);
   const syncingRef = useRef(false);
 
+  /** Lấy số liệu check-in tổng hợp; lỗi thì bật cờ {@code summaryFailed}. */
   const loadSummary = useCallback(async () => {
     if (!eventId) return;
     try {
@@ -109,6 +117,7 @@ export const EventCheckin: React.FC = () => {
     }
   }, [eventId]);
 
+  /** Lấy một trang danh sách người đã vào theo suất diễn lọc, trang và cỡ trang hiện tại; lỗi thì bật cờ {@code listError}. */
   const loadPage = useCallback(async () => {
     if (!eventId) return;
     try {
@@ -119,13 +128,15 @@ export const EventCheckin: React.FC = () => {
     }
   }, [eventId, showtimeFilter, pageIndex, pageSize]);
 
-  // the counter refreshes every few seconds, and only while the tab is visible
+  // bộ đếm làm mới vài giây một lần và chỉ khi tab đang hiển thị
   useEffect(() => {
     if (!eventId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loads from the server; the state is set after the answer arrives
     void loadSummary();
+    /** Làm mới bộ đếm theo chu kỳ, bỏ qua khi tab đang ẩn. */
     const tick = () => { if (!document.hidden) void loadSummary(); };
     const timer = window.setInterval(tick, SUMMARY_POLL_MS);
+    /** Làm mới bộ đếm ngay khi tab hiện trở lại. */
     const onVisible = () => { if (!document.hidden) void loadSummary(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -134,14 +145,14 @@ export const EventCheckin: React.FC = () => {
     };
   }, [eventId, loadSummary]);
 
-  // the list follows the counter: another gate let someone in, so the list reloads
+  // danh sách đi theo bộ đếm: cổng khác vừa cho người vào thì danh sách được tải lại
   const enteredCount = summary?.checkedIn;
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loads from the server; the state is set after the answer arrives
     void loadPage();
   }, [loadPage, enteredCount]);
 
-  // names for the showtime filter
+  // tên các suất diễn cho bộ lọc
   useEffect(() => {
     if (!eventId) return;
     let cancelled = false;
@@ -152,12 +163,14 @@ export const EventCheckin: React.FC = () => {
         shows.forEach((show, index) => { if (typeof show.id === "string") names[show.id] = showtimeLabel(show, index); });
         if (!cancelled) setShowtimeNames(names);
       })
-      .catch(() => { /* the filter then shows short ids */ });
+      .catch(() => { /* bộ lọc sẽ hiện mã rút gọn */ });
     return () => { cancelled = true; };
   }, [eventId]);
 
+  /** Cập nhật số lượt quét đang chờ trong hàng đợi của sự kiện. */
   const refreshQueued = useCallback(() => setQueued(eventId ? queue.size(eventId) : 0), [eventId, queue]);
 
+  /** Gửi các lượt quét trong hàng đợi lên server (không chạy chồng), cập nhật bộ đếm và hiện ghi chú số lượt đã đồng bộ, vào cổng hoặc bị từ chối. */
   const flushQueue = useCallback(async () => {
     if (!eventId || syncingRef.current || queue.size(eventId) === 0) return;
     syncingRef.current = true;
@@ -177,6 +190,7 @@ export const EventCheckin: React.FC = () => {
 
   useEffect(() => {
     void flushQueue();
+    /** Thử gửi lại hàng đợi khi trình duyệt có mạng trở lại. */
     const onOnline = () => { void flushQueue(); };
     window.addEventListener("online", onOnline);
     const timer = window.setInterval(() => { void flushQueue(); }, QUEUE_RETRY_MS);
@@ -186,6 +200,7 @@ export const EventCheckin: React.FC = () => {
     };
   }, [flushQueue]);
 
+  /** Gửi mã vé đã quét lên server; lỗi mạng hoặc lỗi tạm thời thì đưa vào hàng đợi, thành công thì làm mới bộ đếm và danh sách. Sau đó phát phản hồi và đưa con trỏ về ô nhập. */
   const submitScan = useCallback(async (raw: string) => {
     const hash = raw.trim();
     if (!hash || !eventId || isScanning) return;
@@ -209,7 +224,7 @@ export const EventCheckin: React.FC = () => {
     codeInputRef.current?.focus();
   }, [eventId, isScanning, queue, refreshQueued, loadSummary, loadPage]);
 
-  // search with a short delay so typing does not call the server for every key
+  // tìm kiếm có độ trễ ngắn để không gọi server cho từng phím gõ
   useEffect(() => {
     const q = searchText.trim();
     if (!eventId || q.length < SEARCH_MIN_CHARS) return;
@@ -228,7 +243,7 @@ export const EventCheckin: React.FC = () => {
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [searchText, eventId, showtimeFilter]);
 
-  // an answer for an older, longer text is not shown once the text is too short to search
+  // kết quả của chuỗi cũ dài hơn sẽ không hiển thị khi chuỗi hiện tại quá ngắn để tìm
   const searching = searchText.trim().length >= SEARCH_MIN_CHARS;
   const shownResults = searching ? searchResults : null;
   const tone = outcome ? TONE_STYLES[outcome.tone] : null;
@@ -237,12 +252,13 @@ export const EventCheckin: React.FC = () => {
   const rows = page?.content ?? [];
   const totalPages = Math.max(1, page?.totalPages ?? 1);
 
+  /** Tên hiển thị của nhóm thống kê: theo hạng vé dùng tên nhóm, theo suất diễn dùng nhãn suất đã nạp hoặc số thứ tự. */
   const groupName = (group: CheckinSummaryGroup, kind: "showtime" | "type", index: number) =>
     kind === "type" ? group.name || t("Khác") : (group.id && showtimeNames[group.id]) || `${t("Suất")} ${index + 1}`;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Counter */}
+      {/* Bộ đếm */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
           <div>
@@ -307,7 +323,7 @@ export const EventCheckin: React.FC = () => {
         )}
       </div>
 
-      {/* Scan */}
+      {/* Quét mã */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <p className="text-xs app-text-muted">{t("Quét mã QR bằng camera hoặc nhập mã vé (máy quét mã cầm tay cũng nhập vào ô này) rồi nhấn Enter.")}</p>
 
@@ -380,7 +396,7 @@ export const EventCheckin: React.FC = () => {
         )}
       </div>
 
-      {/* Find a guest */}
+      {/* Tìm khách */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-3">
         <div>
           <p className="text-sm font-bold app-text-main">{t("Tìm khách")}</p>
@@ -437,7 +453,7 @@ export const EventCheckin: React.FC = () => {
         )}
       </div>
 
-      {/* Who entered */}
+      {/* Danh sách người đã vào */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-bold app-text-main">{t("Danh sách đã check-in")}</p>
@@ -455,7 +471,7 @@ export const EventCheckin: React.FC = () => {
         </div>
         {listError && <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">{t("Không tải được danh sách.")}</p>}
 
-        {/* Phones and small tablets: one card per check-in */}
+        {/* Điện thoại và máy tính bảng nhỏ: mỗi lượt check-in một thẻ */}
         <ul className="md:hidden space-y-2">
           {rows.map((c) => (
             <li key={c.checkinId ?? c.qrCodeHash} className="rounded-xl border app-border p-3 space-y-1.5">
@@ -477,7 +493,7 @@ export const EventCheckin: React.FC = () => {
           )}
         </ul>
 
-        {/* Tablets and desktops: table. Every row is a completed check-in, so there is no status column. */}
+        {/* Máy tính bảng và máy tính để bàn: bảng. Mọi dòng đều là lượt đã check-in nên không có cột trạng thái */}
         <div className="hidden md:block overflow-x-auto no-scrollbar">
           <table className="w-full text-left text-xs table-fixed border-collapse">
             <thead>

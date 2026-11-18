@@ -12,6 +12,7 @@ import { DashboardKpiGrid } from '@/features/admin/components/DashboardKpiGrid';
 import { AttentionFeed } from '@/features/admin/components/AttentionFeed';
 import { PinnedReports } from '@/features/admin/components/PinnedReports';
 
+/** Một mục lịch sử truy vấn AI: câu hỏi, kết quả phân tích (có thể null) và thời điểm hỏi (ISO). */
 interface AiQueryHistoryItem {
   id: string;
   question: string;
@@ -19,8 +20,13 @@ interface AiQueryHistoryItem {
   timestamp: string;
 }
 
+/**
+ * Trang phân tích dữ liệu bằng AI cho admin: nhập câu hỏi tự nhiên, nhận bảng/biểu đồ và phần phân tích kèm SQL đã kiểm tra.
+ * Có thẻ KPI hệ thống, lịch sử 20 truy vấn gần nhất (lưu `localStorage`), xuất CSV và ghim báo cáo.
+ */
 export const AdminAiAnalytics: React.FC = () => {
   const { t: translate, i18n } = useTranslation();
+  /** Chọn nhãn theo ngôn ngữ hiện tại: bản tiếng Anh khi ngôn ngữ là `en`, còn lại bản tiếng Việt. */
   const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [history, setHistory] = useState<AiQueryHistoryItem[]>(() => {
     try {
@@ -39,7 +45,7 @@ export const AdminAiAnalytics: React.FC = () => {
         return parsed.question || '';
       }
     } catch {
-      // localStorage unavailable or corrupt JSON: start with an empty question
+      // localStorage không dùng được hoặc JSON hỏng: bắt đầu với câu hỏi rỗng
     }
     return '';
   });
@@ -53,7 +59,7 @@ export const AdminAiAnalytics: React.FC = () => {
         return parsed.result || null;
       }
     } catch {
-      // localStorage unavailable or corrupt JSON: start without a previous result
+      // localStorage không dùng được hoặc JSON hỏng: bắt đầu khi chưa có kết quả trước đó
     }
     return null;
   });
@@ -66,9 +72,10 @@ export const AdminAiAnalytics: React.FC = () => {
   const [chartTypeOverride, setChartTypeOverride] = useState<'bar'|'pie'|'line'|null>(null);
   const [pinning, setPinning] = useState(false);
 
-  // system KPI cards (same source as the admin dashboard); a failed source shows "no data", never 0
+  // thẻ KPI của hệ thống (cùng nguồn với trang tổng quan admin); nguồn lỗi hiện "không có dữ liệu", không bao giờ hiện 0
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
   const [kpiState, setKpiState] = useState<'loading' | 'ready' | 'error'>('loading');
+  /** Tải các chỉ số KPI hệ thống và cập nhật trạng thái `loading`, `ready` hoặc `error`. */
   const loadKpis = useCallback(async () => {
     setKpiState('loading');
     try {
@@ -82,6 +89,11 @@ export const AdminAiAnalytics: React.FC = () => {
     queueMicrotask(() => { void loadKpis(); });
   }, [loadKpis]);
 
+  /**
+   * Thêm truy vấn vừa chạy lên đầu lịch sử (bỏ mục trùng câu hỏi, giữ tối đa 20) và lưu vào `localStorage`.
+   * @param q câu hỏi
+   * @param res kết quả phân tích
+   */
   const saveToHistory = (q: string, res: AiAnalyzeResponse | null) => {
     const newItem: AiQueryHistoryItem = {
       id: String(Date.now()),
@@ -99,6 +111,7 @@ export const AdminAiAnalytics: React.FC = () => {
     }
   };
 
+  /** Mở lại một mục lịch sử: nạp câu hỏi và kết quả của nó, xóa lỗi và ghi nhận là truy vấn gần nhất. */
   const selectHistoryItem = (item: AiQueryHistoryItem) => {
     setQuestion(item.question);
     setResult(item.result);
@@ -107,10 +120,11 @@ export const AdminAiAnalytics: React.FC = () => {
     try {
       localStorage.setItem('admin_ai_last_query', JSON.stringify(item));
     } catch {
-      // localStorage unavailable or quota exceeded: persisting the last query is best-effort
+      // localStorage không dùng được hoặc hết dung lượng: lưu truy vấn gần nhất chỉ là cố gắng tối đa
     }
   };
 
+  /** Xóa một mục khỏi lịch sử (không kích hoạt chọn mục) và cập nhật `localStorage`. */
   const removeHistoryItem = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     const updated = history.filter(h => h.id !== id);
@@ -118,6 +132,7 @@ export const AdminAiAnalytics: React.FC = () => {
     localStorage.setItem('admin_ai_query_history', JSON.stringify(updated));
   };
 
+  /** Xóa toàn bộ lịch sử và truy vấn gần nhất, đồng thời xóa câu hỏi, kết quả, lỗi đang hiển thị. */
   const clearAllHistory = () => {
     setHistory([]);
     localStorage.removeItem('admin_ai_query_history');
@@ -127,6 +142,7 @@ export const AdminAiAnalytics: React.FC = () => {
     setError(null);
   };
 
+  /** Gửi câu hỏi tới AI phân tích; thành công thì lưu kết quả vào lịch sử, thất bại thì hiện thông báo lỗi phù hợp. */
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!question.trim()) return;
@@ -141,7 +157,7 @@ export const AdminAiAnalytics: React.FC = () => {
       saveToHistory(question, response);
     } catch (err: unknown) {
       console.error("AI Analytics error:", err);
-      // a refused question and a system failure need different messages and different next steps.
+      // câu hỏi bị từ chối và lỗi hệ thống cần thông báo khác nhau và hướng xử lý tiếp theo khác nhau.
       const info = resolveAiError(err);
       setError(aiErrorMessage(info));
       setErrorRetryable(info.retryable);
@@ -150,6 +166,7 @@ export const AdminAiAnalytics: React.FC = () => {
     }
   };
 
+  /** Xuất dữ liệu kết quả hiện tại ra tệp CSV và tải về; không làm gì nếu không có dòng dữ liệu. */
   const exportToCSV = () => {
     if (!result?.data || !Array.isArray(result.data) || result.data.length === 0) return;
     const columns = Object.keys(result.data[0]);
@@ -167,7 +184,7 @@ export const AdminAiAnalytics: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // the chart type the admin is looking at (same choice as renderChart), or a plain table when nothing can be drawn
+  /** Xác định loại biểu đồ admin đang xem (cùng cách chọn với `renderChart`), hoặc `table` khi không vẽ được biểu đồ. */
   const currentChartType = (rows: Record<string, unknown>[]): string => {
     if (!rows.length) return 'table';
     const columns = Object.keys(rows[0]);
@@ -179,7 +196,7 @@ export const AdminAiAnalytics: React.FC = () => {
     return chartTypeOverride ?? ((rows.length <= 6 && numCols.length === 1) ? 'pie' : 'bar');
   };
 
-  // pins the question, the checked SQL and a small snapshot for this admin; the server checks the SQL again
+  /** Ghim câu hỏi, câu SQL đã được kiểm tra và ảnh chụp nhỏ (tối đa 50 dòng) cho admin này; máy chủ sẽ kiểm tra lại SQL. */
   const handlePinDashboard = async () => {
     if (!result?.generated_sql || pinning) {
       if (!result?.generated_sql) toast.error(translate('ai.pin.nothing'));
@@ -204,6 +221,7 @@ export const AdminAiAnalytics: React.FC = () => {
     }
   };
 
+  /** Xóa câu hỏi, kết quả, lỗi và truy vấn gần nhất đã lưu để bắt đầu lại. */
   const handleReset = () => {
     setQuestion('');
     setResult(null);
@@ -212,6 +230,7 @@ export const AdminAiAnalytics: React.FC = () => {
     localStorage.removeItem('admin_ai_last_query');
   };
 
+  /** Dựng bảng dữ liệu kết quả; hiện thông báo khi không có dòng nào. */
   const renderTable = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return <p className="text-sm app-text-muted text-center py-8">{label("Không tìm thấy dữ liệu phù hợp với yêu cầu của bạn.", "No matching data found for your request.")}</p>;
 
@@ -243,6 +262,7 @@ export const AdminAiAnalytics: React.FC = () => {
     );
   };
 
+  /** Dựng biểu đồ (cột, đường hoặc tròn) từ kết quả; trả về `null` nếu không có dữ liệu hoặc không chọn được cột vẽ. */
   const renderChart = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return null;
     const picked = pickChartColumns(data);
@@ -251,7 +271,7 @@ export const AdminAiAnalytics: React.FC = () => {
     const valueCol = numCols[0];
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
-    // Auto detect chart type if not explicitly set
+    // Tự nhận biết loại biểu đồ nếu chưa được chọn thủ công
     let activeChartType = chartTypeOverride;
     if (!activeChartType) {
       activeChartType = (data.length <= 6 && numCols.length === 1) ? 'pie' : 'bar';
@@ -275,7 +295,7 @@ export const AdminAiAnalytics: React.FC = () => {
             <button onClick={() => setChartTypeOverride('pie')} className={`px-2 py-1 text-xs font-bold rounded ${activeChartType === 'pie' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Pie</button>
           </div>
         </div>
-        {/* flexible height: a short answer gets a short chart, a wide screen gets a taller one */}
+        {/* chiều cao linh hoạt: câu trả lời ngắn cho biểu đồ thấp, màn hình rộng cho biểu đồ cao hơn */}
         <div className="w-full h-[clamp(14rem,32vh,24rem)]">
           <ResponsiveContainer width="100%" height="100%">
             {activeChartType === 'pie' ? (
@@ -322,7 +342,7 @@ export const AdminAiAnalytics: React.FC = () => {
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-4">
 
-      {/* Header + search on one band */}
+      {/* Tiêu đề và ô tìm kiếm trên cùng một dải */}
       <div className="app-bg-card border app-border rounded-lg shadow-xs p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -403,10 +423,10 @@ export const AdminAiAnalytics: React.FC = () => {
         </div>
       </div>
 
-      {/* System KPI cards */}
+      {/* Thẻ KPI hệ thống */}
       {showKpis && <DashboardKpiGrid kpis={kpis} state={kpiState} onRetry={() => void loadKpis()} />}
 
-      {/* Schema Drawer/Panel */}
+      {/* Ngăn/bảng lược đồ dữ liệu */}
       {showSchema && (
         <div className="app-bg-subnav border app-border rounded-lg p-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
           <h3 className="text-xs font-bold app-text-muted uppercase tracking-wider mb-3">
@@ -444,7 +464,7 @@ export const AdminAiAnalytics: React.FC = () => {
         </div>
       )}
 
-      {/* Error Message */}
+      {/* Thông báo lỗi */}
       {error && (
         <div role="alert" className="p-4 rounded-lg shadow-xs bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-3 animate-in fade-in zoom-in-95">
           <FiAlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
@@ -457,10 +477,10 @@ export const AdminAiAnalytics: React.FC = () => {
         </div>
       )}
 
-      {/* Workspace: history and system items | data | AI analysis. One column below lg, results first. */}
+      {/* Khu làm việc: lịch sử và mục hệ thống | dữ liệu | phân tích AI. Dưới màn hình lg xếp một cột, kết quả lên trước. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
-        {/* Left: query history, needs attention, pinned reports */}
+        {/* Bên trái: lịch sử truy vấn, mục cần chú ý, báo cáo đã ghim */}
         <aside className="order-2 lg:order-1 lg:col-span-4 xl:col-span-3 space-y-4 min-w-0">
           <section className="app-bg-card border app-border rounded-lg shadow-xs p-4 space-y-3" aria-label={label("Lịch sử truy vấn", "Query history")}>
             <div className="flex items-center justify-between gap-2 border-b app-border pb-2">
@@ -517,7 +537,7 @@ export const AdminAiAnalytics: React.FC = () => {
           <PinnedReports />
         </aside>
 
-        {/* Center and right: results */}
+        {/* Giữa và phải: kết quả */}
         <div className="order-1 lg:order-2 lg:col-span-8 xl:col-span-9 grid grid-cols-1 xl:grid-cols-9 gap-4 items-start min-w-0">
 
           {isLoading ? (
@@ -528,7 +548,7 @@ export const AdminAiAnalytics: React.FC = () => {
             </div>
           ) : result ? (
             <>
-              {/* Data: chart and table */}
+              {/* Dữ liệu: biểu đồ và bảng */}
               <div className="order-2 xl:order-1 xl:col-span-5 space-y-4 min-w-0">
                 {rows ? (
                   <>
@@ -556,7 +576,7 @@ export const AdminAiAnalytics: React.FC = () => {
                 )}
               </div>
 
-              {/* AI analysis and SQL: sticky on wide screens */}
+              {/* Phân tích AI và SQL: dính cố định trên màn hình rộng */}
               <div className="order-1 xl:order-2 xl:col-span-4 space-y-4 min-w-0 xl:sticky xl:top-2">
                 {result.reply && (
                   <section className="p-4 rounded-lg shadow-xs app-bg-card border app-border relative overflow-hidden">

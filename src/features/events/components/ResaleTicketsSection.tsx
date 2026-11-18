@@ -6,11 +6,13 @@ import { eventApi, type EventApiData } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { EventCard } from "@/components/common/EventCard";
 
+/** Props của khu vực vé bán lại: tiêu đề tùy chọn và số sự kiện tối đa. */
 interface ResaleTicketsSectionProps {
   title?: string;
   limit?: number;
 }
 
+/** Khu vực vé bán lại (resale): lấy sự kiện có vé đang rao từ marketplace, xáo ngẫu nhiên lấy tối đa {@code limit}; nếu API lỗi thì dùng danh sách sự kiện chung. */
 export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ title, limit = 4 }) => {
   const { t: translate } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -18,6 +20,7 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
   const [showRight, setShowRight] = useState(true);
   const [events, setEvents] = useState<EventApiData[]>([]);
 
+  /** Cập nhật việc hiện hay ẩn nút cuộn trái và phải theo vị trí cuộn hiện tại. */
   const checkScroll = () => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
@@ -34,7 +37,7 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
     // Lấy dữ liệu thật từ marketplace
     marketplaceApi.getResaleEvents().then((data: any) => {
       if (data && data.length > 0) {
-        // Map ResaleEventSummary sang EventApiData format cho EventCard
+        // Chuyá»ƒn ResaleEventSummary sang Ä‘á»‹nh dáº¡ng EventApiData Ä‘á»ƒ dĂ¹ng cho EventCard
         const mapped = data.map((item: any) => ({
           id: item.eventId,
           title: item.title,
@@ -63,12 +66,14 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
     });
   }, [limit]);
 
+  /** Cuộn dải thẻ sang trái 350 điểm ảnh. */
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: -350, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải thẻ sang phải 350 điểm ảnh. */
   const scrollRight = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: 350, behavior: "smooth" });
@@ -77,7 +82,7 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
 
   return (
     <div className="mb-12 app-bg-card border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-sm transition-colors duration-300">
-      {/* Title & Banner Header */}
+      {/* Tiêu đề và banner đầu khu vực */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-500 text-white font-extrabold text-xs rounded-md mb-2 shadow-sm">
@@ -99,9 +104,9 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
           {translate("Khám phá vé bán lại")}</Link>
       </div>
 
-      {/* Resale Event Cards Carousel Wrapper */}
+      {/* Khung băng chuyền thẻ sự kiện vé bán lại */}
       <div className="relative group">
-        {/* Navigation Arrow Left (Smart Visibility) */}
+        {/* Nút mũi tên trái (hiện thông minh) */}
         {showLeft && (
           <button
             type="button"
@@ -113,7 +118,7 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
           </button>
         )}
 
-        {/* Scrollable Container (No Scrollbars Visible) */}
+        {/* Vùng cuộn (ẩn thanh cuộn) */}
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
@@ -133,7 +138,7 @@ export const ResaleTicketsSection: React.FC<ResaleTicketsSectionProps> = ({ titl
           ))}
         </div>
 
-        {/* Navigation Arrow Right (Smart Visibility) */}
+        {/* Nút mũi tên phải (hiện thông minh) */}
         {showRight && (
           <button
             type="button"

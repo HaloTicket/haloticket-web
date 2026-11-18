@@ -6,12 +6,14 @@ import { SeatCanvas } from "@/features/organizer/event-manage/components/seating
 import { ToolBar } from "@/features/organizer/event-manage/components/seating/ToolBar";
 import { DEFAULT_CANVAS_SETTINGS } from "@/utils/seatMapHelpers";
 
+/** Props của trình thiết kế sơ đồ ghế: tài liệu sơ đồ ban đầu (nếu có), hàm nhận sơ đồ khi lưu và hàm đóng (tùy chọn). */
 interface SeatMapDesignerProps {
   initialDocument?: SeatMapDocument | null;
   onSaveLayout: (document: SeatMapDocument) => void;
   onClose?: () => void;
 }
 
+/** Trình thiết kế sơ đồ ghế bằng canvas: vẽ khu vực, thêm hàng ghế, ma trận ghế, sân khấu và công trình; thanh công cụ bên trái, canvas ở giữa. Mặc định có một khu vực A và sân khấu chính khi chưa có tài liệu. */
 export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
   initialDocument,
   onSaveLayout,
@@ -56,6 +58,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
+  /** Đóng gói trạng thái hiện tại thành tài liệu sơ đồ (phiên bản 2.0, chưa gắn hạng vé), gửi cho {@code onSaveLayout} rồi đóng nếu có {@code onClose}. */
   const handleSave = () => {
     const doc: SeatMapDocument = {
       version: "2.0",
@@ -73,6 +76,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
     if (onClose) onClose();
   };
 
+  /** Xóa các phần tử đang chọn: ghế, sân khấu, công trình và khu vực. */
   const handleDeleteSelected = () => {
     if (selectedSeatIds.length > 0) {
       setSeats((prev) => prev.filter((s) => !selectedSeatIds.includes(s.id)));
@@ -94,6 +98,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
     }
   };
 
+  /** Nhân bản các ghế đang chọn (lệch 20px, số ghế tăng 100) và chọn các bản sao. */
   const handleDuplicateSelected = () => {
     if (selectedSeatIds.length > 0) {
       const selected = seats.filter((s) => selectedSeatIds.includes(s.id));
@@ -109,13 +114,14 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
     }
   };
 
+  /** Chọn tất cả ghế. */
   const handleSelectAll = () => {
     setSelectedSeatIds(seats.map((s) => s.id));
   };
 
   return (
     <div className="flex flex-col h-[750px] w-full app-bg-card border app-border rounded-2xl overflow-hidden shadow-2xl">
-      {/* Header Bar */}
+      {/* Thanh tiêu đề */}
       <div className="flex items-center justify-between px-6 py-3 border-b app-border bg-slate-50 dark:bg-slate-900/60">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
@@ -148,9 +154,9 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
         </div>
       </div>
 
-      {/* Main Studio Area */}
+      {/* Vùng làm việc chính */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Toolbar */}
+        {/* Thanh công cụ bên trái */}
         <div className="w-64 border-r app-border p-4 bg-slate-50/50 dark:bg-slate-900/30 overflow-y-auto no-scrollbar space-y-4">
           <ToolBar
             zones={zones}
@@ -269,7 +275,7 @@ export const SeatMapDesigner: React.FC<SeatMapDesignerProps> = ({
           />
         </div>
 
-        {/* Center Canvas */}
+        {/* Canvas ở giữa */}
         <div className="flex-1 bg-slate-900 overflow-auto relative p-4 flex items-center justify-center">
           <SeatCanvas
             seats={seats}

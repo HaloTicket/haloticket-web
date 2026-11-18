@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import type { SystemVenue } from "@/types";
 
+/** Props của bảng địa điểm: danh sách, mã dòng đang xử lý, các callback thao tác và thông tin phân trang để đánh số thứ tự. */
 interface VenueTableProps {
   venues: (SystemVenue & { isPublic?: boolean; seatmapTemplate?: string })[];
   busyId: string | null;
@@ -26,6 +27,7 @@ interface VenueTableProps {
   pageSize?: number;
 }
 
+/** Bảng địa điểm cho quản trị viên với các thao tác xác minh, quản lý sơ đồ, sửa và xóa. */
 export const VenueTable: React.FC<VenueTableProps> = ({
   venues,
   busyId,
@@ -67,12 +69,12 @@ export const VenueTable: React.FC<VenueTableProps> = ({
 
               return (
                 <tr key={v.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors">
-                  {/* STT */}
+                  {/* Số thứ tự */}
                   <td className="text-center font-medium text-xs app-text-muted px-3 py-2">
                     {(page - 1) * pageSize + index + 1}
                   </td>
 
-                  {/* Name & Scope Badge */}
+                  {/* Tên và huy hiệu phạm vi */}
                   <td className="py-2.5 px-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -93,7 +95,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     </div>
                   </td>
 
-                  {/* Address */}
+                  {/* Địa chỉ */}
                   <td className="py-2.5 px-4">
                     <p className="truncate font-medium text-xs" title={v.address}>{v.address}</p>
                     <p className="truncate text-[11px] app-text-muted">
@@ -102,7 +104,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     </p>
                   </td>
 
-                  {/* Capacity */}
+                  {/* Sức chứa */}
                   <td className="whitespace-nowrap py-2.5 px-4 font-medium text-xs">
                     <span className="inline-flex items-center gap-1">
                       <FiUsers className="w-3.5 h-3.5 app-text-muted shrink-0" />
@@ -110,7 +112,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     </span>
                   </td>
 
-                  {/* Events count */}
+                  {/* Số sự kiện */}
                   <td className="whitespace-nowrap py-2.5 px-4 font-medium text-xs">
                     <span className="inline-flex items-center gap-1">
                       <FiCalendar className="w-3.5 h-3.5 app-text-muted shrink-0" />
@@ -118,7 +120,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     </span>
                   </td>
 
-                  {/* Verification Status */}
+                  {/* Trạng thái xác minh */}
                   <td className="whitespace-nowrap py-2.5 px-4">
                     {isPrivateVenue ? (
                       <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold border border-slate-200 dark:border-slate-700">
@@ -135,10 +137,10 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                     )}
                   </td>
 
-                  {/* Actions */}
+                  {/* Thao tác */}
                   <td className="whitespace-nowrap py-2.5 px-4 text-right">
                     <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                      {/* Verify button with confirm modal - ONLY for public unverified venues */}
+                      {/* Nút xác minh có hộp thoại xác nhận, chỉ cho địa điểm công cộng chưa xác minh */}
                       {!isPrivateVenue && !v.verified && (
                         <button
                           type="button"
@@ -152,7 +154,7 @@ export const VenueTable: React.FC<VenueTableProps> = ({
                         </button>
                       )}
 
-                      {/* SeatMap Template & list button */}
+                      {/* Nút mẫu sơ đồ ghế và danh sách */}
                       {!isPrivateVenue ? (
                         <button
                           type="button"

@@ -13,6 +13,7 @@ import {
   FiUser,
 } from "react-icons/fi";
 
+/** Props của bước chụp khuôn mặt: hàm nhận ảnh, ảnh xem trước, hàm chụp lại, chuyển bước và cờ bước đang hoạt động. */
 interface FaceCaptureStepProps {
   onCapture: (file: File, previewUrl: string) => void;
   previewUrl: string | null;
@@ -24,6 +25,7 @@ interface FaceCaptureStepProps {
   isActive?: boolean;
 }
 
+/** Bước chụp ảnh chân dung bằng webcam (có QR để mở trên điện thoại), tự tắt camera khi bước không còn hoạt động. */
 export function FaceCaptureStep({
   onCapture,
   previewUrl,
@@ -44,7 +46,8 @@ export function FaceCaptureStep({
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Stop camera tracks cleanly
+  // Dừng các luồng camera một cách sạch sẽ
+  /** Dừng mọi track của luồng camera và gỡ luồng khỏi thẻ video. */
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -55,8 +58,8 @@ export function FaceCaptureStep({
     }
   }, []);
 
-  // Adjust state during render when isActive becomes false (React pattern)
-  // This prevents the camera from remaining in 'started' state when user switches tabs/steps
+  // Điều chỉnh state ngay trong lúc render khi isActive chuyển sang false (mẫu của React)
+  // Tránh camera còn ở trạng thái 'started' khi người dùng chuyển tab hoặc bước
   const [prevIsActive, setPrevIsActive] = useState(isActive);
   if (prevIsActive !== isActive) {
     setPrevIsActive(isActive);
@@ -67,6 +70,7 @@ export function FaceCaptureStep({
     }
   }
 
+  /** Xin quyền và bật camera trước, rồi phát lên thẻ video; lỗi quyền hoặc thiếu thiết bị được đổi thành thông báo tiếng Việt. */
   const startCamera = useCallback(async () => {
     setCameraLoading(true);
     setCameraError(null);
@@ -88,7 +92,7 @@ export function FaceCaptureStep({
           audio: false,
         });
       } catch {
-        // Fallback to basic video constraint for external PC webcams without facingMode
+        // Dự phòng: dùng ràng buộc video cơ bản cho webcam ngoài trên máy tính không có facingMode
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -122,7 +126,7 @@ export function FaceCaptureStep({
     }
   }, [stopCamera, t]);
 
-  // When component unmounts or becomes inactive, stop any active camera stream
+  // Khi component unmount hoặc không còn hoạt động, dừng luồng camera đang chạy
   useEffect(() => {
     if (!isActive) {
       stopCamera();
@@ -132,6 +136,7 @@ export function FaceCaptureStep({
     };
   }, [isActive, stopCamera]);
 
+  /** Chụp khung hình hiện tại vào canvas (lật gương) thành tệp JPEG, tắt camera và gọi {@code onCapture}. */
   const handleCapture = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -145,7 +150,7 @@ export function FaceCaptureStep({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Flip horizontally for mirroring effect from selfie camera
+    // Lật ngang để có hiệu ứng gương như camera selfie
     ctx.translate(width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, width, height);
@@ -167,12 +172,14 @@ export function FaceCaptureStep({
     );
   };
 
+  /** Tắt camera và yêu cầu chụp lại ảnh. */
   const handleRetakeClick = () => {
     stopCamera();
     setCameraStarted(false);
     onRetake();
   };
 
+  /** Tắt camera rồi quay về bước trước. */
   const handlePrev = () => {
     stopCamera();
     setCameraStarted(false);
@@ -183,6 +190,7 @@ export function FaceCaptureStep({
     ? (returnUrl.startsWith("http") ? returnUrl : `${window.location.origin}${returnUrl.startsWith("/") ? returnUrl : `/${returnUrl}`}`)
     : window.location.href;
 
+  /** Sao chép liên kết của trang vào clipboard và hiện trạng thái đã sao chép trong 2,5 giây. */
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(targetUrl);
@@ -201,10 +209,10 @@ export function FaceCaptureStep({
 
   return (
     <div className="space-y-5">
-      {/* Hidden Canvas used for capturing frame */}
+      {/* Canvas ẩn dùng để chụp khung hình */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Hidden input for test automation or mobile camera fallback */}
+      {/* Ô nhập ẩn phục vụ kiểm thử tự động hoặc dự phòng camera trên điện thoại */}
       <input
         type="file"
         data-testid="face-capture-input"
@@ -220,7 +228,7 @@ export function FaceCaptureStep({
         }}
       />
 
-      {/* Header Info */}
+      {/* Thông tin tiêu đề */}
       <div className="space-y-1">
         <h3 className="text-base sm:text-lg font-bold app-text-main">
           {t("Chụp khuôn mặt")}
@@ -230,9 +238,9 @@ export function FaceCaptureStep({
         </p>
       </div>
 
-      {/* Main Camera / Preview Container */}
+      {/* Khung camera chính hoặc ảnh xem trước */}
       <div className="rounded-xl border app-border app-bg-card overflow-hidden">
-        {/* State 1: Photo already captured */}
+        {/* Trạng thái 1: đã có ảnh chụp */}
         {previewUrl ? (
           <div className="p-6 flex flex-col items-center justify-center space-y-4 text-center">
             <div className="relative w-56 h-72 sm:w-64 sm:h-80 rounded-xl overflow-hidden border-2 border-emerald-500 bg-slate-950 flex items-center justify-center shadow-md">
@@ -276,9 +284,9 @@ export function FaceCaptureStep({
             </div>
           </div>
         ) : !isCameraRunning ? (
-          /* State 2: Pre-capture Ready Screen */
+          /* Trạng thái 2: màn hình sẵn sàng trước khi chụp */
           <div className="p-6 sm:p-10 flex flex-col items-center justify-center text-center space-y-5 max-w-md mx-auto">
-            {/* Visual Oval Outline Illustration */}
+            {/* Hình minh họa khung oval */}
             <div className="w-36 h-48 rounded-[36px] border-2 border-dashed border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 flex flex-col items-center justify-center text-blue-500 space-y-2">
               <FiUser className="w-12 h-12 stroke-1 opacity-70" />
               <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
@@ -323,7 +331,7 @@ export function FaceCaptureStep({
             </div>
           </div>
         ) : (
-          /* State 3: Live Camera Stream View */
+          /* Trạng thái 3: luồng camera trực tiếp */
           <div className="relative w-full bg-black flex flex-col items-center justify-center min-h-[380px] sm:min-h-[440px]">
             {cameraLoading && (
               <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center z-20 space-y-2 text-white">
@@ -340,7 +348,7 @@ export function FaceCaptureStep({
               className="w-full max-h-[440px] object-cover scale-x-[-1]"
             />
 
-            {/* Oval Mask Overlay */}
+            {/* Lớp phủ khung oval */}
             <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
               <div className="w-48 h-64 sm:w-56 sm:h-72 rounded-[40px] border-2 border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] flex items-center justify-center" />
               <span className="mt-3 px-3 py-1 rounded-full bg-black/75 text-white text-xs font-medium backdrop-blur-xs">
@@ -351,7 +359,7 @@ export function FaceCaptureStep({
         )}
       </div>
 
-      {/* Camera Capture Action (when camera is running) */}
+      {/* Nút chụp (khi camera đang chạy) */}
       {!previewUrl && isCameraRunning && (
         <div className="flex flex-col items-center justify-center gap-3 pt-1">
           <button
@@ -377,7 +385,7 @@ export function FaceCaptureStep({
         </div>
       )}
 
-      {/* Bottom Step Navigation */}
+      {/* Điều hướng bước ở phía dưới */}
       <div className="flex items-center justify-between pt-2 border-t app-border">
         <button
           type="button"
@@ -404,7 +412,7 @@ export function FaceCaptureStep({
         )}
       </div>
 
-      {/* QR Code Modal for Mobile Camera Fallback */}
+      {/* Hộp thoại mã QR để dùng camera điện thoại thay thế */}
       {showQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-sm rounded-xl app-bg-card border app-border p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
@@ -425,7 +433,7 @@ export function FaceCaptureStep({
               </p>
             </div>
 
-            {/* QR Code */}
+            {/* Mã QR */}
             <div className="w-48 h-48 mx-auto bg-white rounded-lg p-2.5 border border-slate-200 flex items-center justify-center overflow-hidden shadow-xs">
               <img
                 src={qrCodeUrl}

@@ -29,6 +29,7 @@ import {
 
 import type { NotificationItem } from "@/types";
 
+/** Props của thanh đầu trang quản lý sự kiện: dữ liệu sự kiện (lấy tên làm tiêu đề mặc định) và hàm mở sidebar trên màn hình nhỏ. */
 interface EventManageHeaderProps {
   eventData?: {
     title?: string;
@@ -37,6 +38,10 @@ interface EventManageHeaderProps {
   onOpenSidebar: () => void;
 }
 
+/**
+ * Thanh đầu trang của khu quản lý sự kiện: nút mở sidebar, tiêu đề theo tab hiện tại, đổi giao diện sáng tối,
+ * thông báo thời gian thực (socket) và menu tài khoản (hồ sơ, đăng xuất).
+ */
 export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   eventData,
   onOpenSidebar
@@ -58,6 +63,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   const accountDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /** Đọc trạng thái đăng nhập; nếu đã đăng nhập thì lấy hồ sơ từ bộ nhớ đệm rồi làm mới từ API, ngược lại xóa hồ sơ. */
     const checkAuth = () => {
       const authed = getKeycloakSession().isAuthenticated();
       setIsAuthenticated(authed);
@@ -74,6 +80,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
       }
     };
 
+    /** Cập nhật hồ sơ hiển thị khi có sự kiện {@code user-updated}. */
     const handleProfileUpdate = () => {
       setUserProfile(getCachedUserProfile());
     };
@@ -88,6 +95,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   const userTargetIds = [userProfile?.keycloakId, userProfile?.id].filter(Boolean) as string[];
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userTargetIds.length ? userTargetIds : "ORGANIZER");
 
+  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang đích của thông báo (nếu có). */
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
@@ -96,6 +104,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   };
 
   useEffect(() => {
+    /** Đóng menu tài khoản khi bấm ra ngoài vùng menu. */
     const handleClickOutside = (event: MouseEvent) => {
       if (
         accountDropdownRef.current &&
@@ -109,6 +118,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  /** Đăng xuất Keycloak, xóa hồ sơ trong state, phát sự kiện báo đổi tài khoản rồi về trang chủ. */
   const handleLogout = async () => {
     await getKeycloakSession().logout();
     setIsAuthenticated(false);
@@ -130,7 +140,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
       (r) => r.toUpperCase() === "ADMIN" || r.toUpperCase() === "ROLE_ADMIN"
     ) || false;
 
-  // dynamic header title based on current tab route path
+  /** Trả tiêu đề thanh đầu trang theo đường dẫn của tab hiện tại; không khớp tab nào thì dùng tên sự kiện. */
   const getHeaderTitle = () => {
     const p = location.pathname;
     if (p.endsWith("/overview")) return t("Phân tích & Báo cáo sự kiện");
@@ -157,7 +167,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
       />
 
       <header className="sticky top-0 z-30 app-bg-header border-b app-border backdrop-blur-md px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
-        {/* Left Side Header Title */}
+        {/* Tiêu đề bên trái thanh đầu trang */}
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -178,9 +188,9 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Side Header Controls */}
+        {/* Nhóm điều khiển bên phải */}
         <div className="flex items-center gap-3">
-          {/* Public Web View CTA */}
+          {/* Nút xem trang công khai của sự kiện */}
           {eventId && (
             <Link
               to={`/events/${eventId}`}
@@ -192,7 +202,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             </Link>
           )}
 
-          {/* Dark Mode Switcher */}
+          {/* Nút đổi giao diện sáng tối */}
           <button
             type="button"
             onClick={toggleTheme}
@@ -202,7 +212,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
           </button>
 
-          {/* Notification Bell Dropdown */}
+          {/* Chuông thông báo và danh sách thả xuống */}
           <NotificationDropdown
             notifications={notifications}
             unreadCount={unreadCount}
@@ -213,7 +223,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             titleText={t("Thông báo Ban tổ chức")}
           />
 
-          {/* User Profile Account Dropdown */}
+          {/* Menu thả xuống của tài khoản */}
           {isAuthenticated ? (
             <div ref={accountDropdownRef} className="relative group py-1">
               <button
@@ -236,7 +246,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
                 />
               </button>
 
-              {/* Account Dropdown Menu */}
+              {/* Nội dung menu tài khoản */}
               <div
                 className={`absolute right-0 top-full pt-2 w-56 transition-all duration-200 z-50 origin-top-right ${
                   isAccountOpen
@@ -345,7 +355,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
         </div>
       </header>
 
-      {/* Realtime Toast Popup Banner for Event Manager */}
+      {/* Toast thông báo thời gian thực cho người quản lý sự kiện */}
       <NotificationToast
         toast={latestToast}
         onToastClick={handleNotificationClick}

@@ -1,6 +1,4 @@
-/**
- * Default sample description template for event creation
- */
+/** Mẫu mô tả sự kiện mặc định, dùng làm nội dung gợi ý khi tạo sự kiện mới. */
 export const DEFAULT_DESCRIPTION_TEMPLATE = `Giới thiệu sự kiện:
 [Tóm tắt ngắn gọn về sự kiện: Nội dung chính của sự kiện, điểm đặc sắc nhất và lý do khiến người tham gia không nên bỏ lỡ]
 
@@ -14,9 +12,7 @@ Chi tiết sự kiện:
 Lưu ý về điều khoản trẻ em
 Lưu ý về điều khoản VAT`;
 
-/**
- * Options for inserting image into editor
- */
+/** Tùy chọn khi chèn ảnh vào trình soạn thảo: nguồn ảnh, văn bản thay thế và kích thước (px). */
 export interface ImageEmbedOptions {
   source: string;
   alt?: string;
@@ -25,7 +21,10 @@ export interface ImageEmbedOptions {
 }
 
 /**
- * Builds HTML image tag with optional dimensions and alt text
+ * Tạo thẻ HTML `img` với kích thước và văn bản thay thế tùy chọn.
+ *
+ * @param options - Tùy chọn chèn ảnh.
+ * @returns Chuỗi HTML, hoặc chuỗi rỗng nếu nguồn ảnh trống.
  */
 export const buildImageMarkup = (options: ImageEmbedOptions): string => {
   const { source, alt = "", width, height } = options;
@@ -41,9 +40,7 @@ export const buildImageMarkup = (options: ImageEmbedOptions): string => {
   return `\n<img src="${src}"${altAttr}${widthAttr}${heightAttr}${styleAttr} class="rounded-xl max-w-full my-3" />\n`;
 };
 
-/**
- * Options for inserting media/video into editor
- */
+/** Tùy chọn khi chèn video vào trình soạn thảo: nguồn, kích thước (px), nguồn dự phòng và ảnh bìa. */
 export interface MediaEmbedOptions {
   source: string;
   width?: string;
@@ -53,7 +50,10 @@ export interface MediaEmbedOptions {
 }
 
 /**
- * Builds HTML embed markup for YouTube or MP4/HTML5 video URL with width, height, poster, alt source
+ * Tạo mã HTML nhúng video: YouTube (đổi sang dạng `embed`) hoặc video MP4/HTML5, kèm kích thước, ảnh bìa và nguồn dự phòng.
+ *
+ * @param options - Tùy chọn chèn video.
+ * @returns Chuỗi HTML, hoặc chuỗi rỗng nếu nguồn video trống.
  */
 export const buildMediaEmbedMarkup = (options: MediaEmbedOptions): string => {
   const { source, width, height, altSource, poster } = options;
@@ -81,14 +81,23 @@ export const buildMediaEmbedMarkup = (options: MediaEmbedOptions): string => {
 };
 
 /**
- * Builds HTML embed markup for YouTube or MP4 video URL (legacy fallback helper)
+ * Tạo mã HTML nhúng video chỉ từ đường dẫn (hàm tương thích cũ, dùng các giá trị mặc định).
+ *
+ * @param rawUrl - Đường dẫn video YouTube hoặc MP4.
  */
 export const buildVideoEmbedMarkup = (rawUrl: string): string => {
   return buildMediaEmbedMarkup({ source: rawUrl });
 };
 
 /**
- * Applies text formatting (Bold, Italic, Underline, Color, Heading, Alignment) to an HTML TextArea element
+ * Bọc đoạn văn đang chọn trong một ô nhập nhiều dòng bằng tiền tố và hậu tố định dạng (đậm, nghiêng, gạch chân, màu...);
+ * nếu chưa chọn gì thì chèn văn bản mẫu.
+ *
+ * @param textareaId - `id` của phần tử textarea trong DOM.
+ * @param currentText - Nội dung hiện tại của ô nhập.
+ * @param prefix - Chuỗi chèn trước đoạn chọn.
+ * @param suffix - Chuỗi chèn sau đoạn chọn, mặc định bằng `prefix`.
+ * @returns Nội dung mới; giữ nguyên nếu không tìm thấy textarea.
  */
 export const applyTextFormatToTextarea = (
   textareaId: string,

@@ -1,5 +1,6 @@
 import React from "react";
 
+/** Props của nút: kế thừa thuộc tính `button` gốc, thêm biến thể, kích cỡ và biểu tượng. */
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "gradient";
   size?: "sm" | "md" | "lg";
@@ -8,6 +9,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
 }
 
+/** Nút dùng chung với các biến thể kiểu dáng và kích cỡ; chuyển tiếp mọi thuộc tính còn lại xuống thẻ `button`. */
 export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   size = "md",

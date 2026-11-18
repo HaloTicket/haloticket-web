@@ -5,12 +5,17 @@ import { AdminModal } from "@/components/admin/AdminModal";
 import type { OrganizerListingItem } from "@/types/eventTransfer";
 import { TransferDetailRow as Row, TransferRecordSummary, TransferStatus, transferDate, transferMoney, type TransferEventInfo } from "./TransferRecordDetails";
 
+/** Props của modal chi tiết tin đăng bán lại: cờ mở, hàm đóng, tin đăng, tham số chính sách và các hàm gỡ hoặc duyệt tin. */
 interface ResaleListingDetailModalProps extends TransferEventInfo {
   isOpen: boolean; onClose: () => void; listing: OrganizerListingItem | null;
   serviceFeePercent?: number; maxPricePercent?: number; isModerationMode?: boolean;
   onDelist?: (listingId: string) => Promise<void> | void;
   onModerate?: (listingId: string, action: "APPROVE" | "REJECT", reason?: string) => Promise<void> | void;
 }
+/**
+ * Modal chi tiết một tin đăng bán lại: giá đăng, giá trần, phí dịch vụ và số tiền người bán nhận ước tính.
+ * Ở chế độ duyệt (tin chờ duyệt) cho phép phê duyệt hoặc từ chối kèm lý do bắt buộc; ngược lại cho phép gỡ tin đang bán hoặc tạm dừng.
+ */
 export function ResaleListingDetailModal({ isOpen, onClose, listing, eventTitle, eventThumbnail, serviceFeePercent, maxPricePercent, onDelist, onModerate, isModerationMode }: ResaleListingDetailModalProps) {
   const { t } = useTranslation();
   const [confirm, setConfirm] = useState(false);
@@ -26,6 +31,7 @@ export function ResaleListingDetailModal({ isOpen, onClose, listing, eventTitle,
   const feePercent = listing.serviceFeePercent ?? serviceFeePercent ?? 5;
   const fee = Math.round(listing.price * feePercent / 100);
   const moderate = Boolean(isModerationMode && onModerate && listing.status === "PENDING_APPROVAL");
+  /** Gửi quyết định duyệt hoặc gỡ tin qua {@code onModerate} hoặc {@code onDelist}; thành công thì đóng modal, lỗi thì hiện thông báo từ máy chủ. */
   const submit = async () => {
     if (busy || (moderate && decision === "REJECT" && !reason.trim())) return;
     setBusy(true); setError("");

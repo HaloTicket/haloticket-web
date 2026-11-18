@@ -1,3 +1,4 @@
+/** Yêu cầu tạo hoặc cập nhật một loại vé của sự kiện. */
 export interface TicketTypeApiRequest {
   id?: string;
   eventId?: string;
@@ -10,6 +11,7 @@ export interface TicketTypeApiRequest {
   description?: string;
 }
 
+/** Loại vé do backend trả về, kèm số lượng tổng, đã bán, đang giữ và còn lại. */
 export interface TicketTypeApiResponse {
   id: string;
   eventId: string;
@@ -28,6 +30,7 @@ export interface TicketTypeApiResponse {
   status: string;
 }
 
+/** Vé người dùng đang sở hữu: thông tin đặt vé, vị trí ghế, mã QR và cách có được vé (mua mới, mua lại hoặc được tặng). */
 export interface OwnedTicketApiResponse {
   id: string;
   bookingId?: string | null;
@@ -49,6 +52,7 @@ export interface OwnedTicketApiResponse {
   seatName?: string | null;
 }
 
+/** Dữ liệu một khu vực trên sơ đồ ghế khi gửi hoặc nhận từ backend (hình dạng, màu, vị trí, sức chứa). */
 export interface SeatLayoutZoneDto {
   id?: string;
   name: string;
@@ -67,6 +71,7 @@ export interface SeatLayoutZoneDto {
   capacity?: number;
 }
 
+/** Yêu cầu lưu sơ đồ ghế của sự kiện (bản nháp JSON, SVG và các khu vực). */
 export interface SeatLayoutApiRequest {
   eventId: string;
   draftJson?: string;
@@ -76,6 +81,7 @@ export interface SeatLayoutApiRequest {
   zones?: SeatLayoutZoneDto[];
 }
 
+/** Sơ đồ ghế của sự kiện do backend trả về. */
 export interface SeatLayoutApiResponse {
   id: string;
   eventId: string;

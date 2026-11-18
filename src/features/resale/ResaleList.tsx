@@ -7,6 +7,7 @@ import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import type { ResaleEventSummary } from "@/types/marketplace";
 
+/** Sự kiện có vé bán lại: tóm tắt từ marketplace kèm thông tin hiển thị lấy từ API sự kiện. */
 type ResaleEvent = ResaleEventSummary & {
   title: string;
   startTime?: string;
@@ -14,9 +15,11 @@ type ResaleEvent = ResaleEventSummary & {
   posterImage?: string;
 };
 
+/** Định dạng số tiền VND, không có phần thập phân. */
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
 
+/** Thẻ khung chờ (skeleton) hiển thị trong lúc tải danh sách sự kiện. */
 function SkeletonCard() {
   return (
     <div className="animate-pulse overflow-hidden rounded-2xl border app-border app-bg-card" aria-hidden="true">
@@ -34,6 +37,7 @@ function SkeletonCard() {
   );
 }
 
+/** Trang danh sách các sự kiện có vé bán lại: tải tóm tắt từ marketplace, bổ sung thông tin sự kiện và cho tìm kiếm theo từ khóa. */
 export const ResaleList = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -42,6 +46,7 @@ export const ResaleList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /** Định dạng ngày giờ theo ngôn ngữ hiện tại; thiếu giá trị thì hiện thông báo đang cập nhật. */
   const formatDate = (value?: string) =>
     value
       ? new Intl.DateTimeFormat(i18n.language.startsWith("vi") ? "vi-VN" : "en-US", { dateStyle: "long", timeStyle: "short" }).format(new Date(value))
@@ -51,6 +56,7 @@ export const ResaleList = () => {
     window.scrollTo({ top: 0, left: 0 });
     let active = true;
 
+    /** Tải danh sách sự kiện có vé bán lại rồi gọi API sự kiện để lấy tiêu đề, giờ bắt đầu, địa điểm và ảnh; bỏ qua kết quả nếu component đã bị gỡ. */
     const load = async () => {
       try {
         const summaries = await marketplaceApi.getResaleEvents();

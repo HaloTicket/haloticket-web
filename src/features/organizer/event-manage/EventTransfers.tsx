@@ -10,19 +10,25 @@ import { ResaleListingDetailModal } from "./components/ResaleListingDetailModal"
 import { TransferStatus, transferDate, transferMoney, type TransferEventInfo } from "./components/TransferRecordDetails";
 import "./EventTransfers.css";
 
+/** Đổi chuỗi thời điểm sang dạng {@code YYYY-MM-DDTHH:mm} theo giờ địa phương cho ô nhập datetime-local; giá trị rỗng hoặc sai trả chuỗi rỗng. */
 const localDate = (value: string | null) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
+  /** Đệm số bằng chữ số 0 ở đầu cho đủ hai ký tự. */
   const pad = (n: number) => String(n).padStart(2, "0");
   return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
 };
+/** Đổi giá trị datetime-local sang chuỗi ISO UTC để gửi lên API; rỗng thì trả {@code null}. */
 const instant = (value: string) => value ? new Date(value).toISOString() : null;
+/** Trả thông báo lỗi khi giờ kết thúc không sau giờ bắt đầu, ngược lại trả chuỗi rỗng. */
 const windowError = (start: string, end: string, t: (k: string) => string) => start && end && start >= end ? t("Thời gian kết thúc phải sau thời gian bắt đầu.") : "";
+/** Trả thông báo khi lưu cấu hình thất bại: HTTP 409 nghĩa là cấu hình đã bị người khác đổi (xung đột phiên bản). */
 const saveError = (error: unknown, t: (k: string) => string) => (error as { response?: { status?: number } })?.response?.status === 409
   ? t("Cấu hình đã được thay đổi. Tải lại trang để xem phiên bản mới nhất.")
   : t("Chưa lưu được thay đổi. Cấu hình hiện tại vẫn được giữ nguyên, vui lòng thử lại.");
 
+/** Công tắc bật tắt dạng {@code role="switch"}, có thể kèm chữ "Đang bật" hoặc "Đang tắt" khi {@code showState}. */
 function Toggle({ checked, disabled, onChange, label, showState = false }: { checked: boolean; disabled?: boolean; onChange?: (value: boolean) => void; label: string; showState?: boolean }) {
   const { t } = useTranslation();
   return <div className="transfer-switch-wrap">
@@ -32,10 +38,12 @@ function Toggle({ checked, disabled, onChange, label, showState = false }: { che
   </div>;
 }
 
+/** Một trường nhập gồm nhãn, nội dung nhập và dòng gợi ý (nếu có). */
 function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ReactNode }) {
   return <div className="transfer-field"><label htmlFor={id}>{label}</label>{children}{hint && <p>{hint}</p>}</div>;
 }
 
+/** Tiêu đề của khối cấu hình (tặng vé hoặc bán lại vé) kèm công tắc bật tắt tính năng. */
 function PolicyHeading({ gift = false, enabled, canWrite, onChange }: { gift?: boolean; enabled: boolean; canWrite: boolean; onChange: (value: boolean) => void }) {
   const { t } = useTranslation();
   return <div className="transfer-policy-heading">
@@ -46,6 +54,7 @@ function PolicyHeading({ gift = false, enabled, canWrite, onChange }: { gift?: b
   </div>;
 }
 
+/** Vùng "Nâng cao" có thể mở rộng hoặc thu gọn bằng nút bấm, chứa các trường ít dùng. */
 function Advanced({ id, open, onChange, children }: { id: string; open: boolean; onChange: () => void; children: ReactNode }) {
   const { t } = useTranslation();
   return <div>
@@ -56,6 +65,7 @@ function Advanced({ id, open, onChange, children }: { id: string; open: boolean;
   </div>;
 }
 
+/** Hàng cuối form cấu hình: hiện lỗi, trạng thái chưa lưu hoặc đã lưu, cùng nút hủy thay đổi và lưu (chỉ khi có quyền ghi). */
 function SaveActions({ canWrite, dirty, saving, invalid, message, error, onSave, onReset }: { canWrite: boolean; dirty: boolean; saving: boolean; invalid: string; message: string; error: string; onSave: () => void; onReset: () => void }) {
   const { t } = useTranslation();
   return <>
@@ -72,6 +82,10 @@ function SaveActions({ canWrite, dirty, saving, invalid, message, error, onSave,
   </>;
 }
 
+/**
+ * Form cấu hình bán lại vé: khung giá tối thiểu và giá trần theo phần trăm giá gốc, phí dịch vụ, yêu cầu duyệt tin đăng
+ * và khung thời gian bán lại. Có kiểm tra hợp lệ, lưu kèm phiên bản kỳ vọng để phát hiện xung đột.
+ */
 function ResalePolicy({ eventId, policy, canWrite, onSaved }: { eventId: string; policy: ResalePolicyData | null; canWrite: boolean; onSaved: (value: ResalePolicyData) => void }) {
   const { t } = useTranslation();
   const original = { enabled: policy?.enabled ?? false, min: String(policy?.minPricePercent ?? 80), max: String(policy?.maxPricePercent ?? 120), fee: String(policy?.serviceFeePercent ?? 5), requireApproval: policy?.requireApproval ?? false, start: localDate(policy?.opensAt ?? null), end: localDate(policy?.closesAt ?? null) };
@@ -86,7 +100,9 @@ function ResalePolicy({ eventId, policy, canWrite, onSaved }: { eventId: string;
   const invalid = !draft.min || !draft.max || !Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max < min
     ? t("Giá tối thiểu phải từ 0% và không được vượt giá trần.")
     : !draft.fee || !Number.isFinite(fee) || fee < 0 || fee > 100 ? t("Phí dịch vụ phải từ 0% đến 100%.") : windowError(draft.start, draft.end, t);
+  /** Cập nhật các trường của bản nháp và xóa thông báo cũ. */
   const change = (values: Partial<typeof draft>) => { setDraft({ ...draft, ...values }); setError(""); setMessage(""); };
+  /** Gửi cấu hình bán lại lên API; thành công thì báo lên trên và lấy lại bản nháp từ kết quả, lỗi thì hiện thông báo. */
   const save = async () => {
     if (!canWrite || saving || invalid || !dirty) return;
     setSaving(true); setError(""); setMessage("");
@@ -122,6 +138,10 @@ function ResalePolicy({ eventId, policy, canWrite, onSaved }: { eventId: string;
   </section>;
 }
 
+/**
+ * Form cấu hình tặng vé: yêu cầu eKYC người nhận, giới hạn số lần tặng mỗi vé, thời hạn nhận lời mời và khung thời gian nhận.
+ * Lưu kèm phiên bản kỳ vọng để phát hiện xung đột.
+ */
 function GiftPolicy({ eventId, policy, canWrite, onSaved }: { eventId: string; policy: GiftPolicyData | null; canWrite: boolean; onSaved: (value: GiftPolicyData) => void }) {
   const { t } = useTranslation();
   const original = { enabled: policy?.enabled ?? false, ttl: String(policy?.invitationTtlHours ?? 24), requireEkyc: policy?.requireEkyc ?? true, limitEnabled: (policy?.maxGiftCount ?? 3) > 0, limit: String(policy?.maxGiftCount || 3), start: localDate(policy?.opensAt ?? null), end: localDate(policy?.closesAt ?? null) };
@@ -136,7 +156,9 @@ function GiftPolicy({ eventId, policy, canWrite, onSaved }: { eventId: string; p
     ? t("Thời hạn nhận lời mời phải từ 1 đến 168 giờ.")
     : draft.limitEnabled && (!draft.limit || !Number.isInteger(Number(draft.limit)) || Number(draft.limit) < 1 || Number(draft.limit) > 100)
       ? t("Giới hạn số lần tặng phải từ 1 đến 100.") : windowError(draft.start, draft.end, t);
+  /** Cập nhật các trường của bản nháp và xóa thông báo cũ. */
   const change = (values: Partial<typeof draft>) => { setDraft({ ...draft, ...values }); setError(""); setMessage(""); };
+  /** Gửi cấu hình tặng vé lên API; thành công thì báo lên trên và lấy lại bản nháp từ kết quả, lỗi thì hiện thông báo. */
   const save = async () => {
     if (!canWrite || saving || invalid || !dirty) return;
     setSaving(true); setError(""); setMessage("");
@@ -171,11 +193,19 @@ function GiftPolicy({ eventId, policy, canWrite, onSaved }: { eventId: string; p
   </section>;
 }
 
+/** Một dòng trong bảng: tin đăng bán lại hoặc giao dịch tặng vé. */
 type RecordItem = OrganizerListingItem | OrganizerGiftItem;
+/** Mã hiển thị của dòng: mã tham chiếu của tin đăng, hoặc mã giao dịch tặng dạng {@code GFT-...}. */
 const codeOf = (item: RecordItem) => "listingId" in item ? item.refCode : item.sagaId.startsWith("GFT-") ? item.sagaId : "GFT-" + item.sagaId.slice(0, 8).toUpperCase();
+/** Định danh dùng làm khóa dòng và chọn dòng: {@code listingId} của tin đăng hoặc {@code sagaId} của giao dịch tặng. */
 const idOf = (item: RecordItem) => "listingId" in item ? item.listingId : item.sagaId;
+/** Danh sách trạng thái (giá trị và nhãn dịch) dùng cho bộ lọc, theo từng loại bán lại hoặc tặng vé. */
 const getStates = (t: (k: string) => string) => ({ resale: [["PENDING_APPROVAL", t("Chờ duyệt")], ["ACTIVE", t("Đang bán")], ["RESERVED", t("Đang giữ")], ["SOLD", t("Đã bán")], ["PAUSED_BY_EVENT", t("Tạm dừng")], ["CANCELLED", t("Đã gỡ")], ["EXPIRED", t("Hết hạn")]], gift: [["PENDING", t("Chờ xác nhận")], ["COMPLETED", t("Thành công")], ["CANCELLED", t("Đã hủy")]] });
 
+/**
+ * Bảng danh sách tin đăng bán lại hoặc giao dịch tặng vé của sự kiện: lọc theo trạng thái, tìm kiếm, hạng vé và ngày,
+ * phân trang, xuất Excel, xem chi tiết; người có quyền ghi còn duyệt, gỡ tin đăng hoặc hủy giao dịch tặng.
+ */
 function Records({ eventId, kind, eventInfo, resalePolicy, canWrite }: { eventId: string; kind: "resale" | "gift"; eventInfo: TransferEventInfo; resalePolicy?: ResalePolicyData | null; canWrite: boolean }) {
   const { t } = useTranslation();
   const gift = kind === "gift";
@@ -195,6 +225,7 @@ function Records({ eventId, kind, eventInfo, resalePolicy, canWrite }: { eventId
   const [exporting, setExporting] = useState(false);
   useEffect(() => {
     let active = true;
+    /** Tải một trang dữ liệu theo trạng thái đang lọc; nếu trang hiện tại đã trống thì lùi về trang trước. */
     const load = async () => {
       setLoading(true); setError(""); setSelected([]);
       try {
@@ -218,24 +249,31 @@ function Records({ eventId, kind, eventInfo, resalePolicy, canWrite }: { eventId
     return (!search || (codeOf(item) + " " + text + " " + item.ticketTypeName).toLocaleLowerCase("vi").includes(search.toLocaleLowerCase("vi")))
       && (!tier || item.ticketTypeName === tier) && (!date || localDate(time).slice(0, 10) === date);
   });
+  /** Đổi bộ lọc trạng thái, quay về trang đầu và bỏ chọn các dòng. */
   const changeStatus = (value: string) => { setStatus(value); setPage(0); setSelected([]); };
+  /** Tải lại dữ liệu bằng cách tăng số lần làm mới. */
   const reload = () => setRevision(value => value + 1);
+  /** Quay về trang đầu rồi tải lại. */
   const reloadFirstPage = () => { setPage(0); reload(); };
+  /** Duyệt hoặc từ chối một tin đăng bán lại (kèm lý do nếu từ chối); chỉ chạy khi có quyền ghi. */
   const moderate = async (listingId: string, action: "APPROVE" | "REJECT", reason?: string) => {
     if (!canWrite) return;
     await eventTransferApi.moderateListing(eventId, listingId, action, reason);
     setMessage(action === "APPROVE" ? t("Đã gửi yêu cầu phê duyệt tin đăng.") : t("Đã gửi yêu cầu từ chối tin đăng. Hệ thống đang xử lý mở khóa vé.")); reload();
   };
+  /** Gửi yêu cầu gỡ một tin đăng bán lại; chỉ chạy khi có quyền ghi. */
   const delist = async (listingId: string) => {
     if (!canWrite) return;
     await eventTransferApi.cancelListing(eventId, listingId);
     setMessage(t("Đã gửi yêu cầu gỡ tin đăng. Hệ thống đang xử lý mở khóa vé.")); reload();
   };
+  /** Gửi yêu cầu hủy một giao dịch tặng vé; chỉ chạy khi có quyền ghi. */
   const cancelGift = async (sagaId: string) => {
     if (!canWrite) return;
     await eventTransferApi.cancelGift(eventId, sagaId);
     setMessage(t("Đã gửi yêu cầu hủy giao dịch tặng vé. Hệ thống đang xử lý mở khóa vé.")); reload();
   };
+  /** Xuất các dòng đang hiển thị ra tệp Excel; nếu có dòng được chọn thì chỉ xuất các dòng đó. */
   const exportRows = async () => {
     setExporting(true); setError("");
     try {
@@ -294,6 +332,10 @@ function Records({ eventId, kind, eventInfo, resalePolicy, canWrite }: { eventId
   </section>;
 }
 
+/**
+ * Màn hình quản lý chuyển nhượng vé của sự kiện: hai tab Bán lại vé và Tặng vé (tab lưu trên tham số {@code tab} của URL,
+ * hỗ trợ phím mũi tên), mỗi tab gồm cấu hình chính sách và bảng bản ghi. Người không có quyền ghi chỉ được xem.
+ */
 export function EventTransfers() {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -306,6 +348,7 @@ export function EventTransfers() {
   const activeTab = searchParams.get("tab") === "gift" ? "gift" : "resale";
   useEffect(() => {
     let active = true;
+    /** Tải cấu hình chuyển nhượng của sự kiện; HTTP 403 hiện thông báo không đủ quyền. */
     const load = async () => {
       setLoading(true); setError("");
       try {
@@ -322,6 +365,7 @@ export function EventTransfers() {
   const event = context?.eventData;
   const eventInfo: TransferEventInfo = { eventTitle: typeof event?.title === "string" ? event.title : undefined,
     eventThumbnail: typeof event?.thumbnailUrl === "string" ? event.thumbnailUrl : typeof event?.bannerUrl === "string" ? event.bannerUrl : undefined };
+  /** Chuyển tab bằng cách ghi tham số {@code tab} lên URL. */
   const changeTab = (tab: string) => setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("tab", tab); return next; });
   if (loading) return <div className="transfer-management"><div role="status" className="transfer-panel transfer-loading"><FiRefreshCw className="animate-spin" />{t("Đang tải cấu hình chuyển nhượng…")}</div></div>;
   if (error || !settings || !eventId) return <div className="transfer-management"><div role="alert" className="transfer-panel transfer-list-message"><FiAlertCircle />{error || t("Không tìm thấy sự kiện.")}<button className="transfer-button" onClick={() => setRevision(revision + 1)}>{t("Thử lại")}</button></div></div>;

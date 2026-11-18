@@ -5,9 +5,14 @@ import { AdminModal } from "@/components/admin/AdminModal";
 import type { OrganizerGiftItem } from "@/types/eventTransfer";
 import { TransferDetailRow as Row, TransferRecordSummary, TransferStatus, transferDate, type TransferEventInfo } from "./TransferRecordDetails";
 
+/** Props của modal chi tiết giao dịch tặng vé: cờ mở, hàm đóng, giao dịch cần xem và hàm hủy giao dịch (nếu có quyền). */
 interface GiftDetailModalProps extends TransferEventInfo {
   isOpen: boolean; onClose: () => void; gift: OrganizerGiftItem | null; onCancelGift?: (sagaId: string) => Promise<void> | void;
 }
+/**
+ * Modal chi tiết một giao dịch tặng vé: người gửi, người nhận, eKYC, thời gian và trạng thái. Giao dịch đang chờ có
+ * đồng hồ đếm ngược tới hạn xác nhận và nút hủy lời mời (kèm bước xác nhận) khi có {@code onCancelGift}.
+ */
 export function GiftDetailModal({ isOpen, onClose, gift, eventTitle, eventThumbnail, onCancelGift }: GiftDetailModalProps) {
   const { t } = useTranslation();
   const [now, setNow] = useState(Date.now);
@@ -22,8 +27,10 @@ export function GiftDetailModal({ isOpen, onClose, gift, eventTitle, eventThumbn
   }, [isOpen, pending]);
   if (!isOpen || !gift) return null;
   const remaining = Math.max(0, Math.ceil((new Date(gift.expiresAt).getTime() - now) / 1000));
+  /** Đệm số bằng chữ số 0 ở đầu cho đủ hai ký tự. */
   const pad = (value: number) => String(value).padStart(2, "0");
   const countdown = Number.isFinite(remaining) ? remaining ? t("Còn") + " " + pad(Math.floor(remaining / 3600)) + ":" + pad(Math.floor(remaining % 3600 / 60)) + ":" + pad(remaining % 60) : t("Đã hết hạn xác nhận") : t("Chưa có thông tin");
+  /** Hủy giao dịch tặng vé qua {@code onCancelGift}; thành công thì đóng modal, lỗi thì hiện thông báo từ máy chủ. */
   const cancel = async () => {
     if (!onCancelGift || busy) return;
     setBusy(true); setError("");

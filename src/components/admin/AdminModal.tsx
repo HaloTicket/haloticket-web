@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { FiX } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 
+/** Props của hộp thoại admin: tiêu đề, phụ đề, biểu tượng, nội dung, độ rộng tối đa và cờ khóa đóng. */
 export interface AdminModalProps {
   title: string;
   subtitle?: string;
@@ -24,6 +25,10 @@ const widths = {
   "4xl": "max-w-4xl",
 };
 
+/**
+ * Hộp thoại (Dialog) dùng chung cho các form của admin. Chặn đóng bằng Esc hoặc bấm ra ngoài khi đang `pending`
+ * hoặc không `dismissible`, và không đóng khi bấm vào dropdown nổi `.floating-dropdown`.
+ */
 export function AdminModal({ title, subtitle, icon, onClose, children, maxWidth = "lg", dismissible = true, pending = false }: AdminModalProps) {
   const { t } = useTranslation();
   const descriptionId = useId();

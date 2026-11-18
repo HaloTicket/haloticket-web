@@ -16,10 +16,13 @@ import { toast } from "sonner";
 import { resolveAiError, aiErrorMessage } from "@/utils/aiErrors";
 import type { SslStatusResponse } from "@/types/ai";
 
+/** Dữ liệu trạng thái chứng chỉ SSL/TLS do máy chủ trả về. */
 type SslStatusData = SslStatusResponse;
 
+/** Thẻ giám sát chứng chỉ SSL/TLS của một tên miền: kiểm tra thật qua API, hiện hạn dùng, cho phép kiểm tra lại và nhập tên miền khác. */
 export const SslCertificateCard: React.FC = () => {
   const { t, i18n } = useTranslation();
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [checking, setChecking] = useState(true);
   const labelRef = useRef(label);
@@ -34,6 +37,7 @@ export const SslCertificateCard: React.FC = () => {
 
   const clientHost = typeof window !== "undefined" ? window.location.host : "localhost";
 
+  /** Tải trạng thái chứng chỉ của tên miền (mặc định là tên miền trang đang chạy, hoặc một tên miền cố định nếu chạy cục bộ); trả về `true` khi máy chủ có phản hồi. */
   const fetchSslStatus = useCallback(async (domainToCheck?: string): Promise<boolean> => {
     let clean = domainToCheck ? domainToCheck.trim() : "";
     if (!clean && typeof window !== "undefined" && window.location.hostname && window.location.hostname !== "localhost" && !window.location.hostname.startsWith("192.") && !window.location.hostname.startsWith("127.")) {
@@ -51,7 +55,7 @@ export const SslCertificateCard: React.FC = () => {
       setSslError(null);
       return true;
     } catch (err) {
-      // no made-up certificate: show the real failure and let the admin retry.
+      // không dựng chứng chỉ giả: hiện lỗi thật để quản trị viên thử lại.
       setSslData(null);
       const info = resolveAiError(err);
       setSslError(
@@ -67,15 +71,17 @@ export const SslCertificateCard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // initial load; state updates happen after the async work, not in the effect body
+    // lần tải đầu; cập nhật state diễn ra sau tác vụ bất đồng bộ, không nằm trong thân effect
     void Promise.resolve().then(() => fetchSslStatus());
   }, [fetchSslStatus]);
 
+  /** Bật trạng thái đang kiểm tra rồi tải lại trạng thái chứng chỉ. */
   const startCheck = (domain?: string) => {
     setChecking(true);
     return fetchSslStatus(domain);
   };
 
+  /** Kiểm tra lại chứng chỉ theo tên miền người dùng đã nhập. */
   const handleRecheckSsl = () => {
     toast.info(label("Đang kiểm tra chứng chỉ SSL/TLS thực tế...", "Checking the live SSL/TLS certificate..."));
     void startCheck(customDomain || undefined);

@@ -10,6 +10,7 @@ import { PATHS } from "@/routes/paths";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+/** Trang chi tiết một người dùng cho quản trị viên: thông tin tài khoản, trạng thái và thao tác khóa hoặc mở khóa. */
 export default function AdminUserDetail() {
   const { t } = useTranslation();
   const { userId } = useParams<{ userId: string }>();
@@ -19,6 +20,7 @@ export default function AdminUserDetail() {
   
   const backUrl = PATHS.ADMIN_USER_MANAGEMENT;
 
+  /** Tải chi tiết người dùng theo `userId` trên URL và ghi nhận lỗi nếu thất bại. */
   const fetchUser = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
@@ -38,6 +40,7 @@ export default function AdminUserDetail() {
     fetchUser();
   }, [fetchUser]);
 
+  /** Đổi trạng thái tài khoản (khóa hoặc mở khóa), báo kết quả bằng toast rồi tải lại chi tiết. */
   const handleUpdateStatus = async (newStatus: string) => {
     if (!userId) return;
     try {
@@ -76,7 +79,7 @@ export default function AdminUserDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          {/* Main Info Card */}
+          {/* Thẻ thông tin chính */}
           <section className="rounded-xl shadow-xs border app-border app-bg-card p-6 flex flex-col items-center text-center">
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt="" className="w-24 h-24 rounded-full object-cover border-4 app-border mb-4" />
@@ -111,7 +114,7 @@ export default function AdminUserDetail() {
             </div>
           </section>
 
-          {/* Additional Info */}
+          {/* Thông tin bổ sung */}
           <section className="rounded-xl shadow-xs border app-border app-bg-card p-5 space-y-4">
             <h3 className="font-bold app-text-main text-sm uppercase tracking-wider">{t("Thông tin tài khoản")}</h3>
             <div className="space-y-3 text-sm">
@@ -139,7 +142,7 @@ export default function AdminUserDetail() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          {/* General Information */}
+          {/* Thông tin chung */}
           <section className="rounded-xl shadow-xs border app-border app-bg-card overflow-hidden">
             <div className="app-bg-subnav border-b app-border p-4">
               <h3 className="font-bold app-text-main">{t("Thông tin liên hệ & Cá nhân")}</h3>
@@ -166,7 +169,7 @@ export default function AdminUserDetail() {
             </div>
           </section>
 
-          {/* eKYC Information */}
+          {/* Thông tin eKYC */}
           <section className="rounded-xl shadow-xs border app-border app-bg-card overflow-hidden">
             <div className="app-bg-subnav border-b app-border p-4 flex items-center justify-between">
               <h3 className="font-bold app-text-main flex items-center gap-2">
@@ -239,7 +242,7 @@ export default function AdminUserDetail() {
             )}
           </section>
 
-          {/* Financial & Business Information (if applicable) */}
+          {/* Thông tin tài chính và kinh doanh (nếu có) */}
           {(user.bankAccountNumber || user.taxCode) && (
             <section className="rounded-xl shadow-xs border app-border app-bg-card overflow-hidden">
               <div className="app-bg-subnav border-b app-border p-4">

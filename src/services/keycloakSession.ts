@@ -5,6 +5,7 @@ import Keycloak, {
 } from "keycloak-js";
 import { clearMemberInvitationToken } from "./memberInvitationToken";
 
+/** Phần tối thiểu của đối tượng Keycloak mà phiên cần, giúp thay bằng đối tượng giả khi kiểm thử. */
 export type KeycloakLike = Pick<
   KeycloakInstance,
   "init" | "login" | "createLoginUrl" | "updateToken"
@@ -16,16 +17,19 @@ export type KeycloakLike = Pick<
   logout?: KeycloakInstance["logout"];
 };
 
+/** Giao diện kho lưu trữ khóa-giá trị tối thiểu (tương thích `localStorage`). */
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem?(key: string, value: string): void;
   removeItem?(key: string): void;
 }
 
+/** Cửa sổ popup đăng nhập Google, chỉ cần biết đóng. */
 interface PopupLike {
   close(): void;
 }
 
+/** Sự kiện `message` do trang callback gửi về, mang kết quả đăng nhập Google (token hoặc bị hủy). */
 interface GoogleAuthMessageEvent {
   origin: string;
   source: unknown;
@@ -38,6 +42,7 @@ interface GoogleAuthMessageEvent {
   };
 }
 
+/** Phần của đối tượng `window` mà phiên dùng: mở popup và đăng ký, hủy đăng ký sự kiện. */
 interface BrowserWindowLike {
   open(url: string, target?: string, features?: string): PopupLike | null;
   addEventListener(
@@ -50,6 +55,7 @@ interface BrowserWindowLike {
   ): void;
 }
 
+/** Thông tin kích thước màn hình dùng để căn popup đăng nhập ra giữa. */
 interface ScreenLike {
   availWidth: number;
   availHeight: number;
@@ -57,6 +63,7 @@ interface ScreenLike {
   availTop?: number;
 }
 
+/** Tùy chọn tạo phiên Keycloak; mọi trường đều có thể thay thế để kiểm thử (đối tượng Keycloak, kho lưu trữ, cửa sổ, hàm làm mới token, thời gian chờ làm mới). */
 export interface KeycloakSessionOptions {
   keycloak?: KeycloakLike;
   config?: KeycloakConfig;
@@ -74,12 +81,14 @@ export interface KeycloakSessionOptions {
   ) => Promise<RefreshedTokens>;
 }
 
+/** Bộ token mới nhận được sau khi làm mới phiên. */
 export interface RefreshedTokens {
   accessToken: string;
   refreshToken?: string;
   idToken?: string;
 }
 
+/** Giao diện phiên đăng nhập: khởi tạo, đăng nhập Google, lấy và làm mới token, kiểm tra trạng thái xác thực và đăng xuất. */
 export interface KeycloakSession {
   init(options?: Partial<KeycloakInitOptions>): Promise<boolean>;
   loginWithGoogle(): Promise<void>;
@@ -95,16 +104,19 @@ export interface KeycloakSession {
 
 const legacyTokenKey = "access_token";
 
+/** Trả về `localStorage` của trình duyệt, hoặc `undefined` khi không có `window`. */
 function browserStorage(): StorageLike | undefined {
   return typeof window === "undefined" ? undefined : window.localStorage;
 }
 
+/** Trả về `window.location`, hoặc một vị trí giả `http://localhost` khi không có `window`. */
 function browserLocation(): Pick<Location, "origin"> {
   return typeof window === "undefined"
     ? { origin: "http://localhost" }
     : window.location;
 }
 
+/** Kiểm tra token JWT đã hết hạn chưa (chừa 5 giây dự phòng). Token sai định dạng hoặc không đọc được thì coi là chưa hết hạn; token rỗng thì coi là hết hạn. */
 export function isTokenExpired(token: string): boolean {
   if (!token || typeof token !== "string") return true;
   try {
@@ -124,6 +136,7 @@ export function isTokenExpired(token: string): boolean {
   return false;
 }
 
+/** Số giây còn lại tới khi token hết hạn, hoặc `null` nếu không đọc được `exp`. */
 function secondsUntilExpiry(token: string): number | null {
   try {
     const payload = JSON.parse(
@@ -137,6 +150,7 @@ function secondsUntilExpiry(token: string): number | null {
   }
 }
 
+/** Lấy client id (`azp`) từ token, mặc định `user-service` nếu không đọc được. */
 function tokenClientId(token: string): string {
   try {
     const payload = JSON.parse(
@@ -148,6 +162,7 @@ function tokenClientId(token: string): string {
   }
 }
 
+/** Tạo phiên đăng nhập kết hợp Keycloak (SSO) và token lưu trong `localStorage` do API mật khẩu cấp; mọi phụ thuộc có thể thay thế khi kiểm thử. */
 export function createKeycloakSession(
   options: KeycloakSessionOptions = {},
 ): KeycloakSession {
@@ -190,6 +205,7 @@ export function createKeycloakSession(
       if (!response.ok) throw new Error("Session refresh failed");
       return response.json() as Promise<RefreshedTokens>;
     });
+    /** Làm mới token từ `refresh_token` đã lưu qua API của hệ thống, dùng chung một lời gọi đang chạy; lỗi thì trả về `null`. */
   const refreshStoredToken = async (): Promise<string | null> => {
     const refreshToken = storage?.getItem("refresh_token");
     const accessToken = storage?.getItem(legacyTokenKey);
@@ -212,6 +228,7 @@ export function createKeycloakSession(
   };
 
   return {
+        /** Khởi tạo Keycloak (check-sso, PKCE); nếu chưa có phiên thì thử làm mới từ token đã lưu. Trả về `true` khi đã xác thực. */
     init: async (initOverrides) => {
       const initOptions: KeycloakInitOptions = initOverrides ?? {
         checkLoginIframe: false,
@@ -226,6 +243,7 @@ export function createKeycloakSession(
       return Boolean(await refreshStoredToken());
     },
 
+        /** Đăng nhập Google qua popup Keycloak và chờ kết quả (từ `postMessage` hoặc `BroadcastChannel`); lưu token và tài khoản Google gần nhất. Ném lỗi nếu popup bị chặn hoặc người dùng hủy. Không có `window` thì chuyển hướng cả trang. */
     loginWithGoogle: async () => {
       const googleLoginOptions = {
         idpHint: "google",
@@ -278,6 +296,7 @@ export function createKeycloakSession(
         let broadcastChannel: BroadcastChannel | undefined;
         let focusResetTimer: ReturnType<typeof setTimeout> | undefined;
 
+                /** Gỡ các trình lắng nghe, bộ đếm và kênh phát. */
         const cleanup = () => {
           browserWindow.removeEventListener("message", handleMessage);
           browserWindow.removeEventListener("focus", handleFocus);
@@ -285,15 +304,17 @@ export function createKeycloakSession(
           try {
             broadcastChannel?.close();
           } catch {
-            // BroadcastChannel may already be closed.
+                        // BroadcastChannel có thể đã đóng.
           }
         };
+                /** Kết thúc lời hứa đúng một lần: dọn dẹp rồi chạy `callback`. */
         const settle = (callback: () => void) => {
           if (settled) return;
           settled = true;
           cleanup();
           callback();
         };
+                /** Xử lý kết quả đăng nhập Google: thành công thì lưu token và thông tin tài khoản, còn lại thì từ chối vì bị hủy. */
         const handleAuthResult = (data?: GoogleAuthMessageEvent["data"]) => {
           if (data?.type !== "haloticket-google-auth") return;
           if (data.status === "success" && data.token) {
@@ -359,6 +380,7 @@ export function createKeycloakSession(
           }
           settle(() => reject(new Error("Google login was cancelled")));
         };
+                /** Nhận `message` từ popup, chỉ chấp nhận từ origin của ứng dụng hoặc Keycloak và từ đúng popup đã mở. */
         const handleMessage = (event?: GoogleAuthMessageEvent) => {
           if (
             !event ||
@@ -368,6 +390,7 @@ export function createKeycloakSession(
           if (event.source && event.source !== popup) return;
           handleAuthResult(event.data);
         };
+                /** Khi cửa sổ chính lấy lại tiêu điểm, đợi 300ms rồi coi như người dùng đã hủy nếu chưa có kết quả. */
         const handleFocus = () => {
           focusResetTimer = setTimeout(() => {
             settle(() => reject(new Error("Google login was cancelled")));
@@ -383,11 +406,12 @@ export function createKeycloakSession(
               handleAuthResult(event.data);
           }
         } catch {
-          // BroadcastChannel is not available in every browser mode.
+                    // BroadcastChannel không có ở mọi chế độ trình duyệt.
         }
       });
     },
 
+        /** Ép làm mới token ngay (kể cả chưa hết hạn); không được thì xóa token đã lưu. Trả về token mới hoặc `null`. */
     forceRefreshAccessToken: async () => {
       if (keycloak.authenticated && keycloak.token) {
         try {
@@ -396,7 +420,7 @@ export function createKeycloakSession(
             return keycloak.token;
           }
         } catch {
-          // Token refresh failed
+                    // Làm mới token thất bại
         }
       }
       const raw = storage?.getItem(legacyTokenKey);
@@ -410,6 +434,7 @@ export function createKeycloakSession(
       return null;
     },
 
+        /** Lấy access token còn hiệu lực, tự làm mới khi sắp hết hạn trong khoảng dự phòng; token hết hạn bị xóa khỏi kho lưu. */
     getAccessToken: async () => {
       if (keycloak.authenticated && keycloak.token) {
         try {
@@ -418,7 +443,7 @@ export function createKeycloakSession(
             return keycloak.token;
           }
         } catch {
-          // Token refresh failed
+                    // Làm mới token thất bại
         }
       }
       const raw = storage?.getItem(legacyTokenKey);
@@ -439,6 +464,7 @@ export function createKeycloakSession(
       return null;
     },
 
+        /** Lấy token hiện tại còn hạn mà không làm mới, hoặc `null`. */
     getCurrentToken: () => {
       if (keycloak.token && !isTokenExpired(keycloak.token))
         return keycloak.token;
@@ -447,12 +473,15 @@ export function createKeycloakSession(
       return null;
     },
 
+        /** Lấy ID token hiện tại. */
     getCurrentIdToken: () =>
       keycloak.idToken ?? storage?.getItem("id_token") ?? null,
 
+        /** Lấy refresh token hiện tại. */
     getCurrentRefreshToken: () =>
       keycloak.refreshToken ?? storage?.getItem("refresh_token") ?? null,
 
+        /** Có phiên hợp lệ khi token còn hạn hoặc còn refresh token. */
     isAuthenticated: () => {
       if (
         keycloak.authenticated &&
@@ -467,6 +496,7 @@ export function createKeycloakSession(
       );
     },
 
+        /** Xóa token đã lưu và kết thúc phiên Keycloak, rồi chuyển hướng tới `redirectUri`. */
     logout: async (redirectUri = `${location.origin}/`) => {
       clearMemberInvitationToken();
       const idToken = keycloak.idToken ?? storage?.getItem("id_token");
@@ -478,22 +508,24 @@ export function createKeycloakSession(
       ]) {
         storage?.removeItem?.(key);
       }
-      // End the browser SSO session even when the current app token came from
-      // the password API and this Keycloak instance has no in-memory token.
-      // Otherwise Keycloak keeps the previous user and rejects a different
-      // Google account with `different_user_authenticated`.
+            // Kết thúc phiên SSO của trình duyệt kể cả khi token hiện tại của ứng dụng đến từ
+            // API mật khẩu và đối tượng Keycloak này không có token trong bộ nhớ.
+            // Nếu không, Keycloak giữ người dùng cũ và từ chối tài khoản Google khác
+            // với lỗi `different_user_authenticated`.
       if (keycloak.logout) {
         if (idToken) keycloak.idToken = idToken;
         await keycloak.logout({ redirectUri });
       }
     },
 
+        /** Cho biết Keycloak đang có phiên xác thực với token trong bộ nhớ. */
     hasKeycloakSession: () => Boolean(keycloak.authenticated && keycloak.token),
   };
 }
 
 let browserSession: KeycloakSession | undefined;
 
+/** Lấy phiên đăng nhập dùng chung của trình duyệt, tạo lần đầu khi cần. */
 export function getKeycloakSession(): KeycloakSession {
   browserSession ??= createKeycloakSession();
   return browserSession;

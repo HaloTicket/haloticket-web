@@ -18,14 +18,17 @@ import { adminUserErrorMessage } from "./users/adminUserErrors";
 import { ASSIGNABLE_ROLES, ROLE_HINT, ROLE_LABEL } from "./users/roleOptions";
 
 const ROLE_TABS = ["ALL", "CUSTOMER", "ORGANIZER", "STAFF", "ADMIN"] as const;
+/** Giá trị tab vai trò: tất cả hoặc một vai trò cụ thể. */
 type RoleTab = (typeof ROLE_TABS)[number];
 
+/** Lớp CSS của nút tab vai trò, khác nhau giữa trạng thái đang chọn và chưa chọn. */
 const getTabStyle = (isActive: boolean) => {
   return isActive 
     ? "bg-slate-200 dark:bg-slate-700/80 app-text-main shadow-sm"
     : "app-text-muted hover:bg-slate-100 dark:hover:bg-slate-800/50";
 };
 
+/** Lớp CSS màu cho huy hiệu số lượng của từng tab vai trò. */
 const getBadgeStyle = (tab: string) => {
   switch (tab) {
     case "CUSTOMER": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400";
@@ -35,6 +38,7 @@ const getBadgeStyle = (tab: string) => {
   }
 };
 
+/** Trang quản lý người dùng: lọc, tìm kiếm, phân trang, khóa hoặc mở khóa tài khoản, tạo tài khoản và gán vai trò. */
 export default function AdminUserManagement() {
   const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
@@ -51,21 +55,22 @@ export default function AdminUserManagement() {
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [sortParam, setSortParam] = useState("newest");
 
-  // counts for tabs
+  // số lượng hiển thị trên các tab
   const [counts, setCounts] = useState<Record<RoleTab, number>>({ ALL: 0, CUSTOMER: 0, ORGANIZER: 0, STAFF: 0, ADMIN: 0 });
 
-  // role assigning state
+  // trạng thái gán vai trò
   const [editingRolesFor, setEditingRolesFor] = useState<AdminUserListItem | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isUpdatingRoles, setIsUpdatingRoles] = useState(false);
   const [confirmingRoles, setConfirmingRoles] = useState(false);
 
-  // lock / unlock confirmation, and the account-creation dialog
+  // xác nhận khóa hoặc mở khóa, và hộp thoại tạo tài khoản
   const [statusChange, setStatusChange] = useState<{ user: AdminUserListItem; next: "ACTIVE" | "INACTIVE" } | null>(null);
   const [statusReason, setStatusReason] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 
+  /** Tải danh sách người dùng theo bộ lọc, sắp xếp và phân trang hiện tại. */
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -90,7 +95,8 @@ export default function AdminUserManagement() {
     }
   }, [query, statusFilter, roleFilter, sortParam, page, pageSize, t]);
 
-  // one request for every tab count (before: one list request per role)
+  /** Tải số lượng cho mọi tab bằng một yêu cầu duy nhất (trước đây mỗi vai trò một yêu cầu). */
+  /** Gọi API thống kê và cập nhật số lượng trên các tab. */
   const loadStats = useCallback(async () => {
     try {
       const stats = await adminUserApi.getStats();
@@ -102,7 +108,7 @@ export default function AdminUserManagement() {
         ADMIN: stats.byRole.ADMIN ?? 0,
       });
     } catch {
-      // the tab badges just stay as they were; the list itself still loads
+      // giữ nguyên số lượng trên tab; danh sách vẫn được tải bình thường
     }
   }, []);
 
@@ -114,11 +120,13 @@ export default function AdminUserManagement() {
     loadStats();
   }, [loadStats]);
 
+  /** Mở hộp thoại xác nhận khóa hoặc mở khóa cho một tài khoản. */
   const askStatusChange = (user: AdminUserListItem, next: "ACTIVE" | "INACTIVE") => {
     setStatusReason("");
     setStatusChange({ user, next });
   };
 
+  /** Gửi đổi trạng thái tài khoản (kèm lý do khi khóa), rồi tải lại danh sách và số liệu. */
   const confirmStatusChange = async () => {
     if (!statusChange) return;
     setIsUpdatingStatus(true);
@@ -135,6 +143,7 @@ export default function AdminUserManagement() {
     }
   };
 
+  /** Lưu danh sách vai trò đã chọn cho tài khoản đang sửa, rồi tải lại danh sách và số liệu. */
   const handleSaveRoles = async () => {
     if (!editingRolesFor) return;
     setIsUpdatingRoles(true);
@@ -154,6 +163,7 @@ export default function AdminUserManagement() {
     }
   };
 
+  /** Thêm hoặc bỏ một vai trò khỏi danh sách đang chọn. */
   const toggleRole = (role: string) => {
     setSelectedRoles(prev => 
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
@@ -164,6 +174,7 @@ export default function AdminUserManagement() {
   const rolesChanged = !!editingRolesFor
     && (selectedRoles.length !== originalRoles.length || selectedRoles.some((r) => !originalRoles.includes(r)));
   const removesAdmin = originalRoles.includes("ADMIN") && !selectedRoles.includes("ADMIN");
+  /** Tên hiển thị của vai trò; vai trò lạ giữ nguyên mã. */
   const roleName = (role: string) => (role in ROLE_LABEL ? t(ROLE_LABEL[role as keyof typeof ROLE_LABEL]) : role);
 
   return (
@@ -173,7 +184,7 @@ export default function AdminUserManagement() {
         description={t("Danh sách tài khoản khách hàng, ban tổ chức và ban quản trị.")}
       />
 
-      {/* Overview & Filter Bar */}
+      {/* Tổng quan và thanh bộ lọc */}
       <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
           <div>
@@ -207,7 +218,7 @@ export default function AdminUserManagement() {
           </div>
         </div>
 
-        {/* Tab Filters */}
+        {/* Bộ lọc theo tab */}
         <div className="flex flex-col xl:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 app-bg-subnav p-1 rounded-lg border border-slate-200 dark:border-slate-800 w-full xl:w-auto flex-wrap overflow-x-auto no-scrollbar">
             {ROLE_TABS.map((tab) => (
@@ -228,7 +239,7 @@ export default function AdminUserManagement() {
             ))}
           </div>
 
-          {/* Search & Select */}
+          {/* Tìm kiếm và chọn */}
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
             <input
               type="text"
@@ -370,7 +381,7 @@ export default function AdminUserManagement() {
         )}
       </div>
 
-      {/* Role Assignment Modal */}
+      {/* Hộp thoại gán vai trò */}
       {editingRolesFor && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="app-bg-card border app-border rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">

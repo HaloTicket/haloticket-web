@@ -26,6 +26,7 @@ import type { MemberItem } from "@/types";
 import { eventApi } from "@/services/eventApi";
 import { describeInvitationFailure, matchInvitationCode, readApiFailure } from "./memberInvitationErrors";
 
+/** Lấy địa chỉ ảnh đại diện của thành viên từ các tên trường có thể có. */
 const avatarOf = (member: MemberItem) => member.avatar || member.avatar_url || member.avatarUrl;
 
 const RESENDABLE_STATUSES = ["PENDING", "EXPIRED", "DECLINED"];
@@ -37,6 +38,7 @@ const STATUS_STYLES: Record<string, string> = {
   REVOKED: "bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/30",
 };
 
+/** Trang quản lý thành viên ban tổ chức của sự kiện: danh sách, tìm kiếm, lọc theo vai trò, mời, gửi lại hoặc hủy lời mời, đổi vai trò, xóa và nhượng quyền chủ sự kiện (tùy vai trò người dùng hiện tại). */
 export const EventMembers: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
@@ -59,6 +61,7 @@ export const EventMembers: React.FC = () => {
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const toastSeq = useRef(0);
+  /** Hiện thông báo nổi trong 3 giây và cập nhật vùng đọc cho trình đọc màn hình. */
   const showToast = (type: "success" | "error" | "warning" | "info", text: string) => {
     const id = `toast_${++toastSeq.current}`;
     setToasts((prev) => [...prev, { id, type, text }]);
@@ -78,6 +81,7 @@ export const EventMembers: React.FC = () => {
   const inFlight = useRef(false);
   const [liveMessage, setLiveMessage] = useState("");
 
+  /** Tải lại danh sách thành viên của sự kiện, bật cờ lỗi nếu thất bại. */
   const fetchMembers = async () => {
     if (!eventId) return;
     setLoading(true);
@@ -93,7 +97,7 @@ export const EventMembers: React.FC = () => {
     }
   };
 
-  // first load: state starts as "loading", so nothing is set before the answer arrives
+  // lần tải đầu: state khởi đầu là "đang tải" nên chưa đặt gì trước khi có phản hồi
   useEffect(() => {
     if (!eventId) return;
     let cancelled = false;
@@ -104,8 +108,10 @@ export const EventMembers: React.FC = () => {
     return () => { cancelled = true; };
   }, [eventId]);
 
+  /** Định dạng thời gian theo ngôn ngữ trình duyệt; giá trị rỗng trả về chuỗi rỗng. */
   const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "");
 
+  /** Đổi trạng thái lời mời thành nhãn đã dịch. */
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "ACTIVE": return t("members.invitation.status.active");
@@ -117,6 +123,7 @@ export const EventMembers: React.FC = () => {
     }
   };
 
+  /** Gửi lại (hoặc mời lại nếu đã từ chối) lời mời của thành viên; chặn bấm chồng, lỗi thì hiện thông báo và tải lại danh sách nếu lời mời không còn gửi lại được. */
   const handleResend = async (m: MemberItem) => {
     if (!eventId || inFlight.current) return;
     inFlight.current = true;
@@ -137,6 +144,7 @@ export const EventMembers: React.FC = () => {
     }
   };
 
+  /** Mở hộp thoại xác nhận hủy lời mời đang chờ của thành viên. */
   const handleCancelInvitation = (m: MemberItem) => {
     if (!eventId) return;
     setConfirmModal({
@@ -146,6 +154,7 @@ export const EventMembers: React.FC = () => {
       type: "danger",
       confirmText: t("members.invitation.cancel.confirm"),
       cancelText: t("members.invitation.cancel.keep"),
+      /** Hủy lời mời sau khi người dùng xác nhận, bằng cách xóa thành viên khỏi sự kiện. */
       onConfirm: async () => {
         if (inFlight.current) return;
         inFlight.current = true;
@@ -178,6 +187,7 @@ export const EventMembers: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  /** Mở hộp thoại xác nhận xóa thành viên khỏi ban tổ chức. */
   const handleDeleteMember = async (id: string) => {
     if (!eventId) return;
     setConfirmModal({
@@ -185,6 +195,7 @@ export const EventMembers: React.FC = () => {
       title: t("Xóa thành viên"),
       message: t("Bạn có chắc chắn muốn xóa thành viên này khỏi Ban tổ chức?"),
       type: "danger",
+      /** Xóa thành viên sau khi người dùng xác nhận và cập nhật danh sách. */
       onConfirm: async () => {
         try {
           await eventApi.removeEventMember(eventId, id);
@@ -198,6 +209,7 @@ export const EventMembers: React.FC = () => {
     });
   };
 
+  /** Mở hộp thoại xác nhận nhượng quyền chủ sự kiện cho thành viên (không hoàn tác được). */
   const handleTransferOwner = async (id: string) => {
     if (!eventId) return;
     setConfirmModal({
@@ -205,6 +217,7 @@ export const EventMembers: React.FC = () => {
       title: t("Nhượng quyền Chủ sự kiện"),
       message: t("Bạn có chắc chắn muốn nhượng quyền Chủ sự kiện cho người này? Hành động này không thể hoàn tác, bạn sẽ trở thành Quản trị viên."),
       type: "warning",
+      /** Nhượng quyền sau khi xác nhận, rồi chuyển hướng về trang danh sách sự kiện. */
       onConfirm: async () => {
         try {
           await eventApi.transferOwner(eventId, id);
@@ -220,7 +233,8 @@ export const EventMembers: React.FC = () => {
     });
   };
 
-  // throw error to AddMemberModal remains and display notification error code
+  // ném lỗi ra để AddMemberModal giữ nguyên hộp thoại và hiện mã lỗi
+  /** Mời thành viên theo email và vai trò, thêm hoặc cập nhật vào danh sách; lỗi được ném lại cho hộp thoại thêm thành viên xử lý. */
   const handleAddMemberSave = async (email: string, role: "ADMIN" | "MANAGER" | "CHECKIN_STAFF") => {
     if (!eventId) return;
     const res = await eventApi.inviteEventMember(eventId, email, role);
@@ -228,6 +242,7 @@ export const EventMembers: React.FC = () => {
     showToast("success", res.status === "PENDING" ? t("members.invitation.add.sent") : t("members.invitation.add.added"));
   };
 
+  /** Đổi vai trò của thành viên và cập nhật danh sách; lỗi thì hiện thông báo. */
   const handleRoleChange = async (id: string, newRole: string) => {
     if (!eventId) return;
     try {
@@ -239,6 +254,7 @@ export const EventMembers: React.FC = () => {
     }
   };
 
+  /** Tạo nhãn hiển thị cho vai trò thành viên (chủ sự kiện, quản trị viên, quản lý, nhân viên check-in). */
   const getRoleBadge = (role: MemberItem["role"]) => {
     switch (role) {
       case "OWNER":
@@ -272,9 +288,9 @@ export const EventMembers: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Toolbar matching OrganizerLayout style */}
+      {/* Thanh công cụ đầu trang, cùng kiểu với OrganizerLayout */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        {/* Search Input Box matching MyEvents style */}
+        {/* Ô tìm kiếm, cùng kiểu với MyEvents */}
         <div className="flex items-center gap-2 app-bg-card border app-border rounded-xl p-1.5 shadow-xs flex-1 max-w-md">
           <div className="flex items-center gap-2 flex-1 pl-3">
             <FiSearch className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -298,7 +314,7 @@ export const EventMembers: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Filter Pills */}
+          {/* Các nút lọc */}
           <div className="inline-flex p-1 app-bg-card border app-border rounded-xl shadow-xs overflow-x-auto no-scrollbar">
             {[
               { id: "ALL", label: `${t("Tất cả")} (${members.length})` },
@@ -325,7 +341,7 @@ export const EventMembers: React.FC = () => {
             ))}
           </div>
 
-          {/* Add Member CTA */}
+          {/* Nút thêm thành viên */}
           {canEdit && (
             <button
               type="button"
@@ -339,7 +355,7 @@ export const EventMembers: React.FC = () => {
         </div>
       </div>
 
-      {/* Members Table with NO row borders */}
+      {/* Bảng thành viên, không có viền giữa các dòng */}
       <div className="app-bg-card border app-border rounded-2xl shadow-sm p-4 space-y-4">
         <div className="w-full overflow-x-auto">
           <table className="w-full min-w-180 text-left border-collapse">
@@ -558,14 +574,14 @@ export const EventMembers: React.FC = () => {
         )}
       </div>
 
-      {/* Add Member Modal */}
+      {/* Hộp thoại thêm thành viên */}
       <AddMemberModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMemberSave}
       />
 
-      {/* View Details Modal */}
+      {/* Hộp thoại xem chi tiết */}
       {selectedMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="app-bg-card border app-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -628,7 +644,7 @@ export const EventMembers: React.FC = () => {
         </div>
       )}
 
-      {/* Confirm Modal */}
+      {/* Hộp thoại xác nhận */}
       {confirmModal && (
         <ConfirmModal
           isOpen={confirmModal.isOpen}
@@ -644,7 +660,7 @@ export const EventMembers: React.FC = () => {
 
       <div className="sr-only" role="status" aria-live="polite">{liveMessage}</div>
 
-      {/* Toast Notifications */}
+      {/* Thông báo nổi */}
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );

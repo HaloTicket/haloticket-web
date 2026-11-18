@@ -1,3 +1,4 @@
+/** Hồ sơ người dùng hiện tại. */
 export interface UserProfile {
   id?: string;
   keycloakId?: string;
@@ -11,6 +12,7 @@ export interface UserProfile {
   createdAt?: string;
 }
 
+/** Dữ liệu cập nhật hồ sơ cá nhân. */
 export interface UserProfileUpdateRequest {
   fullName: string;
   phoneNumber?: string;
@@ -18,6 +20,7 @@ export interface UserProfileUpdateRequest {
   avatarUrl?: string;
 }
 
+/** Phần payload của JWT mà giao diện đọc: id, email, tên và các vai trò. */
 export interface JwtPayload {
   sub?: string;
   email?: string;
@@ -29,6 +32,7 @@ export interface JwtPayload {
   resource_access?: Record<string, { roles?: string[] }>;
 }
 
+/** Một dòng trong danh sách người dùng của admin. */
 export interface AdminUserListItem {
   id: string;
   email: string;
@@ -42,6 +46,7 @@ export interface AdminUserListItem {
   ekycStatus: string;
 }
 
+/** Chi tiết người dùng cho admin, gồm thông tin eKYC, ngân hàng và thuế. */
 export interface AdminUserDetailResponse {
   id: string;
   keycloakId: string;
@@ -55,7 +60,7 @@ export interface AdminUserDetailResponse {
   createdAt: string;
   lastLoginAt: string;
   
-  // Ekyc info
+  // Thông tin eKYC
   ekycStatus: string;
   ekycDocumentType: string;
   ekycDocumentNumber: string;

@@ -32,8 +32,11 @@ const sections = [
   { id: "messages", icon: LuMessageSquare, vi: "Tin nhắn", en: "Messages" },
 ] as const;
 
+/** Mã định danh của các mục cài đặt, suy ra từ danh sách {@code sections}. */
 type Section = typeof sections[number]["id"];
+/** Hàm chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
 type Copy = (vi: string, en: string) => string;
+/** Props chung cho các mục tùy chọn: hàm dịch, giá trị tùy chọn hiện có, hàm cập nhật và cờ vô hiệu hóa. */
 type PreferenceProps = {
   copy: Copy;
   preferences: AdminPreferences;
@@ -41,6 +44,7 @@ type PreferenceProps = {
   disabled: boolean;
 };
 
+/** Một dòng công tắc bật tắt kèm nhãn và mô tả. */
 function SwitchRow({ label, description, checked, onChange, disabled }: {
   label: string; description: string; checked: boolean; onChange: () => void; disabled: boolean;
 }) {
@@ -50,12 +54,14 @@ function SwitchRow({ label, description, checked, onChange, disabled }: {
   </div>;
 }
 
+/** Dòng ghi chú cho biết tùy chọn chỉ lưu trên trình duyệt này; {@code future} báo tính năng chưa áp dụng hết. */
 function BrowserScope({ copy, future = false }: { copy: Copy; future?: boolean }) {
   return <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">{future
     ? copy("Các lựa chọn này được lưu trên trình duyệt. Tính năng liên quan sẽ áp dụng khi quy trình hỗ trợ; nhật ký và cảnh báo bắt buộc trên máy chủ vẫn hoạt động.", "These choices are saved in this browser. Related workflows will apply them when supported; mandatory server logs and alerts continue to run.")
     : copy("Các lựa chọn này chỉ áp dụng trong trình duyệt này; không thay đổi dữ liệu hoặc quyền trên máy chủ.", "These choices apply only in this browser; they do not change server data or permissions.")}</p>;
 }
 
+/** Mục giao diện: chọn chủ đề sáng, tối, theo hệ thống và ngôn ngữ hiển thị. */
 function AppearanceSection({ copy }: { copy: Copy }) {
   const { theme, setTheme } = useTheme();
   const { i18n } = useTranslation();
@@ -97,6 +103,7 @@ function AppearanceSection({ copy }: { copy: Copy }) {
   </div>;
 }
 
+/** Mục quyền riêng tư: bật tắt bản xem trước nhật ký hoạt động và che email cá nhân. */
 function PrivacySection({ copy, preferences, update, disabled }: PreferenceProps) {
   return <div className="space-y-6">
     <div className="mb-4">
@@ -111,6 +118,7 @@ function PrivacySection({ copy, preferences, update, disabled }: PreferenceProps
   </div>;
 }
 
+/** Mục thông báo: chọn loại sự kiện quản trị muốn nhận thông báo tức thời. */
 function NotificationsSection({ copy, preferences, update, disabled }: PreferenceProps) {
   return <div className="space-y-6">
     <div className="mb-4">
@@ -129,6 +137,7 @@ function NotificationsSection({ copy, preferences, update, disabled }: Preferenc
   </div>;
 }
 
+/** Mục tin nhắn: tùy chọn soạn thảo (chính tả, nén ảnh, tự động trả lời). */
 function MessagesSection({ copy, preferences, update, disabled }: PreferenceProps) {
   return <div className="space-y-6">
     <div className="mb-4">
@@ -143,16 +152,19 @@ function MessagesSection({ copy, preferences, update, disabled }: PreferenceProp
   </div>;
 }
 
+/** Trang cài đặt quản trị: thanh điều hướng các mục và nội dung mục đang chọn theo tham số {@code section} của URL. */
 export default function AdminSettings() {
   const { section } = useParams<{ section: string }>();
   const { i18n } = useTranslation();
   const en = i18n.resolvedLanguage === "en";
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ đang dùng. */
   const copy: Copy = (vi, english) => en ? english : vi;
   const [profile, setProfile] = useState<UserProfile | null>(getCachedUserProfile);
   const identity = preferenceIdentity(profile);
   const { preferences, error, update } = useAdminPreferences(identity);
 
   useEffect(() => {
+    /** Đọc lại hồ sơ người dùng từ bộ nhớ đệm khi có sự kiện cập nhật. */
     const refresh = () => setProfile(getCachedUserProfile());
     window.addEventListener("user-updated", refresh);
     window.addEventListener("auth-changed", refresh);

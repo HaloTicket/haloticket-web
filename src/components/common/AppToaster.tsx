@@ -5,12 +5,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { resetNotificationToastSession } from "@/utils/notificationToastSession";
 import { getCachedUserProfile } from "@/services/userApi";
 
+/** Bộ hiển thị toast (sonner) toàn ứng dụng, theo giao diện sáng/tối, tối đa 3 toast cùng lúc. */
 export function AppToaster() {
   const { isDark } = useTheme();
   const { t } = useTranslation();
   const accountId = useRef(getCachedUserProfile()?.id ?? getCachedUserProfile()?.email ?? null);
 
   useEffect(() => {
+    /** Khi tài khoản đăng nhập đổi (sự kiện `auth-changed`): tắt các toast đang hiện và đặt lại phiên toast thông báo. */
     const clearSession = () => {
       const profile = getCachedUserProfile();
       const nextId = profile?.id ?? profile?.email ?? null;

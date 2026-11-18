@@ -7,6 +7,7 @@ import { bookingApi } from "@/services/bookingApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { PATHS } from "@/routes/paths";
 
+/** Trang đích sau khi cổng thanh toán chuyển về: kiểm tra mã phản hồi VNPay, xác nhận với payment-service, nếu là đơn mua lại vé thì chờ chuyển quyền sở hữu, rồi chuyển sang chi tiết đơn. */
 export default function PaymentCallback() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export default function PaymentCallback() {
   useEffect(() => {
     let isMounted = true;
 
+    /** Thực hiện chuỗi xác thực thanh toán (thăm dò tối đa 10 lần, và 20 lần cho chuyển vé), cập nhật trạng thái và thông báo; không cập nhật nếu component đã gỡ. */
     async function processCallback() {
       try {
         let isResale = false;
@@ -76,7 +78,7 @@ export default function PaymentCallback() {
             targetCode = bookingResp.bookingCode;
           }
         } catch {
-          // fallback to bookingIdParam
+          // dùng bookingIdParam nếu không tra được mã đặt chỗ
         }
 
         if (isMounted) {

@@ -4,11 +4,16 @@ import { setLanguage } from "@/i18n";
 import { VietnamFlag, UKFlag } from "./FlagIcons";
 import { FiChevronDown } from "react-icons/fi";
 
+/** Props của bộ chuyển ngôn ngữ: lớp CSS thêm và hướng mở menu (`up`, `down` hoặc `auto`). */
 interface LanguageSwitcherProps {
   className?: string;
   direction?: "up" | "down" | "auto";
 }
 
+/**
+ * Bộ chuyển ngôn ngữ Việt/Anh dạng cờ với menu thả xuống (mở khi rê chuột hoặc bấm), kèm một `select` ẩn
+ * phục vụ trợ năng và kiểm thử.
+ */
 export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwitcherProps) {
   const { t: translate, i18n } = useTranslation();
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -18,6 +23,7 @@ export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwit
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const lang = i18n.resolvedLanguage === "en" ? "en" : "vi";
 
+  /** Tính hướng mở menu: theo `direction` nếu cố định, còn `auto` thì mở lên khi phía dưới còn dưới 140px. */
   const updatePlacement = () => {
     if (direction === "up") {
       setComputedPlacement("up");
@@ -41,6 +47,7 @@ export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwit
   }, [direction]);
 
   useEffect(() => {
+    /** Đóng menu khi bấm chuột ra ngoài bộ chuyển ngôn ngữ. */
     const handleClickOutside = (e: MouseEvent) => {
       if (
         langDropdownRef.current &&
@@ -61,7 +68,7 @@ export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwit
       onMouseEnter={updatePlacement}
       className={`relative group py-0.5 ${className || ""}`}
     >
-      {/* Hidden select for accessibility & automated tests (e.g. getByRole('combobox')) */}
+      {/* Select ẩn phục vụ trợ năng và kiểm thử tự động (ví dụ getByRole('combobox')) */}
       <select
         aria-label={translate("Chọn ngôn ngữ")}
         value={lang}
@@ -73,7 +80,7 @@ export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwit
         <option value="en">English</option>
       </select>
 
-      {/* Flag Trigger Button matching Client Web Design */}
+      {/* Nút cờ mở menu, theo thiết kế web khách hàng */}
       <button
         type="button"
         onClick={() => {
@@ -96,7 +103,7 @@ export function LanguageSwitcher({ className, direction = "auto" }: LanguageSwit
         />
       </button>
 
-      {/* Flag Hover / Click Dropdown Menu */}
+      {/* Menu thả xuống khi rê chuột hoặc bấm */}
       <div
         className={`absolute right-0 ${
           isUp ? "bottom-full pb-1.5 origin-bottom-right" : "top-full pt-1.5 origin-top-right"

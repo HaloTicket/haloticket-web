@@ -3,8 +3,10 @@ import type { EventSettlement, PayoutResponse } from "@/types";
 import { payoutSlices } from "./financeChartData";
 
 const colors = ["#005cff", "#00b585", "#ffab24", "#fa4668"];
+/** Định dạng số tiền theo kiểu Việt Nam kèm ký hiệu ₫. */
 const formatMoney = (value: unknown) => `${Number(value).toLocaleString("vi-VN")} ₫`;
 
+/** Biểu đồ tài chính: cột theo từng mục (một hoặc hai chuỗi) và biểu đồ tròn tỷ lệ trạng thái yêu cầu rút tiền. */
 export function FinanceCharts({ bars, slices, title, subtitle, series }: {
   bars: { label: string; first: number; second?: number }[];
   slices: { name: string; value: number }[];
@@ -28,6 +30,7 @@ export function FinanceCharts({ bars, slices, title, subtitle, series }: {
   </section>;
 }
 
+/** Biểu đồ tài chính của tổ chức: doanh thu gộp và đã chi trả của tối đa 8 sự kiện, cùng cơ cấu trạng thái các yêu cầu rút tiền. */
 export function FinanceInsights({ events, payouts }: { events: EventSettlement[]; payouts: PayoutResponse[] }) {
   return <FinanceCharts bars={events.slice(0, 8).map(event => ({ label: event.eventName, first: Number(event.grossAmount), second: Number(event.paidAmount) }))} slices={payoutSlices(payouts)} title="Doanh thu & Chi trả theo sự kiện" subtitle="Tối đa 8 sự kiện trong danh sách hiện tại" series={["Doanh thu đã thu", "Đã chi trả"]} />;
 }

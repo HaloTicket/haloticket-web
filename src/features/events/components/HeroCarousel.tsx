@@ -5,6 +5,7 @@ import { FiChevronLeft, FiChevronRight, FiPlay } from "react-icons/fi";
 import { eventApi } from "@/services/eventApi";
 import type { Banner } from "@/types/adminConfig";
 
+/** Một banner trong dải băng chuyền: mã, tiêu đề, ảnh, liên kết, nhãn và phụ đề. */
 interface HeroBannerItem {
   id: string;
   title: string;
@@ -14,10 +15,12 @@ interface HeroBannerItem {
   subtitle?: string;
 }
 
+/** Props của băng chuyền: danh sách banner tùy chỉnh do quản trị cấu hình. */
 interface HeroCarouselProps {
   customBanners?: Banner[];
 }
 
+/** Băng chuyền banner trang chủ, hiện hai banner cạnh nhau và tự chuyển sau 4,5 giây; dùng banner quản trị đang hoạt động, nếu không có thì lấy từ danh sách sự kiện. */
 export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => {
   const { t: translate } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -58,11 +61,13 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
     return () => clearInterval(timer);
   }, [banners]);
 
+  /** Chuyển sang cặp banner kế tiếp, quay vòng về đầu khi hết. */
   const nextBanner = () => {
     if (!banners || banners.length === 0) return;
     setActiveIndex((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
   };
 
+  /** Chuyển về cặp banner trước, quay vòng về cuối khi ở đầu. */
   const prevBanner = () => {
     if (!banners || banners.length === 0) return;
     setActiveIndex((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
@@ -75,7 +80,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
 
   return (
     <div className="relative mb-8 group">
-      {/* Dual Side-by-Side Banners */}
+      {/* Hai banner cạnh nhau */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {[currentBanner1, currentBanner2].map((banner, index) => (
           <div
@@ -87,7 +92,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
               alt={banner.title}
               className="w-full h-full object-cover group-hover/item:scale-105 transition-transform duration-700 brightness-90"
             />
-            {/* Gradient Overlay */}
+            {/* Lớp phủ gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent flex flex-col justify-end p-5 md:p-6">
               {banner.badge && (
                 <span className="self-start px-2.5 py-0.5 bg-blue-600 dark:bg-blue-500 text-white text-[10px] font-extrabold rounded-md mb-2 shadow-md">
@@ -114,7 +119,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
         ))}
       </div>
 
-      {/* Navigation Arrows */}
+      {/* Mũi tên điều hướng */}
       <button
         type="button"
         onClick={prevBanner}
@@ -130,7 +135,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ customBanners }) => 
         <FiChevronRight className="w-5 h-5" />
       </button>
 
-      {/* Slide Dots Indicator */}
+      {/* Chấm chỉ báo slide */}
       <div className="flex items-center justify-center gap-2 mt-4">
         {banners.map((_, idx) => (
           <button

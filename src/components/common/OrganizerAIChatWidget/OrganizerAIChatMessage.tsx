@@ -21,11 +21,16 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
 
+/** Props của bong bóng tin nhắn trợ lý tổ chức: tin nhắn cần hiển thị và callback gửi tin (hiện chưa dùng). */
 interface OrganizerAIChatMessageProps {
   message: OrganizerChatMessage;
   onSendMessage?: (text: string) => void;
 }
 
+/**
+ * Bong bóng một tin nhắn trong khung chat trợ lý AI của ban tổ chức: nội dung Markdown, thanh tiến trình pipeline
+ * của agent (thu gọn được, kèm cờ cache và thời gian chạy) và các widget giàu nội dung (KPI, voucher, bảng dữ liệu).
+ */
 export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ message }) => {
   const [showPipelineDetails, setShowPipelineDetails] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -33,12 +38,14 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
   const isUser = message.sender === 'user';
   const hasRichActions = Boolean(message.actions && message.actions.length > 0);
 
+  /** Chép mã voucher vào clipboard và đánh dấu "đã chép" trong 2 giây. */
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  /** Chọn biểu tượng cho một bước của pipeline theo loại bước (INTENT, TOOL_EXECUTION, SYNTHESIS, còn lại là hoàn tất). */
   const getStepIcon = (step: AgentPipelineStep['step']) => {
     switch (step) {
       case 'INTENT':
@@ -54,14 +61,14 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
 
   return (
     <div className={`flex w-full mb-3.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      {/* AI Bot Avatar */}
+      {/* Ảnh đại diện của bot AI */}
       {!isUser && (
         <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center text-white mr-1.5 flex-shrink-0 shadow-sm mt-0.5">
           <Bot size={15} />
         </div>
       )}
 
-      {/* Message Bubble */}
+      {/* Bong bóng tin nhắn */}
       <div className={`${
         isUser
           ? 'max-w-[85%] bg-brand-primary text-white rounded-2xl rounded-tr-sm'
@@ -70,7 +77,7 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
             : 'max-w-[88%] bg-white dark:bg-[#1e1e22] text-text-main rounded-2xl rounded-tl-sm border border-gray-100 dark:border-gray-800'
       } px-3.5 py-2.5 shadow-xs overflow-hidden`}>
 
-        {/* Pipeline Progress Header (Only for AI) */}
+        {/* Đầu tiến trình pipeline (chỉ cho tin của AI) */}
         {!isUser && message.pipelineSteps && message.pipelineSteps.length > 0 && (
           <div className="mb-2.5 pb-2 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between gap-2">
@@ -102,7 +109,7 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
               </div>
             </div>
 
-            {/* Collapsible Pipeline Details */}
+            {/* Chi tiết pipeline có thể thu gọn */}
             {showPipelineDetails && (
               <div className="mt-2 space-y-1.5 bg-gray-50 dark:bg-[#18181b] p-2.5 rounded-xl border border-gray-100 dark:border-gray-800 text-[11px]">
                 {message.pipelineSteps.map((step, idx) => (
@@ -126,7 +133,7 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
           </div>
         )}
 
-        {/* Text Content */}
+        {/* Nội dung văn bản */}
         {isUser ? (
           <p className="text-sm whitespace-pre-wrap">{message.text}</p>
         ) : (
@@ -139,11 +146,11 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
           ) : null
         )}
 
-        {/* Rich Action Widgets */}
+        {/* Các widget hành động giàu nội dung */}
         {!isUser && message.actions && message.actions.length > 0 && (
           <div className="mt-3 space-y-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-800">
             {message.actions.map((act, idx) => {
-              // 1. KPI Summary Cards
+              // 1. Thẻ tóm tắt KPI
               if (act.action === 'DISPLAY_KPI_SUMMARY' && act.database_data) {
                 const data = act.database_data;
                 return (
@@ -191,7 +198,7 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
                 );
               }
 
-              // 2. Voucher Card
+              // 2. Thẻ voucher
               if (act.action === 'DISPLAY_VOUCHER_CARD' && act.database_data) {
                 const vc = act.database_data;
                 const isCopied = copiedCode === vc.voucher_code;
@@ -228,7 +235,7 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
                 );
               }
 
-              // 3. Data Table Widget
+              // 3. Bảng dữ liệu
               if (act.action === 'DISPLAY_DATA_TABLE' && Array.isArray(act.database_data) && act.database_data.length > 0) {
                 const rows = act.database_data;
                 const headers = Object.keys(rows[0] || {});
@@ -266,7 +273,7 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({ 
         )}
       </div>
 
-      {/* User Avatar */}
+      {/* Ảnh đại diện người dùng */}
       {isUser && (
         <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 ml-2 flex-shrink-0 shadow-sm">
           <User size={18} />

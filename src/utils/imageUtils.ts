@@ -1,3 +1,4 @@
+/** Thông tin về một ảnh: kích thước pixel, dung lượng, hướng dọc và mức chất lượng. */
 export interface ImageMetadata {
   width: number;
   height: number;
@@ -149,7 +150,7 @@ export async function rotateImageFile(
 
         const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
         if (typeof canvas.toBlob !== "function") {
-          // In jsdom environment without canvas implementation
+          // Môi trường jsdom không có cài đặt canvas
           resolve({ rotatedFile: file, width: canvas.width, height: canvas.height });
           return;
         }

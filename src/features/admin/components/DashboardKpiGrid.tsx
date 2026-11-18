@@ -7,12 +7,14 @@ import { getLocale } from "@/i18n";
 import { aiApi } from "@/services/aiApi";
 import type { DashboardKpis, RiskAgreementResponse } from "@/types/ai";
 
+/** Props của lưới KPI: dữ liệu KPI, trạng thái tải và hàm thử lại. */
 interface DashboardKpiGridProps {
   kpis: DashboardKpis | null;
   state: "loading" | "ready" | "error";
   onRetry: () => void;
 }
 
+/** Props của một thẻ KPI: giá trị, chi tiết phụ, liên kết, biểu tượng và cờ cảnh báo. */
 interface CardProps {
   id: string;
   title: string;
@@ -23,6 +25,7 @@ interface CardProps {
   warn?: boolean;
 }
 
+/** Thẻ KPI dẫn tới trang liên quan; giá trị `null` hiện "không có dữ liệu". */
 function KpiCard({ id, title, value, detail, link, icon, warn }: CardProps) {
   const { t } = useTranslation();
   return (
@@ -37,7 +40,7 @@ function KpiCard({ id, title, value, detail, link, icon, warn }: CardProps) {
       </div>
       <div className="space-y-0.5">
         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{title}</span>
-        {/* a missing figure is "no data", never 0 */}
+        {/* thiếu số liệu nghĩa là "không có dữ liệu", không bao giờ là 0 */}
         <div className={`text-xl font-extrabold tracking-tight ${value === null ? "text-slate-400 dark:text-slate-500" : warn ? "text-rose-600 dark:text-rose-400" : "app-text-main"}`}>
           {value ?? t("ai.dash.noData")}
         </div>
@@ -47,9 +50,10 @@ function KpiCard({ id, title, value, detail, link, icon, warn }: CardProps) {
   );
 }
 
+/** Định dạng số theo ngôn ngữ hiện tại; thiếu hoặc không hữu hạn thì trả về `null`. */
 const num = (value: number | null | undefined): string | null => (typeof value === "number" && Number.isFinite(value) ? value.toLocaleString(getLocale()) : null);
 
-/** KPI cards from GET /admin/dashboard/kpis. Every card whose source failed shows "No data", never 0. */
+/** Các thẻ KPI từ GET /admin/dashboard/kpis. Thẻ nào có nguồn dữ liệu lỗi hiện "Không có dữ liệu", không bao giờ hiện 0. */
 export function DashboardKpiGrid({ kpis, state, onRetry }: DashboardKpiGridProps) {
   const { t } = useTranslation();
 
@@ -108,7 +112,7 @@ export function DashboardKpiGrid({ kpis, state, onRetry }: DashboardKpiGridProps
   );
 }
 
-/** How often the AI suggestion matched the admin's decision (HIGH vs rejected, LOW vs approved). */
+/** Mức độ gợi ý của AI trùng với quyết định của quản trị viên (HIGH so với bị từ chối, LOW so với được duyệt). */
 export function AgreementCard({ days = 30 }: { days?: number }) {
   const { t } = useTranslation();
   const [data, setData] = useState<RiskAgreementResponse | null | undefined>(undefined);

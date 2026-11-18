@@ -3,6 +3,7 @@ import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { CustomSelect } from "@/components/common/CustomSelect";
 
+/** Props của thanh phân trang admin; chấp nhận nhiều tên prop khác nhau cho trang, tổng số mục và cỡ trang. */
 export interface AdminPaginationProps {
   currentPage?: number;
   page?: number;
@@ -19,6 +20,7 @@ export interface AdminPaginationProps {
   pageSizeOptions?: number[];
 }
 
+/** Tạo dãy số trang cần hiện, rút gọn bằng `"..."`: nếu tổng trang từ 7 trở xuống thì hiện hết, ngược lại hiện đầu, cuối và quanh trang hiện tại. */
 function getPaginationItems(current: number, total: number): (number | string)[] {
   if (total <= 7) {
     return Array.from({ length: total }, (_, i) => i + 1);
@@ -32,6 +34,10 @@ function getPaginationItems(current: number, total: number): (number | string)[]
   return [1, "...", current - 1, current, current + 1, "...", total];
 }
 
+/**
+ * Thanh phân trang của bảng admin: dòng thông tin dải mục đang hiển thị, ô chọn số dòng mỗi trang và các nút trang.
+ * Trang hiện tại được kẹp vào khoảng hợp lệ; không có mục nào thì không dựng gì (`null`).
+ */
 export const AdminPagination: React.FC<AdminPaginationProps> = ({
   currentPage,
   page,
@@ -63,13 +69,14 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
   const startItem = (activePage - 1) * currentSize + 1;
   const endItem = Math.min(activePage * currentSize, itemCount);
 
+  /** Báo cho cha biết số dòng mỗi trang mới. */
   const handleSizeChange = (newSize: number) => {
     onPageSizeChange(newSize);
   };
 
   return (
     <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs select-none app-bg-card">
-      {/* Page Info */}
+      {/* Thông tin dải mục đang hiển thị */}
       <div className="app-text-muted font-medium">
         {t("Hiển thị")}{" "}
         <span className="font-bold app-text-main">{startItem}-{endItem}</span>
@@ -77,9 +84,9 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
         <span className="font-bold app-text-main">{itemCount}</span> {itemLabel || t("mục")}
       </div>
 
-      {/* Page Switcher */}
+      {/* Cụm điều khiển trang */}
       <div className="flex flex-wrap items-center gap-4">
-        {/* Page Size Selector */}
+        {/* Chọn số dòng mỗi trang */}
         <div className="flex items-center gap-2">
           <span className="app-text-muted">{t("Số dòng:")}</span>
           <div className="w-16">
@@ -91,12 +98,12 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
           </div>
         </div>
 
-        {/* Numbered Page Navigation */}
+        {/* Điều hướng theo số trang */}
         <nav aria-label={t("Phân trang")} className="flex items-center gap-1.5 sm:gap-2">
-          {/* Accessible indicator for screen readers and tests */}
+          {/* Chỉ báo cho trình đọc màn hình và kiểm thử */}
           <span className="sr-only">{activePage} / {pageCount}</span>
 
-          {/* Previous Page Button */}
+          {/* Nút trang trước */}
           <button
             type="button"
             disabled={activePage <= 1 || loading}
@@ -108,7 +115,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             <FiChevronLeft className="w-4 h-4 stroke-[2.5]" />
           </button>
 
-          {/* Numbered Buttons */}
+          {/* Các nút số trang */}
           {paginationItems.map((item, idx) => {
             if (item === "...") {
               return (
@@ -141,7 +148,7 @@ export const AdminPagination: React.FC<AdminPaginationProps> = ({
             );
           })}
 
-          {/* Next Page Button */}
+          {/* Nút trang tiếp */}
           <button
             type="button"
             disabled={activePage >= pageCount || loading}

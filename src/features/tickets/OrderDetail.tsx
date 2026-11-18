@@ -51,6 +51,7 @@ import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
 
 const SUPPORT_HOTLINE = "1900.6408";
 
+/** Trang chi tiết một đơn hàng theo mã đặt chỗ: tải đơn, sự kiện và vé; thăm dò khi đơn còn chờ thanh toán hoặc vé chưa đủ, và cho phép yêu cầu phát hành lại vé, sao chép mã đơn. */
 export default function OrderDetail() {
   const { t } = useTranslation();
   const { orderCode } = useParams<{ orderCode: string }>();
@@ -64,11 +65,11 @@ export default function OrderDetail() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
 
-  // polling timeout (tickets are late) and the window in which a PENDING order is waiting for the payment gateway
+  // cờ hết thời gian thăm dò (vé về chậm) và khoảng thời gian đơn PENDING chờ cổng thanh toán xác nhận
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  // what the last request to issue the tickets again answered (shown inside the notices)
+  // phản hồi của lần yêu cầu phát hành lại vé gần nhất (hiện trong các thông báo)
   const [reissueNotice, setReissueNotice] = useState<string | null>(null);
   const bookingCodeRef = useRef<string>("");
   const autoReissuedRef = useRef(false);
@@ -84,12 +85,13 @@ export default function OrderDetail() {
     return (orderCode || "").replace(/^booking:/i, "").trim();
   }, [orderCode]);
 
-  // total expected tickets from booking items
+  // tổng số vé dự kiến tính từ các mục của đơn
   const expectedTotalQuantity = useMemo(() => {
     if (!booking?.items || !Array.isArray(booking.items)) return 0;
     return booking.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
   }, [booking]);
 
+  /** Hủy lịch thăm dò đang chờ (nếu có). */
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
       clearTimeout(pollTimerRef.current);
@@ -100,11 +102,13 @@ export default function OrderDetail() {
   const pollTicketsRef = useRef<(bookingId: string, expectedCount: number, step?: number) => Promise<void>>(async () => {});
   const requestReissueRef = useRef<(silent: boolean) => Promise<ReissueOutcome | null>>(async () => null);
 
-  // poll for tickets: fast first, then slowly in the background without any click
+  // thăm dò vé: nhanh lúc đầu, sau đó chậm dần ở nền mà không cần bấm gì
+  /** Tải vé của người dùng, lọc đúng theo `bookingId` và cập nhật danh sách; dừng khi đủ số vé dự kiến, ngược lại đặt lịch lần kế theo `step`. */
   const pollTickets = useCallback(
     async (bookingId: string, expectedCount: number, step = 0) => {
       if (!isMountedRef.current) return;
 
+      /** Đặt lịch lần thăm dò kế tiếp; hết lịch thì dừng, và khi vé về quá chậm thì bật cờ hết thời gian và tự yêu cầu phát hành lại một lần. */
       const scheduleNext = () => {
         const delay = nextPollDelay("tickets", step);
         if (delay === null) {
@@ -113,7 +117,7 @@ export default function OrderDetail() {
         }
         if (ticketPollingIsLate(step) && isMountedRef.current) setPollTimedOut(true);
         if (shouldAutoReissue(step, autoReissuedRef.current)) {
-          autoReissuedRef.current = true; // once per page visit, silently
+          autoReissuedRef.current = true; // chỉ một lần mỗi lần mở trang, không báo
           void requestReissueRef.current(true);
         }
         pollTimerRef.current = setTimeout(() => {
@@ -125,7 +129,7 @@ export default function OrderDetail() {
         const rawTickets = await ticketApi.getMyTickets();
         if (!isMountedRef.current) return;
 
-        // strictly filter by bookingId
+        // chỉ lấy đúng vé của bookingId
         const matchingRaw = rawTickets.filter((tk) => tk.bookingId === bookingId);
         if (matchingRaw.length > 0) {
           const hydrated = await hydrateTickets(matchingRaw);
@@ -143,7 +147,7 @@ export default function OrderDetail() {
         scheduleNext();
       } catch (err) {
         console.warn("Polling tickets error:", err);
-        // keep going on the same schedule without showing an error toast
+        // vẫn thăm dò tiếp theo lịch cũ, không hiện toast lỗi
         if (isMountedRef.current) scheduleNext();
       }
     },
@@ -153,11 +157,13 @@ export default function OrderDetail() {
   const loadOrderDataRef = useRef<(isManualReload?: boolean) => Promise<void>>(async () => {});
   const pollBookingRef = useRef<(bookingCode: string, step: number) => Promise<void>>(async () => {});
 
-  // while the order is PENDING: read it again until the payment is confirmed, then continue with the tickets
+  // khi đơn còn PENDING: đọc lại cho tới khi thanh toán được xác nhận, rồi tiếp tục với vé
+  /** Đọc lại đơn theo mã đặt chỗ khi còn PENDING cho tới khi thanh toán được xác nhận, rồi tiếp tục với vé. */
   const pollBooking = useCallback(
     async (bookingCode: string, step: number) => {
       if (!isMountedRef.current) return;
       const delay = nextPollDelay("booking", step);
+      /** Đặt lịch lần đọc đơn kế tiếp, hoặc tắt trạng thái chờ xác nhận khi hết lịch. */
       const again = () => {
         if (!isMountedRef.current) return;
         if (delay === null) {
@@ -187,7 +193,8 @@ export default function OrderDetail() {
     []
   );
 
-  // main loader for order data
+  // bộ tải chính của dữ liệu đơn hàng
+  /** Tải đơn, sự kiện, vé và tên khách; `isManualReload` bật khi người dùng bấm tải lại để dừng thăm dò cũ và bỏ cờ hết thời gian. */
   const loadOrderData = useCallback(
     async (isManualReload = false) => {
       if (!normalizedCode) return;
@@ -201,7 +208,7 @@ export default function OrderDetail() {
       }
 
       try {
-        // 1. fetch booking details from booking-service
+        // 1. lấy chi tiết đơn từ booking-service
         let bookingInfo: BookingDetailResponse | null = null;
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedCode);
 
@@ -255,7 +262,7 @@ export default function OrderDetail() {
         setBooking(bookingInfo);
         bookingCodeRef.current = bookingInfo.bookingCode || normalizedCode;
 
-        // 2. fetch event information
+        // 2. lấy thông tin sự kiện
         if (bookingInfo.eventId) {
           try {
             const evt = await eventApi.getEventById(bookingInfo.eventId);
@@ -263,11 +270,11 @@ export default function OrderDetail() {
               setEventData(evt);
             }
           } catch {
-            // non-fatal
+            // không nghiêm trọng
           }
         }
 
-        // 3. fetch tickets from ticketApi filtered strictly by bookingId
+        // 3. lấy vé từ ticketApi, lọc đúng theo bookingId
         const rawTickets = await ticketApi.getMyTickets();
         if (!isMountedRef.current) return;
 
@@ -278,14 +285,14 @@ export default function OrderDetail() {
           setTickets(hydrated);
         }
 
-        // 4. calculate expected total quantity
+        // 4. tính tổng số lượng dự kiến
         const totalExpected = (bookingInfo.items || []).reduce(
           (sum, it) => sum + (it.quantity || 1),
           0
         );
 
-        // 5. what to do next: a PENDING order is waiting for the gateway to confirm the payment (the webhook is asynchronous),
-        // a paid order with too few tickets is waiting for issuance
+        // 5. bước kế tiếp: đơn PENDING chờ cổng xác nhận thanh toán (webhook bất đồng bộ),
+        // đơn đã trả tiền mà thiếu vé thì chờ phát hành vé
         stopPolling();
         const next = nextStepForBooking(bookingInfo.status, hydrated.length, totalExpected);
         if (next === "poll-tickets") {
@@ -299,7 +306,7 @@ export default function OrderDetail() {
           setConfirming(false);
         }
 
-        // 6. get user profile customer name
+        // 6. lấy tên khách từ hồ sơ người dùng
         const cached = getCachedUserProfile();
         if (cached?.fullName && isMountedRef.current) {
           setCustomerName(cached.fullName.trim());
@@ -318,6 +325,7 @@ export default function OrderDetail() {
     [normalizedCode, pollTickets, stopPolling, t]
   );
 
+  /** Tải lại toàn bộ dữ liệu đơn do người dùng yêu cầu, hiện trạng thái đang thử lại. */
   const reload = useCallback(async () => {
     setRetrying(true);
     try {
@@ -327,7 +335,8 @@ export default function OrderDetail() {
     }
   }, []);
 
-  // asks the backend to issue the tickets of this paid order again (owner only, idempotent) and tells the customer the answer
+  // yêu cầu backend phát hành lại vé của đơn đã thanh toán này (chỉ chủ đơn, idempotent) và báo kết quả cho khách
+  /** Gửi yêu cầu phát hành lại vé; `silent` là true thì không hiện thông báo kết quả hay cảnh báo lỗi. Trả về kết quả phân tích, hoặc null nếu chưa có mã đặt chỗ. */
   const requestReissue = useCallback(
     async (silent: boolean): Promise<ReissueOutcome | null> => {
       const code = bookingCodeRef.current;
@@ -345,7 +354,7 @@ export default function OrderDetail() {
         return outcome;
       } catch (err) {
         console.warn("Reissue request failed:", err);
-        // never blocks the reload that follows
+        // không bao giờ chặn lần tải lại ngay sau đó
         if (!silent) toast.warning(t("Chưa gửi được yêu cầu phát hành lại. Trang vẫn tải lại thông tin đơn hàng."));
         return null;
       }
@@ -353,7 +362,8 @@ export default function OrderDetail() {
     [t]
   );
 
-  // the 'Tải lại' of the late-tickets notice: ask for the issuance again, then reload the order and restart the polling
+  // nút "Tải lại" của thông báo vé về chậm: yêu cầu phát hành lại, rồi tải lại đơn và khởi động lại thăm dò
+  /** Tải lại đơn, và nếu đơn đã thanh toán mà thiếu vé thì yêu cầu phát hành lại trước. */
   const reloadAndReissue = useCallback(async () => {
     setRetrying(true);
     try {
@@ -373,7 +383,7 @@ export default function OrderDetail() {
     requestReissueRef.current = requestReissue;
   }, [loadOrderData, pollBooking, pollTickets, requestReissue]);
 
-  // mount and unmount cleanup (do not re-fetch on window focus to avoid flicker on Alt+Tab)
+  // dọn dẹp khi mount và unmount (không tải lại khi cửa sổ lấy lại focus để tránh nháy khi Alt+Tab)
   useEffect(() => {
     isMountedRef.current = true;
     window.scrollTo(0, 0);
@@ -385,6 +395,7 @@ export default function OrderDetail() {
     };
   }, [loadOrderData, stopPolling]);
 
+  /** Sao chép mã đơn vào clipboard và hiện trạng thái đã sao chép trong 2 giây. */
   const copyOrderCode = () => {
     if (!booking?.bookingCode && !normalizedCode) return;
     navigator.clipboard.writeText(booking?.bookingCode || normalizedCode);
@@ -406,7 +417,7 @@ export default function OrderDetail() {
     }).format(d);
   }, [booking?.createdAt]);
 
-  // showtime information from event showtimes
+  // thông tin suất diễn lấy từ danh sách showtime của sự kiện
   const bookingShowtimeId = booking?.showtimeId;
   const showtimeInfo = useMemo(() => {
     if (!eventData || !bookingShowtimeId) return null;

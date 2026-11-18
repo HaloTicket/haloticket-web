@@ -2,23 +2,28 @@ import type { PaidWithoutTicketsItem, PaymentExceptionItem, StockDiscrepancyItem
 
 export const ALL = "all";
 
-/** Case-insensitive "contains" over several fields; an empty query matches everything. */
+/** So khớp không phân biệt hoa thường theo kiểu "chứa" trên nhiều trường; truy vấn rỗng thì khớp tất cả. */
 export function matchesText(query: string, ...fields: Array<string | null | undefined>): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return fields.some((f) => typeof f === "string" && f.toLowerCase().includes(q));
 }
 
+/** Bộ lọc danh sách thanh toán ngoại lệ: loại ngoại lệ và từ khóa tìm kiếm. */
 export interface ExceptionFilters { kind: string; q: string }
+/** Bộ lọc danh sách đơn đã thanh toán thiếu vé: phương thức thanh toán, nhóm thời gian chờ và từ khóa. */
 export interface PaidFilters { method: string; age: string; q: string }
+/** Bộ lọc danh sách hạng vé lệch kho: sự kiện, loại lệch và từ khóa. */
 export interface StockFilters { event: string; issue: string; q: string }
 
 export const EMPTY_EXCEPTION_FILTERS: ExceptionFilters = { kind: ALL, q: "" };
 export const EMPTY_PAID_FILTERS: PaidFilters = { method: ALL, age: ALL, q: "" };
 export const EMPTY_STOCK_FILTERS: StockFilters = { event: ALL, issue: ALL, q: "" };
 
+/** Cho biết có bộ lọc nào đang áp dụng (khác giá trị "tất cả" hoặc chuỗi rỗng) hay không. */
 export const isFiltering = (f: Record<string, string>) => Object.values(f).some((v) => v !== ALL && v !== "");
 
+/** Lọc danh sách ngoại lệ theo loại và từ khóa (mã đơn, thông tin khách, sự kiện, mã thanh toán). */
 export function filterExceptions(items: PaymentExceptionItem[], f: ExceptionFilters): PaymentExceptionItem[] {
   return items.filter(
     (i) => (f.kind === ALL || i.kind === f.kind)
@@ -26,11 +31,12 @@ export function filterExceptions(items: PaymentExceptionItem[], f: ExceptionFilt
   );
 }
 
-/** "recent" = paid less than 30 minutes ago, "waiting" = 30 minutes to 2 hours, "stale" = more than 2 hours. */
+/** Nhóm thời gian chờ: `recent` là đã thanh toán dưới 30 phút, `waiting` từ 30 phút đến 2 giờ, `stale` là trên 2 giờ. */
 export function ageBucketOf(minutes: number): "recent" | "waiting" | "stale" {
   return minutes < 30 ? "recent" : minutes < 120 ? "waiting" : "stale";
 }
 
+/** Lọc danh sách đơn đã thanh toán thiếu vé theo phương thức, nhóm thời gian chờ và từ khóa. */
 export function filterPaid(items: PaidWithoutTicketsItem[], f: PaidFilters): PaidWithoutTicketsItem[] {
   return items.filter(
     (i) => (f.method === ALL || (i.paymentMethod ?? "") === f.method)
@@ -39,7 +45,7 @@ export function filterPaid(items: PaidWithoutTicketsItem[], f: PaidFilters): Pai
   );
 }
 
-/** What is wrong with a stock row, as one filterable category (the first that applies). */
+/** Phân loại lỗi của một dòng kho thành một nhóm lọc được (lấy nhóm đầu tiên phù hợp). */
 export function stockIssueOf(item: StockDiscrepancyItem): "unrecorded" | "notDeducted" | "overDeducted" | "held" | "other" {
   if (typeof item.initial !== "number" || (item.note ?? "").includes("INITIAL_QUANTITY_NULL")) return "unrecorded";
   if (typeof item.diffStockVsIssued === "number" && item.diffStockVsIssued < 0) return "notDeducted";
@@ -48,6 +54,7 @@ export function stockIssueOf(item: StockDiscrepancyItem): "unrecorded" | "notDed
   return "other";
 }
 
+/** Lọc danh sách hạng vé lệch kho theo sự kiện, loại lệch và từ khóa. */
 export function filterStock(items: StockDiscrepancyItem[], f: StockFilters): StockDiscrepancyItem[] {
   return items.filter(
     (i) => (f.event === ALL || (i.eventId ?? "") === f.event)
@@ -56,7 +63,7 @@ export function filterStock(items: StockDiscrepancyItem[], f: StockFilters): Sto
   );
 }
 
-/** Distinct values with a label, sorted by label, for a CustomSelect built from the loaded rows. */
+/** Các giá trị không trùng kèm nhãn, sắp theo nhãn, dùng để dựng CustomSelect từ các dòng đã tải. */
 export function distinctOptions<T>(items: T[], pick: (item: T) => { value?: string | null; label?: string | null }): { value: string; label: string }[] {
   const seen = new Map<string, string>();
   for (const item of items) {

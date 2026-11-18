@@ -3,7 +3,7 @@ import { FiShoppingCart, FiTag, FiTrash2, FiCreditCard, FiCheckCircle, FiShield,
 import { useTranslation } from 'react-i18next';
 import type { Seat, AttendeePreviewProps } from '@/types/seating';
 
-// high-end buyer simulation attendee cart preview component
+/** Xem trước giỏ hàng của khách khi mô phỏng mua ghế: danh sách ghế đã chọn, hạng vé, tổng tiền và nút thanh toán giả lập. */
 export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
   cart,
   tiers = [],
@@ -14,20 +14,20 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
   const { t } = useTranslation();
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // get ticket tier for seat
+  /** Tìm hạng vé của một ghế, theo hạng vé gắn trên ghế hoặc theo khu của ghế. */
   const getSeatTier = (seat: Seat) => {
     const tierId = seat.tierId || (zones && seat.zoneId ? zones[seat.zoneId]?.tierId : undefined);
     return (tiers || []).find((t) => t.id === tierId || t.id === seat.tierId || t.id === seat.zoneId);
   };
 
-  // calculate total price
+  // tính tổng tiền
   const totalPrice = cart.reduce((sum, seat) => {
     const tier = getSeatTier(seat);
     const price = tier?.price ?? (zones && seat.zoneId ? zones[seat.zoneId]?.price : undefined) ?? 0;
     return sum + price;
   }, 0);
 
-  // simulate checkout handler
+  /** Giả lập thanh toán: hiện trạng thái thành công rồi sau 1,8 giây xóa giỏ hàng. */
   const handleSimulateCheckout = () => {
     setIsSuccess(true);
     setTimeout(() => {
@@ -38,7 +38,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
 
   return (
     <aside className="p-5 rounded-2xl app-bg-card border app-border flex flex-col justify-between w-full shadow-lg space-y-4 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Đầu giỏ hàng */}
       <div className="flex items-center justify-between pb-3.5 border-b app-border">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-xs">
@@ -56,7 +56,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
         </span>
       </div>
 
-      {/* Available Ticket Tier Legend Badge Filters */}
+      {/* Chú giải các hạng vé đang có */}
       {tiers && tiers.length > 0 && (
         <div className="space-y-1.5 pt-1">
           <span className="text-[10px] font-extrabold app-text-muted uppercase tracking-wider block">
@@ -77,7 +77,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
         </div>
       )}
 
-      {/* Cart Item List */}
+      {/* Danh sách ghế trong giỏ */}
       <div className="flex-1 overflow-y-auto space-y-2 max-h-[300px] min-h-[160px] pr-1">
         {cart.length > 0 ? (
           cart.map((seat) => {
@@ -134,7 +134,7 @@ export const AttendeePreview: React.FC<AttendeePreviewProps> = ({
         )}
       </div>
 
-      {/* Total & Checkout Section */}
+      {/* Phần tổng tiền và thanh toán */}
       <div className="pt-3 border-t app-border space-y-3">
         <div className="flex items-center justify-between text-xs font-bold">
           <span className="app-text-muted uppercase flex items-center gap-1.5">

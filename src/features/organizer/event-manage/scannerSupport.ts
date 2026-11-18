@@ -1,9 +1,10 @@
+/** Trạng thái của trình quét camera: tắt, đang khởi động, đang quét, bị từ chối quyền, không có camera hoặc lỗi khác. */
 export type ScannerState = "off" | "starting" | "scanning" | "denied" | "no-camera" | "error";
 
-/** The same code is not sent twice within this time: a camera reads the same QR many times a second. */
+/** Cùng một mã không được gửi hai lần trong khoảng thời gian này: camera đọc cùng một mã QR nhiều lần mỗi giây. */
 export const SCAN_REPEAT_WINDOW_MS = 4000;
 
-/** Turns a camera error into what the person at the gate can do about it. */
+/** Chuyển lỗi camera thành trạng thái để người ở cổng soát vé biết cách xử lý. */
 export function cameraErrorState(err: unknown): ScannerState {
   const name = (err as { name?: string } | null)?.name ?? "";
   const message = String((err as { message?: string } | null)?.message ?? err ?? "").toLowerCase();

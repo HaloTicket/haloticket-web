@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { CustomSelect } from "./CustomSelect";
 
+/** Props của thanh phân trang bảng: trang hiện tại, tổng trang, tổng mục, cỡ trang và hai callback đổi trang/cỡ trang. */
 interface TablePaginationProps {
   currentPage: number;
   totalPages: number;
@@ -12,6 +13,7 @@ interface TablePaginationProps {
   onPageSizeChange: (pageSize: number) => void;
 }
 
+/** Thanh phân trang cho bảng dữ liệu, gồm dải mục đang xem, ô chọn số dòng (10, 20, 50) và các nút trang; trả về `null` khi không có mục nào. */
 export const TablePagination: React.FC<TablePaginationProps> = ({
   currentPage,
   totalPages,
@@ -26,7 +28,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
-  // generate page numbers array (up to 5 page buttons)
+  /** Tạo dãy số trang cần hiện; tổng trang từ 7 trở xuống thì hiện hết, ngược lại hiện đầu, cuối và quanh trang hiện tại, chèn "..." ở chỗ bị lược. */
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
     if (totalPages <= 7) {
@@ -71,7 +73,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           </div>
         </label>
         <div className="flex items-center gap-1.5">
-        {/* Previous Button */}
+        {/* Nút trang trước */}
         <button
           type="button"
           disabled={currentPage === 1}
@@ -82,7 +84,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           <FiChevronLeft className="w-4 h-4" />
         </button>
 
-        {/* Page Number Buttons */}
+        {/* Các nút số trang */}
         {getPageNumbers().map((p, idx) => {
           if (typeof p === "string") {
             return (
@@ -108,7 +110,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           );
         })}
 
-        {/* Next Button */}
+        {/* Nút trang tiếp */}
         <button
           type="button"
           disabled={currentPage === totalPages || totalPages === 0}

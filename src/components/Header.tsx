@@ -37,6 +37,10 @@ import {
   LuUser,
 } from "react-icons/lu";
 
+/**
+ * Thanh đầu trang của khách hàng: logo, ô tìm kiếm, danh mục, chuyển giao diện sáng/tối, ngôn ngữ,
+ * chuông thông báo và menu tài khoản (kèm menu di động). Tự đồng bộ trạng thái đăng nhập và hồ sơ người dùng.
+ */
 export const Header: React.FC = () => {
   const { t: translate } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
@@ -68,7 +72,7 @@ export const Header: React.FC = () => {
   const currentNavKey = location.pathname + location.search;
   const [prevNavKey, setPrevNavKey] = useState(currentNavKey);
 
-  // Sync state during render when route changes without cascading effect renders
+  // Đồng bộ state ngay trong lúc render khi đổi route, tránh phải chạy thêm effect gây render dây chuyền
   if (prevNavKey !== currentNavKey) {
     setPrevNavKey(currentNavKey);
     const params = new URLSearchParams(location.search);
@@ -81,8 +85,9 @@ export const Header: React.FC = () => {
     setShowLoginModal(false);
   }
 
-  // Check auth and user info on mount & sync across storage/profile events
+  // Kiểm tra đăng nhập và thông tin người dùng khi mount, đồng bộ theo các sự kiện storage/hồ sơ
   useEffect(() => {
+    /** Cập nhật trạng thái đăng nhập; nếu đã đăng nhập thì lấy hồ sơ từ cache rồi làm mới từ API, ngược lại xóa hồ sơ. */
     const checkAuth = () => {
       const authed = getKeycloakSession().isAuthenticated();
       setIsAuthenticated(authed);
@@ -96,6 +101,7 @@ export const Header: React.FC = () => {
       }
     };
 
+    /** Nạp lại hồ sơ người dùng từ cache khi có sự kiện `user-updated`. */
     const handleProfileUpdate = () => {
       setUserProfile(getCachedUserProfile());
     };
@@ -111,8 +117,9 @@ export const Header: React.FC = () => {
     };
   }, []);
 
-  // Close dropdowns on click outside or escape key
+  // Đóng các dropdown khi bấm ra ngoài hoặc nhấn phím Escape
   useEffect(() => {
+    /** Đóng dropdown tìm kiếm, ngôn ngữ, tài khoản nào mà lần bấm chuột nằm ngoài vùng của nó. */
     const handleClickOutside = (event: MouseEvent) => {
       if (
         searchContainerRef.current &&
@@ -134,6 +141,7 @@ export const Header: React.FC = () => {
       }
     };
 
+    /** Đóng cả ba dropdown khi người dùng nhấn Escape. */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsLangOpen(false);
@@ -150,6 +158,7 @@ export const Header: React.FC = () => {
     };
   }, []);
 
+  /** Đăng xuất Keycloak, xóa trạng thái cục bộ, phát sự kiện đồng bộ rồi về trang chủ. */
   const handleLogout = async () => {
     await getKeycloakSession().logout();
     setIsAuthenticated(false);
@@ -161,6 +170,7 @@ export const Header: React.FC = () => {
     navigate(PATHS.HOME, { replace: true });
   };
 
+  /** Gửi tìm kiếm: bỏ qua chuỗi rỗng; lưu lịch sử, ghi log truy vấn rồi chuyển tới trang `/search`. */
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = searchQuery.trim();
@@ -746,11 +756,13 @@ export const Header: React.FC = () => {
 
 export default Header;
 
+/** Chuông thông báo realtime của khách hàng: danh sách dropdown và toast cho thông báo mới nhất. */
 function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userIds);
 
+  /** Đánh dấu đã đọc, tắt toast rồi chuyển tới trang đích của thông báo (nếu có). */
   const onClick = (item: NotificationItem) => {
     void markAsRead(item.id);
     clearToast();

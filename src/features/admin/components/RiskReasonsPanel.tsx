@@ -4,6 +4,7 @@ import { getLocale } from "@/i18n";
 import type { AiRiskScoreResponse, RiskLayer, RiskReasonItem } from "@/types/ai";
 import { RiskBadge } from "./RiskBadge";
 
+/** Props của bảng lý do rủi ro: kết quả đánh giá, hàm chấm lại và cờ đang chấm lại. */
 interface RiskReasonsPanelProps {
   assessment: AiRiskScoreResponse;
   onRefresh: () => void;
@@ -12,13 +13,14 @@ interface RiskReasonsPanelProps {
 
 const LAYERS: RiskLayer[] = ["RULE", "SIGNAL", "AI"];
 
+/** Định dạng thời điểm đánh giá; thiếu hoặc sai thì trả về `null`. */
 function formatTime(value?: string): string | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleString(getLocale(), { dateStyle: "short", timeStyle: "short" }) : null;
 }
 
-/** "Why" panel: every reason of the assessment grouped by layer, with the quoted evidence, coverage and a re-score button. */
+/** Bảng "Vì sao": mọi lý do của đánh giá được nhóm theo tầng, kèm bằng chứng trích dẫn, độ phủ và nút chấm lại. */
 export function RiskReasonsPanel({ assessment, onRefresh, refreshing = false }: RiskReasonsPanelProps) {
   const { t } = useTranslation();
   const items: RiskReasonItem[] = assessment.reason_items ?? [];
@@ -27,7 +29,7 @@ export function RiskReasonsPanel({ assessment, onRefresh, refreshing = false }: 
   const time = formatTime(assessment.assessed_at);
   const hasFindings = items.some((item) => item.status !== "not_assessed");
 
-  // The old contract only has plain strings; show them when the server sent no structured items.
+  // Hợp đồng cũ chỉ có chuỗi thuần; hiển thị chúng khi máy chủ không gửi mục có cấu trúc.
   const legacyReasons = items.length === 0 ? assessment.reasons ?? [] : [];
 
   return (

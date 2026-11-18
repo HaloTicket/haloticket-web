@@ -3,6 +3,7 @@ import { t as translate } from "@/i18n";
 import React, { useState, useEffect, useCallback } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
+/** Một slide của băng chuyền: ảnh, tiêu đề, phụ đề, huy hiệu và liên kết tùy chọn. */
 export interface CarouselSlide {
   id: string;
   image: string;
@@ -12,6 +13,7 @@ export interface CarouselSlide {
   link?: string;
 }
 
+/** Props của băng chuyền ảnh: danh sách slide, chu kỳ tự chạy, hiện mũi tên/chấm, lớp CSS, tỉ lệ khung và hàm dựng slide tùy biến. */
 interface ImageCarouselProps {
   slides: CarouselSlide[];
   autoPlayInterval?: number;
@@ -22,6 +24,10 @@ interface ImageCarouselProps {
   renderCustomSlide?: (slide: CarouselSlide, index: number) => React.ReactNode;
 }
 
+/**
+ * Băng chuyền ảnh tự chạy theo `autoPlayInterval` (ms); tạm dừng khi rê chuột, và không chạy khi chỉ có một slide
+ * hoặc khoảng thời gian không dương. Trả về `null` khi không có slide.
+ */
 export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   slides,
   autoPlayInterval = 4000,
@@ -35,14 +41,17 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isHovered, setIsHovered] = useState<boolean>(false);
 
+  /** Sang slide kế, quay vòng về slide đầu khi đang ở slide cuối. */
   const nextSlide = useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex === slides.length - 1 ? 0 : prevIndex + 1));
   }, [slides.length]);
 
+  /** Lùi về slide trước, quay vòng tới slide cuối khi đang ở slide đầu. */
   const prevSlide = useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex === 0 ? slides.length - 1 : prevIndex - 1));
   }, [slides.length]);
 
+  /** Nhảy tới slide có chỉ số cho trước (dùng cho các chấm điều hướng). */
   const goToSlide = (index: number) => {
     setCurrentIndex(index);
   };
@@ -64,7 +73,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Slides Container */}
+      {/* Khung chứa các slide */}
       <div className={`relative w-full ${aspectRatio} overflow-hidden rounded-2xl bg-slate-900`}>
         {slides.map((slide, index) => {
           const isActive = index === currentIndex;
@@ -110,7 +119,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
         })}
       </div>
 
-      {/* Prev / Next Arrows */}
+      {/* Mũi tên trước / sau */}
       {showArrows && slides.length > 1 && (
         <>
           <button
@@ -132,7 +141,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
         </>
       )}
 
-      {/* Pagination Indicators */}
+      {/* Chấm chỉ báo vị trí */}
       {showDots && slides.length > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/40 backdrop-blur-md">
           {slides.map((_, index) => (

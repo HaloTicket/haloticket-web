@@ -4,6 +4,7 @@ import type { NotificationItem } from "@/types";
 import { toast } from "sonner";
 import { CONFIG } from "@/config";
 
+/** Thông báo thô do API trả về, có thể dùng tên trường cũ (`subjectTemplate`, `bodyTemplate`) thay cho `title`, `message`. */
 interface RawNotification {
   id?: string;
   userId?: string;
@@ -19,6 +20,7 @@ interface RawNotification {
 
 let sharedAudioCtx: AudioContext | null = null;
 
+/** Lấy `AudioContext` dùng chung (tạo lười, hỗ trợ `webkitAudioContext`) và tiếp tục nếu đang bị trình duyệt tạm dừng; trả null khi không có window hoặc không hỗ trợ. */
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!sharedAudioCtx) {
@@ -34,6 +36,7 @@ function getAudioContext(): AudioContext | null {
 }
 
 if (typeof window !== "undefined") {
+  /** Mở khóa âm thanh sau lần tương tác đầu của người dùng, vì trình duyệt chặn phát tự động. */
   const unlockAudio = () => {
     const ctx = getAudioContext();
     if (ctx && ctx.state === "suspended") {
@@ -46,7 +49,8 @@ if (typeof window !== "undefined") {
 
 let lastChimeTime = 0;
 
-// synthesize a pleasant bell chime using Web Audio API
+// tổng hợp tiếng chuông êm bằng Web Audio API
+/** Phát tiếng chuông thông báo gồm hai nốt; bỏ qua nếu lần phát trước cách chưa tới 1,5 giây, lỗi âm thanh chỉ ghi cảnh báo. */
 export async function playNotificationChime() {
   const now = Date.now();
   if (now - lastChimeTime < 1500) {
@@ -60,7 +64,7 @@ export async function playNotificationChime() {
       await ctx.resume();
     }
 
-    // tone 1: 587.33Hz (D5)
+    // nốt 1: 587,33 Hz (D5)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = "sine";
@@ -72,7 +76,7 @@ export async function playNotificationChime() {
     osc1.start(ctx.currentTime);
     osc1.stop(ctx.currentTime + 0.4);
 
-    // tone 2: 880Hz (A5) played 120ms later
+    // nốt 2: 880 Hz (A5) phát sau 120 ms
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = "sine";
@@ -90,6 +94,7 @@ export async function playNotificationChime() {
 
 const recentNotificationKeys = new Map<string, number>();
 
+/** Tạo khóa nhận diện nội dung của thông báo (người nhận, loại, tiêu đề, nội dung; ưu tiên phần trong dấu nháy kép) để phát hiện thông báo trùng. */
 function extractNotificationKey(notif: { userId?: string; type?: string; title?: string; message?: string }): string {
   const quoted = notif.message?.match(/"([^"]+)"/)?.[1] || "";
   const normalizedTitle = (notif.title || "").trim();
@@ -97,6 +102,7 @@ function extractNotificationKey(notif: { userId?: string; type?: string; title?:
   return `${notif.userId || ""}:${notif.type || ""}:${normalizedTitle}:${normalizedMsg}`;
 }
 
+/** Chống xử lý trùng thông báo đến: dọn các khóa cũ quá 6 giây, từ chối thông báo có cùng `id` hoặc cùng nội dung trong 6 giây gần nhất. */
 function shouldProcessIncomingNotification(notif: NotificationItem): boolean {
   const now = Date.now();
   for (const [key, timestamp] of recentNotificationKeys.entries()) {
@@ -120,6 +126,7 @@ function shouldProcessIncomingNotification(notif: NotificationItem): boolean {
   return true;
 }
 
+/** Loại bỏ các thông báo trùng `id`, giữ bản đầu tiên. */
 function deduplicateNotificationList(items: NotificationItem[]): NotificationItem[] {
   const result: NotificationItem[] = [];
   const seenIds = new Set<string>();
@@ -132,6 +139,7 @@ function deduplicateNotificationList(items: NotificationItem[]): NotificationIte
   return result;
 }
 
+/** Hook nhận thông báo của một hoặc nhiều người nhận (mặc định `ADMIN`) bằng cách tải ban đầu, thăm dò mỗi 3 giây và lắng nghe WebSocket STOMP. Trả về danh sách thông báo, số chưa đọc, trạng thái tải, lỗi, thông báo toast mới nhất và các hàm đánh dấu đã đọc. */
 export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,7 +157,8 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
     return filtered.length > 0 ? Array.from(new Set(filtered)) : ["ADMIN"];
   }, [targetIdSerialized]);
 
-  // load initial notifications from DB
+  // tải thông báo ban đầu từ cơ sở dữ liệu
+  /** Tải thông báo của mọi người nhận, gộp, loại trùng và sắp xếp mới nhất trước; bỏ qua kết quả cũ nếu trong lúc tải đã có thao tác đánh dấu đã đọc. */
   const loadNotifications = useCallback(async () => {
     if (!hasLoadedNotifications.current) setLoading(true);
     const requestReadRevision = readRevision.current;
@@ -194,10 +203,10 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
       void loadNotifications();
     }, 0);
 
-    // 3s interval polling sync to ensure 100% notification updates even if WS is blocked
+    // thăm dò mỗi 3 giây để đảm bảo cập nhật đầy đủ kể cả khi WebSocket bị chặn
     const pollInterval = setInterval(loadNotifications, 3000);
 
-    // webSocket STOMP Realtime sync
+    // đồng bộ thời gian thực qua WebSocket STOMP
     const url = new URL(CONFIG.API_BASE_URL);
     const protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${url.host}/ws-notifications`;
@@ -247,11 +256,11 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
             }
           }
         } catch {
-          // ignore parse errors
+          // bỏ qua lỗi phân tích cú pháp
         }
       };
     } catch {
-      // silent catch
+      // bỏ qua lỗi, không làm gián đoạn giao diện
     }
 
     return () => {
@@ -272,6 +281,7 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
     };
   }, [userIds, loadNotifications]);
 
+  /** Đánh dấu một thông báo là đã đọc qua API rồi cập nhật cục bộ; bỏ qua nếu đã đọc. */
   const markAsRead = async (id: string) => {
     const notification = notifications.find((item) => item.id === id);
     if (!notification || notification.readStatus) return;
@@ -287,6 +297,7 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
     }
   };
 
+  /** Đánh dấu mọi thông báo chưa đọc là đã đọc cho tất cả người nhận. */
   const markAllAsRead = async () => {
     const unreadIds = new Set(notifications.filter((item) => !item.readStatus).map((item) => item.id));
     if (!unreadIds.size) return;
@@ -302,6 +313,7 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
     }
   };
 
+  /** Xóa toast thông báo mới nhất. */
   const clearToast = () => setLatestToast(null);
 
   return {

@@ -9,6 +9,7 @@ import { VietnamFlag, UKFlag } from "@/components/common/FlagIcons";
 import { FiSun, FiMoon, FiChevronDown } from "react-icons/fi";
 import { AuthBackground } from "./AuthBackground";
 
+/** Nội dung bố cục trang xác thực (đăng nhập, đăng ký): nền động, nút đổi ngôn ngữ và theme, vùng biểu mẫu; trang đăng ký dùng bố cục cho biểu mẫu dài. */
 function AuthLayoutContent() {
   useTranslation();
   const location = useLocation();
@@ -22,6 +23,7 @@ function AuthLayoutContent() {
   const langDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /** Đóng menu chọn ngôn ngữ khi bấm chuột ngoài vùng menu. */
     function handleClickOutside(event: MouseEvent) {
       if (
         langDropdownRef.current &&
@@ -150,6 +152,7 @@ function AuthLayoutContent() {
   );
 }
 
+/** Bố cục các trang xác thực, bọc nội dung trong `ThemeProvider`. */
 export default function AuthLayout() {
   useTranslation();
   return (

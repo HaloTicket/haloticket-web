@@ -20,6 +20,7 @@ import {
   downloadTicketAsImage,
 } from "./MyTickets";
 
+/** Props của thẻ đơn hàng trong danh sách vé; `isMenuOpen` và `onToggleMenu` do component cha điều khiển menu thao tác. */
 export interface OrderCardProps {
   order: OrderGroup;
   isLast?: boolean;
@@ -30,6 +31,7 @@ export interface OrderCardProps {
   onGift?: (ticket: TicketItem) => void;
 }
 
+/** Tách ngày đặt thành ngày, nhãn tháng và năm để vẽ khối ngày; giá trị sai hoặc thiếu thì dùng ngày mặc định. */
 function parseOrderDate(value?: string, t?: (k: string, opt?: Record<string, unknown>) => string) {
   const date = value ? new Date(value) : null;
   const defaultMonth = t ? t("THÁNG {{m}}", { m: "09" }) : "THÁNG 09";
@@ -43,6 +45,7 @@ function parseOrderDate(value?: string, t?: (k: string, opt?: Record<string, unk
   return { day, month, year };
 }
 
+/** Thẻ tóm tắt một đơn hàng (nhóm vé cùng mã đặt): ngày, sự kiện, trạng thái, số vé, cùng menu xem chi tiết, đăng bán lại và tặng vé. */
 export function OrderCard({
   order,
   isLast = false,
@@ -66,9 +69,10 @@ export function OrderCard({
     (ticket) => ticket.status === "UPCOMING" && ticket.rawStatus === "VALID",
   );
 
-  // close menu when clicking outside
+  // đóng menu khi bấm ra ngoài
   useEffect(() => {
     if (!isMenuOpen) return;
+    /** Đóng menu thao tác nếu người dùng nhấn chuột ngoài vùng menu. */
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onToggleMenu?.(undefined);

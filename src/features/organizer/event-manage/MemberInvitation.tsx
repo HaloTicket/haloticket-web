@@ -15,6 +15,7 @@ import {
 import type { MemberInvitationPreview } from "@/types";
 import { matchInvitationCode, readApiFailure } from "./memberInvitationErrors";
 
+/** Các giai đoạn của trang nhận lời mời: đang tải, sẵn sàng trả lời, không tìm thấy, lỗi, đã nhận hoặc đã từ chối. */
 type Phase =
   | { name: "loading" }
   | { name: "ready"; invitation: MemberInvitationPreview }
@@ -25,12 +26,14 @@ type Phase =
 
 const ROLE_KEYS = ["OWNER", "ADMIN", "MANAGER", "CHECKIN_STAFF"];
 
+/** Cho biết lỗi nghĩa là lời mời không tồn tại (HTTP 404 hoặc mã {@code INVITATION_NOT_FOUND}). */
 function isNotFound(error: unknown) {
   const failure = readApiFailure(error);
   return failure.status === 404 || matchInvitationCode(failure) === "INVITATION_NOT_FOUND";
 }
 
-// the token is retrieved solely from the fragment (#token=...). If it is not present, the version saved during the login process is used instead.
+// token chỉ được lấy từ phần fragment (#token=...). Nếu không có thì dùng bản đã lưu trong quá trình đăng nhập.
+/** Đọc token lời mời một lần khi khởi tạo trang: ưu tiên fragment trên URL (và lưu lại), không có thì lấy bản đã lưu. */
 function readTokenOnce(): string {
   try {
     const fromHash = readTokenFromHash(window.location.hash);
@@ -39,7 +42,7 @@ function readTokenOnce(): string {
       return fromHash;
     }
   } catch {
-    // fall through to the stored copy
+    // dùng bản đã lưu
   }
   return loadMemberInvitationToken();
 }
@@ -50,6 +53,10 @@ const primaryButton =
 const secondaryButton =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border app-border app-bg-main px-6 text-sm font-semibold app-text-main transition hover:bg-slate-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-60";
 
+/**
+ * Trang nhận hoặc từ chối lời mời tham gia sự kiện. Token lấy từ URL (xóa khỏi thanh địa chỉ sau khi đọc);
+ * người chưa đăng nhập được hướng tới đăng nhập, người đã đăng nhập xem trước lời mời rồi chọn đồng ý hoặc từ chối.
+ */
 export default function MemberInvitation() {
   const { t } = useTranslation();
   const [token] = useState(readTokenOnce);
@@ -64,6 +71,7 @@ export default function MemberInvitation() {
     }
   }, []);
 
+  /** Xử lý lỗi khi gọi API: lời mời không tồn tại thì xóa token đã lưu và báo {@code notFound}, lỗi khác báo {@code error}. */
   const failWith = useCallback((error: unknown) => {
     if (isNotFound(error)) {
       clearMemberInvitationToken();
@@ -83,25 +91,29 @@ export default function MemberInvitation() {
     return () => { cancelled = true; };
   }, [authenticated, token, attempt, failWith]);
 
+  /** Đổi mã vai trò sang nhãn dịch; vai trò lạ giữ nguyên mã. */
   const roleLabel = useCallback(
     (role: string) => (ROLE_KEYS.includes(role) ? t(`members.invitation.role.${role}`) : role),
     [t],
   );
 
-  // returnTo login: save the token and set a redirect to this page after login
+  // trước khi chuyển tới đăng nhập: lưu token và đặt đường dẫn quay lại trang này sau khi đăng nhập
+  /** Ghi nhớ token và trang cần quay lại để tiếp tục nhận lời mời sau khi đăng nhập. */
   const rememberReturn = () => {
     saveMemberInvitationToken(token);
     try {
       sessionStorage.setItem("haloticket_auth_redirect", PATHS.EVENT_INVITATION_ACCEPT);
-    } catch { /* storage may be disabled. */ }
+    } catch { /* storage có thể bị tắt. */ }
   };
 
+  /** Đăng xuất để người dùng đăng nhập bằng tài khoản khác; nếu đăng xuất lỗi thì chuyển thẳng tới trang đăng nhập. */
   const switchAccount = () => {
     void getKeycloakSession()
       .logout(`${window.location.origin}${PATHS.LOGIN}`)
       .catch(() => { window.location.assign(PATHS.LOGIN); });
   };
 
+  /** Gửi quyết định đồng ý hoặc từ chối lời mời; thành công thì xóa token đã lưu, lỗi thì xử lý qua {@code failWith}. */
   const respond = async (action: "accept" | "decline") => {
     if (busy) return;
     setBusy(action);
@@ -122,11 +134,13 @@ export default function MemberInvitation() {
     }
   };
 
+  /** Bọc nội dung vào khung thẻ căn giữa của trang. */
   const shell = (children: React.ReactNode) => (
     <main className="flex min-h-[60vh] items-center justify-center app-bg-page app-text-main px-4 py-12">
       <div className={card}>{children}</div>
     </main>
   );
+  /** Dựng vòng tròn biểu tượng với màu nền theo ngữ cảnh. */
   const icon = (node: React.ReactNode, tone: string) => (
     <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${tone}`}>{node}</div>
   );

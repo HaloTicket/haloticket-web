@@ -7,6 +7,7 @@ import { initializeBrowserAuth } from '@/services/authBootstrap'
 import { getKeycloakSession } from '@/services/keycloakSession'
 import { userApi } from '@/services/userApi'
 
+/** Khởi động ứng dụng: khởi tạo xác thực Keycloak trên trình duyệt rồi mới nạp `App` và dựng React. */
 async function bootstrap() {
   const session = getKeycloakSession()
   try {
@@ -15,10 +16,10 @@ async function bootstrap() {
       syncCurrentUser: userApi.syncCurrentUser,
     })
   } catch {
-    // Keep password authentication available when Keycloak is temporarily offline.
+    // Giữ cho đăng nhập bằng mật khẩu vẫn dùng được khi Keycloak tạm thời ngoại tuyến.
   }
 
-  // Keycloak may rewrite callback parameters, so initialize it before the router.
+  // Keycloak có thể viết lại tham số callback nên phải khởi tạo trước router.
   const { default: App } = await import('./App.tsx')
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

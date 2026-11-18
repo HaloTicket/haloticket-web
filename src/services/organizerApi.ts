@@ -3,6 +3,7 @@ import type { OrganizerProfileData } from "@/types";
 import type { PayoutAccount } from "@/types";
 import { userApi } from "@/services/userApi";
 
+/** Chuẩn hóa tài khoản nhận tiền từ server: tự tạo số tài khoản che (4 số cuối) và gộp các tên trường `verified`, `version` cũ/mới. */
 const normalizePayoutAccount = (account: PayoutAccount): PayoutAccount => {
   const accountNumber = account.accountNumber || "";
   return {
@@ -14,7 +15,7 @@ const normalizePayoutAccount = (account: PayoutAccount): PayoutAccount => {
 };
 
 export const organizerApi = {
-  /** Finance flows must read the verified account from the server, never browser drafts. */
+  /** Lấy tài khoản nhận tiền đã xác minh từ server theo hồ sơ người dùng hiện tại. Luồng tài chính không đọc bản nháp trong trình duyệt; ném lỗi nếu không xác định được người dùng. */
   getPayoutAccountFromServer: async (): Promise<PayoutAccount | null> => {
     const profile = await userApi.getProfile();
     const userId = profile?.id || profile?.keycloakId;
@@ -24,13 +25,13 @@ export const organizerApi = {
     return normalizePayoutAccount(response);
   },
 
-  /** Finance flows use this strict variant so failed persistence stays visible. */
+  /** Lưu tài khoản nhận tiền cho luồng tài chính. Bản nghiêm ngặt: lỗi khi lưu được ném ra để giao diện hiển thị, không bị nuốt. */
   savePayoutAccountForFinance: async (data: Record<string, unknown>): Promise<PayoutAccount> => {
     const response: unknown = await axiosClient.post("/payments/organizer-payout-account", data);
     if (!response || typeof response !== "object") throw new Error("Invalid payout account response");
     return normalizePayoutAccount(response as PayoutAccount);
   },
-  // fetch organizer profile for pre-filling create event form or settings
+  /** Lấy hồ sơ tổ chức để điền sẵn vào form tạo sự kiện hoặc trang cài đặt. Trả về `null` nếu lỗi (không cảnh báo khi 403). */
   getOrganizerProfile: async (userId?: string): Promise<OrganizerProfileData | null> => {
     try {
       const url = userId ? `/events/organizer-profile?userId=${encodeURIComponent(userId)}` : "/events/organizer-profile";
@@ -45,9 +46,9 @@ export const organizerApi = {
     }
   },
 
-  // fetch organizer payout account directly from payment-service (/api/payments/organizer-payout-account/{userId})
+  /** Lấy tài khoản nhận tiền của người tổ chức: ưu tiên bản lưu ở localStorage (bước 5 hoặc bản nháp sự kiện), sau đó mới gọi payment-service. Trả về `null` nếu thất bại. */
   getPayoutAccount: async (userId?: string): Promise<Record<string, unknown> | null> => {
-    // try local cache from Step 5 payout account setup or draft event
+    // thử bản lưu cục bộ từ bước 5 (tài khoản nhận tiền) hoặc bản nháp sự kiện
     try {
       const cachedPayout = localStorage.getItem("halo_organizer_payout_account");
       if (cachedPayout) {
@@ -70,7 +71,7 @@ export const organizerApi = {
         }
       }
     } catch {
-      // ignore JSON parse error
+      // bỏ qua lỗi parse JSON
     }
 
     try {
@@ -82,7 +83,7 @@ export const organizerApi = {
     }
   },
 
-  // save or update organizer payout account directly via payment-service (/api/payments/organizer-payout-account)
+  /** Tạo hoặc cập nhật tài khoản nhận tiền qua payment-service. Bản lỏng: lỗi chỉ được ghi cảnh báo và trả về `null`. */
   savePayoutAccount: async (data: Record<string, unknown>): Promise<unknown> => {
     try {
       const response: unknown = await axiosClient.post("/payments/organizer-payout-account", data);

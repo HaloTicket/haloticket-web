@@ -1,12 +1,14 @@
-// Pure editing helpers of the seat map studio: copy/paste/duplicate, nudge, zoom and keyboard guards.
-// They take a layout and return a new one, so they can be tested without rendering the canvas.
+// Các hàm chỉnh sửa thuần túy của studio sơ đồ ghế: sao chép/dán/nhân đôi, dịch chuyển, zoom và các điều kiện bàn phím.
+// Chúng nhận một bố cục và trả về bố cục mới, nên có thể kiểm thử mà không cần vẽ canvas.
 import type { Seat, StageElement, StructureElement, ZoneBlock } from '@/types/seating';
 
 export const MIN_ZOOM = 20;
 export const MAX_ZOOM = 200;
 
+/** Làm tròn và kẹp mức zoom vào khoảng {@code MIN_ZOOM} đến {@code MAX_ZOOM} (20% đến 200%). */
 export const clampZoom = (value: number): number => Math.min(Math.max(Math.round(value), MIN_ZOOM), MAX_ZOOM);
 
+/** Bố cục sơ đồ ghế: ghế, sân khấu, cấu trúc và các khu (theo id). */
 export interface SeatMapLayout {
   seats: Seat[];
   stages: StageElement[];
@@ -14,6 +16,7 @@ export interface SeatMapLayout {
   zones: Record<string, ZoneBlock>;
 }
 
+/** Phần tử đang được chọn: các ghế, sân khấu, cấu trúc hoặc khu (id, hoặc {@code null} nếu không chọn). */
 export interface SeatMapSelection {
   seatIds: string[];
   stageId: string | null;
@@ -21,6 +24,7 @@ export interface SeatMapSelection {
   zoneId: string | null;
 }
 
+/** Nội dung bộ nhớ tạm khi sao chép: các phần tử đã chọn kèm ghế của khu được chọn. */
 export interface SeatMapClipboard {
   seats: Seat[];
   stages: StageElement[];
@@ -28,7 +32,7 @@ export interface SeatMapClipboard {
   zones: ZoneBlock[];
 }
 
-// true when the key press comes from a field the user is typing in: shortcuts must not fire there
+/** Cho biết phím bấm có đến từ ô người dùng đang gõ chữ hay không: phím tắt không được kích hoạt ở đó. */
 export const isTypingTarget = (element: Element | null): boolean => {
   if (!element) return false;
   const tag = element.tagName;
@@ -38,13 +42,15 @@ export const isTypingTarget = (element: Element | null): boolean => {
   return element.getAttribute?.('role') === 'textbox';
 };
 
+/** Cho biết có phần tử nào đang được chọn không. */
 export const hasSelection = (selection: SeatMapSelection): boolean =>
   selection.seatIds.length > 0 || Boolean(selection.stageId || selection.structureId || selection.zoneId);
 
-// the seats a selected zone carries along (same rule the canvas uses when it drags a zone)
+/** Các ghế mà một khu được chọn kéo theo (cùng quy tắc canvas dùng khi kéo khu). */
 const seatsOfZone = (seats: Seat[], zoneId: string | null): Seat[] =>
   zoneId ? seats.filter((seat) => seat.zoneId === zoneId) : [];
 
+/** Dựng bộ nhớ tạm từ phần đang chọn (khu được chọn kéo theo mọi ghế của nó); trả về {@code null} nếu không có gì để sao chép. */
 export const buildClipboard = (layout: SeatMapLayout, selection: SeatMapSelection): SeatMapClipboard | null => {
   const seatIds = new Set(selection.seatIds);
   seatsOfZone(layout.seats, selection.zoneId).forEach((seat) => seatIds.add(seat.id));
@@ -57,13 +63,21 @@ export const buildClipboard = (layout: SeatMapLayout, selection: SeatMapSelectio
   return { seats, stages, structures, zones };
 };
 
+/** Kết quả dán: bố cục mới và vùng chọn mới (chính các bản sao vừa dán). */
 export interface PasteResult {
   layout: SeatMapLayout;
   selection: SeatMapSelection;
 }
 
-// pastes a clipboard into a layout. `offset` shifts the copies so they do not hide the originals;
-// `makeId(kind)` gives every copy a fresh id (inject it so tests stay deterministic).
+/**
+ * Dán bộ nhớ tạm vào bố cục. Các bản sao được dịch đi {@code offset} để không che bản gốc; khu sao chép được thêm hậu tố tên;
+ * ghế của khu sao chép được gắn sang khu mới. Danh sách không đổi thì giữ nguyên tham chiếu.
+ * @param layout - bố cục hiện tại
+ * @param clipboard - nội dung đã sao chép
+ * @param offset - độ dịch của bản sao theo cả hai trục
+ * @param makeId - sinh id mới cho mỗi bản sao theo loại phần tử (được truyền vào để kiểm thử cho kết quả xác định)
+ * @param copySuffix - hậu tố thêm vào tên khu sao chép, mặc định " (bản sao)"
+ */
 export const pasteClipboard = (
   layout: SeatMapLayout,
   clipboard: SeatMapClipboard,
@@ -106,7 +120,7 @@ export const pasteClipboard = (
   return {
     layout: nextLayout,
     selection: {
-      // a pasted zone is selected as a whole; otherwise the new seats are the selection
+      // khu vừa dán được chọn nguyên khối; nếu không thì các ghế mới là vùng chọn
       seatIds: pastedZoneId ? [] : newSeats.map((seat) => seat.id),
       stageId: newStages[0]?.id ?? null,
       structureId: newStructures[0]?.id ?? null,
@@ -115,7 +129,10 @@ export const pasteClipboard = (
   };
 };
 
-// moves the selection by (dx, dy). Locked elements stay; unchanged lists keep their reference.
+/**
+ * Dịch phần đang chọn đi (dx, dy). Phần tử bị khóa thì đứng yên; danh sách không đổi giữ nguyên tham chiếu.
+ * Chọn một khu (không bị khóa) thì ghế của khu cũng dịch theo.
+ */
 export const nudgeSelection = (
   layout: SeatMapLayout,
   selection: SeatMapSelection,
@@ -144,7 +161,11 @@ export const nudgeSelection = (
   return { seats, stages, structures, zones };
 };
 
-// scroll position that keeps the content point under the pointer fixed while the zoom changes
+/**
+ * Tính vị trí cuộn giữ cố định điểm nội dung dưới con trỏ khi mức zoom đổi.
+ * @param args - zoom hiện tại, zoom mới, vị trí con trỏ trong khung nhìn và vị trí cuộn hiện tại
+ * @returns vị trí cuộn mới (không âm)
+ */
 export const zoomAtPoint = (args: {
   zoom: number;
   nextZoom: number;
@@ -161,7 +182,7 @@ export const zoomAtPoint = (args: {
   };
 };
 
-// the zoom at which the whole content (plus padding) fits the visible box
+/** Mức zoom để toàn bộ nội dung (cộng lề, mặc định 60) vừa khung nhìn, đã kẹp trong khoảng cho phép. */
 export const fitZoom = (args: {
   viewport: { width: number; height: number };
   content: { width: number; height: number };
@@ -174,9 +195,10 @@ export const fitZoom = (args: {
   return clampZoom(fit);
 };
 
+/** Hướng của phím mũi tên. */
 export type ArrowDirection = 'left' | 'right' | 'up' | 'down';
 
-// nearest visible seat in the arrow direction (keyboard navigation between seats)
+/** Tìm ghế hiển thị gần nhất theo hướng mũi tên (điều hướng bàn phím giữa các ghế); ưu tiên ghế thẳng hàng hơn ghế gần nhưng lệch sang bên. Trả về {@code null} nếu không có. */
 export const neighborSeatId = (seats: Seat[], fromId: string, direction: ArrowDirection): string | null => {
   const from = seats.find((seat) => seat.id === fromId);
   if (!from) return null;
@@ -194,6 +216,6 @@ export const neighborSeatId = (seats: Seat[], fromId: string, direction: ArrowDi
   return best?.id ?? null;
 };
 
-// pinch gesture: new zoom from the change of distance between two fingers
+/** Cử chỉ chụm: tính mức zoom mới từ thay đổi khoảng cách giữa hai ngón tay; giữ nguyên zoom nếu khoảng cách ban đầu bằng 0. */
 export const pinchZoom = (startZoom: number, startDistance: number, distance: number): number =>
   startDistance > 0 ? clampZoom((startZoom * distance) / startDistance) : startZoom;

@@ -11,7 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { SeatMapStatsProps } from '@/types/seating';
 
-// seat map statistics component
+/** Thống kê sơ đồ ghế: tổng sức chứa và số ghế theo trạng thái (còn trống, đã giữ, đã bán, khóa, bảo trì) và theo hạng vé; có chế độ gọn (compact) một hàng. */
 export const SeatMapStats: React.FC<SeatMapStatsProps> = ({ seats, tiers = [], compact }) => {
   const { t } = useTranslation();
   const totalSeats = seats.length;

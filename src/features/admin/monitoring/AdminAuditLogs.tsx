@@ -24,6 +24,7 @@ const POLL_MS = 5000;
 const MAX_BACKOFF_MS = 60000;
 const MAX_LOGS = 500;
 
+/** Một dòng nhật ký hệ thống đã chuẩn hóa: thời gian, dịch vụ, nội dung, mức độ và thông tin người thực hiện nếu nguồn có cung cấp. */
 export interface AuditLogItem {
   id: string;
   time: string;
@@ -36,8 +37,10 @@ export interface AuditLogItem {
   details?: Record<string, unknown> | string;
 }
 
+/** Bảng nhật ký kiểm toán hệ thống: tự làm mới có giãn cách khi lỗi, lọc theo trạng thái, dịch vụ và từ khóa, phân trang, xem chi tiết, sao chép và xuất CSV. */
 export function AdminAuditLogs() {
   const { t, i18n } = useTranslation();
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) =>
     t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
 
@@ -56,7 +59,8 @@ export function AdminAuditLogs() {
   const [sourceStatus, setSourceStatus] = useState<"ok" | "empty" | "unavailable" | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // fetch real logs from backend; returns true when the backend answered
+  // tải nhật ký thật từ backend; trả về `true` khi backend có phản hồi
+  /** Gọi API lấy nhật ký, chuẩn hóa dữ liệu rồi gộp vào danh sách hiện có (tối đa 500 dòng, không trùng mã). */
   const fetchLogs = async (isInitial = false): Promise<boolean> => {
     if (isInitial) setIsLoading(true);
     try {
@@ -67,7 +71,7 @@ export function AdminAuditLogs() {
         const service = item.service || "";
         const event = item.event || "";
         return {
-          // Stable id: the backend id, else derived from the entry itself so polling never duplicates rows.
+          // Mã ổn định: mã từ backend, nếu thiếu thì suy ra từ chính dòng log để lần làm mới không tạo dòng trùng.
           id: item.id || `${time}|${service}|${event}`,
           time,
           service,
@@ -90,7 +94,7 @@ export function AdminAuditLogs() {
       failuresRef.current = 0;
       return true;
     } catch (err) {
-      // keep the rows we already have, but say that the refresh failed
+      // giữ các dòng đang có nhưng báo rằng lần làm mới thất bại
       failuresRef.current += 1;
       const info = resolveAiError(err);
       setFetchError(
@@ -104,14 +108,16 @@ export function AdminAuditLogs() {
     }
   };
 
-  // real-time polling: every 5 s, backing off after failures, paused while the tab is hidden
+  // làm mới theo thời gian thực: mỗi 5 giây, giãn dần sau các lần lỗi, tạm dừng khi tab bị ẩn
   useEffect(() => {
     let cancelled = false;
+    /** Hẹn lần làm mới kế tiếp với độ trễ tăng theo số lần lỗi liên tiếp. */
     const schedule = () => {
       if (cancelled || !isRealtime) return;
       const delay = Math.min(POLL_MS * 2 ** failuresRef.current, MAX_BACKOFF_MS);
       timerRef.current = setTimeout(tick, delay);
     };
+    /** Làm mới nhật ký; bỏ qua khi tab đang ẩn nhưng vẫn hẹn lần sau. */
     const tick = async () => {
       if (cancelled) return;
       if (typeof document !== "undefined" && document.hidden) {
@@ -121,12 +127,13 @@ export function AdminAuditLogs() {
       await fetchLogs(false);
       schedule();
     };
+    /** Khi tab hiện lại thì làm mới ngay thay vì chờ lần hẹn. */
     const onVisibility = () => {
       if (cancelled || !isRealtime || document.hidden) return;
       if (timerRef.current) clearTimeout(timerRef.current);
       void tick();
     };
-    void fetchLogs(true).then(schedule); // fetch immediately on mount with loading indicator
+    void fetchLogs(true).then(schedule); // tải ngay khi mount, có hiển thị trạng thái đang tải
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
@@ -136,13 +143,13 @@ export function AdminAuditLogs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRealtime]);
 
-  // unique services
+  // các dịch vụ không trùng nhau
   const serviceOptions = useMemo(() => {
     const set = new Set(logs.map((l) => l.service));
     return ["ALL", ...Array.from(set)];
   }, [logs]);
 
-  // counters
+  // bộ đếm
   const errorCount = useMemo(() => logs.filter((l) => l.status === "ERROR").length, [logs]);
   const warnCount = useMemo(() => logs.filter((l) => l.status === "WARN").length, [logs]);
   const healthyCount = useMemo(
@@ -150,7 +157,7 @@ export function AdminAuditLogs() {
     [logs]
   );
 
-  // filtered logs
+  // nhật ký sau khi lọc
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const matchesSearch =
@@ -178,7 +185,7 @@ export function AdminAuditLogs() {
     });
   }, [logs, searchQuery, selectedService, filterMode]);
 
-  // operator / endpoint are only shown when the source really provides them
+  // cột người thực hiện và endpoint chỉ hiện khi nguồn thật sự cung cấp
   const showEndpoint = logs.some((l) => !!l.endpoint);
   const showOperator = logs.some((l) => !!l.operator);
   const columnCount = 6 + (showEndpoint ? 1 : 0) + (showOperator ? 1 : 0);
@@ -189,6 +196,7 @@ export function AdminAuditLogs() {
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
 
+  /** Sao chép nội dung log vào clipboard và đánh dấu tạm thời dòng đã sao chép. */
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -196,6 +204,7 @@ export function AdminAuditLogs() {
     toast.success("Đã sao chép nội dung log!");
   };
 
+  /** Xuất các dòng log đang lọc ra tệp CSV (có BOM UTF-8 để Excel đọc đúng tiếng Việt). */
   const handleExportCSV = () => {
     const headers = ["Mã Log", "Thời Gian", "Dịch Vụ", "Nội Dung Sự Kiện", "Trạng Thái", "IP", "Người Thực Hiện", "Endpoint"];
     const rows = filteredLogs.map((l) => [
@@ -221,6 +230,7 @@ export function AdminAuditLogs() {
     toast.success("Đã xuất file CSV thành công!");
   };
 
+  /** Huy hiệu màu và biểu tượng tương ứng với mức độ của dòng log. */
   const getStatusBadge = (status: AuditLogItem["status"]) => {
     switch (status) {
       case "ERROR":
@@ -257,7 +267,7 @@ export function AdminAuditLogs() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Title and Real-time Controls */}
+      {/* Đầu trang gồm tiêu đề và điều khiển thời gian thực */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b app-border pb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -322,7 +332,7 @@ export function AdminAuditLogs() {
         </div>
       </div>
 
-      {/* Real state of the log source and of the last refresh */}
+      {/* Trạng thái thật của nguồn log và lần làm mới gần nhất */}
       <div aria-live="polite" className="space-y-2 empty:hidden">
         {fetchError && (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
@@ -348,7 +358,7 @@ export function AdminAuditLogs() {
         )}
       </div>
 
-      {/* Error & Warning Quick KPI Cards */}
+      {/* Thẻ KPI nhanh về lỗi và cảnh báo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           type="button"
@@ -431,10 +441,10 @@ export function AdminAuditLogs() {
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Thanh lọc và tìm kiếm */}
       <div className="app-bg-card border app-border rounded-lg p-4 space-y-3 shadow-xs">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Search box */}
+          {/* Ô tìm kiếm */}
           <div className="relative flex-1">
             <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
@@ -449,9 +459,9 @@ export function AdminAuditLogs() {
             />
           </div>
 
-          {/* Filters */}
+          {/* Bộ lọc */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Filter pills */}
+            {/* Nhãn lọc */}
             <div className="inline-flex rounded-md p-0.5 bg-slate-100 dark:bg-card border app-border text-xs font-semibold">
               <button
                 type="button"
@@ -497,7 +507,7 @@ export function AdminAuditLogs() {
               </button>
             </div>
 
-            {/* Service Filter */}
+            {/* Lọc theo dịch vụ */}
             <div className="w-40 shrink-0">
               <CustomSelect
                 value={selectedService}
@@ -530,7 +540,7 @@ export function AdminAuditLogs() {
         </div>
       </div>
 
-      {/* Audit Logs Table */}
+      {/* Bảng nhật ký kiểm toán */}
       <div className="app-bg-card border app-border rounded-lg shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -629,7 +639,7 @@ export function AdminAuditLogs() {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Phân trang */}
         {filteredLogs.length > 0 && (
           <div className="p-4 border-t app-border flex items-center justify-between">
             <AdminPagination
@@ -648,7 +658,7 @@ export function AdminAuditLogs() {
         )}
       </div>
 
-      {/* Log Details Modal / Drawer */}
+      {/* Hộp thoại hoặc ngăn kéo chi tiết log */}
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto app-bg-card border app-border rounded-lg shadow-2xl p-6 text-[var(--text-main)] space-y-4">

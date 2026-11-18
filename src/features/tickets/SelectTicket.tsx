@@ -14,6 +14,7 @@ import { PATHS } from "@/routes/paths";
 import { Client } from "@stomp/stompjs";
 
 
+/** Một dòng trong giỏ vé: khu vực hoặc hạng vé đã chọn cùng số lượng, giá và giới hạn mua mỗi đơn. */
 export interface CartTicketItem {
   zoneId: string;
   zoneName: string;
@@ -26,6 +27,7 @@ export interface CartTicketItem {
   minPerOrder?: number;
 }
 
+/** Các trường của sự kiện mà trang chọn vé dùng (tên, thời gian, địa điểm...). */
 interface EventDetailData {
   title?: string;
   startTime?: string;
@@ -47,6 +49,7 @@ interface EventDetailData {
   [key: string]: unknown;
 }
 
+/** Dữ liệu khu vực đang mở trong hộp thoại chọn số lượng. */
 interface ZoneModalData {
   id: string;
   name: string;
@@ -58,12 +61,14 @@ interface ZoneModalData {
   maxPerOrder: number;
 }
 
+/** Một mục trong giỏ của đơn dang dở lưu ở `localStorage`. */
 interface UnfinishedCartItem {
   quantity?: number;
   zoneName?: string;
   [key: string]: unknown;
 }
 
+/** Thông tin đơn dang dở lưu ở `localStorage`, dùng để hỏi người dùng có tiếp tục thanh toán không. */
 interface UnfinishedOrderInfo {
   eventId?: string;
   quantity?: number;
@@ -74,6 +79,7 @@ interface UnfinishedOrderInfo {
   [key: string]: unknown;
 }
 
+/** Khu vực thô trong sơ đồ chỗ ngồi do backend trả về, trước khi chuẩn hóa. */
 interface RawLayoutZone {
   id?: string;
   name?: string;
@@ -91,6 +97,7 @@ interface RawLayoutZone {
   capacity?: number;
 }
 
+/** Trang chọn vé của một sự kiện: chọn suất diễn, chọn khu vực hoặc ghế trên sơ đồ (hoặc hạng vé không chỗ ngồi), quản lý giỏ, nhận cập nhật trạng thái ghế theo thời gian thực qua WebSocket và giữ chỗ trước khi sang bước thanh toán. */
 export default function SelectTicket() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -105,14 +112,14 @@ export default function SelectTicket() {
   const [isHoldingSeats, setIsHoldingSeats] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // showtime selection
+  // chọn suất diễn
   const [selectedShowtimeId, setSelectedShowtimeId] = useState<string | null>(null);
 
-  // cart of selected tickets from multiple zones
+  // giỏ vé gồm các khu vực đã chọn
   const [cart, setCart] = useState<CartTicketItem[]>([]);
   const [selectedSeatObjects, setSelectedSeatObjects] = useState<any[]>([]);
 
-  // selected zone for quantity selector modal
+  // khu vực đang chọn cho hộp thoại chọn số lượng
   const [activeZoneModal, setActiveZoneModal] = useState<ZoneModalData | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
 
@@ -153,7 +160,7 @@ export default function SelectTicket() {
     return 0;
   });
 
-  // auth check and scroll to top on mount
+  // kiểm tra đăng nhập và cuộn lên đầu trang khi mount
   useEffect(() => {
     if (!getKeycloakSession().isAuthenticated()) {
       sessionStorage.setItem("haloticket_auth_redirect", window.location.pathname + window.location.search);
@@ -163,7 +170,7 @@ export default function SelectTicket() {
     window.scrollTo(0, 0);
   }, [navigate]);
 
-  // timer countdown for unfinished order modal
+  // đếm ngược cho hộp thoại đơn dang dở
   useEffect(() => {
     if (!unfinishedOrder || pendingTimerSeconds <= 0) return;
     const timer = setInterval(() => {
@@ -180,14 +187,16 @@ export default function SelectTicket() {
     return () => clearInterval(timer);
   }, [unfinishedOrder, pendingTimerSeconds]);
 
+  /** Đổi số giây thành chuỗi `mm:ss`. */
   const formatTimerMinutes = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
+    /** Thêm số 0 phía trước cho đủ hai chữ số. */
     const pad = (num: number) => String(num).padStart(2, "0");
     return `${pad(mins)}:${pad(secs)}`;
   };
 
-  // Auto-dismiss error alert after 4.5s
+  // tự ẩn thông báo lỗi sau 4,5 giây
   useEffect(() => {
     if (!errorMessage) return;
     const timer = setTimeout(() => {
@@ -196,16 +205,17 @@ export default function SelectTicket() {
     return () => clearTimeout(timer);
   }, [errorMessage]);
 
-  // fetch event details, ticket types, and seat layout
+  // tải chi tiết sự kiện, hạng vé và sơ đồ chỗ ngồi
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (!id) return;
     let isMounted = true;
 
+    /** Tải sự kiện, sơ đồ chỗ ngồi và danh sách suất diễn khi vào trang; bỏ qua kết quả nếu component đã gỡ. */
     async function loadData() {
       try {
         setIsLoading(true);
-        // 1. fetch event detail
+        // 1. lấy chi tiết sự kiện
         const ev = (await eventApi.getEventById(id!)) as EventDetailData | null;
         if (isMounted && ev) {
           setEventData(ev);
@@ -220,7 +230,7 @@ export default function SelectTicket() {
 
         const mappedTiers: SeatTier[] = [];
 
-        // 3. fetch seat layout from backend DB or localStorage
+        // 3. lấy sơ đồ chỗ ngồi từ cơ sở dữ liệu backend hoặc localStorage
         let doc: SeatMapDocument | null = null;
         const layoutData = await ticketApi.getSeatLayoutByEventId(id!);
         if (layoutData?.draftJson) {
@@ -285,11 +295,11 @@ export default function SelectTicket() {
               ticketTiers: mappedTiers,
             });
           } else {
-            // event has NO seatmap - clean null state!
+            // sự kiện KHÔNG có sơ đồ chỗ ngồi: đặt về trạng thái rỗng
             setSeatMap(null);
           }
 
-          // initial fallback tickets from event detail if available
+          // hạng vé dự phòng ban đầu lấy từ chi tiết sự kiện nếu có
           if ((ev as any)?.tickets && Array.isArray((ev as any).tickets) && (ev as any).tickets.length > 0) {
             const showtimeNames = ((ev as any).showtimes || []).map((s: any) => (s.name || "").trim().toLowerCase());
             const initialStId = showtimeIdFromUrl || (ev as any)?.showtimes?.[0]?.id;
@@ -325,7 +335,7 @@ export default function SelectTicket() {
           }
         }
 
-        // 4. seat status is now fetched in the showtime effect
+        // 4. trạng thái ghế được tải trong effect của suất diễn
       } catch (err) {
         console.warn("Failed loading ticket selection data:", err);
       } finally {
@@ -344,8 +354,9 @@ export default function SelectTicket() {
     if (!selectedShowtimeId || !id) return;
     let isMounted = true;
 
+    /** Tải các hạng vé của suất diễn đang chọn (nếu trống thì lấy theo sự kiện) và trạng thái ghế hiện tại. */
     async function loadShowtimeData() {
-      // fetch ticket types for this showtime
+      // lấy hạng vé của suất diễn này
       let types = await ticketApi.getTicketTypesByShowtimeId(selectedShowtimeId!);
       if (!types || types.length === 0) {
         types = await ticketApi.getTicketTypesByEventId(id!);
@@ -382,7 +393,7 @@ export default function SelectTicket() {
             description: tt.description || "",
           }));
 
-          // strictly deduplicate by tier name so each tier appears only once
+          // loại trùng nghiêm ngặt theo tên hạng vé để mỗi hạng chỉ xuất hiện một lần
           const uniqueMappedTiers = mappedTiers.filter((t, idx, self) =>
             idx === self.findIndex((o) => o.name.trim().toLowerCase() === t.name.trim().toLowerCase())
           );
@@ -390,7 +401,7 @@ export default function SelectTicket() {
         }
       }
 
-      // get realtime seat status for this showtime only if seatmap exists
+      // chỉ lấy trạng thái ghế theo thời gian thực của suất diễn này khi có sơ đồ chỗ ngồi
       if (isMounted && seatMap && ((seatMap.seats && seatMap.seats.length > 0) || (seatMap.zones && Object.keys(seatMap.zones).length > 0))) {
         try {
           const statusMap = await ticketApi.getSeatStatus(id!, selectedShowtimeId!);
@@ -410,15 +421,17 @@ export default function SelectTicket() {
   useEffect(() => {
     if (!id) return;
 
-    // setup WebSocket STOMP client for real-time seat status updates
+    // thiết lập client WebSocket STOMP để nhận cập nhật trạng thái ghế theo thời gian thực
     const stompClient = new Client({
+      /** Tạo kết nối WebSocket thuần tới endpoint `/ws` của backend (dựng từ `VITE_API_URL`). */
       webSocketFactory: () => {
         const urlStr = `${import.meta.env.VITE_API_URL || "http://localhost:8888/api"}`.replace(/\/api\/?$/, "") + "/ws";
-        // for Spring Boot withSockJS(), the native websocket path is usually appended with /websocket
+        // với Spring Boot withSockJS(), đường dẫn WebSocket gốc thường có thêm hậu tố /websocket
         const wsUrl = urlStr.replace(/^http/, "ws") + "/websocket";
         return new WebSocket(wsUrl);
       },
       reconnectDelay: 5000,
+      /** Khi kết nối được thì đăng ký kênh `/topic/seats/<id>` để cập nhật trạng thái ghế. */
       onConnect: () => {
         if (id) {
           stompClient.subscribe(`/topic/seats/${id}`, (message: any) => {
@@ -436,6 +449,7 @@ export default function SelectTicket() {
           });
         }
       },
+      /** Ghi log lỗi do broker STOMP báo về. */
       onStompError: (frame: any) => {
         console.error("Broker reported error: " + frame.headers?.["message"]);
         console.error("Additional details: " + frame.body);
@@ -449,7 +463,7 @@ export default function SelectTicket() {
     };
   }, [id]);
 
-  // check if event has an interactive seatmap
+  // kiểm tra sự kiện có sơ đồ chỗ ngồi tương tác không
   const hasSeatmap = useMemo(() => {
     if (!seatMap) return false;
     const hasSeats = Array.isArray(seatMap.seats) && seatMap.seats.length > 0;
@@ -457,7 +471,8 @@ export default function SelectTicket() {
     return Boolean(hasSeats || hasZones);
   }, [seatMap]);
 
-  // non-seatmap tier quantity handler
+  // xử lý số lượng cho hạng vé không có sơ đồ
+  /** Tăng hoặc giảm số lượng một hạng vé không chỗ ngồi trong giỏ theo `delta`, tuân theo giới hạn tối thiểu và tối đa mỗi đơn. */
   const handleUpdateTierQuantity = (tier: SeatTier, delta: number) => {
     setErrorMessage(null);
     const existing = cart.find(c => c.zoneId === tier.id || c.tierId === tier.id);
@@ -505,7 +520,7 @@ export default function SelectTicket() {
     }
 
     if (nextQty < minQty && delta < 0) {
-      // drop to 0 if decreased below minPerOrder
+      // về 0 nếu giảm xuống dưới minPerOrder
       setCart(prev => prev.filter(c => c.zoneId !== tier.id && c.tierId !== tier.id));
       return;
     }
@@ -525,13 +540,13 @@ export default function SelectTicket() {
     );
   };
 
-  // extract combined zones list
+  // lấy danh sách khu vực gộp
   const zonesList = useMemo(() => {
     if (!seatMap || !seatMap.zones) return [];
     return Object.values(seatMap.zones);
   }, [seatMap]);
 
-  // compute price legend panel
+  // tính bảng chú giải giá
   const priceLegend = useMemo(() => {
     if (zonesList.length > 0) {
       return zonesList.map((z, idx) => {
@@ -590,8 +605,9 @@ export default function SelectTicket() {
     ];
   }, [zonesList, ticketTypes, seatMap]);
 
-  // storage event listener for cross-tab realtime synchronization
+  // lắng nghe sự kiện storage để đồng bộ thời gian thực giữa các tab
   useEffect(() => {
+    /** Khi `localStorage` đổi ở tab khác (đơn đang chờ hoặc bản đồ trạng thái ghế), tải lại trạng thái ghế từ API. */
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "haloticket_pending_order" || e.key === "haloticket_seat_status_map") {
         if (id) {
@@ -606,7 +622,8 @@ export default function SelectTicket() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [id]);
 
-  // Handle Zone selection click
+  // xử lý bấm chọn khu vực
+  /** Xử lý bấm vào một khu vực: báo hết vé nếu không còn chỗ, tìm hạng vé tương ứng rồi mở hộp thoại chọn số lượng với giá và giới hạn của hạng đó. */
   const handleZoneClick = (zone: { id: string; name: string; price?: number; color?: string; tierId?: string; capacity?: number }) => {
     setErrorMessage(null);
 
@@ -656,13 +673,14 @@ export default function SelectTicket() {
     setSelectedQuantity(initialQty);
   };
 
-  // handle individual seat selection toggle on 2D map
+  // xử lý chọn hoặc bỏ chọn từng ghế trên sơ đồ 2D
+  /** Chọn hoặc bỏ chọn một ghế trên sơ đồ: kiểm tra trạng thái ghế trước khi chọn, và báo lỗi nếu ghế đã bán hoặc đang bị giữ. */
   const handleToggleAttendeeSeat = async (seat: any) => {
     setErrorMessage(null);
     const existingIndex = selectedSeatObjects.findIndex((s) => s.id === seat.id);
 
     if (existingIndex >= 0) {
-      // unselect seat
+      // bỏ chọn ghế
       const updatedSeats = selectedSeatObjects.filter((s) => s.id !== seat.id);
       setSelectedSeatObjects(updatedSeats);
 
@@ -676,7 +694,7 @@ export default function SelectTicket() {
         return prev.map((i) => (i.zoneId === targetZoneId ? { ...i, quantity: i.quantity - 1 } : i));
       });
     } else {
-      // check seat status first
+      // kiểm tra trạng thái ghế trước
       const st = seatStatusMap[seat.id] || seat.status;
       if (st === "SOLD" || st === "sold") {
         setErrorMessage(t("Ghế này đã được bán. Vui lòng chọn ghế khác."));
@@ -691,7 +709,7 @@ export default function SelectTicket() {
         return;
       }
 
-      // select seat
+      // chọn ghế
       const zone = seatMap?.zones?.[seat.zoneId] || (seatMap?.zones && Object.values(seatMap.zones).find((z: any) => z.id === seat.zoneId || z.name === seat.zoneId));
       const legendItem = priceLegend.find(p => p.id === (zone?.id || seat.zoneId) || p.name === (zone?.name || seat.zoneId));
       const tier = ticketTypes.find(t => t.id === legendItem?.tierId || t.name === legendItem?.tierName);
@@ -734,7 +752,8 @@ export default function SelectTicket() {
     }
   };
 
-  // confirm zone selection & add/update ticket to cart (multiple zone selection!)
+  // xác nhận chọn khu vực và thêm hoặc cập nhật vé vào giỏ (hỗ trợ chọn nhiều khu vực)
+  /** Thêm hoặc cập nhật khu vực đang mở trong hộp thoại vào giỏ; với khu vực có ghế thì tự chọn các ghế liền kề trong cùng một hàng. */
   const handleConfirmAddZoneToCart = () => {
     setErrorMessage(null);
     if (!activeZoneModal) return;
@@ -761,7 +780,7 @@ export default function SelectTicket() {
     const isSeatedZone = seatsInZone.length > 0;
 
     if (isSeatedZone) {
-      // find available seats in this zone
+      // tìm các ghế còn trống trong khu vực này
       const availableSeats = seatsInZone.filter((s) => {
         const st = seatStatusMap[s.id] || s.status;
         return st !== "SOLD" && st !== "sold" && st !== "HELD" && st !== "HOLDING" && st !== "reserved" && st !== "BLOCKED" && st !== "blocked";
@@ -772,7 +791,7 @@ export default function SelectTicket() {
         return;
       }
 
-      // group available seats by row
+      // gom các ghế còn trống theo hàng
       const seatsByRow: Record<string, any[]> = {};
       availableSeats.forEach((s) => {
         const m = s.id ? String(s.id).match(/seat_\d+_(\d+)_\d+/) : null;
@@ -781,7 +800,7 @@ export default function SelectTicket() {
         seatsByRow[row].push(s);
       });
 
-      // sort seats within each row by column / seat number
+      // sắp xếp ghế trong từng hàng theo cột hoặc số ghế
       Object.keys(seatsByRow).forEach((r) => {
         seatsByRow[r].sort((a, b) => {
           const mA = a.id ? String(a.id).match(/seat_\d+_\d+_(\d+)/) : null;
@@ -792,7 +811,7 @@ export default function SelectTicket() {
         });
       });
 
-      // search for contiguous seats in the same row
+      // tìm các ghế liền nhau trong cùng một hàng
       let pickedSeats: any[] | null = null;
       for (const row of Object.keys(seatsByRow)) {
         const rowSeats = seatsByRow[row];
@@ -831,7 +850,7 @@ export default function SelectTicket() {
         pickedSeats = availableSeats.slice(0, selectedQuantity);
       }
 
-      // update selectedSeatObjects: replace previous seats of this zone with newly picked contiguous seats
+      // cập nhật selectedSeatObjects: thay các ghế cũ của khu vực này bằng các ghế liền kề vừa chọn
       setSelectedSeatObjects((prev) => {
         const filtered = prev.filter((s) => !(s.zoneId === activeZoneModal.id || (activeZoneModal.name && s.zoneId === activeZoneModal.name)));
         return [...filtered, ...(pickedSeats || [])];
@@ -865,6 +884,7 @@ export default function SelectTicket() {
     setActiveZoneModal(null);
   };
 
+  /** Tăng hoặc giảm số lượng một mục trong giỏ theo `delta`; mục về 0 bị loại khỏi giỏ. */
   const handleUpdateCartItemQty = (zoneId: string, delta: number) => {
     setCart((prev) =>
       prev
@@ -885,6 +905,7 @@ export default function SelectTicket() {
     );
   };
 
+  /** Xóa một khu vực khỏi giỏ cùng các ghế đã chọn thuộc khu vực đó. */
   const handleRemoveCartItem = (zoneId: string) => {
     setCart((prev) => prev.filter((item) => item.zoneId !== zoneId));
     setSelectedSeatObjects(prev => prev.filter(s => !(s.zoneId === zoneId || s.zoneId === seatMap?.zones?.[zoneId]?.name)));
@@ -898,12 +919,13 @@ export default function SelectTicket() {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
   }, [cart]);
 
-  // proceed to checkout step with all selected tickets
+  // chuyển sang bước thanh toán với tất cả vé đã chọn
+  /** Kiểm tra giới hạn mua của từng mục, giữ ghế qua `bookingApi.holdSeat`, lưu đơn đang chờ (hết hạn sau 15 phút) rồi chuyển sang trang thanh toán; giữ ghế lỗi thì báo và dừng. */
   const handleProceedToCheckout = async () => {
     setErrorMessage(null);
     if (cart.length === 0 || cartTotalTickets === 0) return;
 
-    // check min and max order constraints for each cart tier
+    // kiểm tra giới hạn tối thiểu và tối đa của từng hạng vé trong giỏ
     for (const item of cart) {
       const min = item.minPerOrder || 1;
       const max = item.maxPerOrder || 5;
@@ -917,7 +939,7 @@ export default function SelectTicket() {
       }
     }
 
-    // generate or get a pseudo userId for holding
+    // tạo hoặc lấy userId giả để giữ chỗ
     let userId = localStorage.getItem("haloticket_session_id");
     if (!userId) {
       userId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -926,7 +948,7 @@ export default function SelectTicket() {
 
     const finalSeatIds: string[] = [];
     const seatNamesMap: Record<string, string> = {};
-    // general-admission tiers are sent as quantities only; the backend holds the stock
+    // hạng vé vào cổng tự do chỉ gửi số lượng; backend tự giữ tồn kho
     const gaTierIds = new Set<string>();
 
     cart.forEach((c) => {
@@ -935,7 +957,7 @@ export default function SelectTicket() {
       );
 
       if (seatsInZone.length > 0) {
-        // seated zone with designated row and seat numbers
+        // khu vực có chỗ ngồi chỉ định theo hàng và số ghế
         seatsInZone.forEach((s) => {
           finalSeatIds.push(s.id);
           if (s.row && (s.col !== undefined || s.number !== undefined)) {
@@ -956,7 +978,7 @@ export default function SelectTicket() {
       }
     });
 
-    // realtime holding: lock all selected seats via bookingApi.holdSeat
+    // giữ chỗ thời gian thực: khóa mọi ghế đã chọn qua bookingApi.holdSeat
     if (finalSeatIds.length > 0) {
       setIsHoldingSeats(true);
       try {
@@ -1369,7 +1391,7 @@ export default function SelectTicket() {
         </div>
       </div>
       ) : (
-        /* Non-SeatMap Ticket Selection Layout */
+        /* Giao diện chọn vé khi không có sơ đồ chỗ ngồi */
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto space-y-6 pb-12">
             {/* Event Summary Card */}

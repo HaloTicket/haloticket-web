@@ -1,10 +1,16 @@
+/** Thông tin lỗi API đã chuẩn hóa: mã HTTP, mã lỗi nghiệp vụ (lấy từ thông điệp) và số giây chờ thử lại nếu có. */
 export interface ApiFailure {
   status?: number;
   code: string;
   retryAfterSeconds?: number;
 }
 
-// make sure the error is an AxiosError with a response object before accessing its properties
+/**
+ * Đọc lỗi trả về từ API thành {@code ApiFailure}. Không giả định lỗi là AxiosError: kiểm tra có đối tượng {@code response} rồi mới đọc thuộc tính.
+ * Mã lỗi lấy từ thân phản hồi (chuỗi hoặc trường {@code message}).
+ * @param error - lỗi bắt được từ lời gọi API
+ * @returns {@code ApiFailure} gồm status, code và retryAfterSeconds
+ */
 export function readApiFailure(error: unknown): ApiFailure {
   const response = (error as { response?: { status?: number; data?: unknown; headers?: unknown } } | null)?.response;
   const data = response?.data;
@@ -17,6 +23,7 @@ export function readApiFailure(error: unknown): ApiFailure {
   return { status: response?.status, code: raw.trim(), retryAfterSeconds: readRetryAfter(response?.headers) };
 }
 
+/** Đọc header {@code Retry-After} (dạng số giây, hỗ trợ cả headers dạng Axios có {@code get}); trả về {@code undefined} nếu không hợp lệ hoặc không dương, làm tròn lên. */
 function readRetryAfter(headers: unknown): number | undefined {
   if (!headers || typeof headers !== "object") return undefined;
   const bag = headers as Record<string, unknown> & { get?: (name: string) => unknown };
@@ -37,19 +44,26 @@ const KNOWN_CODES = [
   "INVITATION_NOT_FOUND",
 ] as const;
 
+/** Tập mã lỗi lời mời thành viên đã biết. */
 export type InvitationErrorCode = (typeof KNOWN_CODES)[number];
 
-// return error code if it is a known invitation error
+/** Tìm mã lỗi lời mời đã biết trong mã lỗi của {@code failure}; trả về {@code null} nếu không khớp mã nào. */
 export function matchInvitationCode(failure: ApiFailure): InvitationErrorCode | null {
   return KNOWN_CODES.find((code) => failure.code.includes(code)) ?? null;
 }
 
+/** Thông điệp lỗi lời mời dưới dạng khóa i18n kèm tham số nội suy. */
 export interface InvitationErrorMessage {
   key: string;
   params?: Record<string, unknown>;
 }
 
-// select key for i18n message based on error code, or fallback key if unknown
+/**
+ * Chọn khóa i18n cho thông báo lỗi lời mời theo mã lỗi; nếu không nhận ra mã thì suy từ HTTP status (429, 403, 422), không được thì dùng khóa dự phòng.
+ * {@code INVITATION_NOT_FOUND} bị bỏ qua để rơi về khóa dự phòng. Với 429 có {@code Retry-After} thì trả khóa kèm số giây.
+ * @param error - lỗi bắt được từ lời gọi API
+ * @param fallbackKey - khóa i18n dùng khi không xác định được nguyên nhân
+ */
 export function describeInvitationFailure(error: unknown, fallbackKey: string): InvitationErrorMessage {
   const failure = readApiFailure(error);
   let code = matchInvitationCode(failure);

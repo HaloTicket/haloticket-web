@@ -1,5 +1,10 @@
 import { getLocale } from "@/i18n";
-// Vietnamese currency format: 150000 -> 150,000 ₫
+/**
+ * Định dạng số tiền VND theo ngôn ngữ hiện tại, ví dụ 150000 thành 150.000 ₫.
+ *
+ * @param amount - Số tiền.
+ * @returns Chuỗi tiền tệ đã định dạng.
+ */
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat(getLocale(), {
     style: "currency",
@@ -7,9 +12,15 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Short axis label for a VND amount: 1500000 -> 1,5tr, 2400000000 -> 2,4 tỷ
+/**
+ * Nhãn rút gọn cho số tiền VND trên trục biểu đồ: 1500000 thành 1,5tr, 2400000000 thành 2,4 tỷ.
+ *
+ * @param amount - Số tiền.
+ * @returns Chuỗi rút gọn theo hậu tố k, tr hoặc tỷ.
+ */
 export const formatCompactVnd = (amount: number): string => {
   const abs = Math.abs(amount);
+  /** Làm tròn một chữ số thập phân và dùng dấu phẩy. */
   const trim = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
   if (abs >= 1e9) return `${trim(amount / 1e9)} tỷ`;
   if (abs >= 1e6) return `${trim(amount / 1e6)}tr`;
@@ -17,6 +28,12 @@ export const formatCompactVnd = (amount: number): string => {
   return String(Math.round(amount));
 };
 
+/**
+ * Đọc số tiền VND từ số hoặc chuỗi, kể cả chuỗi kiểu cũ như "Từ 150.000 ₫" (bỏ tiền tố, dấu phân cách và ký hiệu tiền).
+ *
+ * @param value - Giá trị cần đọc.
+ * @returns Số tiền, hoặc `undefined` nếu không đọc được.
+ */
 export const parseVndAmount = (value: unknown): number | undefined => {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (typeof value !== "string") return undefined;
@@ -28,6 +45,12 @@ export const parseVndAmount = (value: unknown): number | undefined => {
   return /^\d+$/.test(legacyDigits) ? Number(legacyDigits) : undefined;
 };
 
+/**
+ * Chuyển ngày kiểu cũ dạng "15 tháng 10, 2026" sang định dạng theo ngôn ngữ hiện tại.
+ *
+ * @param value - Chuỗi ngày kiểu cũ.
+ * @returns Chuỗi ngày, hoặc `undefined` nếu không khớp định dạng.
+ */
 export const formatLegacyVietnameseDate = (value: string): string | undefined => {
   const match = value.match(/^(\d{1,2})\s+tháng\s+(\d{1,2}),\s*(\d{4})$/i);
   if (!match) return undefined;
@@ -37,7 +60,12 @@ export const formatLegacyVietnameseDate = (value: string): string | undefined =>
     .format(new Date(Number(year), Number(month) - 1, Number(day)));
 };
 
-// Vietnamese date format: 2026-10-15T08:30:00 -> 08:30 - 15/10/2026
+/**
+ * Định dạng ngày giờ ISO theo ngôn ngữ hiện tại, ví dụ 2026-10-15T08:30:00 thành 15/10/2026, 08:30 (tùy ngôn ngữ).
+ *
+ * @param dateString - Chuỗi ngày giờ.
+ * @returns Chuỗi ngày giờ đã định dạng.
+ */
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat(getLocale(), {
@@ -49,12 +77,18 @@ export const formatDate = (dateString: string): string => {
   }).format(date);
 };
 
-// Formats date string for HTML <input type="datetime-local">
+/**
+ * Định dạng chuỗi ngày giờ cho ô nhập HTML `datetime-local` (`yyyy-MM-ddTHH:mm`, giờ địa phương).
+ *
+ * @param dateStr - Chuỗi ngày giờ, có thể rỗng.
+ * @returns Chuỗi định dạng; rỗng nếu không có đầu vào, hoặc 16 ký tự đầu nếu không phân tích được.
+ */
 export const formatDatetimeLocal = (dateStr?: string): string => {
   if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr.slice(0, 16);
+    /** Thêm số 0 phía trước để đủ hai chữ số. */
     const pad = (n: number) => n.toString().padStart(2, "0");
     const year = d.getFullYear();
     const month = pad(d.getMonth() + 1);

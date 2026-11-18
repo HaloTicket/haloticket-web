@@ -1,23 +1,26 @@
-// Answer of GET /events/{id}/analytics. Money is whole VND. pageViews, uniqueUsers, buyers, periodRevenue, periodTicketsSold and
-// conversionRate cover the requested period; currentRevenue and currentTicketsSold are for the whole life of the event.
+// Phản hồi của GET /events/{id}/analytics. Tiền là số nguyên VND. pageViews, uniqueUsers, buyers, periodRevenue, periodTicketsSold và
+// conversionRate tính theo khoảng thời gian được yêu cầu; currentRevenue và currentTicketsSold tính cho toàn bộ vòng đời sự kiện.
 
+/** Khoảng thời gian định sẵn của phân tích: 24 giờ, 7 ngày hoặc 30 ngày. */
 export type AnalyticsRange = "24h" | "7d" | "30d";
 
+/** Tham số truy vấn phân tích sự kiện: khoảng định sẵn hoặc khoảng ngày tùy chọn, có thể so sánh với kỳ trước. */
 export interface EventAnalyticsQuery {
   timeRange?: AnalyticsRange;
-  /** whole days, YYYY-MM-DD, both included; they take the place of timeRange and must be given together */
+  /** các ngày nguyên, dạng YYYY-MM-DD, gồm cả hai đầu; thay cho timeRange và phải truyền cùng nhau */
   from?: string;
   to?: string;
   compare?: boolean;
 }
 
+/** Doanh thu và số vé bán được trong một ngày. */
 export interface AnalyticsDailyStat {
   date: string;
   revenue: number;
   ticketsSold: number;
 }
 
-/** change* are percentages against the previous period; null when the previous value was 0 or its source was unavailable */
+/** các trường change* là phần trăm so với kỳ trước; `null` khi giá trị kỳ trước bằng 0 hoặc nguồn dữ liệu không khả dụng */
 export interface AnalyticsPreviousPeriod {
   from: string;
   to: string;
@@ -32,8 +35,10 @@ export interface AnalyticsPreviousPeriod {
   ticketsSoldChange: number | null;
 }
 
+/** Nguồn dữ liệu của phân tích: đặt vé, vé hoặc lượt xem. */
 export type AnalyticsSource = "booking" | "tickets" | "views";
 
+/** Số liệu phân tích của sự kiện: lượt xem, người mua, doanh thu, số vé bán, kỳ trước và nguồn dữ liệu không khả dụng. */
 export interface EventAnalytics {
   pageViews?: number;
   uniqueUsers?: number;

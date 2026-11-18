@@ -8,12 +8,14 @@ import type { Banner } from "@/types/adminConfig";
 import { mediaApi } from "@/services/mediaApi";
 import { toast } from "sonner";
 
+/** Props của phần cấu hình banner: danh sách banner, hàm báo thay đổi và hàm thu gọn phần này. */
 interface Props {
   banners: Banner[];
   onChange: (banners: Banner[]) => void;
   onCollapse?: () => void;
 }
 
+/** Phần cấu hình banner trang chủ: bật tắt, kéo thả sắp xếp, thêm, sửa, xóa và tải ảnh lên. */
 export function BannerConfig({ banners, onChange, onCollapse }: Props) {
   const { t } = useTranslation();
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -27,15 +29,18 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /** Bật hoặc tắt hiển thị một banner. */
   const toggleBanner = (id: string) => {
     onChange(banners.map((b) => (b.id === id ? { ...b, active: !b.active } : b)));
   };
 
+  /** Bắt đầu kéo một banner. */
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIdx(index);
     e.dataTransfer.effectAllowed = "move";
   };
 
+  /** Đổi chỗ banner đang kéo khi rê qua banner khác. */
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIdx === null || draggedIdx === index) return;
@@ -47,6 +52,7 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
     onChange(items);
   };
 
+  /** Mở hộp thoại thêm mới hoặc sửa một banner. */
   const handleOpenModal = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
@@ -65,6 +71,7 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
     setIsModalOpen(true);
   };
 
+  /** Tải ảnh banner lên máy chủ và gán URL trả về vào biểu mẫu. */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,6 +87,7 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
     }
   };
 
+  /** Kiểm tra tiêu đề, URL ảnh và liên kết rồi thêm hoặc cập nhật banner. */
   const handleSaveBanner = () => {
     if (!formData.title?.trim()) {
       toast.error(t("Vui lòng nhập tên/tiêu đề banner"));
@@ -108,11 +116,13 @@ export function BannerConfig({ banners, onChange, onCollapse }: Props) {
     setIsModalOpen(false);
   };
 
+  /** Mở hộp thoại xác nhận xóa banner. */
   const confirmDelete = (id: string) => {
     setDeletingId(id);
     setIsConfirmOpen(true);
   };
 
+  /** Xóa banner đang chờ xác nhận. */
   const handleDeleteBanner = () => {
     if (deletingId) {
       onChange(banners.filter(b => b.id !== deletingId));

@@ -26,6 +26,7 @@ import { AttentionFeed } from "@/features/admin/components/AttentionFeed";
 import { PinnedReports } from "@/features/admin/components/PinnedReports";
 import type { DashboardKpis, DashboardSummaryResponse } from "@/types/ai";
 
+/** Một sự kiện đang chờ duyệt hiển thị trên trang tổng quan: tên, ban tổ chức, danh mục, thời điểm gửi, trạng thái và ảnh bìa. */
 interface PendingEventItem {
   id: string;
   title: string;
@@ -36,6 +37,7 @@ interface PendingEventItem {
   poster: string;
 }
 
+/** Một dòng nhật ký hoạt động gần đây của admin (đọc từ `localStorage`). */
 interface ActivityLogItem {
   id: string;
   user: string;
@@ -45,8 +47,10 @@ interface ActivityLogItem {
   type: "success" | "warning" | "info";
 }
 
+/** Trả về chuỗi nếu giá trị là chuỗi, ngược lại trả về chuỗi rỗng. */
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
+/** Đọc tối đa 5 dòng nhật ký hoạt động từ `localStorage` (khóa `admin_activity_logs`); lỗi hoặc không có thì trả về mảng rỗng. */
 const readActivityLogs = (): ActivityLogItem[] => {
   try {
     const saved = localStorage.getItem("admin_activity_logs");
@@ -57,34 +61,40 @@ const readActivityLogs = (): ActivityLogItem[] => {
       }
     }
   } catch {
-    // fallback
+    // dự phòng: bỏ qua lỗi đọc và trả về mảng rỗng
   }
   return [];
 };
 
+/**
+ * Trang tổng quan của admin: banner chào kèm tóm tắt do AI tạo theo yêu cầu, thẻ KPI từ máy chủ, thẻ cấu hình,
+ * hàng đợi sự kiện chờ duyệt, lối tắt thao tác và nhật ký hoạt động gần đây.
+ */
 export const AdminDashboard: React.FC = () => {
   const { t: translate, i18n } = useTranslation();
+  /** Chọn nhãn theo ngôn ngữ hiện tại: bản tiếng Anh khi ngôn ngữ là `en`, còn lại bản tiếng Việt. */
   const label = (vi: string, en: string) => translate(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const navigate = useNavigate();
   const profile = getCachedUserProfile();
   const adminName = profile?.fullName || profile?.email?.split("@")[0] || "Ban Quản Trị";
 
-  // KPI cards come from the server; the summary paragraph exists only after the admin asks for it
+  // thẻ KPI lấy từ máy chủ; đoạn tóm tắt chỉ có sau khi admin yêu cầu
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
   const [kpiState, setKpiState] = useState<"loading" | "ready" | "error">("loading");
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [summaryState, setSummaryState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  // real data states
+  // các state dữ liệu thật
   const [pendingEvents, setPendingEvents] = useState<PendingEventItem[]>([]);
   const [venuesCount, setVenuesCount] = useState<number>(0);
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(readActivityLogs);
 
-  // load Real Dashboard Stats
+  // tải số liệu thật cho trang tổng quan
+  /** Tải sự kiện chờ duyệt, số địa điểm và nhật ký hoạt động; lỗi chỉ ghi log, không làm hỏng trang. */
   const loadDashboardData = useCallback(async () => {
     try {
-      // pending events
+      // sự kiện chờ duyệt
       const rawEvents = await eventApi.getApprovalEvents("PENDING");
       if (Array.isArray(rawEvents)) {
         const mapped: PendingEventItem[] = rawEvents.map((ev) => ({
@@ -99,17 +109,17 @@ export const AdminDashboard: React.FC = () => {
         setPendingEvents(mapped);
       }
 
-      // venues count
+      // số địa điểm
       try {
         const venues = await venueApi.getVenues();
         if (Array.isArray(venues)) {
           setVenuesCount(venues.length);
         }
       } catch {
-        // fallback
+        // dự phòng: bỏ qua lỗi, giữ số địa điểm cũ
       }
 
-      // activity Logs
+      // nhật ký hoạt động
       setActivityLogs(readActivityLogs());
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -122,6 +132,7 @@ export const AdminDashboard: React.FC = () => {
     });
   }, [loadDashboardData]);
 
+  /** Tải thẻ KPI từ máy chủ và cập nhật trạng thái `loading`, `ready` hoặc `error`. */
   const loadKpis = useCallback(async () => {
     setKpiState("loading");
     try {
@@ -137,6 +148,10 @@ export const AdminDashboard: React.FC = () => {
     queueMicrotask(() => { void loadKpis(); });
   }, [loadKpis]);
 
+  /**
+   * Yêu cầu AI tạo đoạn tóm tắt tình hình hệ thống theo ngôn ngữ hiện tại.
+   * @param refresh true để bỏ qua bản đã lưu và tạo lại
+   */
   const createSummary = async (refresh: boolean) => {
     setSummaryState("loading");
     setSummaryError(null);
@@ -169,13 +184,13 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Unified Hero Executive Banner */}
+      {/* Banner tổng hợp ở đầu trang */}
       <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-xl relative overflow-hidden border border-blue-500/30 space-y-5">
-        {/* Decorative background glow */}
+        {/* Quầng sáng trang trí ở nền */}
         <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-blue-500/15 blur-3xl pointer-events-none" />
         <div className="absolute right-1/4 -bottom-20 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
 
-        {/* Top Header Row */}
+        {/* Hàng tiêu đề phía trên */}
         <div className="flex items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold tracking-wide">
@@ -199,7 +214,7 @@ export const AdminDashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Summary: created only on request, and shown only when its figures match the KPI data */}
+        {/* Tóm tắt: chỉ tạo khi được yêu cầu và chỉ hiện khi số liệu khớp với dữ liệu KPI */}
         <div className="relative z-10 max-w-4xl space-y-2 text-xs leading-relaxed text-blue-100/90 md:text-sm" aria-live="polite">
           <p className="text-[11px] font-bold uppercase tracking-wider text-blue-300">{translate("ai.dash.summary.title")}</p>
           {summaryState === "idle" ? (
@@ -221,7 +236,7 @@ export const AdminDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Unified Action Buttons */}
+        {/* Các nút hành động */}
         <div className="relative z-10 flex flex-wrap items-center gap-3 pt-3 border-t border-white/10">
           <Link
             to={PATHS.ADMIN_EVENTS_APPROVAL}
@@ -247,10 +262,10 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI cards straight from the system */}
+      {/* Thẻ KPI lấy trực tiếp từ hệ thống */}
       <DashboardKpiGrid kpis={kpis} state={kpiState} onRetry={() => void loadKpis()} />
 
-      {/* Configuration cards */}
+      {/* Thẻ cấu hình */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {statCards.map((card) => (
           <Link
@@ -282,9 +297,9 @@ export const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Main Grid: Pending Events Queue & System Logs */}
+      {/* Lưới chính: hàng đợi sự kiện chờ duyệt và nhật ký hệ thống */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left 8 Cols: Real Pending Events Queue */}
+        {/* Cột trái 8 phần: hàng đợi sự kiện chờ duyệt thật */}
         <div className="lg:col-span-8 space-y-6">
           <AttentionFeed />
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-4">
@@ -310,7 +325,7 @@ export const AdminDashboard: React.FC = () => {
               </Link>
             </div>
 
-            {/* Pending List */}
+            {/* Danh sách chờ duyệt */}
             {pendingEvents.length === 0 ? (
               <div className="p-8 text-center space-y-2 text-xs app-text-muted">
                 <FiCheckCircle className="w-8 h-8 text-emerald-500 mx-auto" />
@@ -363,10 +378,10 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Right 4 Cols: Quick Actions & Recent Admin Activity Log */}
+        {/* Cột phải 4 phần: thao tác nhanh và nhật ký hoạt động admin gần đây */}
         <div className="lg:col-span-4 space-y-6">
           <AgreementCard />
-          {/* Quick Action Shortcuts */}
+          {/* Lối tắt thao tác nhanh */}
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
               {translate("Tác vụ nhanh Admin")}
@@ -421,7 +436,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Activity Log Feed */}
+          {/* Dòng nhật ký hoạt động */}
           <div className="app-bg-card border border-slate-200 dark:border-slate-800 rounded-lg p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">

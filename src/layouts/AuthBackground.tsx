@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 const WIDTH = 1600;
 const STEP = 32;
 
-// a small seeded generator so the stars and the soft lights sit in the same places on every render (no Math.random).
+/** Bộ sinh số giả ngẫu nhiên có hạt giống (đồng dư tuyến tính) trả về giá trị trong [0, 1), để sao và đốm sáng luôn nằm cùng vị trí ở mọi lần dựng (không dùng `Math.random`). */
 function seeded(seed: number) {
   let state = seed;
   return () => {
@@ -12,10 +12,12 @@ function seeded(seed: number) {
   };
 }
 
+/** Hàm làm mượt kiểu smoothstep: 0 khi `t <= 0`, 1 khi `t >= 1`, nội suy mượt ở giữa. */
 const smooth = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+/** Điểm `[x, y]` trong không gian bản vẽ. */
 type Point = [number, number];
 
-// catmull-Rom through the points, written as cubic Beziers so the edge of a ribbon is smooth.
+/** Nối các điểm bằng đường cong Catmull-Rom, viết dưới dạng các đoạn Bezier bậc ba để mép dải lụa mượt. Trả chuỗi lệnh SVG `C`. */
 function curve(points: Point[]) {
   let d = "";
   for (let i = 0; i < points.length - 1; i += 1) {
@@ -32,6 +34,7 @@ function curve(points: Point[]) {
   return d;
 }
 
+/** Thông số của một dải lụa sóng: độ lệch, biên độ, tần số, pha, độ rộng, tốc độ, tông màu và độ mờ. */
 interface RibbonSpec {
   offset: number;
   amp: number;
@@ -40,13 +43,13 @@ interface RibbonSpec {
   width: number;
   widthFreq: number;
   widthPhase: number;
-  speed: number; // radians per millisecond: how fast the wave travels along the ribbon
+  speed: number; // radian trên mili giây: tốc độ sóng chạy dọc dải lụa
   tone: "a" | "b" | "c";
   opacity: number;
   line?: "soft" | "neon";
 }
 
-// ribbons start close together at the left edge and fan out as they rise to the right, crossing like glass.
+// các dải lụa bắt đầu sát nhau ở mép trái rồi xòe ra khi vươn lên bên phải, giao nhau như kính.
 const RIBBONS: RibbonSpec[] = [
   { offset: -170, amp: 16, freq: 0.0042, phase: 0.4, width: 30, widthFreq: 0.003, widthPhase: 1.1, speed: 0.00042, tone: "a", opacity: 0.5 },
   { offset: -105, amp: 20, freq: 0.0036, phase: 2.0, width: 44, widthFreq: 0.0034, widthPhase: 0.2, speed: 0.00035, tone: "b", opacity: 0.62, line: "soft" },
@@ -57,13 +60,14 @@ const RIBBONS: RibbonSpec[] = [
   { offset: 168, amp: 14, freq: 0.0044, phase: 1.7, width: 58, widthFreq: 0.0033, widthPhase: 2.8, speed: 0.00033, tone: "a", opacity: 0.45 },
 ];
 
+/** Điểm kéo do con trỏ tạo ra: vị trí và cường độ làm dải lụa bị hút về phía con trỏ. */
 interface Pull {
-  x: number; // pointer position in the drawing's own 1600 x 900 space
+  x: number; // vị trí con trỏ trong không gian bản vẽ 1600 x 900
   y: number;
-  strength: number; // 0 when the pointer rests, 1 while it moves
+  strength: number; // 0 khi con trỏ đứng yên, 1 khi đang di chuyển
 }
 
-// the outline of one ribbon at time t (ms). Near the pointer the ribbon is drawn toward it, ripples and swells
+/** Tính đường viền của một dải lụa tại thời điểm `t` (mili giây). Gần con trỏ, dải lụa bị kéo về phía đó, gợn sóng và phình ra. Trả về `area` (vùng tô) và `edge` (đường viền trên). */
 function ribbonPaths(spec: RibbonSpec, t: number, pull: Pull | null) {
   const top: Point[] = [];
   const bottom: Point[] = [];
@@ -88,6 +92,7 @@ function ribbonPaths(spec: RibbonSpec, t: number, pull: Pull | null) {
   return { area, edge };
 }
 
+/** Một hạt sáng sinh ra khi di chuyển hoặc bấm chuột: vị trí, vận tốc, thời gian sống, kích thước, màu và hình ngôi sao hay chấm tròn. */
 interface Particle {
   x: number;
   y: number;
@@ -99,6 +104,7 @@ interface Particle {
   color: number;
   star: boolean;
 }
+/** Vòng sóng lan tỏa ra từ điểm bấm chuột, mờ dần theo thời gian sống. */
 interface Ring {
   x: number;
   y: number;
@@ -110,6 +116,7 @@ const COLORS_DARK = ["#7dd3fc", "#a78bfa", "#ffffff", "#38bdf8"];
 const COLORS_LIGHT = ["#3b82f6", "#a78bfa", "#60a5fa", "#e879f9"];
 const MAX_PARTICLES = 160;
 
+/** Nền động cho các trang xác thực: dải lụa sóng SVG phản ứng với con trỏ, lớp sao và đốm sáng thị sai, cùng hạt sáng và vòng sóng vẽ trên canvas bằng `requestAnimationFrame`. Nền chỉ là trang trí, bấm vào biểu mẫu, nút hay liên kết không kích hoạt hiệu ứng. */
 export function AuthBackground() {
   const rootRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
@@ -123,8 +130,10 @@ export function AuthBackground() {
 
   const { initial, stars, sparkles, bokeh } = useMemo(() => {
     const random = seeded(20261106);
-    // keep the stars off the logo and the language / theme buttons at the top corners
+    // giữ sao tránh xa logo và các nút ngôn ngữ, giao diện ở hai góc trên
+    /** Kiểm tra một điểm có nằm ngoài vùng góc trên (logo và các nút) hay không. */
     const clear = (x: number, y: number) => !(y < 220 && (x < 520 || x > 1180));
+    /** Sinh `count` vị trí ngẫu nhiên có hạt giống, trong khoảng `margin` và độ cao tối đa `yMax`, tránh vùng bị cấm. */
     const place = (count: number, yMax: number, margin: number) => {
       const out: { x: number; y: number }[] = [];
       while (out.length < count) {
@@ -164,6 +173,7 @@ export function AuthBackground() {
     let raf = 0;
     let last = 0;
 
+    /** Cập nhật kích thước canvas theo cửa sổ và tỷ lệ điểm ảnh (tối đa 2). */
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = window.innerWidth;
@@ -174,12 +184,14 @@ export function AuthBackground() {
     };
     resize();
 
+    /** Đổi tọa độ màn hình sang tọa độ của bản vẽ SVG; trả null nếu chưa có ma trận. */
     const toDrawing = (clientX: number, clientY: number) => {
       const matrix = svg.getScreenCTM();
       if (!matrix) return null;
       return new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
     };
 
+    /** Tạo một hạt sáng tại `(x, y)` với hướng ngẫu nhiên; bỏ hạt cũ nhất khi đã đạt giới hạn. */
     const spark = (x: number, y: number, speed: number, star: boolean) => {
       if (particles.length >= MAX_PARTICLES) particles.shift();
       const angle = Math.random() * Math.PI * 2;
@@ -196,6 +208,7 @@ export function AuthBackground() {
       });
     };
 
+    /** Theo dõi con trỏ: cập nhật vị trí đích và rải hạt sáng theo quãng đường di chuyển (không với cảm ứng). */
     const onMove = (event: PointerEvent) => {
       const point = toDrawing(event.clientX, event.clientY);
       if (point) {
@@ -217,14 +230,17 @@ export function AuthBackground() {
         lastY = event.clientY;
       }
     };
+    /** Bấm chuột trên nền: bắn chùm hạt và tạo vòng sóng. */
     const onDown = (event: PointerEvent) => {
-      // clicks on the form, the header buttons and links are not decoration
+      // bấm vào biểu mẫu, nút ở đầu trang và liên kết thì không phải trang trí
       if ((event.target as Element | null)?.closest?.(".auth-panel, button, a, input, select, textarea")) return;
       for (let i = 0; i < 24; i += 1) spark(event.clientX, event.clientY, 3.2, i % 4 === 0);
       rings.push({ x: event.clientX, y: event.clientY, life: 700, max: 700 });
     };
+    /** Khi con trỏ rời cửa sổ thì coi như đã nghỉ và xóa vị trí lần di chuyển trước. */
     const onLeave = () => { pointer.lastMove = -1e9; lastX = -1; };
 
+    /** Vòng lặp mỗi khung hình: làm mượt vị trí con trỏ, cập nhật các dải lụa, tầng thị sai, rồi vẽ hạt và vòng sóng lên canvas. */
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       const dt = Math.min(64, last ? now - last : 16);
@@ -248,7 +264,7 @@ export function AuthBackground() {
         glowRefs.current[i]?.setAttribute("d", edge);
       });
 
-      // layers drift at different depths, opposite to the pointer; the pointer itself lights the stars and the glow
+      // các lớp trôi ở độ sâu khác nhau, ngược chiều con trỏ; con trỏ cũng làm sáng các ngôi sao và quầng sáng
       if (farRef.current) farRef.current.style.transform = `translate3d(${(-pointer.nx * 36).toFixed(1)}px, ${(-pointer.ny * 20).toFixed(1)}px, 0)`;
       if (starsRef.current) starsRef.current.style.transform = `translate3d(${(pointer.nx * 18).toFixed(1)}px, ${(pointer.ny * 10).toFixed(1)}px, 0)`;
       if (wavesRef.current) wavesRef.current.style.transform = `translate3d(${(-pointer.nx * 26).toFixed(1)}px, ${(-pointer.ny * 14).toFixed(1)}px, 0)`;

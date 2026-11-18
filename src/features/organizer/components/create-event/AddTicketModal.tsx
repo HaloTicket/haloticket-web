@@ -5,12 +5,14 @@ import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem } from "@/types/organizer";
 import { getMinIssuedQuantity } from "@/utils/ticketQuantities";
 
+/** Props của hộp thoại vé: vé đang sửa (rỗng nếu tạo mới), hàm đóng và hàm lưu. */
 interface AddTicketModalProps {
   initialTicket?: TicketItem | null;
   onClose: () => void;
   onSave: (ticket: TicketItem) => void;
 }
 
+/** Hộp thoại tạo hoặc sửa một hạng vé (tên, giá, số lượng phát hành, giới hạn mua mỗi đơn, mô tả quyền lợi). Khi sửa, số lượng phát hành không được thấp hơn số vé đã bán và đang giữ. */
 export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   initialTicket,
   onClose,
@@ -26,6 +28,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
   const [newTicketDescription, setNewTicketDescription] = useState(initialTicket?.description || "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  /** Kiểm tra dữ liệu nhập (tên, số lượng tối thiểu theo vé đã bán/giữ, giới hạn mua mỗi đơn); hợp lệ thì dựng đối tượng vé (vé miễn phí có giá 0) và gọi {@code onSave}, ngược lại hiện lỗi. */
   const handleSave = () => {
     setErrorMsg(null);
     if (!newTicketName.trim()) {
@@ -89,7 +92,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
               <span>{errorMsg}</span>
             </div>
           )}
-          {/* Name */}
+          {/* Tên */}
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold app-text-main">
               <span><span className="text-rose-500">*</span> {translate("Tên loại vé")}</span>
@@ -105,7 +108,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
             />
           </div>
 
-          {/* Price & Free Toggle */}
+          {/* Giá và tùy chọn miễn phí */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
             <div className="space-y-1">
               <label className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("Giá vé (VNĐ)")}</label>
@@ -131,7 +134,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
             </label>
           </div>
 
-          {/* Quantities */}
+          {/* Số lượng */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label htmlFor="ticket-issued-qty" className="text-xs font-bold app-text-main"><span className="text-rose-500">*</span> {translate("tickets.quantity.issued")}</label>
@@ -170,7 +173,7 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
           </div>
 
 
-          {/* Ticket Description */}
+          {/* Mô tả vé */}
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold app-text-main">
               <span>{translate("Thông tin quyền lợi vé")}</span>

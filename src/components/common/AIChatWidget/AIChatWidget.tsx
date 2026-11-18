@@ -10,7 +10,7 @@ import AIChatMessage from './AIChatMessage';
 const LEGACY_HISTORY_KEY = 'ai_chat_history';
 const HISTORY_KEY_PREFIX = 'ai_chat_history:v2:';
 
-/** Account that owns the chat history: profile id, else email, else anonymous. */
+/** Tài khoản sở hữu lịch sử chat: id hồ sơ, nếu không có thì email, nếu không có nữa thì ẩn danh (`anon`). */
 function getChatAccount(): string {
   try {
     const profile = getCachedUserProfile();
@@ -20,25 +20,32 @@ function getChatAccount(): string {
   }
 }
 
+/** Khóa `localStorage` lưu lịch sử chat của một tài khoản. */
 const chatHistoryKey = (account: string) => `${HISTORY_KEY_PREFIX}${account}`;
 
+/** Bọc `localStorage` để không ném lỗi khi trình duyệt chặn hoặc bộ nhớ đầy. */
 const safeStorage = {
+  /** Đọc giá trị theo khóa; trả về `null` nếu lỗi. */
   get(key: string): string | null {
     try { return localStorage.getItem(key); } catch { return null; }
   },
+  /** Ghi giá trị, bỏ qua lỗi. */
   set(key: string, value: string) {
-    try { localStorage.setItem(key, value); } catch { /* storage may be unavailable or full */ }
+    try { localStorage.setItem(key, value); } catch { /* localStorage có thể không dùng được hoặc đã đầy */ }
   },
+  /** Xóa khóa, bỏ qua lỗi. */
   remove(key: string) {
-    try { localStorage.removeItem(key); } catch { /* storage may be unavailable */ }
+    try { localStorage.removeItem(key); } catch { /* localStorage có thể không dùng được */ }
   },
 };
 
-/** Wall-clock timestamp in ms, used for message ids (only called from handlers). */
+/** Mốc thời gian hiện tại (ms) dùng làm id tin nhắn; chỉ gọi từ các hàm xử lý sự kiện. */
 const nowMs = (): number => Date.now();
 
+/** Tạo tin chào đầu tiên của trợ lý (id `1`). */
 const greetingMessage = (text: string): AiChatMessage => ({ id: '1', sender: 'ai', text, timestamp: new Date() });
 
+/** Nạp lịch sử chat của tài khoản từ `localStorage`; nếu không có hoặc hỏng thì bắt đầu cuộc trò chuyện mới với tin chào. */
 function loadHistory(account: string, greeting: string): AiChatMessage[] {
   const saved = safeStorage.get(chatHistoryKey(account));
   if (saved) {
@@ -48,12 +55,13 @@ function loadHistory(account: string, greeting: string): AiChatMessage[] {
         return (parsed as AiChatMessage[]).map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
       }
     } catch {
-      // fall through to a fresh conversation
+      // rơi xuống nhánh tạo cuộc trò chuyện mới
     }
   }
   return [greetingMessage(greeting)];
 }
 
+/** Lỗi gần nhất khi gọi AI: thông tin lỗi, nội dung đã gửi (để gửi lại), ngữ cảnh ẩn và id tin nhắn người dùng. */
 interface ChatError {
   info: AiErrorInfo;
   text: string;
@@ -61,6 +69,10 @@ interface ChatError {
   userMessageId: string;
 }
 
+/**
+ * Khung chat nổi của trợ lý AI cho khách (đặt vé thông minh): lịch sử lưu theo tài khoản, xử lý lỗi kèm đếm ngược
+ * chờ gửi lại, xác nhận xóa cuộc trò chuyện và đóng bằng Esc.
+ */
 const AIChatWidget: React.FC = () => {
   const { t } = useTranslation();
   const greeting = t('ai.chat.greeting');
@@ -72,7 +84,7 @@ const AIChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<AiChatMessage[]>(() => {
-    // the old global key mixed accounts; drop it once.
+    // khóa toàn cục cũ làm lẫn lịch sử giữa các tài khoản nên xóa một lần.
     safeStorage.remove(LEGACY_HISTORY_KEY);
     return loadHistory(getChatAccount(), t('ai.chat.greeting'));
   });
@@ -85,8 +97,9 @@ const AIChatWidget: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendingRef = useRef(false);
 
-  // Keep history scoped to the signed-in account (or anonymous).
+  // Giữ lịch sử theo đúng tài khoản đang đăng nhập (hoặc ẩn danh).
   useEffect(() => {
+    /** Khi tài khoản đổi: xóa lịch sử của tài khoản cũ, nạp lịch sử tài khoản mới và đặt lại lỗi, ô nhập. */
     const syncAccount = () => {
       const next = getChatAccount();
       const previous = accountRef.current;
@@ -107,7 +120,7 @@ const AIChatWidget: React.FC = () => {
     };
   }, [t]);
 
-  // Persist only real conversation turns; error bubbles live outside `messages`.
+  // Chỉ lưu các lượt hội thoại thật; bong bóng lỗi nằm ngoài `messages`.
   useEffect(() => {
     safeStorage.set(chatHistoryKey(account), JSON.stringify(messages));
   }, [messages, account]);
@@ -119,6 +132,7 @@ const AIChatWidget: React.FC = () => {
   useEffect(() => {
     if (!isOpen) return;
     textareaRef.current?.focus();
+    /** Nhấn Esc: đóng hộp xác nhận xóa nếu đang mở, ngược lại đóng khung chat. */
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (confirmReset) setConfirmReset(false);
@@ -134,6 +148,13 @@ const AIChatWidget: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [cooldown]);
 
+  /**
+   * Gọi agent đặt vé và thêm câu trả lời vào hội thoại; khi lỗi thì lưu `chatError` và đặt thời gian chờ nếu có.
+   * @param text nội dung hiển thị của người dùng
+   * @param hiddenContext ngữ cảnh ẩn gửi kèm cho AI
+   * @param userMessageId id tin nhắn người dùng liên quan
+   * @param history các tin nhắn trước đó dùng làm ngữ cảnh
+   */
   const requestReply = useCallback(async (text: string, hiddenContext: string | undefined, userMessageId: string, history: AiChatMessage[]) => {
     sendingRef.current = true;
     setIsLoading(true);
@@ -163,6 +184,11 @@ const AIChatWidget: React.FC = () => {
     }
   }, []);
 
+  /**
+   * Thêm tin của người dùng vào hội thoại rồi xin câu trả lời; bỏ qua nội dung rỗng hoặc khi đang chờ phản hồi.
+   * @param text nội dung người dùng
+   * @param hiddenContext ngữ cảnh ẩn gửi kèm (không hiện ra)
+   */
   const sendMessage = (text: string, hiddenContext?: string) => {
     if (!text.trim() || sendingRef.current) return;
     const userMessage: AiChatMessage = {
@@ -172,12 +198,13 @@ const AIChatWidget: React.FC = () => {
       hiddenContext,
       timestamp: new Date()
     };
-    // exclude the first generic greeting message
+    // bỏ tin chào chung đầu tiên khỏi lịch sử gửi đi
     const history = messages.slice(1);
     setMessages(prev => [...prev, userMessage]);
     void requestReply(userMessage.text, hiddenContext, userMessage.id, history);
   };
 
+  /** Gửi lại yêu cầu vừa lỗi với lịch sử đến trước tin nhắn đó; không làm gì khi đang gửi hoặc còn đang chờ. */
   const resend = () => {
     if (!chatError || sendingRef.current || cooldown > 0) return;
     const index = messages.findIndex(m => m.id === chatError.userMessageId);
@@ -185,11 +212,13 @@ const AIChatWidget: React.FC = () => {
     void requestReply(chatError.text, chatError.hiddenContext, chatError.userMessageId, history);
   };
 
+  /** Gửi nội dung ô nhập rồi xóa ô nhập. */
   const handleSendMessage = () => {
     sendMessage(inputText);
     setInputText('');
   };
 
+  /** Xóa lịch sử đã lưu và đưa cuộc trò chuyện về tin chào ban đầu. */
   const resetConversation = () => {
     safeStorage.remove(chatHistoryKey(accountRef.current));
     setMessages([greetingMessage(greeting)]);
@@ -199,7 +228,7 @@ const AIChatWidget: React.FC = () => {
 
   return (
     <>
-      {/* Chat Window */}
+      {/* Cửa sổ chat */}
       {isOpen && (
         <div
           role="dialog"
@@ -210,7 +239,7 @@ const AIChatWidget: React.FC = () => {
             : 'bottom-5 right-4 sm:right-6 w-[95vw] sm:w-[440px] md:w-[460px] h-[640px] max-h-[85vh] rounded-2xl motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95'
         }`}>
 
-          {/* Header */}
+          {/* Đầu khung */}
           <div className="gradient-btn p-4 flex justify-between items-center text-white shadow-sm">
             <div>
               <h3 className="font-bold flex items-center gap-2">
@@ -266,7 +295,7 @@ const AIChatWidget: React.FC = () => {
             </div>
           )}
 
-          {/* Messages Area */}
+          {/* Khu vực tin nhắn */}
           <div
             role="log"
             aria-live="polite"
@@ -309,7 +338,7 @@ const AIChatWidget: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Suggestions Chips */}
+          {/* Gợi ý nhanh */}
           {messages.length <= 2 && (
             <div className="px-3 py-2 bg-gray-50/80 dark:bg-[#18181b]/80 border-t border-gray-100 dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               {[
@@ -331,7 +360,7 @@ const AIChatWidget: React.FC = () => {
             </div>
           )}
 
-          {/* Input Area */}
+          {/* Khu vực nhập liệu */}
           <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#18181b]">
             <div className="flex items-end gap-2 bg-gray-50 dark:bg-[#27272a] p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/30 transition-all shadow-inner">
               <label htmlFor="ai-chat-input" className="sr-only">{t('ai.chat.inputLabel')}</label>
@@ -366,7 +395,7 @@ const AIChatWidget: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Button */}
+      {/* Nút nổi */}
       {!isOpen && (
         <div className="fixed bottom-24 right-8 z-50">
           <button

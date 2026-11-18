@@ -6,7 +6,10 @@ import type { VenueTemplate, VenueTemplateModalProps } from '@/types/seating';
 import type { VenueApiData } from '@/types';
 import { venueApi } from '@/services/venueApi';
 
-// venue template selection modal component with live preview
+/**
+ * Modal chọn mẫu sơ đồ địa điểm có xem trước trực tiếp. Gộp mẫu từ props với mẫu tải từ API (mẫu chuẩn của admin
+ * và sơ đồ của các ban tổ chức) khi có {@code venueId}; lọc theo địa điểm, thành phố và từ khóa.
+ */
 export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   isOpen,
   onClose,
@@ -17,7 +20,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   venueName,
 }) => {
   const { t } = useTranslation();
-  // search query, city filter, venue location filter, and preview state
+  // từ khóa tìm kiếm, bộ lọc thành phố, bộ lọc địa điểm và trạng thái xem trước
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [selectedVenueId, setSelectedVenueId] = useState<string>('ALL');
@@ -25,12 +28,13 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
   const [dbVenues, setDbVenues] = useState<VenueApiData[]>([]);
   const [loadedDbTemplates, setLoadedDbTemplates] = useState<VenueTemplate[]>([]);
 
-  // custom venue dropdown open state & ref
+  // trạng thái mở của dropdown địa điểm tự dựng và ref của nó
   const [isVenueDropdownOpen, setIsVenueDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // close dropdown on click outside
+  // đóng dropdown khi bấm ra ngoài
   useEffect(() => {
+    /** Đóng dropdown địa điểm khi bấm chuột ra ngoài vùng của nó. */
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsVenueDropdownOpen(false);
@@ -40,7 +44,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // prevent background page scrolling when modal is open
+  // chặn cuộn trang nền khi modal đang mở
   useEffect(() => {
     if (isOpen) {
       const originalOverflow = document.body.style.overflow;
@@ -51,14 +55,14 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     }
   }, [isOpen]);
 
-  // fetch venue seatmaps from real DB API when venueId is provided
+  // tải các sơ đồ của địa điểm từ API khi có venueId
   useEffect(() => {
     if (isOpen && venueId) {
       venueApi.getVenueSeatmaps(venueId).then((res) => {
         if (!res) return;
         const extraTemplates: VenueTemplate[] = [];
 
-        // admin official template
+        // mẫu chuẩn do admin thiết kế
         if (res.adminTemplate) {
           try {
             const parsed = JSON.parse(res.adminTemplate);
@@ -82,7 +86,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
           }
         }
 
-        // organizer seatmaps
+        // sơ đồ do ban tổ chức thiết kế
         if (Array.isArray(res.organizerSeatmaps)) {
           res.organizerSeatmaps.forEach((s) => {
             if (!s.draftJson) return;
@@ -121,12 +125,12 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     }
   }, [isOpen, venueId, venueName]);
 
-  // fetch public venues from backend DB API
+  // tải danh sách địa điểm công khai từ API backend
   useEffect(() => {
     if (isOpen) {
       venueApi.getVenues().then((data) => {
         if (data && Array.isArray(data)) {
-          // filter public & verified venues
+          // chỉ giữ địa điểm công khai và đã xác minh
           const publicVenues = data.filter((v) => v.verified !== false);
           setDbVenues(publicVenues);
         }
@@ -145,10 +149,10 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     }
   }, [allAvailableTemplates, selectedTemplateId, isOpen]);
 
-  // filter templates: if venueName or venueId is provided, ONLY display templates for this venue
+  // lọc mẫu: nếu có venueName hoặc venueId thì CHỈ hiển thị mẫu của địa điểm này
   const filteredTemplates = useMemo(() => {
     return allAvailableTemplates.filter((tpl) => {
-      // strict venue filter if venueName is set
+      // lọc chặt theo địa điểm nếu có venueName
       if (venueName && venueName.trim()) {
         const vName = venueName.toLowerCase().trim();
         const tplName = (tpl.name || '').toLowerCase();
@@ -183,7 +187,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     });
   }, [allAvailableTemplates, venueName, searchQuery, selectedCity, selectedVenueId]);
 
-  // group filtered templates by Venue Location
+  // gom các mẫu đã lọc theo địa điểm
   const groupedVenues = useMemo(() => {
     const map = new Map<string, { venueName: string; address?: string; city?: string; templates: VenueTemplate[] }>();
 
@@ -208,7 +212,7 @@ export const VenueTemplateModal: React.FC<VenueTemplateModalProps> = ({
     return Array.from(map.values());
   }, [filteredTemplates]);
 
-  // find all available templates for the venue of the current previewTemplate
+  // tìm mọi mẫu của địa điểm chứa mẫu đang xem trước
   const currentVenueGroupTemplates = useMemo(() => {
     if (!previewTemplate) return [];
     const previewKey = previewTemplate.address

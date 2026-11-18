@@ -26,6 +26,7 @@ import { PATHS } from "@/routes/paths";
 import type { VietQrPayloadResponse } from "@/types";
 import type { ResaleReservation, TicketListing } from "@/types/marketplace";
 
+/** Định dạng số tiền VND, không có phần thập phân. */
 const money = (value: number) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -33,6 +34,7 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+/** Câu hỏi tùy chỉnh của sự kiện sau khi chuẩn hóa: id, tiêu đề, mô tả, loại, bắt buộc hay không và các lựa chọn. */
 export interface NormalizedCustomQuestion {
   id: string;
   title: string;
@@ -42,8 +44,10 @@ export interface NormalizedCustomQuestion {
   options: string[];
 }
 
+/** Các bước thanh toán vé bán lại: chọn vé, giữ vé, thanh toán. */
 type CheckoutStep = "select" | "reserve" | "payment";
 
+/** Modal nhắc đăng nhập trước khi giữ vé; cho đóng hoặc chuyển tới đăng nhập. */
 function CheckoutLoginModal({ open, onClose, onLogin }: { open: boolean; onClose: () => void; onLogin: () => void }) {
   const { t } = useTranslation();
   return <NotificationModal
@@ -114,11 +118,13 @@ function OwnerListingModal({
   );
 }
 
+/** Trang thanh toán vé bán lại: chọn vé trong tin đăng, giữ vé có đếm ngược, trả lời câu hỏi và đồng ý điều khoản cho từng vé rồi chọn cổng thanh toán (VietQR, VNPay, MoMo, ZaloPay, ShopeePay). */
 export const ResaleTicketCheckout = () => {
   const { t, i18n } = useTranslation();
   const { eventId = "", ticketId = "" } = useParams();
   const navigate = useNavigate();
 
+  /** Định dạng giờ và ngày của sự kiện theo ngôn ngữ hiện tại; thiếu giá trị thì hiện thông báo chưa cập nhật lịch diễn. */
   const formatDateTime = (value?: unknown) => {
     if (!value) return t("Chưa cập nhật lịch diễn");
     try {
@@ -142,24 +148,24 @@ export const ResaleTicketCheckout = () => {
   const [reservation, setReservation] = useState<ResaleReservation | null>(null);
   const [step, setStep] = useState<CheckoutStep>("select");
 
-  // Countdown timer: 10 minutes initial duration
+  // Đồng hồ đếm ngược: thời lượng ban đầu 10 phút
   const [secondsRemaining, setSecondsRemaining] = useState(10 * 60);
   const [hasExpired, setHasExpired] = useState(false);
 
-  // Per-ticket questionnaire state: Map of ticketIndex (0..quantity-1) to answers
+  // Trạng thái bộ câu hỏi theo từng vé: Map từ chỉ số vé (0..số lượng-1) tới các câu trả lời
   const [ticketAgreed, setTicketAgreed] = useState<Record<number, boolean>>({});
   const [ticketAnswers, setTicketAnswers] = useState<Record<number, Record<string, string | boolean>>>({});
   const [collapsedTickets, setCollapsedTickets] = useState<Record<number, boolean>>({});
   const [questionError, setQuestionError] = useState("");
 
-  // Modals state
+  // Trạng thái các modal
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellingHold, setCancellingHold] = useState(false);
   const [showOwnerModal, setShowOwnerModal] = useState(false);
   const [isOwnerDetected, setIsOwnerDetected] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  // Payment state
+  // Trạng thái thanh toán
   const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "VIETQR" | "MOMO" | "ZALOPAY" | "SHOPEEPAY">("VNPAY");
   const [paying, setPaying] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -170,7 +176,7 @@ export const ResaleTicketCheckout = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionTerms, setSelectionTerms] = useState(false);
 
-  // Fetch listing & event
+  // Tải tin đăng và sự kiện
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
     Promise.all([marketplaceApi.getListing(ticketId), eventApi.getEventById(eventId)])
@@ -182,7 +188,7 @@ export const ResaleTicketCheckout = () => {
       .catch(() => setError(t("Vé này không còn khả dụng hoặc đã được người khác mua.")));
   }, [eventId, ticketId, t]);
 
-  // Normalize customQuestions from event using useMemo to avoid setState inside effect
+  // Chuẩn hóa customQuestions của sự kiện bằng useMemo để tránh gọi setState trong effect
   const customQuestions = useMemo<NormalizedCustomQuestion[]>(() => {
     const raw = event?.customQuestions ?? event?.questions;
     let list: Array<Record<string, unknown>> = [];
@@ -209,11 +215,12 @@ export const ResaleTicketCheckout = () => {
   const isMyListing = listing?.ownedByCurrentUser === true || isOwnerDetected;
   const quantity = reservation?.quantity ?? (reservation?.ticketIds?.length || selectedIds.length);
 
-  // Intercept browser back button when holding ticket (popstate)
+  // Chặn nút Back của trình duyệt khi đang giữ vé (popstate)
   useEffect(() => {
     if (!reservation) return;
     window.history.pushState(null, "", window.location.href);
 
+    /** Khi bấm Back lúc đang giữ vé thì giữ nguyên trang và hỏi xác nhận hủy giữ vé. */
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
       window.history.pushState(null, "", window.location.href);
@@ -226,7 +233,7 @@ export const ResaleTicketCheckout = () => {
     };
   }, [reservation]);
 
-  // Release reservation hold (nhả lock distributed) and return to event listings
+  /** Nhả khóa giữ vé (khóa phân tán) rồi quay lại danh sách vé bán lại của sự kiện; lỗi khi hủy được bỏ qua. */
   const handleCancelHoldAndLeave = async () => {
     setCancellingHold(true);
     try {
@@ -242,6 +249,7 @@ export const ResaleTicketCheckout = () => {
     }
   };
 
+  /** Chọn vé khác: đã hết hạn giữ thì quay lại danh sách ngay, ngược lại hỏi xác nhận hủy giữ vé. */
   const handleSelectDifferentTicket = () => {
     if (hasExpired) {
       navigate(`/resale-ticket/${eventId}`);
@@ -250,7 +258,7 @@ export const ResaleTicketCheckout = () => {
     setShowCancelModal(true);
   };
 
-  // Manual reserve retry handler if needed
+  /** Giữ vé thủ công (thử lại khi cần): yêu cầu đăng nhập, rồi giữ các vé đã chọn; lỗi 409 {@code BUYER_IS_SELLER} nghĩa là người mua chính là người bán. */
   const handleManualReserve = async () => {
     if (!getKeycloakSession().isAuthenticated()) {
       setShowLoginPrompt(true);
@@ -281,9 +289,10 @@ export const ResaleTicketCheckout = () => {
     }
   };
 
-  // Countdown timer: updates seconds remaining and triggers timeout modal on 0
+  // Đồng hồ đếm ngược: cập nhật số giây còn lại và hiện modal hết giờ khi về 0
   useEffect(() => {
     if (!reservation?.reservationExpiresAt) return;
+    /** Tính số giây còn lại tới hạn giữ vé; về 0 thì đánh dấu đã hết hạn. */
     const updateCountdown = () => {
       const expiresAt = new Date(reservation.reservationExpiresAt!).getTime();
       const diff = Math.floor((expiresAt - Date.now()) / 1000);
@@ -299,7 +308,7 @@ export const ResaleTicketCheckout = () => {
     return () => clearInterval(timer);
   }, [reservation?.reservationExpiresAt]);
 
-  // Clone answers from ticket 1 to another ticket
+  /** Sao chép câu trả lời và việc đồng ý điều khoản từ vé 1 sang vé khác. */
   const copyFromTicket1 = (targetIndex: number) => {
     setTicketAgreed((prev) => ({
       ...prev,
@@ -311,6 +320,7 @@ export const ResaleTicketCheckout = () => {
     }));
   };
 
+  /** Thu gọn hoặc mở rộng phần câu hỏi của một vé. */
   const toggleTicketCollapse = (index: number) => {
     setCollapsedTickets((prev) => ({
       ...prev,
@@ -318,7 +328,7 @@ export const ResaleTicketCheckout = () => {
     }));
   };
 
-  // Helper to test if a question is answered
+  /** Kiểm tra một câu trả lời đã được điền chưa (chuỗi không rỗng, ô đánh dấu phải được chọn). */
   const isQuestionAnswered = (val: unknown) => {
     if (val === undefined || val === null) return false;
     if (typeof val === "string") return val.trim().length > 0;
@@ -326,7 +336,7 @@ export const ResaleTicketCheckout = () => {
     return true;
   };
 
-  // Check if all required answers and T&C agreements are filled
+  // Kiểm tra mọi câu trả lời bắt buộc và việc đồng ý điều khoản của từng vé đã đủ chưa
   const allQuestionsAnswered = useMemo(() => {
     if (quantity <= 0) return false;
     for (let i = 0; i < quantity; i++) {
@@ -343,6 +353,7 @@ export const ResaleTicketCheckout = () => {
     return true;
   }, [quantity, ticketAgreed, ticketAnswers, customQuestions]);
 
+  /** Sang bước thanh toán: kiểm tra từng vé đã đồng ý điều khoản và trả lời đủ câu hỏi bắt buộc, nếu thiếu thì báo lỗi; chủ tin đăng không được mua vé của mình. */
   const handleContinueToPayment = () => {
     if (isMyListing) {
       setShowOwnerModal(true);
@@ -369,6 +380,7 @@ export const ResaleTicketCheckout = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /** Khởi tạo thanh toán: giữ vé nếu chưa giữ, bắt đầu giao dịch bán lại, lưu thông tin đơn vào localStorage rồi mở VietQR hoặc chuyển tới cổng đã chọn; lỗi thì báo và vẫn giữ vé. */
   const handlePayment = useCallback(async () => {
     if (isMyListing) {
       setShowOwnerModal(true);
@@ -380,7 +392,7 @@ export const ResaleTicketCheckout = () => {
     setError("");
 
     try {
-      // Marketplace transaction is the source of truth for payment and the ownership-transfer Saga.
+      // Giao dịch marketplace là nguồn dữ liệu gốc cho thanh toán và saga chuyển quyền sở hữu.
       const activeReservation = reservation ?? await marketplaceApi.reserveListing(listing.id, undefined, selectedIds);
       if (!reservation) setReservation(activeReservation);
       const paymentInitiation = await marketplaceApi.startResalePayment(activeReservation.transactionId);
@@ -393,7 +405,7 @@ export const ResaleTicketCheckout = () => {
       const currentEventTitle = String(event?.title ?? t("Sự kiện HaloTicket"));
       const currentTicketTier = listing.ticketTypeName || listing.section || t("Vé sự kiện");
 
-      // Save order metadata to localStorage for booking-success page
+      // Lưu thông tin đơn vào localStorage cho trang đặt vé thành công
       try {
         localStorage.setItem(
           "haloticket_pending_order",
@@ -412,7 +424,7 @@ export const ResaleTicketCheckout = () => {
         // ignore
       }
 
-      // Option 1: VietQR / SePay fast transfer
+      // Lựa chọn 1: chuyển khoản nhanh VietQR / SePay
       if (paymentMethod === "VIETQR") {
         try {
           const qrPayload = await paymentApi.createVietQrPayload(totalAmount, bookingId, bookingId);
@@ -427,7 +439,7 @@ export const ResaleTicketCheckout = () => {
         }
       }
 
-      // Option 2: VNPay Gateway
+      // Lựa chọn 2: cổng VNPay
       if (paymentMethod === "VNPAY") {
         const vnpayUrl = await paymentApi.createVnPayUrl(totalAmount, orderInfo, bookingId);
         if (vnpayUrl) {
@@ -436,7 +448,7 @@ export const ResaleTicketCheckout = () => {
         }
       }
 
-      // Option 3: MoMo Wallet
+      // Lựa chọn 3: ví MoMo
       if (paymentMethod === "MOMO") {
         const momoUrl = await paymentApi.createMoMoUrl(totalAmount, orderInfo, bookingId);
         if (momoUrl) {
@@ -445,7 +457,7 @@ export const ResaleTicketCheckout = () => {
         }
       }
 
-      // Option 4: ZaloPay Wallet
+      // Lựa chọn 4: ví ZaloPay
       if (paymentMethod === "ZALOPAY") {
         const zalopayUrl = await paymentApi.createZaloPayUrl(totalAmount, orderInfo, bookingId);
         if (zalopayUrl) {
@@ -454,7 +466,7 @@ export const ResaleTicketCheckout = () => {
         }
       }
 
-      // Option 5: ShopeePay Wallet
+      // Lựa chọn 5: ví ShopeePay
       if (paymentMethod === "SHOPEEPAY") {
         const shopeepayUrl = await paymentApi.createShopeePayUrl(totalAmount, orderInfo, bookingId);
         if (shopeepayUrl) {
@@ -830,7 +842,7 @@ export const ResaleTicketCheckout = () => {
                 )}
               </>
             ) : (
-              /* Payment step */
+              /* Bước thanh toán */
               <div className="space-y-6">
                 <button
                   type="button"

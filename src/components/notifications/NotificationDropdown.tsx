@@ -5,6 +5,7 @@ import { FiBell, FiX } from 'react-icons/fi';
 import type { NotificationItem } from '@/types';
 import { NotificationInbox } from './NotificationInbox';
 
+/** Props của dropdown thông báo: danh sách, số chưa đọc, các callback, liên kết "xem tất cả", tiêu đề và trạng thái tải/lỗi. */
 export interface NotificationDropdownProps {
   notifications: NotificationItem[];
   unreadCount: number;
@@ -18,6 +19,10 @@ export interface NotificationDropdownProps {
   onRetry?: () => void;
 }
 
+/**
+ * Nút chuông kèm huy hiệu số thông báo chưa đọc (hiện "99+" khi quá 99) và bảng thả xuống chứa `NotificationInbox`.
+ * Đóng bảng khi bấm ra ngoài hoặc nhấn Esc (trả focus về nút chuông).
+ */
 export function NotificationDropdown({
   notifications,
   unreadCount,
@@ -43,9 +48,11 @@ export function NotificationDropdown({
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    /** Đóng bảng khi lần bấm nằm ngoài vùng dropdown. */
     const outside = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
+    /** Nhấn Esc thì đóng bảng và trả focus về nút chuông. */
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setOpen(false);

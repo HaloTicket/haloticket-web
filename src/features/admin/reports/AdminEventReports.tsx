@@ -43,6 +43,7 @@ import {
 } from "@/utils/reportUtils";
 import { reportStatusText, reportText } from "@/utils/reportTranslations";
 
+/** Chỉ số hiển thị trên biểu đồ: doanh thu, số đơn hoặc số vé. */
 type Metric = "revenue" | "orders" | "tickets";
 const metrics: Metric[] = ["revenue", "orders", "tickets"];
 const labels: Record<Metric, string> = {
@@ -50,14 +51,17 @@ const labels: Record<Metric, string> = {
   orders: "Đơn đã thanh toán",
   tickets: "Vé đã bán",
 };
+/** Định dạng số tiền VND theo ngôn ngữ, không lấy phần thập phân. */
 const money = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(value);
+/** Định dạng số theo ngôn ngữ. */
 const number = (value: number, locale: string) =>
   new Intl.NumberFormat(locale).format(value);
+/** Nhãn ngày ngắn (ngày và tháng) theo ngôn ngữ, tính theo giờ UTC. */
 const dateLabel = (date: string, locale: string) =>
   new Intl.DateTimeFormat(locale, {
     day: "2-digit",
@@ -65,6 +69,7 @@ const dateLabel = (date: string, locale: string) =>
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
 
+/** Tải một Blob về máy bằng thẻ liên kết tạm. */
 function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -74,9 +79,11 @@ function saveBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Trang báo cáo sự kiện của quản trị viên: bộ lọc đồng bộ lên URL, biểu đồ theo ngày hoặc tuần, bảng xếp hạng sự kiện, xem đơn chi tiết và xuất CSV hoặc Excel. */
 export default function AdminEventReports() {
   const { t: rawT, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage?.startsWith("en") ? "en-US" : "vi-VN";
+  /** Dịch chuỗi báo cáo sang ngôn ngữ hiện tại trước khi đưa cho i18n. */
   const t = useCallback(
     (value: string, options?: Record<string, unknown>) =>
       rawT(reportText(value, locale === "en-US" ? "en" : "vi"), options),
@@ -97,14 +104,14 @@ export default function AdminEventReports() {
   const [exporting, setExporting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // search input with debounce to prevent re-rendering on every keystroke
+  // ô tìm kiếm có debounce để không dựng lại giao diện sau mỗi phím gõ
   const [searchInput, setSearchInput] = useState(filters.q ?? "");
 
-  // real database categories & organizers
+  // danh mục và ban tổ chức thật lấy từ cơ sở dữ liệu
   const [dbCategories, setDbCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [dbOrganizers, setDbOrganizers] = useState<Array<{ id: string; name: string }>>([]);
 
-  // modal to view detailed orders of an event
+  // hộp thoại xem đơn chi tiết của một sự kiện
   const [selectedEventForOrders, setSelectedEventForOrders] = useState<{
     id: string;
     title: string;
@@ -112,12 +119,12 @@ export default function AdminEventReports() {
 
   const version = useRef(0);
 
-  // keep search input in sync if filters.q changes externally (e.g., reset)
+  // đồng bộ ô tìm kiếm khi `filters.q` đổi từ bên ngoài (ví dụ khi đặt lại)
   useEffect(() => {
     setSearchInput(filters.q ?? "");
   }, [filters.q]);
 
-  // fetch real categories and organizers from database once
+  // tải danh mục và ban tổ chức thật từ cơ sở dữ liệu một lần
   useEffect(() => {
     adminConfigApi
       .getCategories()
@@ -145,7 +152,7 @@ export default function AdminEventReports() {
       .catch((err) => console.warn("Failed to load real organizers", err));
   }, []);
 
-  // merge database items with report options
+  // gộp dữ liệu từ cơ sở dữ liệu với các tùy chọn có trong báo cáo
   const mergedCategories = useMemo(() => {
     const map = new Map<string, string>();
     dbCategories.forEach((c) => map.set(c.id, c.name));
@@ -160,6 +167,7 @@ export default function AdminEventReports() {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [dbOrganizers, report?.options?.organizers]);
 
+  /** Cập nhật bộ lọc lên tham số URL. */
   const update = useCallback(
     (change: Partial<EventReportFilters>) => {
       const next = { ...filters, ...change };
@@ -168,7 +176,7 @@ export default function AdminEventReports() {
     [filters, setSearchParams]
   );
 
-  // debounce search typing handler
+  // xử lý gõ tìm kiếm có debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       if ((filters.q ?? "") !== searchInput.trim()) {
@@ -178,7 +186,7 @@ export default function AdminEventReports() {
     return () => clearTimeout(timer);
   }, [searchInput, filters.q, update]);
 
-  // load report data smoothly without unmounting UI
+  // tải dữ liệu báo cáo mượt, không gỡ giao diện đang hiển thị
   useEffect(() => {
     if (!searchParams.has("from") || !searchParams.has("to")) {
       setSearchParams(new URLSearchParams(reportQuery(filters)), { replace: true });
@@ -216,6 +224,7 @@ export default function AdminEventReports() {
     return () => controller.abort();
   }, [filters, searchParams, setSearchParams, refreshKey]);
 
+  /** Đặt kỳ báo cáo; kỳ không hợp lệ hoặc sau hôm nay thì báo lỗi và không áp dụng. */
   const setPeriod = (from: string, to: string) => {
     if (!isValidReportPeriod(from, to) || to > hcmToday()) {
       setPeriodError(true);
@@ -225,6 +234,7 @@ export default function AdminEventReports() {
     update({ from, to, page: 1 });
   };
 
+  /** Đặt lại ô tìm kiếm và toàn bộ bộ lọc về mặc định. */
   const reset = () => {
     setSearchInput("");
     setSearchParams(
@@ -244,7 +254,8 @@ export default function AdminEventReports() {
     [report?.timeline, metric, grouping]
   );
 
-  // enhanced Vietnamese export for CSV & Excel
+  // xuất báo cáo CSV hoặc Excel với nhãn tiếng Việt, tối đa 10.000 sự kiện
+  /** Lấy toàn bộ dòng báo cáo theo bộ lọc rồi tải xuống dưới dạng CSV (có BOM) hoặc Excel. */
   const exportReport = async (format: "csv" | "xlsx") => {
     if (exporting || !report) return;
     setExporting(true);

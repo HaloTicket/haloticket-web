@@ -1,10 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { SystemVenue } from "@/types";
 
+/** Props của các thẻ thống kê địa điểm: danh sách địa điểm cần tổng hợp. */
 interface VenueStatCardsProps {
   venues: SystemVenue[];
 }
 
+/** Dải thẻ thống kê tổng số địa điểm, đã xác minh, chưa xác minh và tổng sự kiện (hiện dấu gạch khi chưa biết số sự kiện). */
 export function VenueStatCards({ venues }: VenueStatCardsProps) {
   const { t } = useTranslation();
   const hostedKnown = venues.every((venue) => !("eventsHostedKnown" in venue && venue.eventsHostedKnown === false));

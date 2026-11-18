@@ -55,6 +55,7 @@ const CHOICES: { value: PeriodChoice; label: string }[] = [
   { value: "custom", label: "Tùy chọn" },
 ];
 
+/** Kết quả một lần gọi API thống kê: khóa yêu cầu, sự kiện tương ứng, dữ liệu (nếu có) và cờ thất bại. */
 interface Answer {
   key: string;
   eventId: string;
@@ -62,7 +63,7 @@ interface Answer {
   failed: boolean;
 }
 
-/** One figure of the period with its change against the period before (when asked for). */
+/** Thẻ một chỉ số của kỳ thống kê, kèm mức thay đổi so với kỳ trước khi được yêu cầu so sánh. */
 const StatCard: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -96,6 +97,7 @@ const StatCard: React.FC<{
   );
 };
 
+/** Vòng tròn tiến độ dạng phần trăm (SVG), màu hổ phách hoặc xanh lục theo {@code tone}. */
 const Ring: React.FC<{ percent: number; tone: "amber" | "emerald" }> = ({ percent, tone }) => (
   <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -120,12 +122,13 @@ const Ring: React.FC<{ percent: number; tone: "amber" | "emerald" }> = ({ percen
   </div>
 );
 
+/** Màn tổng quan sự kiện: chọn kỳ thống kê (24 giờ, 7 ngày, 30 ngày hoặc tùy chọn), so sánh với kỳ trước, thẻ chỉ số, tiến độ so với mục tiêu và biểu đồ doanh thu, vé theo ngày. */
 export const EventOverview: React.FC = () => {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
   const [choice, setChoice] = useState<PeriodChoice>("30d");
   const [compare, setCompare] = useState(true);
-  // the dates being typed, and the ones the data was last asked for (changing a date alone sends nothing)
+  // các ngày đang nhập, và các ngày dữ liệu được yêu cầu lần gần nhất (chỉ đổi ngày thì chưa gửi gì)
   const [draft, setDraft] = useState(() => ({ from: addDays(todayInVietnam(), -6), to: todayInVietnam() }));
   const [applied, setApplied] = useState(draft);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -136,7 +139,7 @@ export const EventOverview: React.FC = () => {
     [choice, applied, compare],
   );
   const requestKey = `${eventId ?? ""}|${JSON.stringify(query)}|${reloadKey}`;
-  // an answer for this event stays on screen (dimmed) while the next one loads; one for another event never does
+  // kết quả của sự kiện này vẫn hiện (mờ đi) khi đang tải kết quả kế tiếp; kết quả của sự kiện khác thì không bao giờ hiện
   const current = answer && answer.eventId === (eventId ?? "") ? answer : null;
   const isRefreshing = current !== null && current.key !== requestKey;
   const isLoading = current === null;
@@ -157,7 +160,9 @@ export const EventOverview: React.FC = () => {
     return () => { isMounted = false; };
   }, [eventId, query, requestKey]);
 
+  /** Tải lại số liệu bằng cách đổi khóa tải. */
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
+  /** Áp dụng khoảng ngày đang nhập nếu hợp lệ. */
   const applyDraft = () => {
     if (draftProblem === null) setApplied(draft);
   };
@@ -179,6 +184,7 @@ export const EventOverview: React.FC = () => {
   const showChange = compare && previous !== null;
   const missing = unavailableLabels(analytics?.unavailableSources);
   const bookingMissing = (analytics?.unavailableSources ?? []).includes("booking");
+  /** Định dạng số theo kiểu vi-VN, giá trị thiếu coi là 0. */
   const number = (value: number | undefined) => (value ?? 0).toLocaleString("vi-VN");
 
   if (isLoading) {
@@ -223,7 +229,7 @@ export const EventOverview: React.FC = () => {
         </div>
       )}
 
-      {/* Period and comparison */}
+      {/* Kỳ thống kê và so sánh */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <p className="text-xs app-text-muted font-bold">
           {analytics?.periodFrom && analytics?.periodTo ? (
@@ -298,7 +304,7 @@ export const EventOverview: React.FC = () => {
         </div>
       )}
 
-      {/* Figures of the period, each with its change against the period before */}
+      {/* Các chỉ số của kỳ, mỗi chỉ số kèm mức thay đổi so với kỳ trước */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard
           title={t("Doanh thu kỳ này")}
@@ -350,7 +356,7 @@ export const EventOverview: React.FC = () => {
         />
       </div>
 
-      {/* Progress against the targets, over the whole life of the event */}
+      {/* Tiến độ so với mục tiêu, tính trên toàn bộ vòng đời sự kiện */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs flex items-center justify-between gap-4">
           <div className="space-y-2">
@@ -379,7 +385,7 @@ export const EventOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Revenue and tickets per day over the period */}
+      {/* Doanh thu và số vé theo ngày trong kỳ */}
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b app-border pb-3">
           <h3 className="text-xs font-extrabold app-text-main uppercase tracking-wider flex items-center gap-2">

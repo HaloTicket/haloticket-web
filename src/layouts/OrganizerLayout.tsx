@@ -36,6 +36,7 @@ import {
 } from "react-icons/lu";
 import { FaTicketAlt } from "react-icons/fa";
 
+/** Bố cục khu vực ban tổ chức: thanh bên điều hướng, thanh trên cùng có tiêu đề, chuông thông báo và menu tài khoản, cùng vùng nội dung trang con. */
 export const OrganizerLayout: React.FC = () => {
   const { t: translate } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
@@ -54,6 +55,7 @@ export const OrganizerLayout: React.FC = () => {
   const accountDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /** Cập nhật trạng thái đăng nhập và hồ sơ: dùng bản lưu đệm rồi làm mới từ API; chưa đăng nhập thì xóa hồ sơ. */
     const checkAuth = () => {
       const authed = getKeycloakSession().isAuthenticated();
       setIsAuthenticated(authed);
@@ -70,6 +72,7 @@ export const OrganizerLayout: React.FC = () => {
       }
     };
 
+    /** Cập nhật hồ sơ từ bản lưu đệm khi hồ sơ người dùng thay đổi. */
     const handleProfileUpdate = () => {
       setUserProfile(getCachedUserProfile());
     };
@@ -89,6 +92,7 @@ export const OrganizerLayout: React.FC = () => {
   const isAdmin = Boolean(userProfile?.roles?.includes("ADMIN"));
   const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userTargetIds.length ? userTargetIds : "ORGANIZER");
 
+  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang liên quan dành cho ban tổ chức nếu có. */
   const handleNotificationClick = async (n: NotificationItem) => {
     await markAsRead(n.id);
     clearToast();
@@ -97,6 +101,7 @@ export const OrganizerLayout: React.FC = () => {
   };
 
   useEffect(() => {
+    /** Đóng menu tài khoản khi bấm chuột ngoài vùng menu. */
     const handleClickOutside = (event: MouseEvent) => {
       if (
         accountDropdownRef.current &&
@@ -110,6 +115,7 @@ export const OrganizerLayout: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  /** Đăng xuất Keycloak và xóa trạng thái đăng nhập cùng hồ sơ cục bộ. */
   const handleLogout = async () => {
     await getKeycloakSession().logout();
     setIsAuthenticated(false);
@@ -145,6 +151,7 @@ export const OrganizerLayout: React.FC = () => {
     },
   ];
 
+  /** Trả tiêu đề thanh trên cùng theo đường dẫn hiện tại; đường dẫn không nhận ra thì dùng "Organizer Center". */
   const getHeaderTitle = () => {
     if (location.pathname === "/organizer/my-events") return "Sự kiện của tôi";
     if (location.pathname === "/organizer/finance" || location.pathname === "/organizer/reports") {

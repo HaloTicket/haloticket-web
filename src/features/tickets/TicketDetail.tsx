@@ -24,6 +24,7 @@ import { marketplaceApi } from "@/services/marketplaceApi";
 import { GiftTicketModal, ResaleTicketModal } from "./TicketActionModals";
 import { PATHS } from "@/routes/paths";
 
+/** Trang chi tiết một vé: thông tin sự kiện, người nhận, mã QR, dòng thời gian trạng thái, cùng thao tác sao chép mã, hủy đăng bán lại và hủy tặng vé. */
 export default function TicketDetail() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -42,12 +43,13 @@ export default function TicketDetail() {
   const [isCancellingGift, setIsCancellingGift] = useState(false);
   const [showCancelGiftModal, setShowCancelGiftModal] = useState(false);
 
+  /** Tải vé và sự kiện theo `ticketId`, rồi bổ sung tên người nhận, thời gian sự kiện, mã tin đăng bán lại và saga tặng vé đang hoạt động (để cho phép hủy). */
   const loadTicketData = useCallback(async (ticketId: string) => {
     try {
       const item = await ticketApi.getMyTicket(ticketId);
       const event = await eventApi.getEventById(item.eventId).catch(() => null);
 
-      // 1. fetch real recipient name from booking or authenticated user profile
+      // 1. lấy tên người nhận thật từ đơn đặt hoặc hồ sơ người dùng đã đăng nhập
       let realName = (item as unknown as { customerName?: string }).customerName;
       if (!realName && item.bookingCode) {
         try {
@@ -73,7 +75,7 @@ export default function TicketDetail() {
       }
       setRecipientName(realName || t("Khách hàng"));
 
-      // 2. format event date/time
+      // 2. định dạng ngày giờ sự kiện
       const startTimeStr = event?.startTime ? String(event.startTime) : "";
       const formattedTime = startTimeStr
         ? new Intl.DateTimeFormat("vi-VN", {
@@ -110,7 +112,7 @@ export default function TicketDetail() {
         qrCode: item.qrCode || undefined,
       });
 
-      // 3. if ticket is currently locked for resale, look up the listing ID to allow cancel
+      // 3. nếu vé đang bị khóa để bán lại thì tra mã tin đăng để cho phép hủy
       if (rawStatus === "LOCKED_FOR_RESALE" || mapTicketStatus(rawStatus) === "SELLING") {
         try {
           const listingsPage = await marketplaceApi.getMyListings(0, 50);
@@ -123,7 +125,7 @@ export default function TicketDetail() {
         }
       }
 
-      // 4. if ticket is currently locked for transfer, look up active gift saga to allow cancel
+      // 4. nếu vé đang bị khóa để tặng thì tra saga tặng vé đang hoạt động để cho phép hủy
       if (rawStatus === "LOCKED_FOR_TRANSFER" || mapTicketStatus(rawStatus) === "GIFTING") {
         try {
           const gift = await marketplaceApi.getActiveGiftByTicket(item.id) as { sagaId?: string };
@@ -150,6 +152,7 @@ export default function TicketDetail() {
   const isLocked = ticket ? isSelling || isGifting || ticket.status !== "UPCOMING" || ticket.rawStatus !== "VALID" || !ticket.qrCode : true;
   const qrCodeString = ticket?.qrCode || "";
 
+  /** Sao chép mã đặt chỗ (hoặc chuỗi QR) vào clipboard và hiện trạng thái đã sao chép trong 2 giây. */
   const copyCode = () => {
     const code = ticket?.bookingCode || qrCodeString;
     if (!code) return;
@@ -158,6 +161,7 @@ export default function TicketDetail() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  /** Hủy tin đăng bán lại của vé sau khi người dùng xác nhận (không có tin đăng thì chuyển về chợ vé), rồi tải lại vé. */
   const handleCancelResale = async () => {
     if (!activeListingId) {
       navigate(PATHS.MARKETPLACE);
@@ -179,6 +183,7 @@ export default function TicketDetail() {
     }
   };
 
+  /** Hủy lời mời tặng vé đang chờ qua `activeGiftSagaId`, rồi tải lại vé; lỗi thì báo cho người dùng. */
   const handleCancelGift = async () => {
     if (!activeGiftSagaId) {
       alert(t("Không tìm thấy thông tin lời mời tặng vé."));
@@ -198,7 +203,7 @@ export default function TicketDetail() {
     }
   };
 
-  // seat extraction
+  // trích xuất thông tin ghế
   const { formattedTicketType, seatDisplay } = useMemo(() => {
     if (!ticket) return { formattedTicketType: "", seatDisplay: null };
     return {
@@ -207,7 +212,7 @@ export default function TicketDetail() {
     };
   }, [ticket]);
 
-  // timeline builder
+  // dựng dòng thời gian
   const timelineEvents = useMemo(() => {
     if (!ticket) return [];
     const events: Array<{ title: string; desc?: string; time?: string; dotColor: string }> = [];
@@ -235,7 +240,7 @@ export default function TicketDetail() {
       dotColor: "bg-[#2166F3]",
     });
 
-    // 2. ownership confirmation
+    // 2. xác nhận quyền sở hữu
     events.push({
       title: t("Vé đã chuyển vào tài khoản"),
       desc: t("Sẵn sàng quản lý và sử dụng"),
@@ -243,7 +248,7 @@ export default function TicketDetail() {
       dotColor: "bg-emerald-500",
     });
 
-    // 3. resale / gifting
+    // 3. bán lại hoặc tặng vé
     if (isSelling) {
       events.push({
         title: t("Đăng bán lại trên Marketplace"),

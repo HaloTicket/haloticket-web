@@ -2,6 +2,7 @@ import axios from "axios";
 import { CONFIG } from "@/config";
 import { getKeycloakSession } from "@/services/keycloakSession";
 
+/** Cờ nội bộ gắn vào cấu hình request: đã thử lại sau 401 hay chưa và request gửi đi lúc có phiên đăng nhập hay không. */
 interface AuthRequestMetadata {
   _retry?: boolean;
   _hadAuthSession?: boolean;
@@ -15,7 +16,7 @@ const axiosClient = axios.create({
   timeout: CONFIG.TIMEOUT,
 });
 
-// request interceptor: automatically attach the token before sending the API request.
+// Interceptor request: tự động gắn token trước khi gửi lời gọi API.
 axiosClient.interceptors.request.use(
   async (config) => {
     const session = getKeycloakSession();
@@ -48,6 +49,7 @@ axiosClient.interceptors.request.use(
 );
 
 let lastSessionExpiredDispatch = 0;
+/** Phát sự kiện `session-expired` nhưng bỏ qua nếu vừa phát trong 3 giây hoặc đang ở trang đăng nhập, tránh bật hộp thoại nhiều lần. */
 function dispatchSessionExpiredOnce() {
   const now = Date.now();
   if (now - lastSessionExpiredDispatch < 3000) return;
@@ -59,7 +61,7 @@ function dispatchSessionExpiredOnce() {
   }
 }
 
-// response interceptor: automatically handle errors and retry public calls if token expired
+// Interceptor response: tự động xử lý lỗi và thử lại lời gọi khi token hết hạn (HTTP 401)
 axiosClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {
@@ -92,7 +94,7 @@ axiosClient.interceptors.response.use(
             return Promise.reject(retryErr);
           }
         } else {
-          // could not refresh token, session is truly expired
+                    // không làm mới được token, phiên đã thực sự hết hạn
           console.warn(
             "Session expired during token refresh for:",
             originalRequest.url,

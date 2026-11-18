@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FiArrowDown } from "react-icons/fi";
 
+/** Loại văn bản pháp lý hiển thị: điều khoản sử dụng hoặc chính sách bảo mật. */
 type LegalDocument = "terms" | "privacy";
 
 const documents: Record<LegalDocument, { title: string; sections: Array<[string, string]> }> = {
@@ -104,6 +105,7 @@ const documents: Record<LegalDocument, { title: string; sections: Array<[string,
   },
 };
 
+/** Dòng thông báo đồng ý điều khoản kèm hộp thoại đọc toàn văn; chỉ cho đóng hộp thoại sau khi người dùng đã cuộn tới cuối. */
 export default function TermsNotice() {
   useTranslation();
   const [documentType, setDocumentType] = useState<LegalDocument>();
@@ -111,11 +113,13 @@ export default function TermsNotice() {
   const contentRef = useRef<HTMLDivElement>(null);
   const activeDocument = documentType ? documents[documentType] : undefined;
 
+  /** Mở văn bản được chọn và đặt lại trạng thái đã đọc hết. */
   function openDocument(type: LegalDocument) {
     setHasReachedEnd(false);
     setDocumentType(type);
   }
 
+  /** Đánh dấu đã đọc hết khi nội dung cuộn tới cách đáy không quá 4 điểm ảnh. */
   function checkScrollEnd() {
     const content = contentRef.current;
     if (content && content.scrollHeight - content.clientHeight - content.scrollTop <= 4) {
@@ -125,6 +129,7 @@ export default function TermsNotice() {
 
   useEffect(() => {
     if (!documentType) return;
+    /** Đóng hộp thoại khi nhấn Escape, chỉ khi đã đọc hết văn bản. */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && hasReachedEnd) setDocumentType(undefined);
     };

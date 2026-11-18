@@ -35,24 +35,27 @@ import { MiniMap } from './MiniMap';
 const EMPTY_STATUS_MAP: Record<string, string> = {};
 const EMPTY_CART: Seat[] = [];
 const ARROW_KEYS: Record<string, ArrowDirection> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
-// above this many seats the minimap is shown: a big map no longer fits the viewport
+// Số ghế tối thiểu để hiển thị minimap: bản đồ lớn thì không còn vừa khung nhìn
 const MINIMAP_SEAT_THRESHOLD = 400;
 
-// Props the studio can add on top of SeatCanvasProps. All optional, so the other screens that embed the canvas
-// (customer seat picker, admin venue designer...) behave exactly as before.
+/**
+ * Các props mà studio có thể thêm vào trên nền {@code SeatCanvasProps}. Tất cả đều tùy chọn nên các màn hình khác
+ * nhúng canvas (chọn ghế của khách, thiết kế sân khấu của admin...) vẫn hoạt động như trước.
+ */
 export interface SeatCanvasExtraProps {
-  /** Shows a message to the user (the studio passes its toast). Without it the canvas falls back to window.alert. */
+  /** Hiển thị thông báo cho người dùng (studio truyền toast vào). Nếu không có thì canvas dùng {@code window.alert}. */
   onNotify?: (type: 'success' | 'error' | 'warning' | 'info', text: string) => void;
   onCopy?: () => void;
   onPaste?: () => void;
   onDuplicate?: () => void;
-  /** Moves the selection by (dx, dy); the canvas commits the history shortly after the last arrow key press. */
+  /** Dịch chuyển phần đang chọn đi (dx, dy); canvas ghi lịch sử sau lần bấm phím mũi tên cuối một lúc ngắn. */
   onNudge?: (dx: number, dy: number) => void;
   onShowShortcuts?: () => void;
-  /** Scrolls an element into view (the pre-publish check panel). `nonce` makes the same target repeatable. */
+  /** Cuộn một phần tử vào vùng nhìn (bảng kiểm tra trước khi xuất bản). {@code nonce} cho phép nhắc lại cùng một mục tiêu. */
   focusRequest?: { kind: 'seat' | 'zone'; id: string; nonce: number } | null;
 }
 
+/** Props của một ghế trong canvas: dữ liệu ghế, thông tin khu, trạng thái chọn/giỏ và các callback thao tác. */
 interface SeatNodeProps {
   seat: Seat;
   zoneName: string;
@@ -71,7 +74,7 @@ interface SeatNodeProps {
   onFocusSeat: (seatId: string) => void;
 }
 
-// One seat. Memoised: a zoom, a hover or a selection elsewhere re-renders only the seats whose own props changed.
+/** Một ghế trên canvas. Dùng memo: zoom, hover hoặc chọn ở nơi khác chỉ vẽ lại những ghế có props thay đổi. */
 const SeatNode = memo(function SeatNode({
   seat,
   zoneName,
@@ -95,7 +98,7 @@ const SeatNode = memo(function SeatNode({
   const isHolding = seat.status === 'reserved' || statusFromMap === 'HELD' || statusFromMap === 'HOLDING';
   const isAccessible = seat.status === 'accessible';
 
-  // Shape Styling
+  // Kiểu dáng theo hình dạng ghế
   const rawShape = seat.shape || zoneShape || 'rounded';
   const seatShape = rawShape === 'circle' || rawShape === 'square' ? rawShape : 'rounded';
   const shapeClass = seatShape === 'circle' ? 'rounded-full' : seatShape === 'square' ? 'rounded-xs' : 'rounded-lg';
@@ -115,6 +118,7 @@ const SeatNode = memo(function SeatNode({
               : t('Còn trống');
   const ariaLabel = `${t('Ghế')} ${seat.row}${seat.number} – ${statusLabel}, ${zoneName}`;
 
+  /** Xử lý phím trên ghế đang focus: Enter/Space kích hoạt ghế, phím mũi tên chuyển focus sang ghế lân cận. */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'Enter' || e.key === ' ') {
@@ -211,7 +215,10 @@ const SeatNode = memo(function SeatNode({
   );
 });
 
-// studio canvas interactive seating map component
+/**
+ * Canvas bản đồ ghế tương tác dùng chung cho studio (chỉnh sửa, kéo thả, chọn vùng, zoom, pan),
+ * chế độ xem của khách (chọn ghế vào giỏ) và các màn hình thiết kế sân khấu khác.
+ */
 export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   seats,
   stages,
@@ -257,16 +264,17 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   const { t } = useTranslation();
   const seatStatusMap = seatStatusMapProp ?? EMPTY_STATUS_MAP;
   const attendeeCart = attendeeCartProp ?? EMPTY_CART;
-  // the studio passes its toast; the other screens that embed this canvas keep the browser alert
+  /** Hiển thị thông báo: studio truyền toast vào, các màn hình khác nhúng canvas này vẫn dùng alert của trình duyệt. */
   const notify = (type: 'success' | 'error' | 'warning' | 'info', text: string) => {
     if (onNotify) onNotify(type, text);
     else window.alert(text);
   };
+  /** Lấy giá của khu: ưu tiên giá riêng của khu, nếu không có thì lấy giá của hạng vé; mặc định 0. */
   const getZonePrice = (zone?: ZoneBlock | Partial<ZoneBlock>) => zone?.price ?? tiers?.find((t) => t.id === zone?.tierId)?.price ?? 0;
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [gridSnap, setGridSnap] = useState<boolean>(true);
 
-  // zoom, pan and touch state
+  // trạng thái zoom, pan và cảm ứng
   const zoomRef = useRef<number>(100);
   const pendingScrollRef = useRef<{ left: number; top: number } | null>(null);
   const [handMode, setHandMode] = useState<boolean>(false);
@@ -276,7 +284,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   const touchPointers = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<{ startDistance: number; startZoom: number; lastMid: { x: number; y: number } } | null>(null);
   const nudgeTimerRef = useRef<number | null>(null);
-  // the seat that holds the single tab stop of the seats (roving tabindex)
+  // ghế giữ điểm dừng tab duy nhất của cụm ghế (roving tabindex)
   const [roverId, setRoverId] = useState<string | null>(null);
   const [viewport, setViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
 
@@ -286,7 +294,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   );
   const selectedSeatIdSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
   const cartIdSet = useMemo(() => new Set(attendeeCart.map((s) => s.id)), [attendeeCart]);
-  // seat count and sold/held count per zone, recomputed only when the seats, zones or statuses change
+  // số ghế và số ghế đã bán/đang giữ của từng khu, chỉ tính lại khi ghế, khu hoặc trạng thái đổi
   const zoneStats = useMemo(() => {
     const stats = new Map<string, { count: number; soldOrHeld: number }>();
     for (const zone of zoneList) {
@@ -306,7 +314,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
-  // marquee selection box state
+  // trạng thái khung chọn vùng (marquee)
   const [selectionBox, setSelectionBox] = useState<{
     startX: number;
     startY: number;
@@ -317,7 +325,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
 
   const isSelectingMarquee = useRef<boolean>(false);
 
-  // pointer capture dragging state for single/multi elements & rotations
+  // trạng thái kéo bằng pointer capture cho một hoặc nhiều phần tử và thao tác xoay
   const draggingRef = useRef<{
     type:
     | 'ELEMENTS'
@@ -340,6 +348,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     initialZones: Map<string, { x: number; y: number; width: number; height: number }>;
   } | null>(null);
 
+  /** Tính hình chữ nhật bao toàn bộ nội dung (khu, sân khấu, cấu trúc, ghế); nếu bản đồ trống thì dùng khung mặc định 1200x800. */
   const getBoundingBox = () => {
     const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
     const stageList = stages || [];
@@ -396,7 +405,10 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
 
   const hasInitialCentered = useRef(false);
 
-  // Center seatmap content inside viewport with optional auto-fit zoom
+  /**
+   * Đưa nội dung bản đồ vào giữa khung nhìn, có thể tự chọn mức zoom vừa khung.
+   * @param zoomToFit - {@code true} để tự tính zoom (35% đến 85%) cho vừa khung; chế độ khách luôn tự vừa khung.
+   */
   const centerContent = (zoomToFit = false) => {
     if (!canvasRef.current) return;
     const bbox = getBoundingBox();
@@ -428,7 +440,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }, 50);
   };
 
-  // Initial centering when seatmap content is loaded (runs only ONCE to prevent jerking during edits)
+  // Căn giữa lần đầu khi nội dung bản đồ được tải (chỉ chạy MỘT lần để tránh giật khi đang chỉnh sửa)
   useEffect(() => {
     if (hasInitialCentered.current || !canvasRef.current) return;
     const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
@@ -444,7 +456,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   }, [isAttendeeMode, zones, seats, stages, structures]);
 
-  // Fallback initial center after component mount
+  // Căn giữa dự phòng sau khi component được gắn
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!hasInitialCentered.current && canvasRef.current) {
@@ -455,7 +467,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     return () => clearTimeout(timer);
   }, [isAttendeeMode]);
 
-  // Re-center when fullscreen is toggled
+  // Căn giữa lại khi bật hoặc tắt toàn màn hình
   useEffect(() => {
     if (hasInitialCentered.current) {
       const timer = setTimeout(() => {
@@ -465,8 +477,13 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   }, [isFullscreen, isAttendeeMode]);
 
-  // keeps the pointer's content point still while the zoom changes: the scroll position is computed here and
-  // applied after the zoomed render (useLayoutEffect below). `pan` moves the view too (two-finger gesture).
+  /**
+   * Đổi mức zoom nhưng giữ nguyên điểm nội dung dưới con trỏ: vị trí cuộn được tính ở đây rồi áp dụng
+   * sau khi vẽ lại (xem {@code useLayoutEffect} bên dưới).
+   * @param next - mức zoom mới (được kẹp trong khoảng cho phép)
+   * @param pointer - điểm làm tâm zoom, mặc định là tâm khung nhìn
+   * @param pan - độ dịch chuyển khung nhìn kèm theo (cử chỉ hai ngón)
+   */
   const applyZoom = (next: number, pointer?: { x: number; y: number }, pan?: { dx: number; dy: number }) => {
     const container = canvasRef.current;
     if (!container) return;
@@ -498,6 +515,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     applyZoomRef.current = applyZoom;
   });
 
+  /** Áp vị trí cuộn đang chờ (sau khi zoom đã được vẽ) vào khung canvas rồi xóa giá trị chờ. */
   const flushPendingScroll = () => {
     const el = canvasRef.current;
     const pending = pendingScrollRef.current;
@@ -512,16 +530,17 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     flushPendingScroll();
   }, [zoomLevel]);
 
-  // Mouse wheel interaction: Ctrl+Wheel zooms around the pointer, Shift+Wheel scrolls horizontally
+  // Con lăn chuột: Ctrl+lăn để zoom quanh con trỏ, Shift+lăn để cuộn ngang
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
 
+    /** Xử lý sự kiện lăn chuột: Ctrl/Cmd zoom quanh con trỏ, Shift cuộn ngang. */
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const rect = container.getBoundingClientRect();
-        // a mouse wheel notch (deltaY 100) is one 10% step; a trackpad pinch sends many small deltas
+        // một nấc con lăn chuột (deltaY 100) tương ứng bước 10%; thao tác chụm trên trackpad gửi nhiều delta nhỏ
         const step = Math.sign(-e.deltaY) * Math.min(15, Math.max(2, Math.abs(e.deltaY) * 0.1));
         applyZoomRef.current(zoomRef.current + step, { x: e.clientX - rect.left, y: e.clientY - rect.top });
       } else if (e.shiftKey) {
@@ -536,8 +555,9 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   }, []);
 
-  // Two-finger pinch and pan on touch screens, and dragging the view in hand mode
+  // Chụm hai ngón để zoom và kéo trên màn hình cảm ứng, và kéo khung nhìn ở chế độ bàn tay
   useEffect(() => {
+    /** Theo dõi pointer di chuyển: hai ngón thì zoom và pan, còn lại thì kéo cuộn khung nhìn khi đang pan. */
     const handleMove = (e: PointerEvent) => {
       const container = canvasRef.current;
       if (!container) return;
@@ -564,6 +584,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
         container.scrollTop = pan.top - (e.clientY - pan.startY);
       }
     };
+    /** Kết thúc pointer: bỏ ngón khỏi danh sách cảm ứng, dừng chụm và dừng pan khi pointer đang pan thả ra. */
     const handleEnd = (e: PointerEvent) => {
       touchPointers.current.delete(e.pointerId);
       if (touchPointers.current.size < 2) pinchRef.current = null;
@@ -582,8 +603,9 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   }, []);
 
-  // Global window listeners for marquee selection to ensure smooth, decisive drag selection & release
+  // Lắng nghe toàn cửa sổ cho chọn vùng bằng khung để việc kéo và thả mượt, dứt khoát
   useEffect(() => {
+    /** Cập nhật khung chọn vùng khi kéo và chọn mọi phần tử (ghế, sân khấu, cấu trúc, khu) giao với khung. */
     const handleWindowPointerMove = (e: PointerEvent) => {
       if (!isSelectingMarquee.current || !canvasRef.current || !selectionBoxRef.current) return;
       const scale = zoomLevel / 100;
@@ -601,13 +623,13 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
       const boxMinY = Math.min(prev.startY, y);
       const boxMaxY = Math.max(prev.startY, y);
 
-      // Intersect Seats
+      // Ghế giao với khung
       const selectedInBox = seats
         .filter((s) => s.x >= boxMinX && s.x <= boxMaxX && s.y >= boxMinY && s.y <= boxMaxY)
         .map((s) => s.id);
       setSelectedSeatIds(selectedInBox);
 
-      // Intersect Stage
+      // Sân khấu giao với khung
       const intersectedStage = stages.find(
         (stg) =>
           stg.x + stg.width >= boxMinX &&
@@ -617,7 +639,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
       );
       setSelectedStageId(intersectedStage ? intersectedStage.id : null);
 
-      // Intersect Structure
+      // Cấu trúc giao với khung
       const intersectedStruct = structures.find(
         (st) =>
           st.x + st.width >= boxMinX &&
@@ -627,7 +649,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
       );
       setSelectedStructureId(intersectedStruct ? intersectedStruct.id : null);
 
-      // Intersect Zone
+      // Khu giao với khung
       if (setSelectedZoneId) {
         const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
         const intersectedZone = zoneList.find(
@@ -645,6 +667,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
       }
     };
 
+    /** Thả pointer: kết thúc chọn vùng; nếu đang kéo phần tử thì gán lại khu cho ghế và ghi lịch sử. */
     const handleWindowPointerUp = () => {
       if (isSelectingMarquee.current) {
         isSelectingMarquee.current = false;
@@ -676,26 +699,27 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     []
   );
 
-  // global keyboard listener: undo/redo/delete, and in the editor copy/paste/duplicate, select all, Esc, nudge, Space-to-pan, '?'
+  // phím tắt toàn cục: hoàn tác/làm lại/xóa, và ở chế độ chỉnh sửa có sao chép/dán/nhân đôi, chọn tất cả, Esc, dịch chuyển, giữ Space để kéo khung, '?'
   useEffect(() => {
+    /** Xử lý phím bấm toàn cục trên cửa sổ (bỏ qua khi đang gõ trong ô nhập liệu). */
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTypingTarget(document.activeElement)) return;
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
 
-      // Ctrl + Z (Undo)
+      // Ctrl + Z: hoàn tác
       if (mod && key === 'z' && !e.shiftKey) {
         e.preventDefault();
         if (canUndo && onUndo) onUndo();
       }
 
-      // Ctrl + Y or Ctrl + Shift + Z (Redo)
+      // Ctrl + Y hoặc Ctrl + Shift + Z: làm lại
       if ((mod && key === 'y') || (mod && e.shiftKey && key === 'z')) {
         e.preventDefault();
         if (canRedo && onRedo) onRedo();
       }
 
-      // delete or backspace (Delete selected)
+      // Delete hoặc Backspace: xóa phần đang chọn
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedSeatIds.length > 0 || selectedStageId || selectedStructureId || selectedZoneId) {
           e.preventDefault();
@@ -721,7 +745,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
         }
       } else if (mod && key === 'd') {
         if (hasSelection && onDuplicate) {
-          e.preventDefault(); // Ctrl+D would bookmark the page
+          e.preventDefault(); // Ctrl+D sẽ đánh dấu trang trình duyệt
           onDuplicate();
         }
       } else if (mod && key === 'a') {
@@ -739,7 +763,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
       } else if (e.key === '?') {
         onShowShortcuts?.();
       } else if (e.key === ' ' && !e.repeat) {
-        // Space held = temporary hand tool, unless focus sits on a seat or a button (Space activates those)
+        // Giữ Space = tạm thời dùng công cụ bàn tay, trừ khi focus đang ở ghế hoặc nút (Space kích hoạt các phần tử đó)
         const free = !active || active === document.body || active.id === 'canvas-workspace';
         if (free) {
           e.preventDefault();
@@ -751,14 +775,16 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
         const step = grid * (e.shiftKey ? 10 : 1);
         const dir = ARROW_KEYS[e.key];
         onNudge(dir === 'left' ? -step : dir === 'right' ? step : 0, dir === 'up' ? -step : dir === 'down' ? step : 0);
-        // one history step per burst of key presses
+        // mỗi loạt phím bấm chỉ tạo một bước lịch sử
         if (nudgeTimerRef.current) window.clearTimeout(nudgeTimerRef.current);
         nudgeTimerRef.current = window.setTimeout(() => onCommitHistory?.(), 350);
       }
     };
+    /** Nhả phím Space thì thoát chế độ bàn tay tạm thời. */
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === ' ') setSpaceDown(false);
     };
+    /** Cửa sổ mất focus thì thoát chế độ bàn tay tạm thời để Space không bị kẹt. */
     const handleBlur = () => setSpaceDown(false);
 
     window.addEventListener('keydown', handleKeyDown);
@@ -794,12 +820,15 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     setSelectedZoneId,
   ]);
 
-  // zoom handlers
+  // các hàm zoom
+  /** Phóng to thêm 15%. */
   const handleZoomIn = () => applyZoom(zoomRef.current + 15);
+  /** Thu nhỏ bớt 15%. */
   const handleZoomOut = () => applyZoom(zoomRef.current - 15);
+  /** Đặt lại zoom về 100%. */
   const handleResetZoom = () => applyZoom(100);
 
-  // fit the whole map in the viewport (can go below the 40% the buttons stop at)
+  /** Thu phóng để toàn bộ bản đồ vừa khung nhìn (có thể xuống dưới 40% là mức các nút dừng lại) và căn giữa. */
   const fitToScreen = () => {
     const el = canvasRef.current;
     if (!el) return;
@@ -821,7 +850,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     setZoomLevel(next);
   };
 
-  // helper to store initial positions for unified dragging
+  /**
+   * Lưu vị trí ban đầu của các phần tử đang chọn (ghế, sân khấu, cấu trúc, khu) để kéo hoặc xoay đồng loạt.
+   * Khi chọn một khu thì mọi ghế thuộc khu đó cũng được lưu.
+   * @returns các Map vị trí ban đầu theo id: {@code seatMap}, {@code stageMap}, {@code structMap}, {@code zoneMap}
+   */
   const createInitialMap = (
     activeSeatIds: string[],
     activeStageId: string | null,
@@ -864,7 +897,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     return { seatMap, stageMap, structMap, zoneMap };
   };
 
-  // marquee selection box pointer down anywhere on canvas or zone background
+  /** Bấm xuống nền canvas hoặc nền khu: bắt đầu khung chọn vùng và bỏ chọn cũ (trừ khi giữ Shift hoặc Ctrl). */
   const handleCanvasPointerDown = (e: React.PointerEvent) => {
     if (isAttendeeMode || !canvasRef.current) return;
 
@@ -888,7 +921,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   };
 
-  // what a click (or Enter) on a seat does in the attendee preview
+  /** Việc xảy ra khi bấm (hoặc nhấn Enter) vào ghế ở chế độ xem của khách: báo lỗi nếu ghế đã bán, đang giữ hoặc bị khóa, ngược lại thêm hoặc bỏ ghế khỏi giỏ. */
   const handleAttendeeSeat = (seat: Seat) => {
     const statusFromMap = seatStatusMap ? seatStatusMap[seat.id] : undefined;
     const isSold = seat.status === 'sold' || statusFromMap === 'SOLD';
@@ -906,7 +939,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   };
 
-  // keyboard activation of a seat (Enter or Space): same effect as a click without dragging
+  /** Kích hoạt ghế bằng bàn phím (Enter hoặc Space): tác dụng như bấm chuột không kéo; Shift để chọn nhiều. */
   const activateSeat = (seat: Seat, multi: boolean) => {
     if (isAttendeeMode) {
       handleAttendeeSeat(seat);
@@ -921,7 +954,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     );
   };
 
-  // arrow keys on a focused seat move the focus to the nearest seat in that direction
+  /** Phím mũi tên trên ghế đang focus chuyển focus sang ghế gần nhất theo hướng đó. */
   const moveSeatFocus = (seat: Seat, direction: ArrowDirection) => {
     const nextId = neighborSeatId(seats, seat.id, direction);
     if (!nextId) return;
@@ -929,7 +962,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     node?.focus();
   };
 
-  // pointer down for seats
+  /** Bấm xuống ghế: chế độ khách thì xử lý chọn ghế, chế độ chỉnh sửa thì cập nhật vùng chọn và chuẩn bị kéo. */
   const handlePointerDownSeat = (e: React.PointerEvent, seat: Seat) => {
     if (isAttendeeMode) {
       e.stopPropagation();
@@ -971,7 +1004,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
-  // pointer down for Stage
+  /** Bấm xuống sân khấu: chọn sân khấu và chuẩn bị kéo cùng các phần tử đang chọn. */
   const handlePointerDownStage = (e: React.PointerEvent, stage: StageElement) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -997,7 +1030,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
-  // pointer down for Structure
+  /** Bấm xuống cấu trúc: chọn cấu trúc và chuẩn bị kéo cùng các phần tử đang chọn. */
   const handlePointerDownStructure = (e: React.PointerEvent, struct: StructureElement) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -1023,13 +1056,13 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
-  // pointer down for zone block container area
+  /** Bấm xuống vùng khối khu: chế độ khách thì chọn khu không có ghế; chế độ chỉnh sửa chỉ kéo khu khi bấm vào tiêu đề hoặc giữ Shift/Ctrl, ngược lại bắt đầu khung chọn vùng. */
   const handlePointerDownZone = (e: React.PointerEvent, zone: ZoneBlock) => {
     if (isAttendeeMode) {
       e.stopPropagation();
       const zoneSeatsCount = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone)).length;
       if (zoneSeatsCount > 0) {
-        // Seated zone: Do NOT open zone modal on container click! Seats must be clicked directly.
+        // Khu có ghế: KHÔNG mở modal khu khi bấm vào vùng chứa, phải bấm trực tiếp vào từng ghế.
         return;
       }
       onSelectZoneAttendee?.(zone);
@@ -1066,7 +1099,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
-  // resize handlers
+  /** Bấm xuống tay nắm đổi kích thước của sân khấu: ghi trạng thái ban đầu để thay đổi kích thước khi kéo. */
   const handlePointerDownResizeStage = (e: React.PointerEvent, stage: StageElement) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -1084,6 +1117,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
+  /** Bấm xuống tay nắm đổi kích thước của cấu trúc: ghi trạng thái ban đầu để thay đổi kích thước khi kéo. */
   const handlePointerDownResizeStructure = (e: React.PointerEvent, struct: StructureElement) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -1101,6 +1135,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
+  /** Bấm xuống tay nắm đổi kích thước của khu theo hướng {@code dir} (mặc định góc dưới phải). */
   const handlePointerDownResizeZone = (
     e: React.PointerEvent,
     zone: ZoneBlock,
@@ -1123,7 +1158,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
-  // rotation handlers
+  /** Bấm xuống tay nắm xoay của khu: ghi tâm khu và góc ban đầu để xoay cả khu cùng ghế bên trong. */
   const handlePointerDownRotateZone = (e: React.PointerEvent, zone: ZoneBlock) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -1147,6 +1182,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
+  /** Bấm xuống tay nắm xoay của sân khấu: ghi tâm và góc ban đầu để xoay khi kéo. */
   const handlePointerDownRotateStage = (e: React.PointerEvent, stage: StageElement) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -1170,6 +1206,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
+  /** Bấm xuống tay nắm xoay của cấu trúc: ghi tâm và góc ban đầu để xoay khi kéo. */
   const handlePointerDownRotateStructure = (e: React.PointerEvent, struct: StructureElement) => {
     if (isAttendeeMode) return;
     e.stopPropagation();
@@ -1193,13 +1230,14 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     };
   };
 
-  // ultra-smooth pointer move
+  /** Xử lý pointer di chuyển trên canvas: cập nhật khung chọn vùng, xoay, đổi kích thước hoặc kéo phần tử, mượt theo từng khung hình. */
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isAttendeeMode) return;
     const scale = zoomLevel / 100;
+    /** Làm tròn tọa độ theo lưới 5px khi bật bắt lưới, ngược lại chỉ làm tròn số nguyên. */
     const snap = (val: number) => (gridSnap ? Math.round(val / 5) * 5 : Math.round(val));
 
-    // handle marquee box selection calculation across all elements
+    // tính khung chọn vùng trên tất cả các phần tử
     if (isSelectingMarquee.current && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left + canvasRef.current.scrollLeft) / scale;
@@ -1213,13 +1251,13 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
         const boxMinY = Math.min(selectionBox.startY, y);
         const boxMaxY = Math.max(selectionBox.startY, y);
 
-        // Intersect Seats
+        // Ghế giao với khung
         const selectedInBox = seats
           .filter((s) => s.x >= boxMinX && s.x <= boxMaxX && s.y >= boxMinY && s.y <= boxMaxY)
           .map((s) => s.id);
         setSelectedSeatIds(selectedInBox);
 
-        // intersect Stage
+        // sân khấu giao với khung
         const intersectedStage = stages.find(
           (stg) =>
             stg.x + stg.width >= boxMinX &&
@@ -1229,7 +1267,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
         );
         setSelectedStageId(intersectedStage ? intersectedStage.id : null);
 
-        // intersect Structure
+        // cấu trúc giao với khung
         const intersectedStruct = structures.find(
           (st) =>
             st.x + st.width >= boxMinX &&
@@ -1239,7 +1277,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
         );
         setSelectedStructureId(intersectedStruct ? intersectedStruct.id : null);
 
-        // intersect Zone
+        // khu giao với khung
         if (setSelectedZoneId) {
           const zoneList = !zones ? [] : Array.isArray(zones) ? (zones as ZoneBlock[]) : Object.values(zones as Record<string, ZoneBlock>);
           const intersectedZone = zoneList.find(
@@ -1261,7 +1299,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
 
     if (!draggingRef.current) return;
 
-    // rotation dragging calculation
+    // tính góc khi kéo xoay (giữ Shift để làm tròn theo bước 15 độ)
     if (
       draggingRef.current.type === 'ROTATE_ZONE' ||
       draggingRef.current.type === 'ROTATE_STAGE' ||
@@ -1443,6 +1481,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   };
 
+  /** Thả pointer trên canvas: kết thúc khung chọn vùng hoặc thao tác kéo, gán lại khu cho ghế và ghi lịch sử. */
   const handlePointerUp = (e: React.PointerEvent) => {
     isSelectingMarquee.current = false;
     setSelectionBox(null);
@@ -1461,23 +1500,27 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   };
 
-  // The memoised seats need handlers with a stable identity: they call the latest closures through a ref.
+  // Các ghế dùng memo cần handler có định danh ổn định: chúng gọi closure mới nhất thông qua ref.
   const seatHandlersRef = useRef({ pointerDown: handlePointerDownSeat, activate: activateSeat, arrow: moveSeatFocus });
   useEffect(() => {
     seatHandlersRef.current = { pointerDown: handlePointerDownSeat, activate: activateSeat, arrow: moveSeatFocus };
   });
+  /** Handler bấm xuống ghế có định danh ổn định, chuyển tới closure mới nhất. */
   const onSeatPointerDown = useCallback((e: React.PointerEvent, seat: Seat) => seatHandlersRef.current.pointerDown(e, seat), []);
+  /** Handler kích hoạt ghế có định danh ổn định, chuyển tới closure mới nhất. */
   const onSeatActivate = useCallback((seat: Seat, multi: boolean) => seatHandlersRef.current.activate(seat, multi), []);
+  /** Handler phím mũi tên trên ghế có định danh ổn định, chuyển tới closure mới nhất. */
   const onSeatArrow = useCallback((seat: Seat, direction: ArrowDirection) => seatHandlersRef.current.arrow(seat, direction), []);
+  /** Ghi nhớ ghế đang giữ điểm dừng tab khi ghế nhận focus. */
   const onSeatFocus = useCallback((seatId: string) => setRoverId(seatId), []);
   const roverSeatId = roverId && seats.some((s) => s.id === roverId) ? roverId : (selectedSeatIds[0] ?? seats[0]?.id ?? null);
 
-  // two fingers: pinch to zoom and pan. One finger or a mouse in hand mode (or with Space held): drag the view.
+  /** Bắt pointer xuống ở khung canvas: hai ngón thì bắt đầu chụm zoom và pan; một ngón hoặc chuột ở chế độ bàn tay (hoặc giữ Space) thì kéo khung nhìn. */
   const handleContainerPointerDownCapture = (e: React.PointerEvent) => {
     if (e.pointerType === 'touch') {
       touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touchPointers.current.size === 2) {
-        // the first finger may have started a marquee or a drag: drop it
+        // ngón đầu tiên có thể đã bắt đầu khung chọn hoặc thao tác kéo: hủy bỏ
         isSelectingMarquee.current = false;
         selectionBoxRef.current = null;
         setSelectionBox(null);
@@ -1509,7 +1552,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     }
   };
 
-  // scroll an element into view on request (the pre-publish check panel)
+  // cuộn một phần tử vào vùng nhìn theo yêu cầu (bảng kiểm tra trước khi xuất bản)
   useEffect(() => {
     if (!focusRequest) return;
     const el = canvasRef.current;
@@ -1537,13 +1580,14 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest?.nonce]);
 
-  // the minimap follows the scroll position, but only while it is shown
+  // minimap bám theo vị trí cuộn, nhưng chỉ khi đang hiển thị
   const showMiniMap = !isAttendeeMode && seats.length >= MINIMAP_SEAT_THRESHOLD;
   useEffect(() => {
     if (!showMiniMap) return;
     const el = canvasRef.current;
     if (!el) return;
     let raf = 0;
+    /** Đọc vị trí cuộn và kích thước khung nhìn (gộp theo khung hình) để cập nhật minimap. */
     const update = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() =>
@@ -1770,7 +1814,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
             if (!zone.x || !zone.y || !zone.width || !zone.height) return null;
             const isSelected = selectedZoneId === zone.id;
 
-            // Calculate zone styling based on shape & curvature
+            // Tính kiểu dáng của khu theo hình dạng và độ cong
             const curvatureVal = zone.curvature ?? 16;
             const shapeType = zone.shape || 'rounded';
             let borderRadius = `${curvatureVal}px`;
@@ -1787,7 +1831,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
               borderRadius = `${curvatureVal}px`;
             }
 
-            // Fill Opacity
+            // Độ mờ của nền
             const fillOpacity = zone.fillOpacity ?? 0.25;
             const zoneStat = zoneStats.get(zone.id) ?? { count: 0, soldOrHeld: 0 };
             const zoneSeatsCount = zoneStat.count;

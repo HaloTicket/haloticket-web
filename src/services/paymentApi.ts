@@ -7,9 +7,11 @@ import type {
 } from "@/types";
 
 export const paymentApi = {
+  /** Xác nhận kết quả VNPay trả về (IPN) bằng cách chuyển nguyên các tham số query sang backend để kiểm tra chữ ký. */
   confirmVnPayReturn: async (params: URLSearchParams): Promise<Record<string, string>> => {
     return axiosClient.get<unknown, Record<string, string>>(`/payments/vnpay/ipn?${params.toString()}`);
   },
+  /** Tạo bản ghi thanh toán mới. Ném lại lỗi nếu gọi API thất bại; trả về `null` nếu phản hồi không hợp lệ. */
   createPayment: async (request: PaymentCreateRequest): Promise<PaymentResponse | null> => {
     try {
       const response: unknown = await axiosClient.post("/payments", request);
@@ -23,6 +25,7 @@ export const paymentApi = {
     }
   },
 
+  /** Tạo URL thanh toán VNPay cho một số tiền (kèm nội dung và mã đặt vé tùy chọn). Trả về `null` nếu phản hồi không có `paymentUrl`. */
   createVnPayUrl: async (amount: number, orderInfo?: string, bookingId?: string): Promise<string | null> => {
     try {
       const params = new URLSearchParams();
@@ -41,6 +44,7 @@ export const paymentApi = {
     }
   },
 
+  /** Tạo dữ liệu mã VietQR cho đơn đặt vé. Trả về `null` nếu phản hồi không hợp lệ; ném lại lỗi khi gọi API thất bại. */
   createVietQrPayload: async (
     amount: number,
     bookingCode: string,
@@ -63,6 +67,7 @@ export const paymentApi = {
     }
   },
 
+  /** Tạo URL thanh toán MoMo cho một số tiền (kèm nội dung và mã đặt vé tùy chọn). Trả về `null` nếu thiếu `paymentUrl`. */
   createMoMoUrl: async (amount: number, orderInfo?: string, bookingId?: string): Promise<string | null> => {
     try {
       const params = new URLSearchParams();
@@ -81,6 +86,7 @@ export const paymentApi = {
     }
   },
 
+  /** Tạo URL thanh toán ZaloPay cho một số tiền (kèm nội dung và mã đặt vé tùy chọn). Trả về `null` nếu thiếu `paymentUrl`. */
   createZaloPayUrl: async (amount: number, orderInfo?: string, bookingId?: string): Promise<string | null> => {
     try {
       const params = new URLSearchParams();
@@ -99,6 +105,7 @@ export const paymentApi = {
     }
   },
 
+  /** Tạo URL thanh toán ShopeePay cho một số tiền (kèm nội dung và mã đặt vé tùy chọn). Trả về `null` nếu thiếu `paymentUrl`. */
   createShopeePayUrl: async (amount: number, orderInfo?: string, bookingId?: string): Promise<string | null> => {
     try {
       const params = new URLSearchParams();
@@ -117,6 +124,7 @@ export const paymentApi = {
     }
   },
 
+  /** Kiểm tra trạng thái thanh toán của một đơn đặt vé (thêm tham số thời gian để tránh cache). Trả về `null` nếu lỗi. */
   verifyPaymentStatus: async (bookingId: string): Promise<PaymentResponse | null> => {
     try {
       const response: unknown = await axiosClient.get(`/payments/verify/${bookingId}?_t=${Date.now()}`);

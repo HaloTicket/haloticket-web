@@ -3,15 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { FiAlertCircle, FiAlertTriangle, FiCheckCircle, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { countIssues, type SeatMapIssue } from '../../seatMapValidation';
 
+/** Props của bảng kiểm tra: danh sách vấn đề, trạng thái mở/đóng và callback chọn vấn đề. */
 interface SeatMapIssuesPanelProps {
   issues: SeatMapIssue[];
   isOpen: boolean;
   onToggle: () => void;
-  /** Clicking an issue selects and scrolls to the element it concerns. */
+  /** Bấm vào một vấn đề sẽ chọn và cuộn tới phần tử mà vấn đề đó nói đến. */
   onSelectIssue: (issue: SeatMapIssue) => void;
 }
 
-// "Check before publishing": a summary bar that opens into the list of problems found in the layout
+/** "Kiểm tra trước khi xuất bản": thanh tóm tắt số lỗi và cảnh báo, mở ra danh sách các vấn đề tìm thấy trong sơ đồ ghế. */
 export const SeatMapIssuesPanel: React.FC<SeatMapIssuesPanelProps> = ({ issues, isOpen, onToggle, onSelectIssue }) => {
   const { t } = useTranslation();
   const { errors, warnings } = countIssues(issues);

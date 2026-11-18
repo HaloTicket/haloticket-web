@@ -1,3 +1,4 @@
+/** Dữ liệu địa điểm do backend trả về. */
 export interface VenueApiData {
   id: number | string;
   name: string;
@@ -15,6 +16,7 @@ export interface VenueApiData {
   updatedAt?: string;
 }
 
+/** Địa điểm trong màn hình quản lý của admin, kèm các lịch đặt sắp tới. */
 export interface SystemVenue {
   id: string;
   name: string;
@@ -36,6 +38,7 @@ export interface SystemVenue {
   }[];
 }
 
+/** Sơ đồ chỗ ngồi do một người tổ chức tạo cho sự kiện tại địa điểm. */
 export interface VenueOrganizerSeatmap {
   eventId: string;
   seatLayoutId?: string;
@@ -47,6 +50,7 @@ export interface VenueOrganizerSeatmap {
   zonesCount?: number;
 }
 
+/** Tất cả sơ đồ của một địa điểm: mẫu của admin và các sơ đồ của người tổ chức. */
 export interface VenueSeatmapsResponse {
   venueId: number | string;
   venueName: string;

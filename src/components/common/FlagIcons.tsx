@@ -1,3 +1,4 @@
+/** Biểu tượng cờ Việt Nam hình tròn (SVG). */
 export function VietnamFlag({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={`rounded-full shrink-0 shadow-xs ${className}`}>
@@ -10,6 +11,7 @@ export function VietnamFlag({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+/** Biểu tượng cờ Anh hình tròn (SVG), dùng cho lựa chọn ngôn ngữ tiếng Anh. */
 export function UKFlag({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={`rounded-full shrink-0 shadow-xs ${className}`}>

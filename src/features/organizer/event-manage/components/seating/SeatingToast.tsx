@@ -1,17 +1,20 @@
 import React, { useEffect } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiInfo, FiAlertTriangle, FiX } from 'react-icons/fi';
 
+/** Một thông báo toast: id duy nhất, loại (thành công, lỗi, cảnh báo, thông tin) và nội dung. */
 export interface ToastMessage {
   id: string;
   type: 'success' | 'error' | 'warning' | 'info';
   text: string;
 }
 
+/** Props của vùng chứa toast: danh sách thông báo và callback đóng một thông báo theo id. */
 interface ToastContainerProps {
   toasts: ToastMessage[];
   onDismiss: (id: string) => void;
 }
 
+/** Một toast: tự đóng sau 3,5 giây, đổi màu và biểu tượng theo loại, có nút đóng thủ công. */
 const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -54,10 +57,11 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
   );
 };
 
+/** Vùng chứa toast cố định ở góc dưới phải; không vẽ gì khi không có thông báo và gộp các thông báo trùng nội dung. */
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
   if (!toasts.length) return null;
 
-  // Deduplicate by text
+  // Loại bỏ thông báo trùng nội dung
   const uniqueToasts = toasts.filter((toast, index, self) =>
     index === self.findIndex((t) => t.text === toast.text)
   );

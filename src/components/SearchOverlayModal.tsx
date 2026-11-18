@@ -9,6 +9,7 @@ import {
   removeSearchHistoryItem
 } from "@/utils/searchHistory";
 
+/** Props của hộp gợi ý tìm kiếm: trạng thái mở/đóng, từ khóa hiện tại, hàm đóng và hàm chọn từ khóa. */
 interface SearchOverlayModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -16,6 +17,10 @@ interface SearchOverlayModalProps {
   onSelectKeyword: (kw: string) => void;
 }
 
+/**
+ * Hộp gợi ý hiện dưới ô tìm kiếm ở Header: lịch sử tìm kiếm, từ khóa thịnh hành, sự kiện đề xuất
+ * và thẻ danh mục hoặc thành phố. Trả về `null` khi đang đóng.
+ */
 export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   isOpen,
   onClose,
@@ -34,7 +39,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   const [realEvents, setRealEvents] = useState<EventApiData[]>([]);
   const [trendingKeywords, setTrendingKeywords] = useState<string[]>(["idecaf", "xoay tròn", "Pickleball World Cup"]);
 
-  // Sync search trending keywords from DB query whenever modal opens
+  // Mỗi lần mở hộp, nạp lại các từ khóa thịnh hành từ truy vấn trong DB
   useEffect(() => {
     if (!isOpen) return;
     let isMounted = true;
@@ -48,7 +53,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
     };
   }, [isOpen]);
 
-  // Fetch real events from backend API for recommendations
+  // Lấy sự kiện thật từ API backend để làm gợi ý
   useEffect(() => {
     eventApi.getAllEvents().then((events) => {
       if (events && events.length > 0) {
@@ -57,8 +62,9 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
     });
   }, []);
 
-  // Handle ESC key to close modal
+  // Nhấn ESC để đóng hộp
   useEffect(() => {
+    /** Đóng hộp khi người dùng nhấn Escape. */
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -93,6 +99,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
     }
   ];
 
+  /** Xóa một mục khỏi lịch sử tìm kiếm (không kích hoạt chọn từ khóa) rồi nạp lại danh sách. */
   const handleRemoveHistory = (e: React.MouseEvent, item: string) => {
     e.stopPropagation();
     removeSearchHistoryItem(item);
@@ -236,7 +243,7 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
             ))}
           </div>
         ) : (
-          /* Cities Cards Grid */
+          /* Lưới thẻ thành phố */
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {DESTINATIONS.map((city) => (
               <Link

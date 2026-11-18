@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+/** Props của modal hủy đơn: trạng thái mở, callback ở lại hoặc hủy đơn và cờ đang hủy. */
 interface CancelOrderModalProps {
   open: boolean;
   onStay: () => void;
@@ -7,6 +8,7 @@ interface CancelOrderModalProps {
   cancelling?: boolean;
 }
 
+/** Modal xác nhận hủy đơn mua vé bán lại; không vẽ gì khi chưa mở. */
 export function CancelOrderModal({
   open,
   onStay,

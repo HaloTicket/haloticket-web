@@ -13,7 +13,10 @@ import type {
 } from '@/types/seating';
 import { ZoneGeneratorModal } from './ZoneGeneratorModal';
 
-// seating editor toolbar component. canDuplicate: something is selected (a seat, a zone, a stage or a structure).
+/**
+ * Thanh công cụ dọc của trình chỉnh sửa sơ đồ ghế: thêm sân khấu, cấu trúc, khu, mở trình tạo khu, nhân đôi, chọn tất cả và xóa.
+ * {@code canDuplicate} cho biết đang có phần tử được chọn (ghế, khu, sân khấu hoặc cấu trúc).
+ */
 export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
   selectedSeatIds,
   canDuplicate,
@@ -25,7 +28,7 @@ export const ToolBar: React.FC<ToolBarProps & { canDuplicate?: boolean }> = ({
   onSelectAll,
 }) => {
   const { t } = useTranslation();
-  // Zone Generator modal visibility state
+  // trạng thái hiển thị của modal trình tạo khu
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
 
   return (

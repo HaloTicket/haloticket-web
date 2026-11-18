@@ -50,6 +50,7 @@ const INITIAL_STAGES: StageElement[] = [];
 
 const INITIAL_ZONES: Record<string, ZoneBlock> = {};
 
+/** Màn hình quản trị thiết kế sơ đồ ghế mẫu cho một địa điểm: tải mẫu từ backend hoặc bản nháp cục bộ, chỉnh sửa trên canvas, hoàn tác/làm lại, lưu nháp và lưu mẫu chính thức. */
 export const AdminVenueSeatmapDesigner: React.FC = () => {
   const { t } = useTranslation();
   const { venueId } = useParams<{ venueId: string }>();
@@ -57,7 +58,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
   const isNew = searchParams.get("newTemplate") === "1" || searchParams.get("isNew") === "1";
   const studioRef = useRef<HTMLDivElement>(null);
 
-  // venue data
+  // dữ liệu địa điểm
   const [venueInfo, setVenueInfo] = useState<VenueSeatmapsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,19 +67,21 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPropertyPanelCollapsed, setIsPropertyPanelCollapsed] = useState(false);
 
-  // organizer maps modal
+  // hộp thoại sơ đồ của ban tổ chức
   const [showOrgMapsModal, setShowOrgMapsModal] = useState(false);
 
   // toast
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  /** Hiển thị một thông báo nổi mới. */
   const showToast = (type: ToastMessage["type"], text: string) => {
     setToasts((prev) => [...prev, { id: Date.now().toString(), text, type }]);
   };
+  /** Gỡ thông báo nổi theo id. */
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // studio elements state
+  // trạng thái các phần tử trong studio
   const [stages, setStages] = useState<StageElement[]>(INITIAL_STAGES);
   const [structures, setStructures] = useState<StructureElement[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
@@ -86,13 +89,13 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
   const [canvasSettings, setCanvasSettings] = useState<CanvasSettings>(DEFAULT_CANVAS_SETTINGS);
   const [lastClickedPos, setLastClickedPos] = useState<{ x: number; y: number } | null>(null);
 
-  // selection state
+  // trạng thái lựa chọn
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
-  // history state
+  // trạng thái lịch sử
   const initialDefaultSnapshot: HistoryState = {
     stages: safeClone(INITIAL_STAGES),
     structures: [],
@@ -105,21 +108,26 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
   const historyRef = useRef<HistoryState[]>([initialDefaultSnapshot]);
   const isHistoryActionRef = useRef(false);
 
-  // confirm modal
+  // hộp thoại xác nhận
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
     message: string;
+    /** Hàm chạy khi người dùng bấm xác nhận trong hộp thoại. */
     onConfirm: () => void;
-  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+  }>({ isOpen: false, title: "", message: "",
+    /** Giá trị ban đầu: chưa có hành động xác nhận nào. */
+    onConfirm: () => {} });
 
-  // fullscreen sync
+  // đồng bộ trạng thái toàn màn hình
   useEffect(() => {
+    /** Cập nhật cờ toàn màn hình khi trình duyệt vào hoặc thoát chế độ toàn màn hình. */
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
+  /** Bật hoặc tắt chế độ toàn màn hình cho vùng studio. */
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
       studioRef.current?.requestFullscreen?.().catch(() => {});
@@ -130,7 +138,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
 
   const hasInitialLoadedRef = useRef(false);
 
-  // load venue template from backend
+  // tải mẫu địa điểm từ backend
   useEffect(() => {
     if (!venueId) return;
     setLoading(true);
@@ -161,7 +169,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
         if (!res) return;
         setVenueInfo(res);
 
-        // check if there is an admin template
+        // kiểm tra có mẫu của admin hay không
         if (res.adminTemplate) {
           try {
             const parsed = JSON.parse(res.adminTemplate);
@@ -191,7 +199,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
           }
         }
 
-        // check local draft
+        // kiểm tra bản nháp cục bộ
         const localDraft = localStorage.getItem(`admin_venue_seatmap_draft_${venueId}`);
         if (localDraft) {
           try {
@@ -222,7 +230,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
           }
         }
 
-        // check local templates
+        // kiểm tra các mẫu lưu cục bộ
         try {
           const localTemplatesStr = localStorage.getItem(`admin_venue_templates_${venueId}`);
           if (localTemplatesStr) {
@@ -269,7 +277,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       .finally(() => setLoading(false));
   }, [venueId, isNew]);
 
-  // commit history snapshot
+  // ghi một ảnh chụp trạng thái vào lịch sử
+  /** Thêm trạng thái hiện tại (hoặc {@code nextState}) vào lịch sử, bỏ qua khi đang thực hiện hoàn tác hoặc làm lại. */
   const commitHistory = (nextState?: HistoryState) => {
     if (isHistoryActionRef.current) return;
     const currentState: HistoryState = nextState || {
@@ -291,6 +300,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     });
   };
 
+  /** Lùi về trạng thái lịch sử trước đó và khôi phục các phần tử lên canvas. */
   const handleUndo = () => {
     if (historyIndexRef.current <= 0) return;
     isHistoryActionRef.current = true;
@@ -309,6 +319,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     }, 50);
   };
 
+  /** Tiến tới trạng thái lịch sử kế tiếp sau khi đã hoàn tác. */
   const handleRedo = () => {
     if (historyIndexRef.current >= historyRef.current.length - 1) return;
     isHistoryActionRef.current = true;
@@ -327,7 +338,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     }, 50);
   };
 
-  // auto-save draft locally
+  // tự động lưu bản nháp cục bộ
   useEffect(() => {
     if (!venueId || loading) return;
     const payload: SeatMapDocument = {
@@ -344,7 +355,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     localStorage.setItem(`admin_venue_seatmap_draft_${venueId}`, JSON.stringify(payload));
   }, [stages, structures, seats, zones, canvasSettings, venueId, loading, venueInfo?.venueName]);
 
-  // save local draft
+  // lưu bản nháp cục bộ
+  /** Lưu sơ đồ hiện tại thành bản nháp trong localStorage (không gửi lên backend) và báo thành công. */
   const handleSaveDraft = () => {
     if (!venueId) return;
     const payload: SeatMapDocument = {
@@ -365,7 +377,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", "Đã lưu bản nháp sơ đồ mẫu thành công!");
   };
 
-  // save official template to backend
+  // lưu mẫu chính thức lên backend
+  /** Lưu sơ đồ làm mẫu chính thức của địa điểm: ghi nháp và danh sách mẫu cục bộ, rồi gọi API backend; nếu backend lỗi thì vẫn giữ bản lưu cục bộ. */
   const handleSaveOfficialTemplate = async () => {
     if (!venueId) return;
     setIsSaving(true);
@@ -385,10 +398,10 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
 
       const payloadStr = JSON.stringify(payload);
 
-      // immediately persist draft
+      // lưu ngay bản nháp
       localStorage.setItem(`admin_venue_seatmap_draft_${venueId}`, payloadStr);
 
-      // also persist to admin_venue_templates_${venueId} for instant multi-template visibility
+      // đồng thời lưu vào admin_venue_templates_${venueId} để thấy ngay danh sách nhiều mẫu
       const localKey = `admin_venue_templates_${venueId}`;
       let localList: any[] = [];
       try {
@@ -425,12 +438,12 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       ];
       localStorage.setItem(localKey, JSON.stringify(updatedList));
 
-      // remove isNew from URL so reloading loads saved state
+      // bỏ tham số isNew khỏi URL để lần tải lại sẽ nạp trạng thái đã lưu
       try {
         window.history.replaceState({}, '', window.location.pathname);
       } catch {}
 
-      // save to backend API
+      // gọi API backend để lưu
       try {
         await venueApi.saveVenueSeatmapTemplate(venueId, payloadStr);
       } catch (backendErr) {
@@ -449,7 +462,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     }
   };
 
-  // export seatMap png image
+  // xuất sơ đồ ra ảnh PNG
+  /** Xuất sơ đồ hiện tại thành ảnh PNG (dựng SVG rồi vẽ lên canvas) và tải về. */
   const handleExportImage = () => {
     const payload: SeatMapDocument = {
       version: "2.0",
@@ -494,12 +508,14 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     img.src = url;
   };
 
-  // clear canvas
+  // xóa canvas
+  /** Hỏi xác nhận rồi xóa toàn bộ sân khấu, phân khu, cấu trúc và ghế trên canvas. */
   const handleClearCanvas = () => {
     setConfirmModal({
       isOpen: true,
       title: "Xác nhận xóa trắng Studio",
       message: "Hành động này sẽ xóa toàn bộ sân khấu, phân khu và ghế trên sơ đồ mẫu hiện tại. Tiếp tục?",
+      /** Xóa sạch các phần tử, bỏ lựa chọn và ghi một trạng thái rỗng vào lịch sử. */
       onConfirm: () => {
         setSeats([]);
         setStages([]);
@@ -516,12 +532,14 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     });
   };
 
-  // apply an organizer's seatmap as the template
+  // áp dụng sơ đồ của ban tổ chức làm mẫu
+  /** Hỏi xác nhận rồi sao chép sơ đồ của một sự kiện (ban tổ chức) làm sơ đồ mẫu của địa điểm. */
   const handleApplyOrganizerMap = (orgMap: VenueOrganizerSeatmap) => {
     setConfirmModal({
       isOpen: true,
       title: "Áp dụng sơ đồ của Ban Tổ Chức",
       message: `Bạn có chắc muốn sao chép toàn bộ phân khu và sơ đồ ghế từ sự kiện "${orgMap.eventTitle}" làm Sơ đồ mẫu cho địa điểm này?`,
+      /** Đọc {@code draftJson} của sơ đồ ban tổ chức và thay thế các phần tử trên canvas; cảnh báo nếu chưa có dữ liệu chi tiết. */
       onConfirm: () => {
         try {
           if (!orgMap.draftJson) {
@@ -558,7 +576,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     });
   };
 
-  // toolbar & creation actions
+  // thao tác thanh công cụ và tạo phần tử
+  /** Thêm một sân khấu mới vào canvas, nhận nhãn trực tiếp hoặc theo loại sân khấu. */
   const handleAddStage = (kindOrLabel: any, labelVal?: string) => {
     let label = "SÂN KHẤU CHÍNH (MAIN STAGE)";
     if (typeof kindOrLabel === "string") {
@@ -584,6 +603,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", "Đã thêm sân khấu mới");
   };
 
+  /** Thêm một phân khu mới (tên, giá, màu, kích thước, kiểu viền, số hàng và cột), nhận cấu hình dạng đối tượng hoặc từng tham số rời. */
   const handleAddZoneBlock = (
     configOrName: AddZoneConfig | string,
     priceVal?: number,
@@ -774,6 +794,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", `Đã thêm phân khu ${newZone.name}${generatedSeats.length > 0 ? ` (${generatedSeats.length} ghế)` : ""}`);
   };
 
+  /** Tạo lưới ghế (số hàng nhân số cột) trong một phân khu, đặt tên hàng bắt đầu từ chữ cái cho trước. */
   const handleAddMatrix = (
     configOrRows: AddMatrixConfig | number,
     colsVal?: number,
@@ -844,6 +865,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", `Đã thêm ma trận ${newSeats.length} ghế`);
   };
 
+  /** Tạo một hàng ghế thẳng với số ghế và khoảng cách cho trước trong một phân khu. */
   const handleAddRow = (
     configOrLetter: AddRowConfig | string,
     countVal?: number,
@@ -895,6 +917,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", `Đã thêm hàng ghế ${rowLetter} (${count} ghế)`);
   };
 
+  /** Tạo một hàng ghế xếp theo cung tròn với bán kính cho trước trong một phân khu. */
   const handleAddArc = (
     configOrLetter: AddArcConfig | string,
     countVal?: number,
@@ -958,6 +981,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", `Đã tạo hàng ghế cánh cung (${count} ghế)`);
   };
 
+  /** Tạo một bàn tròn gồm các ghế xếp quanh tâm trong phân khu; cảnh báo nếu chưa có phân khu nào. */
   const handleAddTable = (zoneIdVal?: string, seatsPerTableVal?: number, radiusVal?: number) => {
     const targetZoneId = zoneIdVal && zones[zoneIdVal] ? zoneIdVal : Object.keys(zones)[0];
     if (!targetZoneId || !zones[targetZoneId]) {
@@ -998,6 +1022,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", `Đã thêm bàn tròn (${seatsPerTable} ghế)`);
   };
 
+  /** Thêm một cấu trúc phụ (lối ra, cổng, bàn điều khiển, khu vệ sinh hoặc ăn uống) vào canvas. */
   const handleAddStructure = (type: any, label?: string) => {
     const colorMap: Record<string, string> = {
       exit: "#dc2626",
@@ -1025,11 +1050,13 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     showToast("info", `Đã thêm cấu trúc ${label || ""}`);
   };
 
+  /** Đổi kích thước canvas và khoảng cách lưới. */
   const handleResizeCanvas = (width: number, height: number, gridSize?: number) => {
     const nextSettings = { ...canvasSettings, width, height, gridSize: gridSize || canvasSettings.gridSize };
     setCanvasSettings(nextSettings);
   };
 
+  /** Chọn mọi ghế đang hiển thị và bỏ chọn sân khấu, cấu trúc, phân khu. */
   const handleSelectAll = () => {
     setSelectedSeatIds(seats.filter((s) => !s.hidden).map((s) => s.id));
     setSelectedStageId(null);
@@ -1037,6 +1064,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     setSelectedZoneId(null);
   };
 
+  /** Nhân bản các ghế đang chọn, dịch lệch 32 điểm theo cả hai trục. */
   const handleDuplicateSelected = () => {
     if (!selectedSeatIds.length) return;
     const baseId = Date.now();
@@ -1054,6 +1082,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     commitHistory({ seats: nextSeats, stages, structures, zones });
   };
 
+  /** Xóa các phần tử đang được chọn (ghế, sân khấu, cấu trúc hoặc phân khu) và ghi lịch sử nếu có thay đổi. */
   const handleDeleteSelected = () => {
     let hasChanges = false;
     let nextSeats = seats;
@@ -1089,7 +1118,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     }
   };
 
-  // property inspector handlers
+  // các hàm xử lý bảng thuộc tính
+  /** Áp dụng thuộc tính mới cho các ghế đang chọn. */
   const handleUpdateSeatProps = (props: Partial<Seat>) => {
     const nextSeats = seats.map((seat) =>
       selectedSeatIds.includes(seat.id) ? { ...seat, ...props } : seat
@@ -1098,18 +1128,21 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     commitHistory({ seats: nextSeats, stages, structures, zones });
   };
 
+  /** Cập nhật thuộc tính của một sân khấu theo id. */
   const handleUpdateStageProps = (stageId: string, props: Partial<StageElement>) => {
     const nextStages = stages.map((st) => (st.id === stageId ? { ...st, ...props } : st));
     setStages(nextStages);
     commitHistory({ seats, stages: nextStages, structures, zones });
   };
 
+  /** Cập nhật thuộc tính của một cấu trúc phụ theo id. */
   const handleUpdateStructureProps = (structId: string, props: Partial<StructureElement>) => {
     const nextStructures = structures.map((st) => (st.id === structId ? { ...st, ...props } : st));
     setStructures(nextStructures);
     commitHistory({ seats, stages, structures: nextStructures, zones });
   };
 
+  /** Cập nhật thuộc tính của một phân khu; khi góc xoay đổi thì xoay các ghế thuộc phân khu theo. */
   const handleUpdateZoneProps = (zoneId: string, props: Partial<ZoneBlock>) => {
     const currentZone = zones[zoneId];
     if (!currentZone) return;
@@ -1147,6 +1180,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     commitHistory({ seats: nextSeats, stages, structures, zones: nextZones });
   };
 
+  /** Chuyển các ghế đang chọn sang phân khu khác. */
   const handleMoveSeatsToZone = (zoneId: string) => {
     if (!zones[zoneId]) return;
     const nextSeats = seats.map((seat) => (selectedSeatIds.includes(seat.id) ? { ...seat, zoneId } : seat));
@@ -1154,6 +1188,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
     commitHistory({ seats: nextSeats, stages, structures, zones });
   };
 
+  /** Căn các ghế đang chọn theo mép trên ({@code align-top}) hoặc mép trái ({@code align-left}). */
   const handleArrangeSeats = (action: string) => {
     if (!selectedSeatIds.length) return;
     const selected = seats.filter((s) => selectedSeatIds.includes(s.id));

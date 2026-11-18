@@ -5,6 +5,7 @@ import type { EventApiData } from "@/types";
 import { EventCard } from "@/components/common/EventCard";
 import { SectionHeader } from "@/components/common/SectionHeader";
 
+/** Props của khu vực danh mục: tiêu đề, biểu tượng, liên kết xem thêm, danh sách sự kiện và giới hạn số thẻ. */
 interface CategorySectionProps {
   title: string;
   icon?: React.ReactNode;
@@ -14,6 +15,7 @@ interface CategorySectionProps {
   className?: string;
 }
 
+/** Khu vực một danh mục sự kiện: tiêu đề kèm dải thẻ sự kiện cuộn ngang, có nút cuộn trái phải hiện theo vị trí cuộn. */
 export const CategorySection: React.FC<CategorySectionProps> = ({
   title,
   icon,
@@ -27,6 +29,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
 
+  /** Cập nhật việc hiện hay ẩn nút cuộn trái và phải theo vị trí cuộn hiện tại. */
   const checkScroll = () => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
@@ -39,12 +42,14 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
     checkScroll();
   }, []);
 
+  /** Cuộn dải thẻ sang trái 350 điểm ảnh. */
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: -350, behavior: "smooth" });
     }
   };
 
+  /** Cuộn dải thẻ sang phải 350 điểm ảnh. */
   const scrollRight = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: 350, behavior: "smooth" });
@@ -56,7 +61,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
       <SectionHeader title={translate(title)} icon={icon} seeMoreLink={seeMoreLink} />
 
       <div className="relative group">
-        {/* Navigation Arrow Left (Smart Visibility) */}
+        {/* Nút mũi tên trái (hiện thông minh) */}
         {showLeft && (
           <button
             type="button"
@@ -68,7 +73,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
           </button>
         )}
 
-        {/* Scrollable Event Cards */}
+        {/* Dải thẻ sự kiện cuộn ngang */}
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
@@ -81,7 +86,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
           ))}
         </div>
 
-        {/* Navigation Arrow Right (Smart Visibility) */}
+        {/* Nút mũi tên phải (hiện thông minh) */}
         {showRight && (
           <button
             type="button"

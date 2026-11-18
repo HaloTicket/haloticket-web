@@ -1,3 +1,4 @@
+/** Một ghế cụ thể nằm trong tin đăng bán lại vé trên sàn. */
 export interface ResaleSeatItem {
   id: string;
   section: string; // e.g. "XOAY-TRON-A2"
@@ -7,6 +8,7 @@ export interface ResaleSeatItem {
   isSelected: boolean;
 }
 
+/** Một tin đăng bán lại vé: nhóm vé cùng suất chiếu, cùng hạng vé do người bán đăng lên sàn. */
 export interface ResaleTicketListing {
   id: string;
   eventId: string;
@@ -22,6 +24,7 @@ export interface ResaleTicketListing {
   seats: ResaleSeatItem[];
 }
 
+/** Sự kiện có vé đang được bán lại, kèm thông tin hiển thị và danh sách các tin đăng. */
 export interface ResaleEvent {
   id: string;
   title: string;

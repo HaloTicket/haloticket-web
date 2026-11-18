@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { FiChevronDown } from "react-icons/fi";
 
+/** Một lựa chọn của ô chọn: nhãn hiển thị, giá trị và biểu tượng tùy chọn. */
 export interface SelectOption {
   label: string;
   value: string;
   icon?: ReactNode;
 }
 
+/** Props của ô chọn admin: giá trị hiện tại, danh sách lựa chọn, hàm đổi, placeholder, biểu tượng và nhãn trợ năng. */
 export interface AdminSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -17,6 +19,7 @@ export interface AdminSelectProps {
   ariaLabel?: string;
 }
 
+/** Ô chọn gốc (`select`) cho admin; nếu giá trị hiện tại không nằm trong danh sách thì thêm một mục hiển thị placeholder. */
 export function AdminSelect({ value, onChange, options, placeholder = "Chọn...", icon, className = "", ariaLabel }: AdminSelectProps) {
   return <span className={`relative inline-flex min-w-36 items-center text-sm ${className}`}>
     {icon && <span aria-hidden="true" className="pointer-events-none absolute left-3 app-text-muted">{icon}</span>}

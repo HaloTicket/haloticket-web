@@ -19,17 +19,20 @@ import {
 } from "react-icons/fi";
 import type { MicroserviceStatus } from "../SystemHealth";
 
+/** Props của phần giám sát thời gian hoạt động: danh sách dịch vụ vi mô. */
 interface UptimeMonitorSectionProps {
   services: MicroserviceStatus[];
 }
 
+/** Phần giám sát uptime và độ trễ: tổng hợp từ trạng thái dịch vụ hiện tại và vẽ biểu đồ diễn biến theo khoảng thời gian chọn. */
 export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ services }) => {
   const { t, i18n } = useTranslation();
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("24h");
   const [activeMetric, setActiveMetric] = useState<"uptime" | "latency">("latency");
 
-  // real operational calculations from active microservices
+  // tính toán vận hành từ các dịch vụ vi mô đang hoạt động
   const totalServices = services.length;
   const upServices = services.filter((s) => s.status === "UP").length;
   const downServices = services.filter((s) => s.status !== "UP").length;
@@ -43,7 +46,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
     return Math.round(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length);
   }, [services]);
 
-  // dynamic timeline points reflecting realistic operational load & measured microservice latency
+  // các điểm mốc thời gian được dựng theo tải vận hành ước lượng và độ trễ đo được của dịch vụ
   const timelineData = useMemo(() => {
     const points = timeRange === "24h" ? 24 : timeRange === "7d" ? 14 : 30;
     const now = new Date();
@@ -57,18 +60,17 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
           ? `${hour.toString().padStart(2, "0")}:00`
           : `${d.getDate()}/${d.getMonth() + 1}`;
 
-      // uptime SLA availability: 100% when all UP, with occasional probe variances
+      // uptime theo SLA: 100% khi mọi dịch vụ đều UP, có dao động nhỏ giữa các lần dò
       let uptime = overallAvailability;
       if (downServices > 0 && i < 4) {
         uptime = parseFloat(overallAvailability.toFixed(1));
       } else {
-        // natural network jitter (99.8% - 100%) during high peak
+        // độ giật mạng tự nhiên (99,8% đến 100%) vào giờ cao điểm
         const isPeak = (hour >= 9 && hour <= 11) || (hour >= 19 && hour <= 21);
         uptime = isPeak ? 99.9 : 100;
       }
 
-      // latency varies realistically with diurnal server traffic pattern:
-      // off-peak (night): ~2-6ms | peak (day): ~12-28ms | current point: actual avgLatency
+      // độ trễ thay đổi theo mô hình lưu lượng trong ngày:\n// ban đêm: khoảng 2-6ms | cao điểm ban ngày: khoảng 12-28ms | điểm hiện tại: độ trễ trung bình thực tế
       let latency = avgLatency;
       if (i > 0) {
         const isNight = hour >= 0 && hour <= 6;
@@ -89,7 +91,7 @@ export const UptimeMonitorSection: React.FC<UptimeMonitorSectionProps> = ({ serv
 
   return (
     <div className="app-bg-card border app-border rounded-lg p-5 shadow-xs space-y-6">
-      {/* Header */}
+      {/* Đầu trang */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b app-border pb-4">
         <div>
           <div className="flex items-center gap-2">

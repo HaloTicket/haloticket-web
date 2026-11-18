@@ -1,5 +1,6 @@
 import { t as translate } from "@/i18n";
 
+/** Khóa i18n của thông báo lỗi AI. */
 export type AiErrorKey =
   | "ai.error.rateLimited"
   | "ai.error.rateLimitedNoWait"
@@ -14,6 +15,7 @@ export type AiErrorKey =
   | "ai.error.unauthorized"
   | "ai.error.unknown";
 
+/** Phân loại lỗi AI. */
 export type AiErrorKind =
   | "rate_limited"
   | "budget_exhausted"
@@ -27,6 +29,7 @@ export type AiErrorKind =
   | "unauthorized"
   | "unknown";
 
+/** Thông tin lỗi AI đã phân tích: loại, khóa thông báo, mã trạng thái, mã lỗi, thời gian chờ thử lại và có thể thử lại hay không. */
 export interface AiErrorInfo {
   kind: AiErrorKind;
   key: AiErrorKey;
@@ -73,9 +76,12 @@ const KIND_KEY: Record<AiErrorKind, AiErrorKey> = {
 
 const NON_RETRYABLE: AiErrorKind[] = ["refused", "invalid_input", "forbidden", "unauthorized"];
 
+/** Đối tượng khóa chuỗi với giá trị chưa biết kiểu. */
 type Dict = Record<string, unknown>;
+/** Kiểm tra giá trị có phải đối tượng khác `null` hay không. */
 const isDict = (value: unknown): value is Dict => typeof value === "object" && value !== null;
 
+/** Đọc một header không phân biệt hoa thường, hỗ trợ cả đối tượng Headers có `get` lẫn đối tượng thường. Trả về `undefined` nếu không có. */
 function readHeader(headers: unknown, name: string): string | undefined {
   if (!isDict(headers)) return undefined;
   const getter = headers.get;
@@ -92,13 +98,14 @@ function readHeader(headers: unknown, name: string): string | undefined {
   return undefined;
 }
 
+/** Đổi giá trị thành số giây dương, làm tròn lên và giới hạn tối đa 24 giờ; trả về `undefined` nếu không hợp lệ. */
 function toSeconds(value: unknown): number | undefined {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseFloat(value) : NaN;
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return Math.min(Math.ceil(parsed), 24 * 3600);
 }
 
-/** Reads status, AI error code (flat body or FastAPI detail), and Retry-After from an axios-style error. */
+/** Đọc mã trạng thái, mã lỗi AI (ở thân phẳng hoặc trong `detail` của FastAPI) và `Retry-After` từ một lỗi kiểu axios, rồi phân loại thành `AiErrorInfo`. */
 export function resolveAiError(err: unknown): AiErrorInfo {
   const e = isDict(err) ? err : {};
   const response = isDict(e.response) ? e.response : undefined;
@@ -130,11 +137,12 @@ export function resolveAiError(err: unknown): AiErrorInfo {
   };
 }
 
-/** Localised, user-facing text. Server messages and unknown codes are never shown raw. */
+/** Văn bản đã bản địa hóa để hiển thị cho người dùng. Thông điệp từ server và mã lỗi lạ không bao giờ được hiển thị nguyên văn. */
 export function aiErrorMessage(info: AiErrorInfo): string {
   return translate(info.key, info.kind === "rate_limited" ? { seconds: info.retryAfterSeconds } : undefined);
 }
 
+/** Chuyển một lỗi bất kỳ thành thông điệp hiển thị cho người dùng. */
 export function getAiErrorMessage(err: unknown): string {
   return aiErrorMessage(resolveAiError(err));
 }

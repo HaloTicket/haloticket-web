@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 
-/** The user-service answers with a stable code in `message` (see AdminUserManagementService); this turns it into a sentence. */
+/** Máy chủ user-service trả mã lỗi cố định trong `message` (xem AdminUserManagementService); hàm này đổi mã đó thành câu thông báo. */
 export function adminUserErrorMessage(error: unknown, t: TFunction, fallback: string): string {
   const response = (error as { response?: { status?: number; data?: { message?: string } } })?.response;
   const code = response?.data?.message;

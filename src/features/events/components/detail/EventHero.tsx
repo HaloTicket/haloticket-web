@@ -8,18 +8,20 @@ import type { EventDetailData } from "@/types";
 import { formatCurrency, parseVndAmount } from "@/utils/formatters";
 import { isTicketInStock } from "@/utils/ticketQuantities";
 
+/** Props của phần đầu trang chi tiết: dữ liệu sự kiện, hàm khi bấm mua vé và cờ gắn nhãn vé bán lại. */
 interface EventHeroProps {
   event: EventDetailData;
   onBuyTicketsClick: () => void;
   isResaleTag?: boolean;
 }
 
+/** Phần đầu trang chi tiết sự kiện: banner, tiêu đề, thời gian, địa điểm, giá thấp nhất và nút mua vé theo trạng thái mở bán; có bố cục riêng cho máy tính và di động. */
 export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, isResaleTag = false }) => {
   const { t: translate } = useTranslation();
   const navigate = useNavigate();
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  // calculate dynamic minimum price across all ticket types / showtimes
+  // tính giá thấp nhất trên mọi loại vé và suất diễn
   const { displayPrice } = useMemo(() => {
     const prices: number[] = [];
     if (event.minPrice !== undefined && event.minPrice !== null) {
@@ -71,10 +73,11 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
     return { displayPrice: translate("Miễn phí") };
   }, [event]);
 
-  // calculate buy ticket button status according to sale schedule and ticket availability
+  // tính trạng thái nút mua vé theo lịch mở bán và số vé còn lại
   const salesStatus = useMemo(() => {
     const now = new Date();
     
+    /** Chuyển giá trị ngày (mảng số hoặc chuỗi) thành {@code Date}; không hợp lệ thì trả về {@code null}. */
     const parseSafeDate = (dateVal: any): Date | null => {
       if (!dateVal) return null;
       if (Array.isArray(dateVal)) {
@@ -166,8 +169,9 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
     return { isClosed: true, buttonText: translate("Ngừng bán vé"), statusLabel: translate("Ngừng bán"), statusColor: "bg-slate-500" };
   }, [event]);
 
-  // Format display date
+  // Định dạng ngày hiển thị
   let displayDate = translate("Sắp diễn ra");
+  /** Định dạng một mốc thời gian thành giờ và ngày theo locale vi-VN. */
   const formatDt = (dtStr: string) => `${new Date(dtStr).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}, ${new Date(dtStr).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
   
   let finalStart = event.startTime;
@@ -199,6 +203,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
   const locationName = event.locationName || translate("Địa điểm chưa cập nhật");
   const posterImage = event.posterImage || "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80";
 
+  /** Chia sẻ liên kết trang bằng Web Share API, nếu không hỗ trợ thì sao chép liên kết vào clipboard. */
   const handleShare = async () => {
     try {
       if (navigator.share) {
@@ -211,7 +216,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
 
   return (
     <>
-      {/* ── MOBILE HEADER BAR (Inspired by Image 1, in HaloTicket brand blue) ── */}
+      {/* ── THANH TIÊU ĐỀ DI ĐỘNG (lấy cảm hứng từ Ảnh 1, màu xanh thương hiệu HaloTicket) ── */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 -mx-6 -mt-6 md:-mx-12 md:-mt-8 mb-5 bg-brand-primary shadow-md relative z-20">
         <button
           type="button"
@@ -236,11 +241,11 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
         </button>
       </div>
 
-      {/* ── MAIN HERO SECTION ── */}
+      {/* ── PHẦN HERO CHÍNH ── */}
       <div className="relative w-full mb-8">
-        {/* DESKTOP LAYOUT: Ticket Style */}
+        {/* BỐ CỤC MÁY TÍNH: kiểu tấm vé */}
         <div className="hidden lg:flex w-full relative rounded-3xl overflow-hidden shadow-2xl app-bg-card">
-          {/* Left: Banner Image (Ticket Left Side) */}
+          {/* Trái: ảnh banner (phần bên trái của vé) */}
           <div className="w-[65%] relative bg-slate-950 aspect-[16/10] group shrink-0">
             <img
               src={posterImage}
@@ -250,7 +255,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent pointer-events-none" />
 
-            {/* Top badges */}
+            {/* Nhãn phía trên */}
             <div className="absolute top-4 left-4 flex items-center gap-2">
               {isResaleTag && (
                 <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-lg">
@@ -262,7 +267,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
               </span>
             </div>
 
-            {/* Desktop share button */}
+            {/* Nút chia sẻ trên máy tính */}
             <button
               type="button"
               onClick={handleShare}
@@ -272,14 +277,14 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
             </button>
           </div>
 
-          {/* Ticket Perforation (Vertical) */}
+          {/* Đường đục lỗ của vé (dọc) */}
           <div className="relative flex flex-col items-center justify-between w-10 h-auto bg-transparent z-20 pointer-events-none -ml-5 -mr-5 self-stretch">
              <div className="w-10 h-10 -mt-5 rounded-full bg-[var(--bg-page)]" />
              <div className="h-full border-l-[3px] border-dashed border-slate-400/80 dark:border-slate-500/80 my-2" />
              <div className="w-10 h-10 -mb-5 rounded-full bg-[var(--bg-page)]" />
           </div>
 
-          {/* Right: Event Info Card (Ticket Right Side) */}
+          {/* Phải: thẻ thông tin sự kiện (phần bên phải của vé) */}
           <div className="flex-1 flex flex-col z-10 pl-4 bg-[var(--bg-card)]">
             <div className="flex-1 p-6 pb-4 flex flex-col">
               <div className="flex items-center gap-2 mb-3">
@@ -350,16 +355,16 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
           </div>
         </div>
 
-        {/* ── MOBILE LAYOUT: Inspired directly by Reference Image 1 ── */}
+        {/* ── BỐ CỤC DI ĐỘNG: lấy cảm hứng trực tiếp từ Ảnh tham chiếu 1 ── */}
         <div className="lg:hidden relative">
-          {/* Ambient blurred backdrop */}
+          {/* Nền mờ tạo ánh sáng xung quanh */}
           <div className="absolute inset-0 -top-8 -bottom-8 -mx-6 md:-mx-12 overflow-hidden pointer-events-none opacity-20 dark:opacity-10 blur-2xl -z-10">
             <img src={posterImage} alt="" className="w-full h-full object-cover scale-125" />
           </div>
 
-          {/* Ticket Card Stub: Outer rounded container */}
+          {/* Cuống vé: khung ngoài bo tròn */}
           <div className="event-ticket-card relative rounded-3xl overflow-hidden shadow-2xl app-bg-card app-text-main">
-            {/* Top: Banner Image */}
+            {/* Trên: ảnh banner */}
             <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
               <img
                 src={posterImage}
@@ -369,7 +374,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
-              {/* Status badge in top-left */}
+              {/* Nhãn trạng thái ở góc trên trái */}
               <div className="absolute top-3.5 left-3.5 flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold text-white shadow-md ${salesStatus.statusColor}`}>
                   {salesStatus.statusLabel}
@@ -382,21 +387,21 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
               </div>
             </div>
 
-            {/* Perforated / Scalloped ticket divider with side circular notches */}
+            {/* Đường chia vé có răng cưa và các khuyết tròn hai bên */}
             <div className="relative flex items-center justify-between w-full h-10 -my-5 overflow-hidden z-20 pointer-events-none">
               <div className="w-10 h-10 -ml-5 rounded-full bg-[var(--bg-page)]" />
               <div className="flex-1 border-b-[3px] border-dashed border-slate-400/80 dark:border-slate-500/80 mx-2" />
               <div className="w-10 h-10 -mr-5 rounded-full bg-[var(--bg-page)]" />
             </div>
 
-            {/* Bottom Info Section (Adapts dynamically to both Light & Dark modes) */}
+            {/* Phần thông tin phía dưới (thích ứng cả chế độ sáng và tối) */}
             <div className="p-5 pt-4 pb-6 space-y-4">
-              {/* Event Title */}
+              {/* Tiêu đề sự kiện */}
               <h1 className="text-lg font-black app-text-main leading-snug tracking-tight">
                 {event.title}
               </h1>
 
-              {/* Date & Time */}
+              {/* Ngày và giờ */}
               <div className="flex items-start gap-2.5">
                 <FiCalendar className="w-4 h-4 app-text-brand shrink-0 mt-0.5" />
                 <p className="text-xs sm:text-sm font-bold app-text-brand leading-tight">
@@ -404,7 +409,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
                 </p>
               </div>
 
-              {/* Location */}
+              {/* Địa điểm */}
               <div className="flex items-start gap-2.5">
                 <FiMapPin className="w-4 h-4 app-text-brand shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
@@ -423,7 +428,7 @@ export const EventHero: React.FC<EventHeroProps> = ({ event, onBuyTicketsClick, 
         </div>
       </div>
 
-      {/* ── MOBILE STICKY BOTTOM BAR (Matching Image 1 & HaloTicket blue) ── */}
+      {/* ── THANH MUA VÉ DÍNH Ở ĐÁY TRÊN DI ĐỘNG (khớp Ảnh 1 và màu xanh HaloTicket) ── */}
       <div className="event-mobile-buybar lg:hidden fixed bottom-0 inset-x-0 z-50 backdrop-blur-md border-t app-border shadow-[0_-4px_20px_rgba(0,0,0,0.12)] px-4 py-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] uppercase font-bold app-text-muted tracking-wider">{translate("Giá từ")}</p>

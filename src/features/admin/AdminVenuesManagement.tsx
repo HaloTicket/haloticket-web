@@ -17,10 +17,13 @@ import { CustomSelect } from "@/components/common/CustomSelect";
 
 import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
 
+/** Địa điểm trong trang quản trị: dữ liệu hệ thống kèm loại, cờ công khai, ban tổ chức sở hữu, mẫu sơ đồ ghế và cờ cho biết số sự kiện đã tổ chức có đáng tin hay không. */
 type AdminVenue = SystemVenue & { type?: VenueApiData["type"]; eventsHostedKnown: boolean; isPublic?: boolean; organizerId?: string; seatmapTemplate?: string };
+/** Bộ lọc trạng thái địa điểm: tất cả, công khai, riêng tư, đã xác minh hoặc chưa xác minh. */
 type Status = "ALL" | "PUBLIC" | "PRIVATE" | "VERIFIED" | "UNVERIFIED";
 const PAGE_SIZE = 10;
 
+/** Chuyển dữ liệu địa điểm từ API sang `AdminVenue`, điền giá trị mặc định cho các trường thiếu. */
 function mapVenue(v: VenueApiData): AdminVenue {
   return {
     id: String(v.id),
@@ -40,6 +43,10 @@ function mapVenue(v: VenueApiData): AdminVenue {
   };
 }
 
+/**
+ * Trang quản lý địa điểm của admin: danh sách có tìm kiếm, lọc theo trạng thái và thành phố, phân trang; thêm, sửa, xóa,
+ * xác minh/bỏ xác minh địa điểm và xem mẫu sơ đồ ghế. Mỗi lần tải dùng số phiên bản để bỏ qua kết quả cũ.
+ */
 export function AdminVenuesManagement() {
   const { t } = useTranslation();
   const translateRef = useRef(t);
@@ -61,13 +68,17 @@ export function AdminVenuesManagement() {
   const [deleteError, setDeleteError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const deleteLock = useRef(false);
-  // ponytail: Verify one venue at a time; use per-row locks if concurrent verification is needed.
+  // ponytail: chỉ xác minh một địa điểm mỗi lần; dùng khóa theo từng dòng nếu cần xác minh đồng thời.
   const anyVerifyLock = useRef(false);
   const mounted = useRef(true);
   const loadedOnce = useRef(false);
   const requestVersion = useRef(0);
   useEffect(() => { translateRef.current = t; }, [t]);
 
+  /**
+   * Tải danh sách địa điểm từ API và cập nhật trạng thái; bỏ qua kết quả của lần gọi đã cũ hoặc khi component đã gỡ.
+   * @param afterMutation true khi tải lại sau thao tác ghi (lỗi lúc này chỉ cảnh báo, không đổi sang trạng thái lỗi)
+   */
   const load = useCallback(async (afterMutation = false) => {
     const version = ++requestVersion.current;
     if (!afterMutation) {
@@ -99,6 +110,7 @@ export function AdminVenuesManagement() {
     return () => { mounted.current = false; };
   }, [load]);
 
+  /** Bật hoặc tắt xác minh của một địa điểm; chỉ cho một thao tác xác minh chạy tại một thời điểm. */
   const toggle = async (venue: AdminVenue) => {
     if (anyVerifyLock.current) return;
     anyVerifyLock.current = true;
@@ -113,6 +125,11 @@ export function AdminVenuesManagement() {
     finally { anyVerifyLock.current = false; setBusyId(null); }
   };
 
+  /**
+   * Tạo mới hoặc cập nhật địa điểm từ biểu mẫu rồi tải lại danh sách.
+   * @param form dữ liệu biểu mẫu
+   * @returns true nếu máy chủ lưu thành công
+   */
   const save = async (form: VenueFormData): Promise<boolean> => {
     const payload = { name: form.name.trim(), address: form.address.trim(), city: form.city.trim(),
       ward: form.ward?.trim() ?? "", capacity: form.capacity, type: form.type ?? "indoor", verified: form.verified };
@@ -126,6 +143,7 @@ export function AdminVenuesManagement() {
     return true;
   };
 
+  /** Xóa địa điểm đang chờ xác nhận xóa; có khóa chống bấm lặp và ghi lỗi để hiển thị nếu thất bại. */
   const confirmDelete = async () => {
     if (!deleting || deleteLock.current) return;
     deleteLock.current = true;
@@ -222,7 +240,7 @@ export function AdminVenuesManagement() {
       onTemplateUpdated={() => void load(true)}
     />
 
-    {/* Verification Confirm Modal */}
+    {/* Hộp thoại xác nhận xác minh */}
     {verifyingVenue && (
       <AdminConfirmModal
         title={t("Xác nhận Xác Minh Địa Điểm")}

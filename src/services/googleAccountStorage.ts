@@ -1,3 +1,4 @@
+/** Thông tin tài khoản Google đã đăng nhập gần nhất, dùng để gợi ý đăng nhập nhanh. */
 export interface GoogleAccountSuggestion {
   name: string;
   email: string;
@@ -8,7 +9,7 @@ export interface GoogleAccountSuggestion {
 
 export const LAST_GOOGLE_ACCOUNT_KEY = "haloticket_last_google_account";
 
-/** Clean up platform-appended suffixes like " HaloTicket" */
+/** Làm sạch tên hiển thị: bỏ hậu tố do nền tảng thêm vào như " HaloTicket"; nếu tên rỗng thì dùng phần trước `@` của email. */
 export function cleanDisplayName(rawName?: string, email?: string): string {
   if (!rawName) return email ? email.split("@")[0] : "";
   let name = rawName.trim();
@@ -23,6 +24,7 @@ let cachedSnapshot: GoogleAccountSuggestion | null = null;
 let lastGoogleRaw: string | null = null;
 let initialized = false;
 
+/** Lấy ảnh đại diện hợp lệ của tài khoản: chấp nhận khi tài khoản là Google hoặc ảnh nằm trên miền `googleusercontent.com`, ngược lại trả về `undefined`. */
 function getStoredGooglePicture(account: GoogleAccountSuggestion): string | undefined {
   const picture = account.picture || account.avatarUrl;
   if (!picture) return undefined;
@@ -38,6 +40,7 @@ function getStoredGooglePicture(account: GoogleAccountSuggestion): string | unde
   }
 }
 
+/** Đọc tài khoản Google đã lưu trong `localStorage`, có lưu đệm theo chuỗi thô để không phân tích lại khi dữ liệu không đổi; JSON hỏng thì trả về `null`. */
 function computeSnapshot(): GoogleAccountSuggestion | null {
   if (typeof window === "undefined") return null;
 
@@ -76,10 +79,12 @@ function computeSnapshot(): GoogleAccountSuggestion | null {
   }
 }
 
+/** Lấy tài khoản Google đã lưu gần nhất, hoặc `null` nếu chưa có. */
 export function getSavedGoogleAccount(): GoogleAccountSuggestion | null {
   return computeSnapshot();
 }
 
+/** Lưu tài khoản Google đăng nhập gần nhất (đã làm sạch tên) vào `localStorage` và phát sự kiện `google-account-updated`; lỗi lưu trữ bị bỏ qua. */
 export function saveLastGoogleAccount(account: GoogleAccountSuggestion): void {
   try {
     const cleaned: GoogleAccountSuggestion = {
@@ -101,8 +106,10 @@ export function saveLastGoogleAccount(account: GoogleAccountSuggestion): void {
   }
 }
 
+/** Đăng ký lắng nghe thay đổi tài khoản Google (sự kiện cập nhật, `storage`, `auth-changed`); trả về hàm hủy đăng ký. */
 export function subscribeGoogleAccount(callback: () => void): () => void {
   if (typeof window === "undefined") return () => {};
+    /** Gọi lại `callback` mỗi khi có sự kiện thay đổi. */
   const handler = () => {
     callback();
   };

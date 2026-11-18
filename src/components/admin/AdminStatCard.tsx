@@ -1,5 +1,6 @@
 import React from "react";
 
+/** Props của thẻ thống kê: tiêu đề, giá trị, chú thích phụ, biểu tượng và lớp màu cho biểu tượng và giá trị. */
 interface AdminStatCardProps {
   title: string;
   value: string | number;
@@ -9,6 +10,7 @@ interface AdminStatCardProps {
   valueColor?: string;
 }
 
+/** Thẻ hiển thị một chỉ số thống kê trên trang tổng quan admin. */
 export const AdminStatCard: React.FC<AdminStatCardProps> = ({
   title,
   value,

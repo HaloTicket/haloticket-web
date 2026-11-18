@@ -7,16 +7,19 @@ import { GoogleAuthButton, PasswordField } from "@/features/auth/components";
 import { PATHS } from "@/routes/paths";
 import { getAuthErrorMessage, type LocalizedError } from "@/services/authApi";
 
+/** Thông tin đăng nhập: email và mật khẩu. */
 export interface LoginCredentials {
   email: string;
   password: string;
 }
 
+/** Props của trang đăng nhập: hàm đăng nhập bằng mật khẩu và hàm đăng nhập bằng Google. */
 interface LoginProps {
   onSubmit: (credentials: LoginCredentials, onSuccess?: () => void) => Promise<void>;
   onGoogleLogin: () => Promise<void>;
 }
 
+/** Trang đăng nhập bằng email và mật khẩu hoặc Google; hiện cảnh báo khi phiên hết hạn (tham số {@code session_expired=true}). */
 export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -27,6 +30,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  /** Gửi thông tin đăng nhập, bật trạng thái thành công khi xong hoặc hiện lỗi đã được địa phương hóa. */
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
@@ -85,7 +89,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
           </div>
         </div>
 
-        {/* Password Field */}
+        {/* Ô mật khẩu */}
         <PasswordField
           autoComplete="current-password"
           id="login-password"
@@ -95,7 +99,7 @@ export default function Login({ onSubmit, onGoogleLogin }: LoginProps) {
           value={password}
         />
 
-        {/* Error Alert */}
+        {/* Thông báo lỗi */}
         {error && (
           <div className="auth-error" role="alert">
             {translate(error.key, error.values)}

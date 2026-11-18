@@ -1,17 +1,19 @@
 /**
- * Payload produced by the LLM tool layer. Its shape depends on the action
- * (JSON string, object, array of rows...) and is narrowed by each consumer at
- * the point of use, so it stays a dynamic JSON value (the result type of
- * JSON.parse) rather than an arbitrary closed shape.
+ * Dữ liệu do lớp công cụ LLM tạo ra. Hình dạng phụ thuộc vào hành động
+ * (chuỗi JSON, đối tượng, mảng dòng...) và được từng nơi dùng tự thu hẹp kiểu,
+ * nên đây là giá trị JSON động (kiểu kết quả của JSON.parse) chứ không phải
+ * một hình dạng cố định.
  */
 export type AiActionPayload = ReturnType<typeof JSON.parse>;
 
+/** Một hành động hệ thống mà trợ lý AI trả về, kèm tham số trích xuất và dữ liệu truy vấn được. */
 export interface AiSystemAction {
   action: string;
   extracted_args?: AiActionPayload;
   database_data?: AiActionPayload;
 }
 
+/** Phản hồi của trợ lý AI cho admin: câu trả lời, các hành động hệ thống, công cụ đã dùng và cờ cho biết câu trả lời có dựa trên dữ liệu thật. */
 export interface AiChatResponse {
   reply: string;
   system_actions: AiSystemAction[];
@@ -19,6 +21,7 @@ export interface AiChatResponse {
   grounded?: boolean;
 }
 
+/** Một tin nhắn trong khung chat với trợ lý AI (của người dùng hoặc của AI). */
 export interface AiChatMessage {
   id: string;
   sender: 'user' | 'ai';
@@ -30,6 +33,7 @@ export interface AiChatMessage {
   timestamp: Date;
 }
 
+/** Một bước trong chuỗi xử lý của agent: nhận ý định, chạy công cụ, tổng hợp, hoàn tất hoặc lỗi. */
 export interface AgentPipelineStep {
   step: 'INTENT' | 'TOOL_EXECUTION' | 'SYNTHESIS' | 'COMPLETED' | 'ERROR';
   name: string;
@@ -38,6 +42,7 @@ export interface AgentPipelineStep {
   duration_ms?: number;
 }
 
+/** Phản hồi của agent dành cho người tổ chức: câu trả lời, các bước xử lý, trạng thái cache và thời gian thực thi. */
 export interface OrganizerAgentResponse {
   reply: string;
   pipeline_steps: AgentPipelineStep[];
@@ -46,6 +51,7 @@ export interface OrganizerAgentResponse {
   actions?: AiSystemAction[];
 }
 
+/** Một tin nhắn trong khung chat với agent của người tổ chức. */
 export interface OrganizerChatMessage {
   id: string;
   sender: 'user' | 'ai';
@@ -58,12 +64,14 @@ export interface OrganizerChatMessage {
 }
 
 
-// AI foundation: response shapes (additive)
+// Nền tảng AI: các dạng phản hồi (bổ sung thêm)
+/** Một kết quả khớp từ tìm kiếm AI: id sự kiện và điểm tương đồng. */
 export interface AiSearchMatch {
   event_id: string;
   score: number;
 }
 
+/** Thông tin sự kiện hiển thị trong kết quả tìm kiếm AI. */
 export interface AiSearchEvent {
   id: string;
   title?: string;
@@ -79,6 +87,7 @@ export interface AiSearchEvent {
   relevanceScore?: number | null;
 }
 
+/** Phản hồi tìm kiếm AI: danh sách kết quả khớp, sự kiện, chế độ tìm (vector hoặc từ khóa) và cờ cho biết đang chạy ở chế độ suy giảm. */
 export interface AiSearchResponse {
   query: string;
   total: number;
@@ -88,9 +97,12 @@ export interface AiSearchResponse {
   degraded?: boolean;
 }
 
+/** Mức rủi ro của sự kiện khi đánh giá duyệt. */
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+/** Tầng đánh giá rủi ro tạo ra một lý do: luật, tín hiệu hoặc AI. */
 export type RiskLayer = 'RULE' | 'SIGNAL' | 'AI';
 
+/** Đoạn văn bản làm bằng chứng cho một lý do rủi ro, kèm trường chứa nó và vị trí đầu cuối. */
 export interface RiskEvidence {
   field: string;
   start?: number;
@@ -98,6 +110,7 @@ export interface RiskEvidence {
   text: string;
 }
 
+/** Một lý do góp vào điểm rủi ro: tầng đánh giá, mã, mức độ, trọng số, thông điệp và bằng chứng. */
 export interface RiskReasonItem {
   layer: RiskLayer;
   code: string;
@@ -107,27 +120,29 @@ export interface RiskReasonItem {
   status?: 'not_assessed';
   evidence?: RiskEvidence[];
   confidence?: string;
-  /** The organiser signals share one capped budget: this one was cut (its weight is what was actually counted). */
+  /** Các tín hiệu về người tổ chức dùng chung một ngân sách điểm có trần: cờ này cho biết tín hiệu đã bị cắt (trọng số trong trường này là trọng số thực sự được tính). */
   capped?: boolean;
 }
 
+/** Độ phủ của việc đánh giá: luật, số tín hiệu đã đánh giá và trạng thái chạy của tầng AI. */
 export interface RiskCoverage {
   rules: boolean;
   signals: { assessed: number; total: number; missing: string[] };
   ai: 'ran' | 'failed' | 'skipped';
-  /** Model flags dropped because a rule had already scored the same words. */
+  /** Các cờ của mô hình bị bỏ vì một luật đã chấm điểm cùng các từ đó. */
   ai_overlap_dropped?: number;
   ai_meta?: {
     prompt_version?: string;
     model?: string;
     flags_proposed?: number;
-    /** Second reading of the flags: ran, failed (flags kept) or skipped (no flags to check). */
+    /** Lần đọc thứ hai các cờ: đã chạy, thất bại (giữ nguyên các cờ) hoặc bỏ qua (không có cờ nào để kiểm tra). */
     verify?: 'ran' | 'failed' | 'skipped';
     verify_removed?: string[];
   };
 }
 
-// Multi-layer assessment. The first three fields are the original contract; the rest is additive
+// Đánh giá nhiều tầng. Ba trường đầu là hợp đồng ban đầu; các trường còn lại được bổ sung thêm.
+/** Kết quả chấm điểm rủi ro của một sự kiện: điểm, mức rủi ro, các lý do, độ phủ và thông tin lưu trữ. */
 export interface AiRiskScoreResponse {
   risk_score: number;
   risk_level: RiskLevel | string;
@@ -145,11 +160,13 @@ export interface AiRiskScoreResponse {
   event_id?: string;
 }
 
+/** Phản hồi chấm điểm hàng loạt: đánh giá theo từng sự kiện và danh sách sự kiện chưa có đánh giá. */
 export interface RiskBatchResponse {
   assessments: Record<string, AiRiskScoreResponse>;
   missing: string[];
 }
 
+/** Thống kê mức độ đồng thuận giữa điểm rủi ro của AI và quyết định duyệt thực tế của admin trong một số ngày. */
 export interface RiskAgreementResponse {
   days: number;
   decided: number;
@@ -161,6 +178,7 @@ export interface RiskAgreementResponse {
   by_level: Record<RiskLevel, { APPROVED: number; REJECTED: number }>;
 }
 
+/** Các chỉ số chính của bảng điều khiển admin; mỗi chỉ số là `null` khi nguồn dữ liệu tương ứng không khả dụng. */
 export interface DashboardKpis {
   generated_at: string;
   hash?: string;
@@ -175,6 +193,7 @@ export interface DashboardKpis {
   sources: Record<string, 'ok' | 'unavailable' | string>;
 }
 
+/** Phản hồi bản tóm tắt AI của bảng điều khiển, kèm lý do khi không có tóm tắt và cờ cache. */
 export interface DashboardSummaryResponse {
   summary: string | null;
   reason: string | null;
@@ -182,9 +201,12 @@ export interface DashboardSummaryResponse {
   created_at: string;
 }
 
+/** Loại việc cần admin chú ý. */
 export type AttentionType = 'HIGH_RISK_PENDING' | 'LATE_PAYMENT_OPEN' | 'PAID_WITHOUT_TICKETS' | 'RESALE_PENDING' | 'SERVICE_DOWN';
+/** Mức ưu tiên của việc cần chú ý. */
 export type AttentionPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM';
 
+/** Một việc cần admin chú ý: loại, mức ưu tiên, bằng chứng và đường dẫn xử lý. */
 export interface AttentionItem {
   id: string;
   type: AttentionType | string;
@@ -195,12 +217,14 @@ export interface AttentionItem {
   since: string | null;
 }
 
+/** Phản hồi danh sách việc cần chú ý, kèm trạng thái từng nguồn dữ liệu. */
 export interface AttentionResponse {
   generated_at: string;
   items: AttentionItem[];
   sources: Record<string, 'ok' | 'unavailable' | string>;
 }
 
+/** Báo cáo được ghim: câu hỏi, câu SQL, loại biểu đồ và ảnh chụp dữ liệu lúc ghim. */
 export interface PinnedReport {
   pin_id: string;
   title: string;
@@ -211,11 +235,13 @@ export interface PinnedReport {
   created_at: string;
 }
 
+/** Phản hồi danh sách báo cáo đã ghim và số lượng ghim tối đa. */
 export interface PinsResponse {
   pins: PinnedReport[];
   max: number;
 }
 
+/** Dữ liệu hiện tại của một báo cáo đã ghim; `live` cho biết dữ liệu mới hay là ảnh chụp cũ. */
 export interface PinData {
   pin_id: string;
   title: string;
@@ -225,6 +251,7 @@ export interface PinData {
   snapshot_at?: string;
 }
 
+/** Dữ liệu gửi lên để ghim một báo cáo mới. */
 export interface PinCreateInput {
   title: string;
   question: string;
@@ -233,8 +260,10 @@ export interface PinCreateInput {
   snapshot?: Record<string, unknown>[];
 }
 
+/** Tên nhà cung cấp mô hình AI được hỗ trợ. */
 export type AiProviderName = 'groq' | 'openai' | 'gemini';
 
+/** Tình trạng sức khỏe của một nhà cung cấp AI: đã cấu hình chưa, trạng thái, lần thành công cuối và số lần thành công hoặc thất bại. */
 export interface AiProviderHealth {
   name: AiProviderName | string;
   configured: boolean;
@@ -245,11 +274,13 @@ export interface AiProviderHealth {
   fail_count: number;
 }
 
+/** Phản hồi kiểm tra sức khỏe AI: tình trạng từng nhà cung cấp và kết quả thăm dò. */
 export interface AiHealthResponse {
   providers: AiProviderHealth[];
   probe: { status: 'ok' | 'failed'; checked_at: string; provider?: string } | null;
 }
 
+/** Trạng thái hoạt động của một dịch vụ hệ thống (cổng, uptime, độ trễ, bộ nhớ, CPU). */
 export interface SystemServiceStatus {
   name: string;
   port: number | null;
@@ -261,6 +292,7 @@ export interface SystemServiceStatus {
   cpuLoad: string | null;
 }
 
+/** Một dòng nhật ký hệ thống: thời điểm, dịch vụ, sự kiện, mức độ và nơi phát sinh. */
 export interface SystemLogEntry {
   id: string;
   time: string;
@@ -273,11 +305,13 @@ export interface SystemLogEntry {
   endpoint: string | null;
 }
 
+/** Phản hồi nhật ký hệ thống, kèm trạng thái của nguồn log. */
 export interface SystemLogsResponse {
   entries: SystemLogEntry[];
   source: { status: 'ok' | 'empty' | 'unavailable' };
 }
 
+/** Phản hồi trạng thái chứng chỉ SSL của tên miền: nhà cấp, giao thức và số ngày còn hiệu lực. */
 export interface SslStatusResponse {
   has_ssl: boolean;
   status?: string;
@@ -291,24 +325,28 @@ export interface SslStatusResponse {
 }
 
 
-// AI request/response shapes used by services/aiApi.ts (additive)
+// Các dạng yêu cầu và phản hồi AI dùng bởi services/aiApi.ts (bổ sung thêm)
 
+/** Một lượt hội thoại trong lịch sử gửi kèm cho AI (vai trò và nội dung). */
 export interface AiChatHistoryItem {
   role: string;
   content: string;
 }
 
+/** Phản hồi phân tích dữ liệu bằng AI: câu trả lời, câu SQL được sinh ra và dữ liệu kết quả. */
 export interface AiAnalyzeResponse {
   reply?: string;
   generated_sql?: string;
   data?: Record<string, unknown>[];
 }
 
+/** Nội dung sự kiện do AI sinh: mô tả và điều khoản. */
 export interface AiGeneratedEventContent {
   description: string;
   terms_and_conditions: string;
 }
 
+/** Phản hồi gợi ý chiến lược voucher từ AI. */
 export interface AiVoucherStrategyResponse {
   strategy: string;
 }

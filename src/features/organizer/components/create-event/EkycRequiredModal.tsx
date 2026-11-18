@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next";
 import { PATHS } from "@/routes/paths";
 import { FiShield, FiArrowRight, FiX } from "react-icons/fi";
 
+/** Props của hộp thoại yêu cầu eKYC: trạng thái mở và hàm đóng. */
 interface EkycRequiredModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/** Hộp thoại chặn tạo sự kiện khi ban tổ chức chưa xác thực eKYC, kèm liên kết sang trang hồ sơ (tab {@code ekyc}). Không dựng gì khi {@code isOpen} là false. */
 export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
   if (!isOpen) return null;
@@ -16,7 +18,7 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl app-bg-card border app-border p-6 sm:p-7 shadow-2xl space-y-6">
-        {/* Close Button */}
+        {/* Nút đóng */}
         <button
           onClick={onClose}
           aria-label={t("Đóng")}
@@ -25,7 +27,7 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
           <FiX className="w-5 h-5" />
         </button>
 
-        {/* Header Icon */}
+        {/* Biểu tượng tiêu đề */}
         <div className="flex flex-col items-center text-center space-y-3 pt-2">
           <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
             <FiShield className="w-7 h-7" />
@@ -38,7 +40,7 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
           </div>
         </div>
 
-        {/* Benefits list */}
+        {/* Danh sách lợi ích */}
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border app-border space-y-2 text-xs">
           <div className="flex items-center gap-2.5 app-text-main font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
@@ -54,7 +56,7 @@ export const EkycRequiredModal: React.FC<EkycRequiredModalProps> = ({ isOpen, on
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Các nút hành động */}
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             onClick={onClose}

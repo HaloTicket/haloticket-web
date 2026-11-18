@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import React from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
+/** Props của bước 3: cờ sự kiện riêng tư, tin nhắn xác nhận, cờ bật câu hỏi khảo sát, hàm cập nhật tương ứng và hàm quay lại, tiếp tục. */
 interface Step3SettingsProps {
   isPrivate: boolean;
   setIsPrivate: (v: boolean) => void;
@@ -13,6 +14,7 @@ interface Step3SettingsProps {
   onNext: () => void;
 }
 
+/** Bước 3 của form tạo sự kiện: đặt sự kiện riêng tư (chỉ truy cập qua link), tin nhắn xác nhận sau khi đặt vé và bật bước câu hỏi khảo sát. */
 export const Step3Settings: React.FC<Step3SettingsProps> = ({
   isPrivate,
   setIsPrivate,
@@ -30,7 +32,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
         <h3 className="text-lg font-extrabold app-text-main border-b app-border pb-4">
           {translate("Cài đặt quyền riêng tư & Tin nhắn xác nhận")} </h3>
 
-        {/* Private link setting */}
+        {/* Thiết lập link riêng tư */}
         <label className="flex items-start gap-3 p-4 rounded-xl app-bg-subnav border app-border cursor-pointer">
           <input
             type="checkbox"
@@ -46,7 +48,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
           </div>
         </label>
 
-        {/* Confirmation Message */}
+        {/* Tin nhắn xác nhận */}
         <div className="space-y-2">
           <div className="flex justify-between text-xs font-bold app-text-main">
             <span>{translate("Tin nhắn xác nhận cho người tham gia sau khi đặt vé thành công")}</span>
@@ -62,7 +64,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
           />
         </div>
 
-        {/* Custom Questions Toggle Switch */}
+        {/* Công tắc bật câu hỏi tùy chỉnh */}
         <div className="p-4 rounded-xl border border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h4 className="text-sm font-extrabold app-text-main">
@@ -83,7 +85,7 @@ export const Step3Settings: React.FC<Step3SettingsProps> = ({
         </div>
       </div>
 
-      {/* Stepper Nav Buttons */}
+      {/* Các nút điều hướng bước */}
       <div className="flex items-center justify-between pt-4">
         <button
           type="button"

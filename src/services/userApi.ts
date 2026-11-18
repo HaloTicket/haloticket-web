@@ -6,6 +6,7 @@ export type { UserProfile, UserProfileUpdateRequest, JwtPayload };
 const USER_CACHE_KEY = "haloticket_user_profile";
 let inFlightProfilePromise: Promise<UserProfile> | null = null;
 
+/** Giải mã phần payload của JWT (base64url, hỗ trợ ký tự Unicode) mà không kiểm tra chữ ký. Trả về `null` nếu token sai định dạng. */
 export function parseJwt(token: string): JwtPayload | null {
   try {
     const base64Url = token.split(".")[1];
@@ -23,15 +24,16 @@ export function parseJwt(token: string): JwtPayload | null {
   }
 }
 
+/** Lấy hồ sơ người dùng từ localStorage; nếu không có thì dựng tạm từ thông tin trong access token. Trả về `null` khi cả hai đều không dùng được. */
 export function getCachedUserProfile(): UserProfile | null {
   try {
     const raw = localStorage.getItem(USER_CACHE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {
-    // fallback below
+    // chuyển sang cách dự phòng bên dưới
   }
 
-  // fallback: derive from access_token if possible
+  // dự phòng: suy ra từ access_token nếu có thể
   const token = getKeycloakSession().getCurrentToken();
   if (token) {
     const payload = parseJwt(token);
@@ -50,6 +52,7 @@ export function getCachedUserProfile(): UserProfile | null {
   return null;
 }
 
+/** Lưu hồ sơ người dùng vào localStorage; khi `notify` là true thì phát sự kiện `user-updated` để các thành phần giao diện cập nhật. */
 export function setCachedUserProfile(profile: UserProfile, notify = false): void {
   try {
     localStorage.setItem(USER_CACHE_KEY, JSON.stringify(profile));
@@ -62,11 +65,13 @@ export function setCachedUserProfile(profile: UserProfile, notify = false): void
 }
 
 export const userApi = {
+  /** Tìm người nhận quà tặng theo email (đã cắt khoảng trắng). */
   findGiftRecipient: (email: string) =>
     axiosClient.get<unknown, { userId: string; email: string; fullName: string }>(
       `/users/gift-recipient?email=${encodeURIComponent(email.trim())}`,
     ),
 
+  /** Tra cứu người dùng theo id Keycloak; trả về `null` nếu không tìm thấy hoặc lỗi. */
   getUserByKeycloakId: async (id: string): Promise<{ userId: string; fullName: string | null } | null> => {
     try {
       const response = await axiosClient.get<unknown, { userId: string; fullName: string | null }>(
@@ -77,14 +82,16 @@ export const userApi = {
       return null;
     }
   },
+  /** Đồng bộ người dùng hiện tại từ backend (`/users/me`), lưu vào cache và báo cho giao diện biết. */
   syncCurrentUser: async (): Promise<UserProfile> => {
     const response = await axiosClient.get<unknown, UserProfile>("/users/me");
     setCachedUserProfile(response, true);
     return response;
   },
 
+  /** Lấy hồ sơ người dùng hiện tại. Gộp các lần gọi đồng thời vào một yêu cầu, và dùng hồ sơ trong cache khi API lỗi. */
   getProfile: async (): Promise<UserProfile> => {
-    // return existing in-flight request if one is already pending
+    // dùng lại yêu cầu đang chạy nếu đã có
     if (inFlightProfilePromise) {
       return inFlightProfilePromise;
     }
@@ -111,6 +118,7 @@ export const userApi = {
     return inFlightProfilePromise;
   },
 
+  /** Cập nhật hồ sơ người dùng; ném lỗi nếu phản hồi không hợp lệ. */
   updateProfile: async (data: UserProfileUpdateRequest): Promise<UserProfile> => {
     const response = await axiosClient.put<unknown, UserProfile>("/users/me", data);
     if (response && response.email) {
@@ -120,6 +128,7 @@ export const userApi = {
     throw new Error("Không thể cập nhật thông tin. Vui lòng thử lại.");
   },
 
+  /** Đổi mật khẩu của người dùng hiện tại. */
   changePassword: async (payload: any): Promise<void> => {
     return axiosClient.put<unknown, void>("/users/me/password", payload);
   },

@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { t as translate } from "@/i18n";
 import React, { useState } from "react";
 
+/** Trạng thái bộ lọc vé bán lại: cách sắp xếp, số lượng, suất diễn, hạng vé và lọc theo vé bán lẻ. */
 export interface FilterState {
   sortOption: "latest" | "price-asc" | "price-desc";
   selectedQuantity: number;
@@ -10,6 +11,7 @@ export interface FilterState {
   retailFilter: "all" | "retail" | "non-retail";
 }
 
+/** Props của modal bộ lọc: trạng thái mở, bộ lọc hiện tại và các callback đóng, áp dụng, đặt lại. */
 interface ResaleFilterModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,6 +20,7 @@ interface ResaleFilterModalProps {
   onResetFilters: () => void;
 }
 
+/** Bảng bộ lọc vé bán lại dạng popup; giữ bản nháp bộ lọc cục bộ, đồng bộ lại từ props mỗi khi mở hoặc bộ lọc cha đổi, chỉ áp dụng khi bấm áp dụng. */
 export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
   isOpen,
   onClose,
@@ -38,10 +41,12 @@ export const ResaleFilterModal: React.FC<ResaleFilterModalProps> = ({
 
   if (!isOpen) return null;
 
+  /** Đặt lại bộ lọc thông qua callback của component cha. */
   const handleReset = () => {
     onResetFilters();
   };
 
+  /** Áp dụng bộ lọc nháp cho component cha rồi đóng popup. */
   const handleApply = () => {
     onApplyFilters(localFilters);
     onClose();

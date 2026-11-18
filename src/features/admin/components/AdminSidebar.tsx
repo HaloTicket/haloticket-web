@@ -1,4 +1,4 @@
-/* Navigation metadata is shared with the admin layout and section pages. */
+/* Siêu dữ liệu điều hướng được dùng chung cho bố cục quản trị và các trang con. */
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -8,7 +8,9 @@ import { useTranslation } from "react-i18next";
 
 import { PATHS } from "@/routes/paths";
 
+/** Một mục điều hướng quản trị: đường dẫn, nhãn tiếng Việt và tiếng Anh, biểu tượng, mô tả. */
 export interface AdminNavItem { path: string; label: string; english: string; icon: IconType; description: string; }
+/** Một nhóm điều hướng quản trị gồm các mục con. */
 export interface AdminNavGroup { id: string; path: string; label: string; english: string; icon: IconType; description: string; items: AdminNavItem[]; }
 
 export const adminNavGroups: AdminNavGroup[] = [
@@ -42,6 +44,7 @@ export const adminNavGroups: AdminNavGroup[] = [
   ] },
 ];
 
+/** Tìm mục điều hướng ứng với đường dẫn hiện tại, kèm mã sự kiện nếu đang ở trang chi tiết duyệt sự kiện hoặc báo cáo; trả về `null` nếu không khớp. */
 export function resolveAdminNavigation(pathname: string) {
   for (const group of adminNavGroups) {
     if (group.items.length > 1 && pathname === group.path) return { group, item: { path: group.path, label: group.label, english: group.english, icon: group.icon, description: group.description }, eventId: undefined, isGroup: true };
@@ -49,12 +52,13 @@ export function resolveAdminNavigation(pathname: string) {
     if (!item) continue;
     const rawId = [PATHS.ADMIN_EVENTS_APPROVAL, PATHS.ADMIN_EVENT_REPORTS].includes(item.path) && pathname.startsWith(`${item.path}/`) ? pathname.slice(item.path.length + 1).split("/")[0] : undefined;
     let eventId = rawId;
-    if (rawId) { try { eventId = decodeURIComponent(rawId); } catch { /* Preserve malformed URL text. */ } }
+    if (rawId) { try { eventId = decodeURIComponent(rawId); } catch { /* Giữ nguyên chuỗi URL bị lỗi định dạng. */ } }
     return { group, item, eventId, isGroup: false };
   }
   return null;
 }
 
+/** Props của thanh bên quản trị: trạng thái thu gọn, mở trên di động, số sự kiện chờ duyệt và các callback. */
 interface AdminSidebarProps {
   collapsed: boolean;
   mobileOpen: boolean;
@@ -64,6 +68,7 @@ interface AdminSidebarProps {
   onToggleCollapse: () => void;
 }
 
+/** Thanh bên điều hướng quản trị theo nhóm, có thu gọn, ngăn kéo trên di động và bẫy tiêu điểm bàn phím khi ngăn kéo mở. */
 export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobileClose, onExpand, onToggleCollapse }: AdminSidebarProps) {
   const { pathname } = useLocation();
   const { t, i18n } = useTranslation();
@@ -74,20 +79,24 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
   const [closedActiveGroup, setClosedActiveGroup] = useState<{ path: string; id: string } | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  /** Chọn chuỗi tiếng Việt hoặc tiếng Anh theo ngôn ngữ hiện tại. */
   const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
   const showLabels = !collapsed || mobileOpen;
 
   useEffect(() => {
     if (!mobileOpen) return;
     const sidebar = sidebarRef.current;
+    /** Đưa tiêu điểm vào nút đóng khi thanh bên đã hiện. */
     const focusClose = () => {
       if (sidebar && getComputedStyle(sidebar).visibility === "visible") closeRef.current?.focus();
     };
     const frame = requestAnimationFrame(focusClose);
+    /** Đưa tiêu điểm vào nút đóng khi hiệu ứng ẩn hiện kết thúc. */
     const handleTransitionEnd = (event: TransitionEvent) => {
       if (event.target === sidebar && event.propertyName === "visibility") focusClose();
     };
     sidebar?.addEventListener("transitionend", handleTransitionEnd);
+    /** Đóng ngăn kéo bằng Escape và giữ phím Tab xoay vòng trong thanh bên. */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { onMobileClose(); return; }
       if (event.key !== "Tab") return;
