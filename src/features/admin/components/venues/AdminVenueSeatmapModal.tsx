@@ -24,6 +24,20 @@ import type { SeatMapDocument, ZoneBlock } from '@/types/seating';
 import { venueApi } from '@/services/venueApi';
 import { PATHS } from '@/routes/paths';
 import { toast } from 'sonner';
+import { getZoneSvgPoints } from '@/utils/seatMapHelpers';
+
+/** Hình của một khu trong bản xem trước SVG nhỏ: đa giác nếu khu có hình đa giác, ngược lại hình chữ nhật (bo góc trừ khi chọn Chữ nhật). */
+const ZoneThumbShape: React.FC<{ zone: ZoneBlock }> = ({ zone }) => {
+  const width = zone.width || 250;
+  const height = zone.height || 150;
+  const color = zone.color || '#3b82f6';
+  const points = getZoneSvgPoints(zone, width, height);
+  return points ? (
+    <polygon points={points} fill={color} fillOpacity="0.3" stroke={color} strokeWidth="3" strokeLinejoin="round" />
+  ) : (
+    <rect width={width} height={height} rx={zone.shape === 'rectangle' ? 0 : 12} fill={color} fillOpacity="0.3" stroke={color} strokeWidth="3" />
+  );
+};
 
 /** Props của hộp thoại quản lý sơ đồ ghế của địa điểm: trạng thái mở, địa điểm đang xem, hàm đóng và hàm báo khi mẫu thay đổi. */
 interface AdminVenueSeatmapModalProps {
@@ -669,15 +683,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                           {/* Các khu */}
                           {Object.values(activeAdminTemplate.data.zones || {}).map((zone, idx) => (
                             <g key={idx} transform={`translate(${zone.x}, ${zone.y}) rotate(${zone.rotation || 0})`}>
-                              <rect
-                                width={zone.width || 250}
-                                height={zone.height || 150}
-                                rx={12}
-                                fill={zone.color || '#3b82f6'}
-                                fillOpacity="0.3"
-                                stroke={zone.color || '#3b82f6'}
-                                strokeWidth="3"
-                              />
+                              <ZoneThumbShape zone={zone} />
                               <text
                                 x={(zone.width || 250) / 2}
                                 y={(zone.height || 150) / 2}
@@ -905,15 +911,7 @@ export const AdminVenueSeatmapModal: React.FC<AdminVenueSeatmapModalProps> = ({
                           {/* Các khu */}
                           {Object.values(activeOrganizerDoc.zones || {}).map((zone, idx) => (
                             <g key={idx} transform={`translate(${zone.x}, ${zone.y}) rotate(${zone.rotation || 0})`}>
-                              <rect
-                                width={zone.width || 250}
-                                height={zone.height || 150}
-                                rx={12}
-                                fill={zone.color || '#3b82f6'}
-                                fillOpacity="0.3"
-                                stroke={zone.color || '#3b82f6'}
-                                strokeWidth="3"
-                              />
+                              <ZoneThumbShape zone={zone} />
                               <text
                                 x={(zone.width || 250) / 2}
                                 y={(zone.height || 150) / 2}

@@ -3,6 +3,9 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { venueApi } from "@/services/venueApi";
+import { useStickyTopOffset } from "@/hooks/useStickyTopOffset";
+import { extractSvgShapes, shapesToZones } from "@/utils/svgImport";
+import type { CSSProperties } from "react";
 import { PATHS } from "@/routes/paths";
 import {
   FiArrowLeft,
@@ -65,6 +68,12 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState("Đang khởi tạo...");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // cột công cụ dính ngay dưới thanh tiêu đề khi cuộn trang; ở toàn màn hình thì mỗi cột tự cuộn trong khung
+  const stickyTop = useStickyTopOffset(!isFullscreen);
+  const sideColumnStyle: CSSProperties = isFullscreen ? { alignSelf: 'stretch' } : { position: 'sticky', top: stickyTop };
+  const panelColumnStyle: CSSProperties = isFullscreen
+    ? { height: '100%', overflowY: 'auto' }
+    : { position: 'sticky', top: stickyTop, maxHeight: `calc(100vh - ${stickyTop + 16}px)`, overflowY: 'auto' };
   const [isPropertyPanelCollapsed, setIsPropertyPanelCollapsed] = useState(false);
 
   // hộp thoại sơ đồ của ban tổ chức
@@ -1030,24 +1039,54 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       control_booth: "#475569",
       wc_food: "#0891b2",
       structure: "#64748b",
+      label: "#e2e8f0",
     };
     const newStructure: StructureElement = {
       id: `structure_${Date.now()}`,
       type,
       label: label || "CẤU TRÚC PHỤ",
-      x: lastClickedPos ? Math.round(lastClickedPos.x - 75) : 70,
-      y: lastClickedPos ? Math.round(lastClickedPos.y - 22) : 80 + structures.length * 55,
-      width: type === "control_booth" ? 220 : 150,
-      height: 44,
+      x: lastClickedPos ? Math.round(lastClickedPos.x - (type === "label" ? 100 : 75)) : 70,
+      y: lastClickedPos ? Math.round(lastClickedPos.y - (type === "label" ? 24 : 22)) : 80 + structures.length * 55,
+      width: type === "control_booth" ? 220 : type === "label" ? 200 : 150,
+      height: type === "label" ? 48 : 44,
       color: colorMap[type] || "#64748b",
       rotation: 0,
       shape: "rounded",
+      ...(type === "label" ? { fontSize: 28, textColor: "#e2e8f0" } : {}),
     };
     const nextStructures = [...structures, newStructure];
     setStructures(nextStructures);
     setSelectedStructureId(newStructure.id);
     commitHistory({ seats, stages, structures: nextStructures, zones });
     showToast("info", `Đã thêm cấu trúc ${label || ""}`);
+  };
+
+  /**
+   * Nhập các khu vực từ file SVG: mỗi hình tô màu thành một khu đa giác, co giãn vừa khung vẽ và thêm cạnh các khu đang có.
+   */
+  const handleImportSvg = async (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("error", t("File SVG quá lớn (tối đa 2 MB)."));
+      return;
+    }
+    try {
+      const shapes = extractSvgShapes(await file.text());
+      const imported = shapesToZones(shapes, { width: canvasSettings.width, height: canvasSettings.height });
+      if (imported.length === 0) {
+        showToast("warning", t("Không tìm thấy hình nào có thể nhập trong file SVG này."));
+        return;
+      }
+      const nextZones = { ...zones };
+      imported.forEach((zone) => {
+        nextZones[zone.id] = zone;
+      });
+      setZones(nextZones);
+      setSelectedZoneId(null);
+      commitHistory({ seats, stages, structures, zones: nextZones });
+      showToast("success", t("Đã nhập {{count}} khu từ file SVG. Hãy gán hạng vé cho từng khu.", { count: imported.length }));
+    } catch (error) {
+      showToast("error", error instanceof Error ? error.message : t("Không đọc được file SVG."));
+    }
   };
 
   /** Đổi kích thước canvas và khoảng cách lưới. */
@@ -1297,9 +1336,9 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
       <SeatMapStats seats={seats} zones={zones} stages={stages} structures={structures} compact />
 
       {/* Main Studio Body: Left Toolbar + Center Canvas + Right Property Inspector */}
-      <div className={`flex flex-row gap-3 items-start w-full ${isFullscreen ? "flex-1 min-h-0" : ""}`}>
+      <div className={`flex flex-row gap-3 w-full ${isFullscreen ? "flex-1 min-h-0 items-stretch" : "items-start"}`}>
         {/* Left Toolbar */}
-        <div className="w-12 flex-shrink-0 sticky top-4 z-20">
+        <div className="w-12 flex-shrink-0 z-20" style={sideColumnStyle}>
           <ToolBar
             zones={zones}
             selectedSeatIds={selectedSeatIds}
@@ -1310,6 +1349,7 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
             onAddTable={handleAddTable}
             onAddStage={handleAddStage}
             onAddStructure={handleAddStructure}
+            onImportSvg={handleImportSvg}
             onAddZoneBlock={handleAddZoneBlock}
             onResizeCanvas={handleResizeCanvas}
             onDeleteSelected={handleDeleteSelected}
@@ -1354,7 +1394,8 @@ export const AdminVenueSeatmapDesigner: React.FC = () => {
 
         {/* Right Inspector Column */}
         <div
-          className={`transition-all duration-200 flex-shrink-0 sticky top-4 z-20 ${
+          style={panelColumnStyle}
+          className={`transition-all duration-200 flex-shrink-0 z-20 ${
             isPropertyPanelCollapsed ? "w-12" : "w-full lg:w-80"
           }`}
         >

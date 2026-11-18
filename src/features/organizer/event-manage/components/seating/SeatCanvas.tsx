@@ -20,7 +20,18 @@ import {
   FiRotateCw as FiRedo,
 } from 'react-icons/fi';
 import type { Seat, StageElement, StructureElement, ZoneBlock, SeatCanvasProps } from '@/types/seating';
-import { isSeatInsideZone, reassignSeatZones } from '@/utils/seatMapHelpers';
+import { getBuyableQuantity } from '@/utils/ticketQuantities';
+import { applyTierStock, getZoneAvailability, getZoneSeats, resolveZoneTier, type ZoneAvailability } from '@/utils/zoneSales';
+import {
+  computeRowLabels,
+  getElementShapeStyle,
+  getZoneClipPath,
+  getZoneColor,
+  insertPolygonPoint,
+  parseZonePoints,
+  reassignSeatZones,
+  removePolygonPoint,
+} from '@/utils/seatMapHelpers';
 import {
   clampZoom,
   fitZoom,
@@ -296,21 +307,18 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   const cartIdSet = useMemo(() => new Set(attendeeCart.map((s) => s.id)), [attendeeCart]);
   // số ghế và số ghế đã bán/đang giữ của từng khu, chỉ tính lại khi ghế, khu hoặc trạng thái đổi
   const zoneStats = useMemo(() => {
-    const stats = new Map<string, { count: number; soldOrHeld: number }>();
+    const stats = new Map<string, ZoneAvailability>();
     for (const zone of zoneList) {
-      let count = 0;
-      let soldOrHeld = 0;
-      for (const s of seats) {
-        if (s.zoneId === zone.id || isSeatInsideZone(s, zone)) {
-          count += 1;
-          const st = seatStatusMap[s.id] || s.status;
-          if (st === 'sold' || st === 'SOLD' || st === 'HELD' || st === 'HOLDING') soldOrHeld += 1;
-        }
-      }
-      stats.set(zone.id, { count, soldOrHeld });
+      const availability = getZoneAvailability(zone, seats, seatStatusMap);
+      // phía khách: khu bán theo số lượng còn bị giới hạn bởi kho của hạng vé (khu cùng hạng dùng chung kho)
+      const tier = isAttendeeMode ? resolveZoneTier(zone, tiers) : undefined;
+      stats.set(zone.id, tier ? applyTierStock(availability, getBuyableQuantity(tier)) : availability);
     }
     return stats;
-  }, [zoneList, seats, seatStatusMap]);
+  }, [zoneList, seats, seatStatusMap, tiers, isAttendeeMode]);
+
+  // nhãn hàng ghế ở mép hàng của các khu bật hiển thị nhãn hàng
+  const rowLabels = useMemo(() => computeRowLabels(seats, zones as Record<string, ZoneBlock>), [seats, zones]);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
@@ -334,8 +342,11 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     | 'RESIZE_ZONE'
     | 'ROTATE_ZONE'
     | 'ROTATE_STAGE'
-    | 'ROTATE_STRUCTURE';
+    | 'ROTATE_STRUCTURE'
+    | 'ZONE_VERTEX';
     id?: string;
+    vertexIndex?: number;
+    initialPoint?: { x: number; y: number };
     handleDir?: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
     startMouseX: number;
     startMouseY: number;
@@ -347,6 +358,12 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
     initialStructures: Map<string, { x: number; y: number; width: number; height: number }>;
     initialZones: Map<string, { x: number; y: number; width: number; height: number }>;
   } | null>(null);
+
+  // bản sao mới nhất của zones để handler kéo đọc đỉnh hiện tại mà không phụ thuộc closure cũ
+  const zoneMapRef = useRef<Record<string, ZoneBlock>>({});
+  zoneMapRef.current = Array.isArray(zones)
+    ? Object.fromEntries((zones as ZoneBlock[]).map((z) => [z.id, z]))
+    : ((zones as Record<string, ZoneBlock>) ?? {});
 
   /** Tính hình chữ nhật bao toàn bộ nội dung (khu, sân khấu, cấu trúc, ghế); nếu bản đồ trống thì dùng khung mặc định 1200x800. */
   const getBoundingBox = () => {
@@ -1060,7 +1077,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
   const handlePointerDownZone = (e: React.PointerEvent, zone: ZoneBlock) => {
     if (isAttendeeMode) {
       e.stopPropagation();
-      const zoneSeatsCount = seats.filter((s) => s.zoneId === zone.id || isSeatInsideZone(s, zone)).length;
+      const zoneSeatsCount = getZoneSeats(zone, seats).length;
       if (zoneSeatsCount > 0) {
         // Khu có ghế: KHÔNG mở modal khu khi bấm vào vùng chứa, phải bấm trực tiếp vào từng ghế.
         return;
@@ -1156,6 +1173,34 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
       initialStructures: structMap,
       initialZones: zoneMap,
     };
+  };
+
+  /** Bấm xuống một đỉnh của đa giác khu vực: ghi đỉnh ban đầu để kéo di chuyển đỉnh đó. */
+  const handlePointerDownZoneVertex = (e: React.PointerEvent, zone: ZoneBlock, index: number) => {
+    if (isAttendeeMode) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const point = parseZonePoints(zone.points)?.[index];
+    if (!point) return;
+    const { seatMap, stageMap, structMap, zoneMap } = createInitialMap([], null, null, zone.id);
+    draggingRef.current = {
+      type: 'ZONE_VERTEX',
+      id: zone.id,
+      vertexIndex: index,
+      initialPoint: point,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      initialSeats: seatMap,
+      initialStages: stageMap,
+      initialStructures: structMap,
+      initialZones: zoneMap,
+    };
+  };
+
+  /** Ghi danh sách đỉnh mới cho đa giác của khu vực và ghi lịch sử hoàn tác. */
+  const commitZonePoints = (zoneId: string, points: { x: number; y: number }[]) => {
+    onUpdateZones?.((prev) => ({ ...prev, [zoneId]: { ...prev[zoneId], shape: 'polygon', points } }));
+    onCommitHistory?.();
   };
 
   /** Bấm xuống tay nắm xoay của khu: ghi tâm khu và góc ban đầu để xoay cả khu cùng ghế bên trong. */
@@ -1362,6 +1407,25 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
 
     const deltaX = (e.clientX - draggingRef.current.startMouseX) / scale;
     const deltaY = (e.clientY - draggingRef.current.startMouseY) / scale;
+
+    if (draggingRef.current.type === 'ZONE_VERTEX' && onUpdateZones) {
+      const { id, vertexIndex = -1, initialPoint } = draggingRef.current;
+      const zone = id ? zoneMapRef.current[id] : undefined;
+      const current = zone ? parseZonePoints(zone.points) : undefined;
+      if (!zone || !current || !initialPoint || !zone.width || !zone.height || vertexIndex < 0) return;
+      // đưa độ dời trên canvas về hệ tọa độ của khu (khu có thể đang xoay)
+      const rad = (-(zone.rotation || 0) * Math.PI) / 180;
+      const localX = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
+      const localY = deltaX * Math.sin(rad) + deltaY * Math.cos(rad);
+      const clamp = (v: number) => Math.min(100, Math.max(0, Math.round(v * 2) / 2));
+      const next = current.map((p, i) =>
+        i === vertexIndex
+          ? { x: clamp(initialPoint.x + (localX / zone.width!) * 100), y: clamp(initialPoint.y + (localY / zone.height!) * 100) }
+          : p
+      );
+      onUpdateZones((prev) => ({ ...prev, [id!]: { ...prev[id!], shape: 'polygon', points: next } }));
+      return;
+    }
 
     if (draggingRef.current.type === 'ELEMENTS') {
       const { initialSeats, initialStages, initialStructures, initialZones } = draggingRef.current;
@@ -1818,42 +1882,29 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
             const curvatureVal = zone.curvature ?? 16;
             const shapeType = zone.shape || 'rounded';
             let borderRadius = `${curvatureVal}px`;
+            const zonePoints = shapeType === 'polygon' ? parseZonePoints(zone.points) : undefined;
             let clipPath: string | undefined = undefined;
 
             if (shapeType === 'ellipse' || shapeType === 'circle') {
               borderRadius = '50%';
             } else if (shapeType === 'fan') {
               borderRadius = `${curvatureVal * 2}px ${curvatureVal * 2}px 0 0`;
-            } else if (shapeType === 'trapezoid') {
-              clipPath = 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)';
-              borderRadius = '0px';
             } else if (shapeType === 'rectangle') {
-              borderRadius = `${curvatureVal}px`;
+              borderRadius = '0px';
+            } else {
+              // hình thang, hình thang ngược, hình thoi và đa giác tự do được cắt bằng clip-path
+              clipPath = getZoneClipPath(shapeType, zone.customClipPath, zone.points);
+              if (clipPath) borderRadius = '0px';
             }
 
             // Độ mờ của nền
             const fillOpacity = zone.fillOpacity ?? 0.25;
-            const zoneStat = zoneStats.get(zone.id) ?? { count: 0, soldOrHeld: 0 };
-            const zoneSeatsCount = zoneStat.count;
+            const zoneStat = zoneStats.get(zone.id);
+            const zoneSeatsCount = zoneStat?.mode === 'SEATED' ? (zoneStat.total ?? 0) : 0;
 
-            let isZoneSoldOut = false;
-            if (isAttendeeMode) {
-              if (zoneSeatsCount > 0) {
-                if (zoneStat.soldOrHeld === zoneSeatsCount) {
-                  isZoneSoldOut = true;
-                }
-              } else {
-                const totalCap = zone.capacity || 100;
-                const soldOrHeldCount = Object.entries(seatStatusMap).filter(
-                  ([k, v]) => (k === zone.id || k.startsWith(zone.id + "_") || k.includes(zone.id)) && (v === 'SOLD' || v === 'HELD' || v === 'HOLDING')
-                ).length;
-                if (totalCap - soldOrHeldCount <= 0 && soldOrHeldCount > 0) {
-                  isZoneSoldOut = true;
-                }
-              }
-            }
+            const isZoneSoldOut = isAttendeeMode && !!zoneStat?.soldOut;
 
-            const activeColor = isZoneSoldOut ? '#475569' : zone.color;
+            const activeColor = isZoneSoldOut ? '#475569' : getZoneColor(zone, tiers ?? []);
 
             return (
               <div
@@ -1869,16 +1920,26 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
                   top: `${zone.y}px`,
                   width: `${zone.width}px`,
                   height: `${zone.height}px`,
-                  borderColor: activeColor,
-                  backgroundColor: activeColor,
+                  borderColor: clipPath ? 'transparent' : activeColor,
+                  backgroundColor: clipPath ? 'transparent' : activeColor,
                   opacity: isZoneSoldOut ? 0.6 : 1,
                   borderRadius: borderRadius,
-                  clipPath: clipPath,
                   transform: zone.rotation ? `rotate(${zone.rotation}deg)` : undefined,
                   transformOrigin: 'center center',
-                  boxShadow: `inset 0 0 0 1000px rgba(15, 23, 42, ${1 - fillOpacity})`,
+                  boxShadow: clipPath ? undefined : `inset 0 0 0 1000px rgba(15, 23, 42, ${1 - fillOpacity})`,
                 }}
               >
+                {/* Lớp nền cắt theo hình: tách riêng để tay nắm và viền chọn không bị clip-path cắt mất */}
+                {clipPath && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      backgroundColor: activeColor,
+                      clipPath,
+                      boxShadow: `inset 0 0 0 1000px rgba(15, 23, 42, ${1 - fillOpacity})`,
+                    }}
+                  />
+                )}
                 <div
                   data-zone-header="true"
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-br-xl rounded-tl-xl text-[11px] font-extrabold uppercase shadow-xs tracking-wider cursor-grab active:cursor-grabbing backdrop-blur-xs relative z-10"
@@ -1912,6 +1973,42 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
                 </div>
 
                 {/* 8 Directional Resizable Handles */}
+                {!isAttendeeMode && isSelected && zonePoints && (
+                  <>
+                    {zonePoints.map((p, i) => {
+                      const next = zonePoints[(i + 1) % zonePoints.length];
+                      return (
+                        <button
+                          key={`edge-${i}`}
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            commitZonePoints(zone.id, insertPolygonPoint(zonePoints, i));
+                          }}
+                          className="absolute w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-500/70 border border-white text-[9px] leading-none text-white z-40 hover:scale-150 transition-transform cursor-copy"
+                          style={{ left: `${(p.x + next.x) / 2}%`, top: `${(p.y + next.y) / 2}%` }}
+                          title={t('Bấm để thêm đỉnh vào giữa cạnh')}
+                          aria-label={t('Thêm đỉnh')}
+                        />
+                      );
+                    })}
+                    {zonePoints.map((p, i) => (
+                      <div
+                        key={`vertex-${i}`}
+                        onPointerDown={(e) => handlePointerDownZoneVertex(e, zone, i)}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          commitZonePoints(zone.id, removePolygonPoint(zonePoints, i));
+                        }}
+                        className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-amber-300 border-2 border-slate-900 z-50 shadow-md hover:scale-125 transition-transform cursor-move"
+                        style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                        title={t('Kéo để di chuyển đỉnh, bấm đúp để xóa đỉnh')}
+                      />
+                    ))}
+                  </>
+                )}
+
                 {!isAttendeeMode && isSelected && (
                   <>
                     <div
@@ -1948,6 +2045,7 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
           {/* 1. Stages */}
           {stages.map((stage) => {
             const isSelected = selectedStageId === stage.id;
+            const stageShape = getElementShapeStyle(stage.shape);
             return (
               <div
                 key={stage.id}
@@ -1959,13 +2057,20 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
                   top: `${stage.y}px`,
                   width: `${stage.width}px`,
                   height: `${stage.height}px`,
-                  backgroundColor: stage.color || '#6366f1',
+                  backgroundColor: stageShape.clipPath ? 'transparent' : (stage.color || '#6366f1'),
+                  borderRadius: stageShape.borderRadius,
                   color: '#ffffff',
                   transform: stage.rotation ? `rotate(${stage.rotation}deg)` : undefined,
                   transformOrigin: 'center center',
                 }}
               >
-                <div className="flex items-center gap-2 px-4 text-center">
+                {stageShape.clipPath && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ backgroundColor: stage.color || '#6366f1', clipPath: stageShape.clipPath }}
+                  />
+                )}
+                <div className="relative flex items-center gap-2 px-4 text-center">
                   {!isAttendeeMode && <FiMove className="w-4 h-4 opacity-70" />}
                   <span className="uppercase tracking-widest text-xs font-black">
                     {stage.label}
@@ -2001,26 +2106,36 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
           {structures.map((struct) => {
             const isSelected = selectedStructureId === struct.id;
             const isExit = struct.type === 'exit';
+            const isLabel = struct.type === 'label';
+            const structShape = getElementShapeStyle(struct.shape);
             return (
               <div
                 key={struct.id}
                 onPointerDown={(e) => handlePointerDownStructure(e, struct)}
-                className={`absolute rounded-xl border flex items-center justify-center font-bold text-xs shadow-md transition-shadow group ${isSelected ? 'ring-4 ring-rose-500 ring-offset-2 ring-offset-slate-900 z-30' : 'z-10'
-                  } ${!isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                className={`absolute flex items-center justify-center font-bold text-xs transition-shadow group ${isLabel ? '' : 'rounded-xl border shadow-md'} ${isSelected ? 'ring-4 ring-rose-500 ring-offset-2 ring-offset-slate-900 z-30' : 'z-10'
+                  } ${!isAttendeeMode && !isLabel ? 'cursor-grab active:cursor-grabbing' : ''} ${isLabel && !isAttendeeMode ? 'cursor-grab active:cursor-grabbing' : ''} ${isLabel && isAttendeeMode ? 'pointer-events-none' : ''}`}
                 style={{
                   left: `${struct.x}px`,
                   top: `${struct.y}px`,
                   width: `${struct.width}px`,
                   height: `${struct.height}px`,
-                  backgroundColor: struct.color || (isExit ? '#ef4444' : '#64748b'),
-                  color: '#ffffff',
+                  backgroundColor: isLabel || structShape.clipPath ? 'transparent' : (struct.color || (isExit ? '#ef4444' : '#64748b')),
+                  borderRadius: structShape.borderRadius,
+                  color: isLabel ? (struct.textColor || '#e2e8f0') : '#ffffff',
+                  fontSize: isLabel ? `${struct.fontSize ?? 28}px` : undefined,
                   transform: struct.rotation ? `rotate(${struct.rotation}deg)` : undefined,
                   transformOrigin: 'center center',
                 }}
               >
-                <div className="flex items-center gap-1.5 px-2 text-center text-[11px]">
+                {structShape.clipPath && !isLabel && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ backgroundColor: struct.color || '#64748b', clipPath: structShape.clipPath }}
+                  />
+                )}
+                <div className={`relative flex items-center gap-1.5 px-2 text-center ${isLabel ? 'font-black tracking-wide whitespace-nowrap' : 'text-[11px]'}`}>
                   {isExit && <FiShield className="w-3.5 h-3.5" />}
-                  <span className="truncate">{struct.label}</span>
+                  <span className={isLabel ? '' : 'truncate'}>{struct.label}</span>
                 </div>
 
                 {/* Rotation Handle (Top Center) */}
@@ -2047,6 +2162,17 @@ export const SeatCanvas: React.FC<SeatCanvasProps & SeatCanvasExtraProps> = ({
               </div>
             );
           })}
+
+          {/* Nhãn hàng ghế */}
+          {rowLabels.map((label) => (
+            <div
+              key={label.key}
+              className="absolute -translate-x-1/2 -translate-y-1/2 text-[13px] font-black font-mono text-slate-300 pointer-events-none select-none z-10"
+              style={{ left: `${label.x}px`, top: `${label.y}px` }}
+            >
+              {label.text}
+            </div>
+          ))}
 
           {/* 3. Seats (memoised: a zoom, a hover or a selection elsewhere does not re-render every seat) */}
           {seats.map((seat) => {
