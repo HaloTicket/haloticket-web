@@ -21,6 +21,7 @@ import VietQrModal from "@/features/tickets/components/VietQrModal";
 import { eventApi } from "@/services/eventApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
 import { paymentApi } from "@/services/paymentApi";
+import { isPaymentMethodEnabled } from "@/config/paymentMethods";
 import { getKeycloakSession } from "@/services/keycloakSession";
 import { PATHS } from "@/routes/paths";
 import type { VietQrPayloadResponse } from "@/types";
@@ -910,73 +911,79 @@ export const ResaleTicketCheckout = () => {
                     </label>
 
                     {/* 3. MoMo */}
-                    <label
-                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
-                        paymentMethod === "MOMO"
-                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
-                          : "app-bg-page border app-border hover:border-blue-500/50"
-                      }`}
-                      onClick={() => setPaymentMethod("MOMO")}
-                    >
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        checked={paymentMethod === "MOMO"}
-                        onChange={() => setPaymentMethod("MOMO")}
-                        className="accent-blue-600 w-4 h-4 cursor-pointer"
-                      />
-                      <span className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 font-black text-xs flex items-center justify-center shrink-0 border border-pink-500/20">
-                        MoMo
-                      </span>
-                      <div className="min-w-0">
-                        <span className="text-sm font-extrabold app-text-main block">{t("Ví MoMo")}</span>
-                        <span className="text-xs app-text-muted block">{t("Thanh toán tức thì qua ứng dụng ví MoMo")}</span>
-                      </div>
-                    </label>
+                    {isPaymentMethodEnabled('momo') && (
+                      <label
+                        className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                          paymentMethod === "MOMO"
+                            ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                            : "app-bg-page border app-border hover:border-blue-500/50"
+                        }`}
+                        onClick={() => setPaymentMethod("MOMO")}
+                      >
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          checked={paymentMethod === "MOMO"}
+                          onChange={() => setPaymentMethod("MOMO")}
+                          className="accent-blue-600 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 font-black text-xs flex items-center justify-center shrink-0 border border-pink-500/20">
+                          MoMo
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-extrabold app-text-main block">{t("Ví MoMo")}</span>
+                          <span className="text-xs app-text-muted block">{t("Thanh toán tức thì qua ứng dụng ví MoMo")}</span>
+                        </div>
+                      </label>
+                    )}
 
                     {/* 4. ZaloPay */}
-                    <label
-                      className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
-                        paymentMethod === "ZALOPAY"
-                          ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
-                          : "app-bg-page border app-border hover:border-blue-500/50"
-                      }`}
-                      onClick={() => setPaymentMethod("ZALOPAY")}
-                    >
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        checked={paymentMethod === "ZALOPAY"}
-                        onChange={() => setPaymentMethod("ZALOPAY")}
-                        className="accent-blue-600 w-4 h-4 cursor-pointer"
-                      />
-                      <span className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0 border border-sky-500/20">
-                        Zalo
-                      </span>
-                      <div className="min-w-0">
-                        <span className="text-sm font-extrabold app-text-main block">{t("Ví ZaloPay")}</span>
-                        <span className="text-xs app-text-muted block">{t("Thanh toán qua ứng dụng ZaloPay hoặc mã QR")}</span>
-                      </div>
-                    </label>
+                    {isPaymentMethodEnabled('zalopay') && (
+                      <label
+                        className={`flex items-center gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
+                          paymentMethod === "ZALOPAY"
+                            ? "app-bg-card border-blue-600 ring-2 ring-blue-500/30 shadow-sm"
+                            : "app-bg-page border app-border hover:border-blue-500/50"
+                        }`}
+                        onClick={() => setPaymentMethod("ZALOPAY")}
+                      >
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          checked={paymentMethod === "ZALOPAY"}
+                          onChange={() => setPaymentMethod("ZALOPAY")}
+                          className="accent-blue-600 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0 border border-sky-500/20">
+                          Zalo
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-extrabold app-text-main block">{t("Ví ZaloPay")}</span>
+                          <span className="text-xs app-text-muted block">{t("Thanh toán qua ứng dụng ZaloPay hoặc mã QR")}</span>
+                        </div>
+                      </label>
+                    )}
 
                     {/* 5. ShopeePay */}
-                    <label className="flex items-center gap-3.5 p-4 rounded-2xl border app-bg-page app-border opacity-60 cursor-not-allowed">
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        checked={paymentMethod === "SHOPEEPAY"}
-                        onChange={() => setPaymentMethod("SHOPEEPAY")}
-                        disabled
-                        className="accent-blue-600 w-4 h-4 cursor-pointer"
-                      />
-                      <span className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
-                        Shopee
-                      </span>
-                      <div className="min-w-0">
-                        <span className="text-sm font-extrabold app-text-main block">{t("Ví ShopeePay")}</span>
-                        <span className="text-xs app-text-muted block">{t("Chưa khả dụng")}</span>
-                      </div>
-                    </label>
+                    {isPaymentMethodEnabled('shopeepay') && (
+                      <label className="flex items-center gap-3.5 p-4 rounded-2xl border app-bg-page app-border opacity-60 cursor-not-allowed">
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          checked={paymentMethod === "SHOPEEPAY"}
+                          onChange={() => setPaymentMethod("SHOPEEPAY")}
+                          disabled
+                          className="accent-blue-600 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
+                          Shopee
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-extrabold app-text-main block">{t("Ví ShopeePay")}</span>
+                          <span className="text-xs app-text-muted block">{t("Chưa khả dụng")}</span>
+                        </div>
+                      </label>
+                    )}
                   </div>
                 </fieldset>
               </div>

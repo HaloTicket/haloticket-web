@@ -9,6 +9,7 @@ import type { CustomQuestionItem } from "@/types/organizer";
 import { eventApi } from "@/services/eventApi";
 import { bookingApi } from "@/services/bookingApi";
 import { paymentApi } from "@/services/paymentApi";
+import { isPaymentMethodEnabled } from "@/config/paymentMethods";
 import { userApi } from "@/services/userApi";
 import { CancelOrderModal } from "@/features/resale/components/CancelOrderModal";
 import UpdateRecipientInfoModal, { type RecipientInfoData } from "./components/UpdateRecipientInfoModal";
@@ -953,79 +954,85 @@ export default function Checkout() {
                   </label>
 
                   {/* 4. ZaloPay */}
-                  <label
-                    className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      selectedPaymentMethod === "zalopay"
-                        ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
-                        : "app-bg-main border app-border hover:border-blue-500/50"
-                    }`}
-                    onClick={() => setSelectedPaymentMethod("zalopay")}
-                  >
-                    <input
-                      type="radio"
-                      name="pm"
-                      checked={selectedPaymentMethod === "zalopay"}
-                      readOnly
-                      className="accent-blue-600 w-4 h-4"
-                    />
-                    <span className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0 border border-sky-500/20">
-                      Zalo
-                    </span>
-                    <div className="min-w-0">
-                      <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví ZaloPay")}</span>
-                      <span className="text-[11px] app-text-sub block">{t("Thanh toán qua ứng dụng ZaloPay hoặc mã QR")}</span>
-                    </div>
-                  </label>
+                  {isPaymentMethodEnabled('zalopay') && (
+                    <label
+                      className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        selectedPaymentMethod === "zalopay"
+                          ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-main border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setSelectedPaymentMethod("zalopay")}
+                    >
+                      <input
+                        type="radio"
+                        name="pm"
+                        checked={selectedPaymentMethod === "zalopay"}
+                        readOnly
+                        className="accent-blue-600 w-4 h-4"
+                      />
+                      <span className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 font-black text-xs flex items-center justify-center shrink-0 border border-sky-500/20">
+                        Zalo
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví ZaloPay")}</span>
+                        <span className="text-[11px] app-text-sub block">{t("Thanh toán qua ứng dụng ZaloPay hoặc mã QR")}</span>
+                      </div>
+                    </label>
+                  )}
 
                   {/* 5. ShopeePay */}
-                  <label
-                    className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      selectedPaymentMethod === "shopeepay"
-                        ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
-                        : "app-bg-main border app-border hover:border-blue-500/50"
-                    }`}
-                    onClick={() => setSelectedPaymentMethod("shopeepay")}
-                  >
-                    <input
-                      type="radio"
-                      name="pm"
-                      checked={selectedPaymentMethod === "shopeepay"}
-                      readOnly
-                      className="accent-blue-600 w-4 h-4"
-                    />
-                    <span className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
-                      Shopee
-                    </span>
-                    <div className="min-w-0">
-                      <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví ShopeePay")}</span>
-                      <span className="text-[11px] app-text-sub block">{t("Thanh toán nhanh chóng qua Ví ShopeePay")}</span>
-                    </div>
-                  </label>
+                  {isPaymentMethodEnabled('shopeepay') && (
+                    <label
+                      className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        selectedPaymentMethod === "shopeepay"
+                          ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-main border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setSelectedPaymentMethod("shopeepay")}
+                    >
+                      <input
+                        type="radio"
+                        name="pm"
+                        checked={selectedPaymentMethod === "shopeepay"}
+                        readOnly
+                        className="accent-blue-600 w-4 h-4"
+                      />
+                      <span className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
+                        Shopee
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví ShopeePay")}</span>
+                        <span className="text-[11px] app-text-sub block">{t("Thanh toán nhanh chóng qua Ví ShopeePay")}</span>
+                      </div>
+                    </label>
+                  )}
 
                   {/* 6. MoMo */}
-                  <label
-                    className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      selectedPaymentMethod === "momo"
-                        ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
-                        : "app-bg-main border app-border hover:border-blue-500/50"
-                    }`}
-                    onClick={() => setSelectedPaymentMethod("momo")}
-                  >
-                    <input
-                      type="radio"
-                      name="pm"
-                      checked={selectedPaymentMethod === "momo"}
-                      readOnly
-                      className="accent-blue-600 w-4 h-4"
-                    />
-                    <span className="w-9 h-9 rounded-xl bg-pink-500/10 text-pink-600 font-black text-xs flex items-center justify-center shrink-0 border border-pink-500/20">
-                      MoMo
-                    </span>
-                    <div className="min-w-0">
-                      <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví điện tử MoMo")}</span>
-                      <span className="text-[11px] app-text-sub block">{t("Quét mã QR bằng ứng dụng MoMo")}</span>
-                    </div>
-                  </label>
+                  {isPaymentMethodEnabled('momo') && (
+                    <label
+                      className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        selectedPaymentMethod === "momo"
+                          ? "app-bg-main border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
+                          : "app-bg-main border app-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => setSelectedPaymentMethod("momo")}
+                    >
+                      <input
+                        type="radio"
+                        name="pm"
+                        checked={selectedPaymentMethod === "momo"}
+                        readOnly
+                        className="accent-blue-600 w-4 h-4"
+                      />
+                      <span className="w-9 h-9 rounded-xl bg-pink-500/10 text-pink-600 font-black text-xs flex items-center justify-center shrink-0 border border-pink-500/20">
+                        MoMo
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs md:text-sm font-extrabold app-text-main block">{t("Ví điện tử MoMo")}</span>
+                        <span className="text-[11px] app-text-sub block">{t("Quét mã QR bằng ứng dụng MoMo")}</span>
+                      </div>
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
