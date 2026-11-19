@@ -36,19 +36,27 @@ function makeWindow() {
 
 describe("createKeycloakSession", () => {
   it("creates the browser client for the HaloTicket realm by default", () => {
-    const keycloak = makeKeycloak();
-    const keycloakFactory = vi.fn().mockReturnValue(keycloak);
+    // Gỡ biến môi trường VITE_KEYCLOAK_* (ví dụ từ file .env cục bộ) để kiểm tra đúng giá trị mặc định.
+    vi.stubEnv("VITE_KEYCLOAK_URL", undefined);
+    vi.stubEnv("VITE_KEYCLOAK_REALM", undefined);
+    vi.stubEnv("VITE_KEYCLOAK_CLIENT_ID", undefined);
+    try {
+      const keycloak = makeKeycloak();
+      const keycloakFactory = vi.fn().mockReturnValue(keycloak);
 
-    createKeycloakSession({
-      keycloakFactory,
-      location: { origin: "http://localhost:5173" },
-    });
+      createKeycloakSession({
+        keycloakFactory,
+        location: { origin: "http://localhost:5173" },
+      });
 
-    expect(keycloakFactory).toHaveBeenCalledWith({
-      url: "http://localhost:9080",
-      realm: "haloticket-realm",
-      clientId: "haloticket-web",
-    });
+      expect(keycloakFactory).toHaveBeenCalledWith({
+        url: "http://localhost:9080",
+        realm: "haloticket-realm",
+        clientId: "haloticket-web",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("initializes with check-sso, PKCE S256, and silent check-sso URL", async () => {
