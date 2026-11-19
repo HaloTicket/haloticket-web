@@ -4,14 +4,13 @@ import { useParams } from "react-router-dom";
 import {
   FiSearch,
   FiDownload,
-  FiMail,
   FiCheckCircle,
   FiInbox,
-  FiX
 } from "react-icons/fi";
 import { TablePagination } from "@/components/common/TablePagination";
 import { eventApi } from "@/services/eventApi";
 import * as XLSX from "xlsx";
+import { spreadsheetValue } from "@/features/organizer/finance/organizerFinanceExport";
 
 import OrderDetailsModal from "./components/OrderDetailsModal";
 
@@ -24,7 +23,6 @@ export const EventOrderList: React.FC = () => {
   const [showtimeId, setShowtimeId] = useState("");
   const [isShowtimeDropdownOpen, setIsShowtimeDropdownOpen] = useState(false);
 
-  const [showEmailModal, setShowEmailModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   
@@ -72,6 +70,20 @@ export const EventOrderList: React.FC = () => {
     return () => { isMounted = false; };
   }, [eventId, searchQuery, showtimeId, currentPage, pageSize]);
 
+  /** Nhãn hiển thị của trạng thái đơn; trạng thái lạ giữ nguyên mã để không đánh lừa thành "Đã hủy". */
+  const orderStatusLabel = (status?: string): string => {
+    switch (status) {
+      case "PAID": return t("Thành công");
+      case "CONFIRMED": return t("Đã xác nhận");
+      case "PENDING": return t("Chờ thanh toán");
+      case "CANCELLED": return t("Đã hủy");
+      case "EXPIRED": return t("Hết hạn");
+      case "REFUNDED": return t("Đã hoàn tiền");
+      case "FAILED": return t("Thất bại");
+      default: return status || "-";
+    }
+  };
+
   /** Xuất danh sách đơn hàng theo bộ lọc hiện tại ra tệp Excel (tối đa 1000 đơn). */
   const handleExportExcel = async () => {
     if (!eventId) return;
@@ -81,14 +93,15 @@ export const EventOrderList: React.FC = () => {
       const res = await eventApi.getEventBookings(eventId, searchQuery, showtimeId, 0, 1000);
       const allOrders = res.content || [];
       
+      // văn bản do người mua nhập (tên, email) đi qua spreadsheetValue để không bị Excel hiểu là công thức
       const exportData = allOrders.map((o: any) => ({
-        [t("Mã Đơn")]: o.bookingCode,
+        [t("Mã Đơn")]: spreadsheetValue(o.bookingCode),
         [t("Thời Gian Mua")]: new Date(o.createdAt).toLocaleString("vi-VN"),
-        [t("Người Mua")]: o.customerName,
-        "Email": o.customerEmail,
-        [t("Tổng Tiền (VNĐ)")]: o.totalAmount,
+        [t("Người Mua")]: spreadsheetValue(o.customerName),
+        "Email": spreadsheetValue(o.customerEmail),
+        [t("Tổng Tiền (VNĐ)")]: Number(o.totalAmount) || 0,
         [t("Số Lượng Vé")]: o.items?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
-        [t("Trạng Thái")]: o.status
+        [t("Trạng Thái")]: orderStatusLabel(o.status)
       }));
       
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -123,7 +136,7 @@ export const EventOrderList: React.FC = () => {
       <div className="app-bg-card border app-border rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b app-border pb-3">
           <p className="text-xs app-text-muted">
-            {t("Quản lý chi tiết đơn hàng đã mua vé, tìm kiếm người xem và gửi thông báo email đến khán giả.")}
+            {t("Quản lý chi tiết đơn hàng đã mua vé và tìm kiếm người xem.")}
           </p>
 
           {/* Các nút hành động */}
@@ -135,15 +148,6 @@ export const EventOrderList: React.FC = () => {
             >
               <FiDownload className="w-3.5 h-3.5" />
               <span>{t("Xuất báo cáo")}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowEmailModal(true)}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <FiMail className="w-3.5 h-3.5" />
-              <span>{t("Gửi email")}</span>
             </button>
           </div>
         </div>
@@ -287,13 +291,15 @@ export const EventOrderList: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-center rounded-r-xl">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        ord.status === "PAID" 
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" 
+                        ord.status === "PAID" || ord.status === "CONFIRMED"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
                           : ord.status === "PENDING"
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                          : ord.status === "REFUNDED"
+                          ? "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400"
                           : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400"
                       }`}>
-                        {ord.status === "PAID" ? t("Thành công") : ord.status === "PENDING" ? t("Chờ thanh toán") : t("Đã hủy")}
+                        {orderStatusLabel(ord.status)}
                       </span>
                     </td>
                   </tr>
@@ -315,67 +321,6 @@ export const EventOrderList: React.FC = () => {
           />
         </div>
       </div>
-
-      {/* Hộp thoại gửi email */}
-      {showEmailModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="app-bg-card border app-border rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b app-border pb-3">
-              <h3 className="text-sm font-bold app-text-main flex items-center gap-2">
-                <FiMail className="w-4 h-4 text-blue-600" />
-                <span>{t("Gửi Email Khán Giả Mua Vé")}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowEmailModal(false)}
-                className="p-1 rounded-lg app-text-muted hover:app-text-main cursor-pointer"
-              >
-                <FiX className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold app-text-main block mb-1">{t("Tiêu đề Email")}</label>
-                <input
-                  type="text"
-                  placeholder={t("Thông báo về sự kiện...")}
-                  className="w-full px-3 py-2 app-bg-subnav app-text-main border app-border rounded-xl focus:outline-none font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold app-text-main block mb-1">{t("Nội dung Email")}</label>
-                <textarea
-                  rows={4}
-                  placeholder={t("Nhập nội dung cần thông báo...")}
-                  className="w-full px-3 py-2 app-bg-subnav app-text-main border app-border rounded-xl focus:outline-none font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t app-border">
-              <button
-                type="button"
-                onClick={() => setShowEmailModal(false)}
-                className="px-4 py-2 app-bg-subnav app-text-main font-bold text-xs rounded-xl border app-border cursor-pointer"
-              >
-                {t("Hủy")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEmailModal(false);
-                  showToastMsg(t("Đã gửi email thông báo thành công đến tất cả người mua vé!"));
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
-              >
-                {t("Gửi ngay")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <OrderDetailsModal 
         isOpen={!!selectedOrder} 

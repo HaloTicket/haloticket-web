@@ -14,7 +14,7 @@ export interface FinanceExportSheet {
 }
 
 /** Chuyển giá trị sang kiểu ghi được vào bảng tính; chuỗi bắt đầu bằng ký tự công thức (=, +, -, @, tab, xuống dòng) được thêm dấu nháy đơn để tránh chèn công thức. */
-function spreadsheetValue(value: unknown): string | number | boolean {
+export function spreadsheetValue(value: unknown): string | number | boolean {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") {
     const formulaPrefix = /^[=+\-@]/.test(value.trimStart()) || value.startsWith("\t") || value.startsWith("\r") || value.startsWith("\n");

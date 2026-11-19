@@ -534,7 +534,15 @@ export default function Checkout() {
         }
       }
 
-      // xác nhận trực tiếp khi không có cổng thanh toán
+      // đơn có tiền mà không tạo được liên kết hoặc mã thanh toán: báo lỗi và giữ đơn chờ để khách thử lại,
+      // tuyệt đối không coi là đã đặt xong
+      if (finalTotalAmount > 0) {
+        setIsRecipientModalOpen(false);
+        showToast("error", t("Không tạo được liên kết thanh toán. Vui lòng thử lại hoặc chọn phương thức khác."));
+        return;
+      }
+
+      // đơn 0 đồng: không cần cổng thanh toán, xác nhận trực tiếp
       localStorage.removeItem("haloticket_pending_order");
       setIsRecipientModalOpen(false);
       navigate(PATHS.ORDER_DETAIL(bookingCode || activeBookingId));

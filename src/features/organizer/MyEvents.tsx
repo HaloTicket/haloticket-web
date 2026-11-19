@@ -21,16 +21,10 @@ import PendingApprovalModal from "./components/PendingApprovalModal";
 import EkycRequiredModal from "./components/create-event/EkycRequiredModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { eventApi } from "@/services/eventApi";
-import { organizerApi } from "@/services/organizerApi";
-import { userApi, getCachedUserProfile } from "@/services/userApi";
 import { ekycApi } from "@/services/ekycApi";
 import { TablePagination } from "@/components/common/TablePagination";
+import { getEventTabStatus, type MyEventTab } from "./myEventsTabs";
 
-import type { UserProfile } from "@/types";
-import type { OrganizerProfileData } from "@/types/organizer";
-
-/** Tab lọc danh sách sự kiện: sắp diễn ra, đã qua, chờ duyệt, nháp. */
-type MyEventTab = "upcoming" | "past" | "pending" | "draft";
 
 /** Một sự kiện trong danh sách của ban tổ chức (dữ liệu từ API, các trường có thể thiếu). */
 interface OrganizerEventItem {
@@ -83,9 +77,9 @@ export const MyEvents: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showEkycModal, setShowEkycModal] = useState(false);
   const [eventsList, setEventsList] = useState<OrganizerEventItem[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [myOrganizerProfile, setMyOrganizerProfile] = useState<OrganizerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [cancelError, setCancelError] = useState(false);
 
   /** Xử lý bấm "Tạo sự kiện": nếu chưa đủ điều kiện eKYC thì chặn điều hướng và mở hộp thoại yêu cầu xác thực. */
   const handleCreateEventClick = async (e: React.MouseEvent) => {
@@ -107,24 +101,20 @@ export const MyEvents: React.FC = () => {
 
   useEffect(() => {
     let active = true;
-    /** Tải hồ sơ người dùng, hồ sơ ban tổ chức và toàn bộ sự kiện; bỏ qua kết quả nếu component đã bị hủy. */
+    /** Tải các sự kiện của tôi từ máy chủ; bỏ qua kết quả nếu component đã bị hủy. */
     const fetchEvents = async () => {
+      setIsLoading(true);
+      setLoadError(false);
       try {
-        const user = await userApi.getProfile();
-        if (!active) return;
-        setCurrentUser(user);
-
-        if (user && user.id) {
-          const orgProf = await organizerApi.getOrganizerProfile(user.id);
-          if (active) setMyOrganizerProfile(orgProf);
-        }
-
-        const data = await eventApi.getAllEvents();
+        // sự kiện của tôi ở mọi trạng thái (nháp, chờ duyệt, bị từ chối, đã qua) do máy chủ trả theo phân công;
+        // danh sách công khai không còn chứa sự kiện chưa duyệt. Lỗi mạng hiện nút thử lại thay vì "chưa có sự kiện"
+        const data = await eventApi.getMyEvents();
         if (active && Array.isArray(data)) {
           setEventsList(data);
         }
       } catch (err) {
         console.error("Failed to load events from backend:", err);
+        if (active) setLoadError(true);
       } finally {
         if (active) setIsLoading(false);
       }
@@ -139,6 +129,7 @@ export const MyEvents: React.FC = () => {
   const handleCancelApproval = async () => {
     if (!cancellingEvent?.id) return;
     setIsCancelling(true);
+    setCancelError(false);
     try {
       await eventApi.cancelApprovalRequest(cancellingEvent.id);
       setCancellingEvent(null);
@@ -146,64 +137,19 @@ export const MyEvents: React.FC = () => {
       setReloadKey((key) => key + 1);
     } catch (err) {
       console.error("Failed to cancel approval request:", err);
+      setCancelError(true);
     } finally {
       setIsCancelling(false);
     }
   };
 
-  /** Kiểm tra sự kiện có thuộc về người dùng hiện tại không: là nhân sự được gán, hoặc khớp ban tổ chức theo userId, id/tên hồ sơ ban tổ chức, họ tên hay email. */
-  const isMyEvent = (ev: OrganizerEventItem): boolean => {
-    const user = currentUser || getCachedUserProfile();
-    if (!user) return false;
-
-    const currentUserId = user.id || user.keycloakId;
-    const currentEmail = user.email;
-
-    const orgUserId = ev.organizer?.userId;
-    const orgId = ev.organizer?.id;
-    const orgName = (ev.organizer?.name || "").toLowerCase();
-
-    // kiểm tra danh sách nhân sự được gán
-    if (ev.staffAssignments && ev.staffAssignments.some(s => s.email === currentEmail)) {
-      return true;
-    }
-
-    // khớp trực tiếp theo userId của ban tổ chức
-    if (orgUserId && currentUserId && orgUserId === currentUserId) return true;
-
-    // khớp theo id hoặc tên hồ sơ ban tổ chức
-    if (myOrganizerProfile) {
-      if (orgId && myOrganizerProfile.id && orgId === myOrganizerProfile.id) return true;
-      if (orgName && myOrganizerProfile.name && orgName === myOrganizerProfile.name.toLowerCase()) return true;
-    }
-
-    // khớp theo họ tên hoặc email của người dùng
-    if (user.fullName && orgName && orgName === user.fullName.toLowerCase()) return true;
-    if (currentEmail && orgName && orgName === currentEmail.toLowerCase()) return true;
-
-    return false;
-  };
-
-  /** Suy ra tab của sự kiện: đã qua nếu quá thời gian kết thúc, nếu không thì dựa trên trạng thái duyệt; trạng thái lạ coi là chờ duyệt. */
-  const getEventTabStatus = (ev: OrganizerEventItem): string => {
-    if (ev.endTime && new Date(ev.endTime) < new Date()) {
-      return "past";
-    }
-
-    const status = (ev.eventApprovalStatus || ev.eventStatus || "").toUpperCase();
-    if (status === "PENDING") return "pending";
-    if (status === "DRAFT") return "draft";
-    if (status === "ENDED" || status === "PASSED" || status === "COMPLETED") return "past";
-    if (status === "APPROVED" || status === "UPCOMING" || status === "ACTIVE" || status === "ONGOING") return "upcoming";
-    return "pending"; // sự kiện mới tạo mặc định ở trạng thái chờ duyệt
-  };
-
-  const myEventsOnly = eventsList.filter(isMyEvent);
+  const myEventsOnly = eventsList;
 
   const tabs: Array<{ id: MyEventTab; label: string; count: number }> = [
     { id: "upcoming", label: translate("Sắp tới"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "upcoming").length },
     { id: "past", label: translate("Đã qua"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "past").length },
     { id: "pending", label: translate("Chờ duyệt"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "pending").length },
+    { id: "rejected", label: translate("Bị từ chối"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "rejected").length },
     { id: "draft", label: translate("Nháp"), count: myEventsOnly.filter(ev => getEventTabStatus(ev) === "draft").length }
   ];
 
@@ -281,6 +227,20 @@ export const MyEvents: React.FC = () => {
         </div>
       </div>
 
+      {cancelError && (
+        <div role="alert" className="w-full p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 font-bold text-xs md:text-sm flex items-center gap-2.5">
+          <FiAlertTriangle className="w-5 h-5 shrink-0" />
+          <span>{translate("Không thu hồi được yêu cầu duyệt. Vui lòng thử lại.")}</span>
+        </div>
+      )}
+
+      {activeTab === "rejected" && (
+        <div className="w-full p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 font-bold text-xs md:text-sm flex items-center gap-2.5">
+          <FiAlertTriangle className="w-5 h-5 shrink-0" />
+          <span>{translate("Sự kiện bị từ chối. Mở sự kiện để xem lý do, chỉnh sửa rồi gửi duyệt lại.")}</span>
+        </div>
+      )}
+
       {/* Hộp cảnh báo màu vàng khi ở tab chờ duyệt */}
       {activeTab === "pending" && (
         <div className="w-full p-4 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs md:text-sm shadow-xs flex items-center gap-2.5">
@@ -296,6 +256,18 @@ export const MyEvents: React.FC = () => {
           <div className="w-full app-bg-card border app-border rounded-2xl p-12 flex flex-col items-center justify-center space-y-3 min-h-[300px]">
             <FiLoader className="w-8 h-8 text-blue-600 animate-spin" />
             <p className="text-xs font-bold app-text-muted">{translate("Đang tải danh sách sự kiện...")}</p>
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="w-full app-bg-card border app-border rounded-2xl p-12 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px]">
+            <FiAlertTriangle className="w-8 h-8 text-rose-500" />
+            <p className="text-sm font-extrabold app-text-main">{translate("Không tải được danh sách sự kiện. Vui lòng kiểm tra kết nối và thử lại.")}</p>
+            <button
+              type="button"
+              onClick={() => setReloadKey((key) => key + 1)}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+            >
+              {translate("Thử lại")}
+            </button>
           </div>
         ) : filteredEvents.length === 0 ? (
           /* Hình minh họa khi danh sách trống */

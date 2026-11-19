@@ -67,5 +67,9 @@
   "Chưa biết số lượng phát hành ban đầu của hạng vé này, không thể tự đồng bộ. Hãy cập nhật số phát hành ở trang quản lý sự kiện.": "The initial issued quantity of this ticket type is unknown, so it cannot be resynced automatically. Update the issued quantity on the event management page.",
   "Không thể đồng bộ lại kho. Vui lòng thử lại.": "Could not resync the stock. Please try again.",
   "Khu vực này chưa được gán hạng vé hợp lệ nên chưa thể đặt.": "This zone has no valid ticket tier assigned yet, so it cannot be booked.",
-  "Khu vực này chỉ còn {{remaining}} vé.": "Only {{remaining}} tickets are left in this zone."
+  "Khu vực này chỉ còn {{remaining}} vé.": "Only {{remaining}} tickets are left in this zone.",
+  "Không tạo được liên kết thanh toán. Vui lòng thử lại hoặc chọn phương thức khác.": "Could not create the payment link. Please try again or choose another payment method.",
+  "Giao dịch đang được xử lý. Nếu tài khoản của bạn đã bị trừ tiền, đơn sẽ được cập nhật trong ít phút và bạn không cần thanh toán lại. Hãy kiểm tra lại trong mục Vé của tôi.": "Your transaction is being processed. If your account has already been charged, the order will be updated within a few minutes and you do not need to pay again. Please check My Tickets later.",
+  "Giao dịch đang được xử lý": "Transaction is being processed",
+  "Xem vé của tôi": "View my tickets"
 }

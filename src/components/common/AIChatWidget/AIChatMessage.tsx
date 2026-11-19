@@ -29,6 +29,7 @@ import { eventApi } from '@/services/eventApi';
 import type { SeatMapDocument, SeatTier } from '@/types/seating';
 import { formatCurrency } from '@/utils/formatters';
 import { SeatCanvas } from '@/features/organizer/event-manage/components/seating/SeatCanvas';
+import { buildPendingOrder, parseServerConfirmation } from './bookingConfirmation';
 
 /** Props của bảng chọn vé tương tác: dữ liệu vé/suất diễn do AI trả về và callback gửi tin nhắn. */
 interface InteractiveTicketSelectorProps {
@@ -237,6 +238,12 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
       }
     }
 
+    // hạng vé có sơ đồ ghế phải chọn ghế thật; tạo mã ghế giả ở đây sẽ ra đơn không gắn ghế nào
+    if (cart.some((c: any) => c.is_seated)) {
+      navigate(`/events/${eventId}/select-ticket?showtimeId=${currentShowtime.id}`);
+      return;
+    }
+
     // sinh mã ghế giữ chỗ cho vé tự do (GA) theo số thứ tự
     const gaSeatIds: string[] = [];
     const seatNames: Record<string, string> = {};
@@ -256,9 +263,9 @@ const InteractiveTicketSelector: React.FC<InteractiveTicketSelectorProps> = ({ d
       eventId: String(eventId),
       showtimeId: String(currentShowtime.id),
       eventTitle: eventTitle,
-      eventTime: currentShowtime.start_time || "19:00, 2026",
-      eventLocation: t("Địa điểm HaloTicket"),
-      eventPoster: null,
+      eventTime: currentShowtime.start_time || "",
+      eventLocation: data.location || data.venue_name || t("Địa điểm HaloTicket"),
+      eventPoster: data.banner_url || data.poster_url || null,
       zoneId: cart[0]?.zoneId,
       zoneName: cart[0]?.zoneName,
       ticketTypeName: summaryText,
@@ -954,78 +961,70 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
               }
               
               if (action.action === 'USER_CONFIRMATION_REQUIRED') {
-                const actionType = action.extracted_args?.action_type;
-                const rawData = action.extracted_args?.data;
-                let parsed: any = null;
-                try {
-                  parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-                } catch {
-                  parsed = null;
-                }
+                // chỉ đọc dữ liệu máy chủ đã kiểm chứng và tính giá (database_data), không đọc phần mô hình tự viết (extracted_args)
+                const confirmation = parseServerConfirmation(action);
+                if (!confirmation) return null;
+                const seatsText = confirmation.seats.join(', ');
+                const totalQuantity = confirmation.tickets.reduce((sum, line) => sum + line.quantity, 0);
 
-                const eventId = parsed?.event_id;
-                const eventTitle = parsed?.event_title || parsed?.event || t("Sự kiện đã chọn");
-                const tierName = parsed?.tier_name || parsed?.tier;
-                const quantity = parsed?.quantity || parsed?.num_seats || (parsed?.seats?.length ? parsed.seats.length : 1);
-                const seats = Array.isArray(parsed?.seats) ? parsed.seats.join(", ") : parsed?.seats;
-                const totalPrice = parsed?.total_price || parsed?.total;
+                /** Dựng đơn tạm từ xác nhận của máy chủ rồi sang trang thanh toán; hạng vé có ghế mà thiếu ghế thì về trang chọn ghế. */
+                const handleConfirm = () => {
+                  const order = buildPendingOrder(confirmation, Date.now(), { freeAdmissionLabel: t('Vé tự do / Vào cổng') });
+                  if (!order) {
+                    navigate(`/events/${confirmation.eventId}/select-ticket${confirmation.showtimeId ? `?showtimeId=${confirmation.showtimeId}` : ''}`);
+                    return;
+                  }
+                  localStorage.setItem('haloticket_pending_order', JSON.stringify(order));
+                  navigate(`/checkout?eventId=${confirmation.eventId}${confirmation.showtimeId ? `&showtimeId=${confirmation.showtimeId}` : ''}&qty=${totalQuantity}`);
+                };
 
                 return (
-                  <div key={idx} className="mt-2.5 flex flex-col gap-2 p-3 bg-gradient-to-br from-brand-primary/5 to-blue-500/10 border border-brand-primary/30 rounded-xl shadow-xs animate-in slide-in-from-bottom-2">
+                  <div key={idx} className="mt-2.5 flex flex-col gap-2 p-3 bg-gradient-to-br from-brand-primary/5 to-blue-500/10 border border-brand-primary/30 rounded-xl shadow-xs w-full">
                     <div className="flex items-center justify-between border-b border-brand-primary/20 pb-1.5">
                       <p className="font-extrabold text-brand-primary text-xs uppercase tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         {t("Xác nhận thông tin đặt vé")}
                       </p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary font-bold">
-                        {actionType === 'BOOK_TICKETS' ? t('Giữ chỗ') : actionType}
-                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary font-bold">{t('Giữ chỗ')}</span>
                     </div>
 
                     <div className="space-y-1 text-xs">
                       <div className="font-bold text-text-main dark:text-white text-xs sm:text-sm line-clamp-1">
-                        {eventTitle}
+                        {confirmation.eventTitle || t("Sự kiện đã chọn")}
                       </div>
-                      {tierName && (
+                      {confirmation.showtimeName && (
                         <div className="flex justify-between items-center text-text-muted">
-                          <span>{t("Hạng vé:")}</span>
-                          <span className="font-semibold text-text-main dark:text-zinc-200">{tierName}</span>
+                          <span>{t("Suất diễn:")}</span>
+                          <span className="font-semibold text-text-main dark:text-zinc-200">{confirmation.showtimeName}</span>
                         </div>
                       )}
-                      {seats && (
+                      {confirmation.tickets.map((line) => (
+                        <div key={line.ticketTypeId} className="flex justify-between items-center text-text-muted gap-2">
+                          <span className="min-w-0 truncate">{line.tierName} x {line.quantity}</span>
+                          <span className="font-semibold text-text-main dark:text-zinc-200 shrink-0">{line.subtotal.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                      ))}
+                      {seatsText && (
                         <div className="flex justify-between items-center text-text-muted">
                           <span>{t("Vị trí ghế:")}</span>
-                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{seats}</span>
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{seatsText}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center text-text-muted">
                         <span>{t("Số lượng:")}</span>
-                        <span className="font-semibold text-text-main dark:text-zinc-200">{quantity} {t("vé")}</span>
+                        <span className="font-semibold text-text-main dark:text-zinc-200">{totalQuantity} {t("vé")}</span>
                       </div>
-                      {totalPrice && (
-                        <div className="flex justify-between items-center pt-1.5 border-t border-dashed border-gray-200 dark:border-gray-700">
-                          <span className="font-bold text-text-main dark:text-white">{t("Tổng tiền tạm tính:")}</span>
-                          <span className="font-black text-sm text-orange-500">
-                            {Number(totalPrice).toLocaleString('vi-VN')} đ
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex justify-between items-center pt-1.5 border-t border-dashed border-gray-200 dark:border-gray-700">
+                        <span className="font-bold text-text-main dark:text-white">{t("Tổng tiền:")}</span>
+                        <span className="font-black text-sm text-orange-500">{confirmation.totalPrice.toLocaleString('vi-VN')} đ</span>
+                      </div>
                     </div>
 
                     <div className="flex gap-2 mt-1.5">
                       <button
                         type="button"
-                        onClick={() => {
-                          const saved = localStorage.getItem("haloticket_pending_order");
-                          if (saved && eventId) {
-                            navigate(`/checkout?eventId=${eventId}`);
-                          } else if (eventId) {
-                            navigate(`/events/${eventId}/select-ticket`);
-                          } else {
-                            navigate('/events');
-                          }
-                        }}
-                        className="flex-1 py-2 text-center bg-brand-primary hover:bg-brand-secondary text-white font-bold text-xs rounded-lg shadow-sm transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                        onClick={handleConfirm}
+                        className="flex-1 py-2 text-center bg-brand-primary hover:bg-brand-secondary text-white font-bold text-xs rounded-lg shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <CreditCard size={13} />
                         <span>{t("Xác nhận & Tới trang Thanh toán")}</span>
@@ -1034,7 +1033,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
                       <button
                         type="button"
                         onClick={() => onSendMessage?.(t("Tôi muốn đổi ý hoặc tìm vé khác"))}
-                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-semibold text-xs rounded-lg transition active:scale-95 cursor-pointer"
+                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-semibold text-xs rounded-lg transition cursor-pointer"
                       >
                         {t("Chọn lại")}
                       </button>
@@ -1042,7 +1041,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
                   </div>
                 );
               }
-              
+
               if (action.action === 'SHOW_EVENT_CARDS') {
                 try {
                   const dataStr = action.database_data;
@@ -1075,7 +1074,7 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
                                 </p>
                               )}
                               <p className="text-xs font-bold text-orange-500 mt-auto pt-1">
-                                {Number(evt.min_price) > 0 ? `${t("Từ")} ${Number(evt.min_price).toLocaleString('vi-VN')} đ` : t("Miễn phí")}
+                                {evt.min_price == null ? t("Chưa có giá") : Number(evt.min_price) > 0 ? `${t("Từ")} ${Number(evt.min_price).toLocaleString('vi-VN')} đ` : t("Miễn phí")}
                               </p>
                               <div className="mt-1.5 flex gap-1.5">
                                 <a href={`/events/${evt.event_id}`} target="_blank" rel="noopener noreferrer" className="flex-1 text-center text-[10px] sm:text-[11px] font-semibold text-brand-primary border border-brand-primary hover:bg-brand-primary/10 py-1 rounded-lg transition-colors">

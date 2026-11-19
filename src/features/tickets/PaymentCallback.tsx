@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FiCheckCircle, FiXCircle, FiRefreshCw } from "react-icons/fi";
+import { FiCheckCircle, FiClock, FiXCircle, FiRefreshCw } from "react-icons/fi";
 import { paymentApi } from "@/services/paymentApi";
 import { bookingApi } from "@/services/bookingApi";
 import { marketplaceApi } from "@/services/marketplaceApi";
@@ -17,7 +17,7 @@ export default function PaymentCallback() {
   const vnpTxnRef = searchParams.get("vnp_TxnRef");
   const bookingIdParam = searchParams.get("bookingId") || vnpTxnRef;
 
-  const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
+  const [status, setStatus] = useState<"verifying" | "success" | "pending" | "error">("verifying");
   const [message, setMessage] = useState(t("Hệ thống đang xác thực giao dịch thanh toán..."));
 
   useEffect(() => {
@@ -55,7 +55,14 @@ export default function PaymentCallback() {
           paymentCompleted = Boolean(verification && ["COMPLETED", "PAID", "SUCCESS"].includes(verification.status));
           if (!paymentCompleted) await new Promise((resolve) => window.setTimeout(resolve, 1000));
         }
-        if (!paymentCompleted) throw new Error(t("Thanh toán chưa được payment-service xác nhận"));
+        if (!paymentCompleted) {
+          // chưa xác nhận kịp không có nghĩa là thất bại: tiền có thể đã trừ, hệ thống sẽ cập nhật đơn sau
+          if (isMounted) {
+            setStatus("pending");
+            setMessage(t("Giao dịch đang được xử lý. Nếu tài khoản của bạn đã bị trừ tiền, đơn sẽ được cập nhật trong ít phút và bạn không cần thanh toán lại. Hãy kiểm tra lại trong mục Vé của tôi."));
+          }
+          return;
+        }
 
         if (isResale) {
           if (isMounted) setMessage(t("Thanh toán thành công. Đang chuyển quyền sở hữu vé..."));
@@ -68,7 +75,13 @@ export default function PaymentCallback() {
             transferCompleted = purchase.status === "COMPLETED";
             if (!transferCompleted) await new Promise((resolve) => window.setTimeout(resolve, 1000));
           }
-          if (!transferCompleted) throw new Error(t("Vé đang được chuyển quyền. Vui lòng kiểm tra lại sau."));
+          if (!transferCompleted) {
+            if (isMounted) {
+              setStatus("pending");
+              setMessage(t("Vé đang được chuyển quyền. Vui lòng kiểm tra lại sau."));
+            }
+            return;
+          }
         }
 
         let targetCode = bookingIdParam;
@@ -125,6 +138,33 @@ export default function PaymentCallback() {
             </div>
             <h2 className="text-lg font-black uppercase tracking-wider text-emerald-500">{t("Thanh toán thành công!")}</h2>
             <p className="text-xs app-text-sub leading-relaxed">{message}</p>
+          </div>
+        )}
+
+        {status === "pending" && (
+          <div className="space-y-4">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center">
+              <FiClock className="w-8 h-8" />
+            </div>
+            <h2 className="text-lg font-black uppercase tracking-wider text-amber-500">{t("Giao dịch đang được xử lý")}</h2>
+            <p className="text-xs app-text-sub leading-relaxed">{message}</p>
+
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+              >
+                {t("Kiểm tra lại")}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(PATHS.MY_TICKETS)}
+                className="px-5 py-3 rounded-2xl app-bg-main border app-border app-text-main font-extrabold text-xs transition-all cursor-pointer"
+              >
+                {t("Xem vé của tôi")}
+              </button>
+            </div>
           </div>
         )}
 

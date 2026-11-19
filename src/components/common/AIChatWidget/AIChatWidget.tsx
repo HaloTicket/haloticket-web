@@ -6,6 +6,10 @@ import { getCachedUserProfile } from '../../../services/userApi';
 import type { AiChatMessage } from '../../../types/ai';
 import { resolveAiError, aiErrorMessage, type AiErrorInfo } from '../../../utils/aiErrors';
 import AIChatMessage from './AIChatMessage';
+import { dropStaleActions, findSelectedEventId } from './bookingConfirmation';
+
+/** Số ký tự tối đa khách gõ: máy chủ nhận tối đa 500 ký tự gồm cả ngữ cảnh ẩn (mã sự kiện) gửi kèm. */
+const MAX_INPUT_CHARS = 400;
 
 const LEGACY_HISTORY_KEY = 'ai_chat_history';
 const HISTORY_KEY_PREFIX = 'ai_chat_history:v2:';
@@ -52,7 +56,8 @@ function loadHistory(account: string, greeting: string): AiChatMessage[] {
     try {
       const parsed: unknown = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return (parsed as AiChatMessage[]).map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
+        // thẻ giá, tình trạng vé và xác nhận chỉ đúng tại thời điểm trả lời: bỏ những thẻ đã cũ khi mở lại cuộc trò chuyện
+        return dropStaleActions((parsed as AiChatMessage[]).map(m => ({ ...m, timestamp: new Date(m.timestamp) })), Date.now());
       }
     } catch {
       // rơi xuống nhánh tạo cuộc trò chuyện mới
@@ -165,7 +170,7 @@ const AIChatWidget: React.FC = () => {
         content: m.hiddenContext ? `${m.text} ${m.hiddenContext}` : m.text
       }));
       const finalContent = hiddenContext ? `${text} ${hiddenContext}` : text;
-      const response = await aiApi.chatWithSmartBooking(finalContent, historyPayload);
+      const response = await aiApi.chatWithSmartBooking(finalContent, historyPayload, findSelectedEventId(history));
       const aiMessage: AiChatMessage = {
         id: `${nowMs() + 1}`,
         sender: 'ai',
@@ -368,7 +373,8 @@ const AIChatWidget: React.FC = () => {
                 id="ai-chat-input"
                 ref={textareaRef}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={(e) => setInputText(e.target.value.slice(0, MAX_INPUT_CHARS))}
+                maxLength={MAX_INPUT_CHARS}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -380,6 +386,11 @@ const AIChatWidget: React.FC = () => {
                 rows={1}
                 disabled={isLoading}
               />
+              {inputText.length >= MAX_INPUT_CHARS - 80 && (
+                <span className="self-center text-[10px] font-mono text-gray-400" aria-live="polite">
+                  {inputText.length}/{MAX_INPUT_CHARS}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={handleSendMessage}

@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { FiTrendingUp, FiClock, FiCalendar, FiMapPin, FiChevronRight, FiTrash2 } from "react-icons/fi";
 import { DESTINATIONS } from "@/mock/eventData";
 import { eventApi, type EventApiData } from "@/services/eventApi";
+import { adminConfigApi } from "@/services/adminConfigApi";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import type { Category } from "@/types/adminConfig";
 import {
   getSearchHistory,
   removeSearchHistoryItem
@@ -24,6 +27,7 @@ interface SearchOverlayModalProps {
 export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
   isOpen,
   onClose,
+  searchQuery,
   onSelectKeyword
 }) => {
   const { t: translate } = useTranslation();
@@ -37,7 +41,12 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
     }
   }
   const [realEvents, setRealEvents] = useState<EventApiData[]>([]);
-  const [trendingKeywords, setTrendingKeywords] = useState<string[]>(["idecaf", "xoay tròn", "Pickleball World Cup"]);
+  const [trendingKeywords, setTrendingKeywords] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  // gợi ý sự kiện khi gõ dở: gửi yêu cầu sau khi ngừng gõ, tối thiểu 2 ký tự
+  const [suggestions, setSuggestions] = useState<EventApiData[]>([]);
+  const debouncedQuery = useDebouncedValue(searchQuery.trim(), 250);
+  const typedQuery = debouncedQuery.length >= 2 ? debouncedQuery : "";
 
   // Mỗi lần mở hộp, nạp lại các từ khóa thịnh hành từ truy vấn trong DB
   useEffect(() => {
@@ -53,14 +62,46 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
     };
   }, [isOpen]);
 
-  // Lấy sự kiện thật từ API backend để làm gợi ý
+  // Lấy sự kiện và danh mục thật từ API chỉ khi hộp được mở lần đầu (không tải toàn bộ sự kiện ngay khi trang vừa vào)
+  const hasLoadedSuggestions = React.useRef(false);
   useEffect(() => {
+    if (!isOpen || hasLoadedSuggestions.current) return;
+    hasLoadedSuggestions.current = true;
     eventApi.getAllEvents().then((events) => {
       if (events && events.length > 0) {
         setRealEvents(events.slice(0, 6));
       }
     });
-  }, []);
+    adminConfigApi
+      .getCategories()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res as { data?: Category[] })?.data;
+        if (Array.isArray(list)) {
+          setCategories(list.filter((c) => c.active && c.status !== "INACTIVE").slice(0, 8));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
+
+  // gợi ý sự kiện khớp phần đang gõ (máy chủ tìm không dấu); lỗi thì chỉ không hiện gợi ý
+  useEffect(() => {
+    if (!isOpen || !typedQuery) {
+      setSuggestions([]);
+      return;
+    }
+    let isMounted = true;
+    eventApi
+      .searchEvents({ q: typedQuery, size: 5 })
+      .then((page) => {
+        if (isMounted) setSuggestions(page.content);
+      })
+      .catch(() => {
+        if (isMounted) setSuggestions([]);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, typedQuery]);
 
   // Nhấn ESC để đóng hộp
   useEffect(() => {
@@ -76,28 +117,12 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categoryCards = [
-    {
-      title: "Nhạc sống",
-      image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80",
-      path: "/category/music"
-    },
-    {
-      title: "Sân khấu & Nghệ thuật",
-      image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=500&q=80",
-      path: "/category/stage"
-    },
-    {
-      title: "Thể Thao",
-      image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&q=80",
-      path: "/category/sports"
-    },
-    {
-      title: "Hội thảo & Workshop",
-      image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&q=80",
-      path: "/category/workshop"
-    }
-  ];
+  // thẻ danh mục lấy từ API; đường dẫn dùng đúng slug mà trang danh mục so khớp
+  const categoryCards = categories.map((cat) => ({
+    title: cat.name,
+    image: cat.imageUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80",
+    path: `/category/${cat.slug?.trim() || cat.id}`,
+  }));
 
   /** Xóa một mục khỏi lịch sử tìm kiếm (không kích hoạt chọn từ khóa) rồi nạp lại danh sách. */
   const handleRemoveHistory = (e: React.MouseEvent, item: string) => {
@@ -108,6 +133,42 @@ export const SearchOverlayModal: React.FC<SearchOverlayModalProps> = ({
 
   return (
     <div className="header-search-suggestions absolute top-full left-0 z-50 mt-2.5 w-[82vw] max-w-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 max-h-[75vh] overflow-y-auto no-scrollbar">
+
+      {/* Gợi ý sự kiện khi đang gõ */}
+      {typedQuery && suggestions.length > 0 && (
+        <div className="space-y-1" role="listbox" aria-label={translate("Gợi ý sự kiện")}>
+          <p className="px-3 text-[11px] font-extrabold uppercase tracking-wider app-text-muted">{translate("Gợi ý sự kiện")}</p>
+          {suggestions.map((ev) => (
+            <Link
+              key={ev.id}
+              to={`/events/${ev.id}`}
+              role="option"
+              aria-selected={false}
+              onClick={onClose}
+              className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors group"
+            >
+              <img src={ev.image} alt="" className="w-12 h-9 rounded-md object-cover shrink-0 bg-slate-200 dark:bg-slate-800" loading="lazy" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-xs md:text-sm app-text-main group-hover:app-text-brand truncate">{ev.title}</span>
+                <span className="block text-[11px] app-text-muted truncate">
+                  {[ev.city || ev.locationName, ev.startTime ? new Date(ev.startTime).toLocaleDateString("vi-VN") : ""].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+            </Link>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectKeyword(typedQuery);
+              onClose();
+            }}
+            className="flex items-center gap-2 w-full text-left py-2 px-3 rounded-xl text-xs font-extrabold app-text-brand hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer"
+          >
+            <span>{translate("Xem tất cả kết quả cho")} "{typedQuery}"</span>
+            <FiChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Saved Search History Items */}
       {history.length > 0 && (

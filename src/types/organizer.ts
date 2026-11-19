@@ -83,6 +83,8 @@ export interface Step2Errors {
   startDate?: string;
   endDate?: string;
   tickets?: string;
+  /** Lỗi chung về thời gian mở hoặc đóng bán vé của các suất diễn. */
+  sales?: string;
 }
 
 /** Thông báo lỗi của từng trường ở bước 5 (thanh toán) của form tạo sự kiện. */

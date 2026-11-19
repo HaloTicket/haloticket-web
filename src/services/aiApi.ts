@@ -25,9 +25,13 @@ import type {
 
 export const aiApi = {
   /** Gửi tin nhắn tới trợ lý đặt vé thông minh dành cho khách hàng, kèm lịch sử hội thoại. */
-  chatWithSmartBooking: async (message: string, history: AiChatHistoryItem[] = []): Promise<AiChatResponse> => {
-    // gọi qua API gateway
-    const response = await axiosClient.post('/customer/smart-booking-chat', { message, history });
+  chatWithSmartBooking: async (message: string, history: AiChatHistoryItem[] = [], selectedEventId?: string): Promise<AiChatResponse> => {
+    // gọi qua API gateway; mã sự kiện đang đặt vé (nếu có) giúp máy chủ giữ đúng ngữ cảnh khi lịch sử bị cắt
+    const response = await axiosClient.post('/customer/smart-booking-chat', {
+      message,
+      history,
+      ...(selectedEventId ? { selected_event_id: selectedEventId } : {}),
+    });
     return response as unknown as AiChatResponse; // axiosClient interceptor returns data directly
   },
 

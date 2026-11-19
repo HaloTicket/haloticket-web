@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import React, { useState, useEffect, useRef } from "react";
+import { hasErrors, validateTimeAndTickets } from "./eventFormValidation";
 import type { TicketItem, ShowtimeItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors } from "@/types/organizer";
 import CreateEventStepper from "./components/create-event/CreateEventStepper";
 import Step1EventInfo from "./components/create-event/Step1EventInfo";
@@ -296,6 +297,11 @@ export const CreateEvent: React.FC = () => {
 
   const [, setCurrentEventId] = useState<string | null>(null);
   const currentEventIdRef = useRef<string | null>(null);
+  // khóa chống hai lần lưu chạy chồng nhau (khi chưa có id sự kiện, hai lần tạo cùng lúc sẽ ra hai bản nháp)
+  const saveInFlightRef = useRef<boolean>(false);
+  const resaveAfterFlightRef = useRef<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [autoSaveTick, setAutoSaveTick] = useState<number>(0);
   const isInitialLoadingRef = useRef<boolean>(true);
 
   /** Cập nhật id sự kiện hiện tại: ghi vào ref (để các hàm bất đồng bộ đọc được giá trị mới nhất) và vào state. */
@@ -305,7 +311,7 @@ export const CreateEvent: React.FC = () => {
   };
 
   const [eventStatus, setEventStatus] = useState<"DRAFT" | "PENDING">("DRAFT");
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"saving" | "saved" | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"saving" | "saved" | "error" | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // khôi phục sự kiện nháp hoặc đang chờ duyệt
@@ -347,7 +353,8 @@ export const CreateEvent: React.FC = () => {
           draftEventData = (await eventApi.getEventById(draftIdParam)) as unknown as DraftEventItem;
         } else {
           // tìm sự kiện đang ở trạng thái DRAFT
-          const allEvents = await eventApi.getAllEvents();
+          // danh sách công khai không còn có bản nháp; bản nháp của mình nằm trong danh sách "sự kiện của tôi"
+          const allEvents = await eventApi.getMyEvents();
           if (Array.isArray(allEvents)) {
             draftEventData = (allEvents.find(
               (ev: EventApiData & { eventApprovalStatus?: string; organizer?: { id?: string } }) =>
@@ -602,6 +609,18 @@ export const CreateEvent: React.FC = () => {
     };
   };
 
+  // cảnh báo khi đóng tab lúc dữ liệu chưa lưu được (đang lưu hoặc lưu lỗi)
+  useEffect(() => {
+    if (autoSaveStatus !== "saving" && autoSaveStatus !== "error") return;
+    /** Yêu cầu trình duyệt xác nhận trước khi rời trang. */
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [autoSaveStatus]);
+
   // tự động lưu theo thời gian thực
   useEffect(() => {
     if (isSubmitted || isSubmitting || isInitialLoadingRef.current) return;
@@ -613,10 +632,16 @@ export const CreateEvent: React.FC = () => {
     if (!hasContent) return;
 
     const timer = setTimeout(async () => {
+      // đang có một lần lưu chạy thì đợi nó xong rồi lưu lại bản mới nhất
+      if (saveInFlightRef.current) {
+        resaveAfterFlightRef.current = true;
+        return;
+      }
+      saveInFlightRef.current = true;
       setAutoSaveStatus("saving");
       try {
         const cachedUser = getCachedUserProfile();
-        const currentUserId = cachedUser?.id || cachedUser?.keycloakId || "user_default_id";
+        const currentUserId = cachedUser?.id || cachedUser?.keycloakId || undefined;
 
         const activeEventId = currentEventIdRef.current;
 
@@ -677,8 +702,18 @@ export const CreateEvent: React.FC = () => {
         });
         setAutoSaveStatus("saved");
         setLastSavedAt(timeStr);
+        setSaveError(null);
       } catch (err) {
         console.error("Failed to auto-save draft to database", err);
+        // không để trạng thái kẹt ở "đang lưu": báo lỗi và cho thử lại
+        setAutoSaveStatus("error");
+        setSaveError(translate("Không lưu được bản nháp. Dữ liệu vừa nhập có thể chưa được lưu."));
+      } finally {
+        saveInFlightRef.current = false;
+        if (resaveAfterFlightRef.current) {
+          resaveAfterFlightRef.current = false;
+          setAutoSaveTick((tick) => tick + 1);
+        }
       }
     }, 1500);
 
@@ -716,15 +751,22 @@ export const CreateEvent: React.FC = () => {
     taxCode,
     eventStatus,
     isSubmitted,
-    isSubmitting
+    isSubmitting,
+    autoSaveTick
   ]);
 
   // lưu nháp thủ công
   /** Lưu nháp ngay theo yêu cầu của người dùng: tải ảnh lên, gửi dữ liệu form với trạng thái DRAFT (hoặc PENDING nếu đang chờ duyệt) và hiện thông báo. */
   const handleSaveDraft = async () => {
+    if (saveInFlightRef.current) {
+      setSaveError(translate("Đang lưu, vui lòng đợi trong giây lát."));
+      return;
+    }
+    saveInFlightRef.current = true;
+    setAutoSaveStatus("saving");
     try {
       const cachedUser = getCachedUserProfile();
-      const currentUserId = cachedUser?.id || cachedUser?.keycloakId || "user_default_id";
+      const currentUserId = cachedUser?.id || cachedUser?.keycloakId || undefined;
 
       const activeEventId = currentEventIdRef.current;
 
@@ -779,6 +821,7 @@ export const CreateEvent: React.FC = () => {
       });
       setAutoSaveStatus("saved");
       setLastSavedAt(timeStr);
+      setSaveError(null);
       setDraftSavedToast(
         eventStatus === "PENDING"
           ? translate("Đã lưu cập nhật sự kiện chờ duyệt (PENDING) thành công!")
@@ -787,6 +830,10 @@ export const CreateEvent: React.FC = () => {
       setTimeout(() => setDraftSavedToast(null), 4000);
     } catch (err) {
       console.error("Failed to manually save draft to DB", err);
+      setAutoSaveStatus("error");
+      setSaveError(translate("Không lưu được bản nháp. Vui lòng kiểm tra kết nối và thử lại."));
+    } finally {
+      saveInFlightRef.current = false;
     }
   };
 
@@ -829,19 +876,11 @@ export const CreateEvent: React.FC = () => {
 
   /** Kiểm tra bước 2 (thời gian bắt đầu và kết thúc, ít nhất một hạng vé); hợp lệ thì chuyển sang bước 3. */
   const handleStep2Next = () => {
-    const errs: Step2Errors = {};
-    if (!startDate) errs.startDate = translate("Vui lòng chọn thời gian bắt đầu sự kiện!");
-    if (!endDate) errs.endDate = translate("Vui lòng chọn thời gian kết thúc sự kiện!");
-    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-      errs.endDate = translate("Thời gian kết thúc sự kiện phải diễn ra sau thời gian bắt đầu!");
-    }
-    if (tickets.length === 0) {
-      errs.tickets = translate("Vui lòng tạo ít nhất một hạng vé!");
-    }
-
+    // thời gian, vé (giá, số lượng, giới hạn mua) và thời gian bán vé của từng suất, dùng chung quy tắc với bước gửi duyệt
+    const errs: Step2Errors = validateTimeAndTickets({ startDate, endDate, showtimes, tickets, requireFutureStart: true }, translate);
 
     setStep2Errors(errs);
-    if (Object.keys(errs).length === 0) {
+    if (!hasErrors(errs)) {
       setCurrentStep(3);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -904,6 +943,16 @@ export const CreateEvent: React.FC = () => {
     setStep5Errors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    // kiểm tra lại thời gian và vé trước khi gửi, phòng khi dữ liệu bước 2 đã bị sửa hoặc bước này được mở trực tiếp
+    const timeAndTicketErrors = validateTimeAndTickets({ startDate, endDate, showtimes, tickets, requireFutureStart: true }, translate);
+    if (hasErrors(timeAndTicketErrors)) {
+      setStep2Errors(timeAndTicketErrors);
+      setCurrentStep(2);
+      setSubmitError(translate("Thông tin thời gian hoặc vé chưa hợp lệ. Vui lòng kiểm tra lại bước 2."));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -913,7 +962,7 @@ export const CreateEvent: React.FC = () => {
 
       // dựng dữ liệu yêu cầu tạo sự kiện
       const cachedUser = getCachedUserProfile();
-      const currentUserId = cachedUser?.id || cachedUser?.keycloakId || "user_default_id";
+      const currentUserId = cachedUser?.id || cachedUser?.keycloakId || undefined;
 
       const activeEventId = currentEventIdRef.current;
 
@@ -1018,7 +1067,19 @@ export const CreateEvent: React.FC = () => {
         {/* Banner trạng thái tự động lưu */}
         <div className="flex flex-wrap items-center justify-between gap-3 app-bg-card border app-border rounded-xl px-4 py-2.5 mb-4 shadow-2xs">
           <div className="flex items-center gap-2 text-xs font-bold">
-            {autoSaveStatus === "saving" ? (
+            {autoSaveStatus === "error" ? (
+              <span role="alert" className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-extrabold">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span>{saveError || translate("Không lưu được bản nháp.")}</span>
+                <button
+                  type="button"
+                  onClick={() => setAutoSaveTick((tick) => tick + 1)}
+                  className="underline cursor-pointer"
+                >
+                  {translate("Thử lại")}
+                </button>
+              </span>
+            ) : autoSaveStatus === "saving" ? (
               <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-extrabold">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
                 <span>{translate("Đang tự động lưu bản nháp...")}</span>

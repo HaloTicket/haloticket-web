@@ -172,9 +172,16 @@ export const Step2TicketsAndTime: React.FC<Step2TicketsAndTimeProps> = ({
         </div>
 
         {errors.tickets && (
-          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2">
+          <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2">
             <FiAlertCircle className="w-4 h-4 shrink-0" />
             <span>{translate(errors.tickets)}</span>
+          </div>
+        )}
+
+        {errors.sales && (
+          <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-500 font-bold flex items-center gap-2">
+            <FiAlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errors.sales}</span>
           </div>
         )}
 

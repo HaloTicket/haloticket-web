@@ -4,6 +4,7 @@ import { FiX, FiAlertCircle } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
 import type { TicketItem } from "@/types/organizer";
 import { getMinIssuedQuantity } from "@/utils/ticketQuantities";
+import { validateTicketFields } from "../../eventFormValidation";
 
 /** Props của hộp thoại vé: vé đang sửa (rỗng nếu tạo mới), hàm đóng và hàm lưu. */
 interface AddTicketModalProps {
@@ -40,12 +41,20 @@ export const AddTicketModal: React.FC<AddTicketModalProps> = ({
       setErrorMsg(translate("tickets.quantity.belowSoldHeld", { name: newTicketName.trim(), min: minIssued, sold: initialTicket?.soldQuantity ?? 0, held: initialTicket?.heldQuantity ?? 0 }));
       return;
     }
-    if (Number(newTicketMinOrder) < 1) {
-      setErrorMsg(translate("Số vé tối thiểu/đơn phải từ 1 trở lên!"));
-      return;
-    }
-    if (Number(newTicketMaxOrder) < Number(newTicketMinOrder)) {
-      setErrorMsg(translate("Số vé tối đa/đơn không được nhỏ hơn số vé tối thiểu/đơn!"));
+    // giá, số lượng và giới hạn mua mỗi đơn dùng chung quy tắc với bước kiểm tra của cả form
+    const problem = validateTicketFields(
+      {
+        name: newTicketName,
+        price: Number(newTicketPrice),
+        isFree: newTicketIsFree,
+        totalQuantity: Number(newTicketTotalQuantity),
+        minPerOrder: Number(newTicketMinOrder),
+        maxPerOrder: Number(newTicketMaxOrder),
+      },
+      translate
+    );
+    if (problem) {
+      setErrorMsg(problem);
       return;
     }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { hasErrors, validateTimeAndTickets } from "../eventFormValidation";
 import { useTranslation } from "react-i18next";
 import type { TicketItem, CustomQuestionItem, Step1Errors, Step2Errors, Step5Errors, ShowtimeItem } from "@/types/organizer";
 import CreateEventStepper from "@/features/organizer/components/create-event/CreateEventStepper";
@@ -709,12 +710,10 @@ export const EventEditInfo: React.FC = () => {
 
   /** Kiểm tra bước 2 (thời gian bắt đầu, kết thúc, ít nhất một loại vé); hợp lệ thì sang bước 3. */
   const handleStep2Next = () => {
-    const errs: Step2Errors = {};
-    if (!startDate) errs.startDate = t("Vui lòng chọn thời gian bắt đầu");
-    if (!endDate) errs.endDate = t("Vui lòng chọn thời gian kết thúc");
-    if (tickets.length === 0) errs.tickets = t("Vui lòng tạo ít nhất 1 loại vé");
+    // sự kiện đã duyệt có thể đang diễn ra nên không bắt giờ bắt đầu ở tương lai
+    const errs: Step2Errors = validateTimeAndTickets({ startDate, endDate, showtimes, tickets, requireFutureStart: false }, t);
     setStep2Errors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (hasErrors(errs)) return;
     setCurrentStep(3);
   };
 
@@ -767,6 +766,15 @@ export const EventEditInfo: React.FC = () => {
 
     if (initialSnapshot && currentSnap === initialSnapshot) {
       showToast(t("ℹKhông có thông tin nào thay đổi. Hệ thống không lưu dữ liệu."), "info");
+      return;
+    }
+
+    // kiểm tra lại thời gian, vé và thời gian bán trước khi lưu, vì người dùng có thể bấm lưu mà không đi qua bước 2
+    const timeAndTicketErrors = validateTimeAndTickets({ startDate, endDate, showtimes, tickets, requireFutureStart: false }, t);
+    if (hasErrors(timeAndTicketErrors)) {
+      setStep2Errors(timeAndTicketErrors);
+      setCurrentStep(2);
+      showToast(timeAndTicketErrors.sales || timeAndTicketErrors.tickets || timeAndTicketErrors.endDate || timeAndTicketErrors.startDate || t("Thông tin thời gian hoặc vé chưa hợp lệ."), "error");
       return;
     }
 
