@@ -215,7 +215,7 @@ function FilterSummary({ shown, total, active, onClear }: { shown: number; total
 }
 
 const EXCEPTION_STATUSES = ["OPEN", "RESOLVED", "REFUNDED_MANUALLY"] as const;
-const EXCEPTION_KINDS = ["LATE_PAYMENT_NO_STOCK", "LATE_PAYMENT_SEATS_UNAVAILABLE", "LATE_PAYMENT_UNEXPECTED_STATUS", "ISSUANCE_FAILED"] as const;
+const EXCEPTION_KINDS = ["LATE_PAYMENT_NO_STOCK", "LATE_PAYMENT_SEATS_UNAVAILABLE", "LATE_PAYMENT_UNEXPECTED_STATUS", "ISSUANCE_FAILED", "AMOUNT_MISMATCH"] as const;
 const PENDING_POLL_MS = 3000;
 const PENDING_MAX_MS = 60000;
 
@@ -234,6 +234,7 @@ export default function OrderReconciliation() {
     LATE_PAYMENT_SEATS_UNAVAILABLE: t("Thanh toán muộn, ghế không còn"),
     LATE_PAYMENT_UNEXPECTED_STATUS: t("Thanh toán muộn, đơn ở trạng thái lạ"),
     ISSUANCE_FAILED: t("Phát hành vé thất bại"),
+    AMOUNT_MISMATCH: t("Số tiền thanh toán lệch số tiền của đơn"),
   } as Record<string, string>)[kind] ?? t("Khác");
   /** Tên hiển thị của trạng thái ngoại lệ. */
   const statusLabel = (status: string) => ({
