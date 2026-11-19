@@ -7,9 +7,92 @@ import type { EventApiData, MemberItem, MemberInvitationPreview, MemberInvitatio
 import { parseEventSaveFailure } from "@/utils/eventSaveErrors";
 export type { EventApiData };
 
+/** Tham số tìm kiếm sự kiện phía máy chủ (khớp GET /api/events/search). */
+export interface EventSearchParams {
+  q?: string;
+  city?: string;
+  categoryId?: string;
+  category?: string;
+  /** Ngày bắt đầu khoảng thời gian, dạng yyyy-MM-dd, tính cả ngày này. */
+  from?: string;
+  /** Ngày cuối khoảng thời gian, dạng yyyy-MM-dd, tính cả ngày này. */
+  to?: string;
+  free?: boolean;
+  sort?: "relevance" | "soonest" | "priceAsc" | "priceDesc";
+  includeEnded?: boolean;
+  page?: number;
+  size?: number;
+}
+
+/** Một trang kết quả tìm kiếm sự kiện. */
+export interface EventSearchResult {
+  content: EventApiData[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+const FALLBACK_EVENT_IMAGE = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80";
+
 export const eventApi = {
-  /** Lấy danh sách sự kiện còn hiệu lực (chưa hết hạn bán hoặc chưa kết thúc), gắn ảnh đại diện; lỗi thì trả về mảng rỗng. */
-  getAllEvents: async (): Promise<EventApiData[]> => {
+  /**
+   * Tìm kiếm sự kiện công khai ở phía máy chủ (chỉ sự kiện đã duyệt, còn hiệu lực), có lọc, sắp xếp và phân trang.
+   * Lỗi mạng hoặc máy chủ được ném lên để trang hiện nút thử lại.
+   *
+   * @param params - Từ khóa, bộ lọc, sắp xếp và trang.
+   * @returns Một trang kết quả, mỗi sự kiện đã gắn ảnh đại diện.
+   */
+  /**
+   * Lấy các sự kiện của người dùng hiện tại (mọi vai trò được gán, mọi trạng thái: nháp, chờ duyệt, bị từ chối, đã duyệt, đã kết thúc).
+   * Danh sách công khai không còn chứa các sự kiện chưa duyệt nên trang của ban tổ chức phải dùng hàm này. Lỗi được ném lên để trang hiện nút thử lại.
+   *
+   * @returns Các sự kiện của tôi, mỗi sự kiện đã gắn ảnh đại diện.
+   */
+  getMyEvents: async (): Promise<EventApiData[]> => {
+    const response: unknown = await axiosClient.get("/events/my-events");
+    if (!Array.isArray(response)) return [];
+    return (response as Record<string, unknown>[])
+      .filter((item) => item != null && typeof item === "object")
+      .map((item) => ({
+        ...item,
+        image: item.bannerUrl || item.thumbnailUrl || item.posterImage || item.image || FALLBACK_EVENT_IMAGE,
+      } as EventApiData));
+  },
+
+  searchEvents: async (params: EventSearchParams = {}): Promise<EventSearchResult> => {
+    const query = new URLSearchParams();
+    if (params.q?.trim()) query.set("q", params.q.trim());
+    if (params.city) query.set("city", params.city);
+    if (params.categoryId) query.set("categoryId", params.categoryId);
+    if (params.category) query.set("category", params.category);
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    if (params.free) query.set("free", "true");
+    if (params.sort && params.sort !== "relevance") query.set("sort", params.sort);
+    if (params.includeEnded) query.set("includeEnded", "true");
+    query.set("page", String(params.page ?? 0));
+    query.set("size", String(params.size ?? 12));
+
+    const response = (await axiosClient.get(`/events/search?${query.toString()}`)) as Partial<EventSearchResult> | null;
+    const content = Array.isArray(response?.content) ? response.content : [];
+    return {
+      content: content
+        .filter((item) => item != null && typeof item === "object")
+        .map((item) => ({
+          ...item,
+          image: item.bannerUrl || item.thumbnailUrl || item.image || FALLBACK_EVENT_IMAGE,
+        } as EventApiData)),
+      page: response?.page ?? 0,
+      size: response?.size ?? params.size ?? 12,
+      totalElements: response?.totalElements ?? content.length,
+      totalPages: response?.totalPages ?? 1,
+    };
+  },
+
+
+  /** Lấy danh sách sự kiện còn hiệu lực (chưa hết hạn bán hoặc chưa kết thúc; đặt `includeEnded` để lấy cả sự kiện đã kết thúc), gắn ảnh đại diện; lỗi thì trả về mảng rỗng. */
+  getAllEvents: async (options?: { includeEnded?: boolean; throwOnError?: boolean }): Promise<EventApiData[]> => {
     try {
       const response: unknown = await axiosClient.get("/events");
       if (Array.isArray(response)) {
@@ -30,6 +113,8 @@ export const eventApi = {
             image: (item.bannerUrl || item.thumbnailUrl || item.posterImage || item.image || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80") as string,
           } as EventApiData))
           .filter(item => {
+            // trang quản lý của ban tổ chức cần cả sự kiện đã kết thúc để xem lịch sử
+            if (options?.includeEnded) return true;
             const saleEnd = parseDate(item.saleEndTime);
             if (saleEnd) return saleEnd > now;
             
@@ -42,6 +127,8 @@ export const eventApi = {
       return [];
     } catch (err) {
       console.warn("Failed to fetch events from backend API:", err);
+      // trang cần phân biệt "lỗi tải" với "không có sự kiện" thì yêu cầu ném lỗi lên để hiện nút thử lại
+      if (options?.throwOnError) throw err;
       return [];
     }
   },

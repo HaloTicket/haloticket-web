@@ -5,6 +5,7 @@ import { FiCalendar, FiMapPin } from "react-icons/fi";
 import type { EventItem } from "@/mock/eventData";
 import type { EventApiData } from "@/types";
 import { formatCurrency, formatDate, formatLegacyVietnameseDate, parseVndAmount } from "@/utils/formatters";
+import { getTicketsMinPrice, toDate } from "@/features/events/eventSearchFilters";
 import { Badge } from "./Badge";
 
 /** Dữ liệu sự kiện cho thẻ, ghép từ dữ liệu mock cũ và dữ liệu API nên mọi trường đều tùy chọn. */
@@ -31,40 +32,8 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const isPoster = variant === "poster";
   
-  // xác định giá thấp nhất bằng cách so giá của mọi hạng vé (bỏ qua vé HIDDEN), kể cả vé trong từng suất
-  const rawTickets = (event as any).tickets || (event as any).ticketTypes;
-  let computedMinPrice: number | undefined = undefined;
-
-  if (Array.isArray(rawTickets) && rawTickets.length > 0) {
-    const validPrices = rawTickets
-      .filter((t: any) => t && t.status !== "HIDDEN" && t.ticketTypeStatus !== "HIDDEN")
-      .map((t: any) => {
-        if (typeof t.price === "number") return t.price;
-        return parseVndAmount(t.price);
-      })
-      .filter((p: any): p is number => typeof p === "number" && !isNaN(p));
-      
-    if (validPrices.length > 0) {
-      computedMinPrice = Math.min(...validPrices);
-    }
-  }
-
-  if (Array.isArray(event.showtimes)) {
-    event.showtimes.forEach((st: any) => {
-      if (Array.isArray(st.tickets)) {
-        st.tickets.forEach((t: any) => {
-          if (t && t.status !== "HIDDEN" && t.ticketTypeStatus !== "HIDDEN") {
-            const p = typeof t.price === "number" ? t.price : parseVndAmount(t.price ?? t.priceValue);
-            if (typeof p === "number" && !isNaN(p)) {
-              if (computedMinPrice === undefined || p < computedMinPrice) {
-                computedMinPrice = p;
-              }
-            }
-          }
-        });
-      }
-    });
-  }
+  // giá thấp nhất so trong mọi hạng vé (bỏ vé HIDDEN), kể cả vé trong từng suất
+  const computedMinPrice = getTicketsMinPrice(event as Record<string, unknown>);
 
   const rawPrice = computedMinPrice ?? event.minPrice ?? event.price;
   const numericPrice = parseVndAmount(rawPrice);
@@ -76,6 +45,15 @@ export const EventCard: React.FC<EventCardProps> = ({
   const displayDate = event.startTime
     ? formatDate(event.startTime)
     : event.date ? formatLegacyVietnameseDate(event.date) ?? translate(event.date) : translate("Sắp diễn ra");
+
+  // trạng thái bán suy từ dữ liệu có sẵn trong danh sách; thiếu dữ liệu thì không hiện nhãn (không đoán)
+  const now = new Date();
+  const saleStart = toDate((event as Record<string, unknown>).saleStartTime);
+  const saleStatusBadge: { label: string; variant: "warning" | "danger" } | null = (event as Record<string, unknown>).isSoldOut
+    ? { label: translate("Hết vé"), variant: "danger" }
+    : saleStart && now < saleStart
+    ? { label: translate("Sắp mở bán"), variant: "warning" }
+    : null;
 
   const locationText = event.location || event.locationName || event.address || translate("Địa điểm chưa cập nhật");
 
@@ -98,8 +76,9 @@ export const EventCard: React.FC<EventCardProps> = ({
           {event.isResale && (
             <Badge variant="resale">{translate("VÉ BÁN LẠI")}</Badge>
           )}
-          {event.isHot && (
-            <Badge variant="danger">🔥 HOT</Badge>
+          {saleStatusBadge && <Badge variant={saleStatusBadge.variant}>{saleStatusBadge.label}</Badge>}
+          {event.isHot && !saleStatusBadge && (
+            <Badge variant="danger">{translate("HOT")}</Badge>
           )}
           {(event.category || event.categoryName) && (
             <Badge variant="dark">{translate(String(event.category || event.categoryName))}</Badge>

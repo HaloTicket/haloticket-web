@@ -1,136 +1,127 @@
 import { useTranslation } from "react-i18next";
-import React, { useState } from "react";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import React, { useEffect, useState } from "react";
+import type { DatePreset } from "../eventSearchFilters";
 
-/** Props của hộp thoại lọc ngày: trạng thái mở, hàm đóng, hàm áp dụng và lựa chọn hiện tại. */
+/** Giá trị bộ lọc ngày: lựa chọn nhanh, hoặc khoảng ngày `YYYY-MM-DD` khi chọn `custom`. */
+export interface DateFilterValue {
+  date: DatePreset;
+  from: string;
+  to: string;
+}
+
+/** Props của hộp thoại lọc ngày: trạng thái mở, hàm đóng, hàm áp dụng và giá trị đang áp dụng. */
 interface DateFilterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApply: (selectedPreset: string, dateRange?: { start?: string; end?: string }) => void;
-  currentPreset?: string;
+  onApply: (value: DateFilterValue) => void;
+  value: DateFilterValue;
 }
 
-/** Hộp thoại lọc theo ngày gồm các lựa chọn nhanh (hôm nay, ngày mai, cuối tuần, tháng này) và lịch hai tháng; hiện chỉ lựa chọn nhanh được truyền lên khi áp dụng. */
-export const DateFilterModal: React.FC<DateFilterModalProps> = ({
-  isOpen,
-  onClose,
-  onApply,
-  currentPreset = "Tất cả các ngày"
-}) => {
+/** Các lựa chọn nhanh: giá trị dùng để lọc và nhãn tiếng Việt làm khóa dịch. */
+const PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "all", label: "Tất cả các ngày" },
+  { value: "today", label: "Hôm nay" },
+  { value: "tomorrow", label: "Ngày mai" },
+  { value: "weekend", label: "Cuối tuần này" },
+  { value: "month", label: "Tháng này" },
+];
+
+/**
+ * Hộp thoại lọc theo ngày gồm các lựa chọn nhanh (hôm nay, ngày mai, cuối tuần, tháng này) và khoảng ngày tự chọn.
+ * Giá trị đang áp dụng được nạp lại mỗi lần mở.
+ */
+export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClose, onApply, value }) => {
   const { t: translate } = useTranslation();
-  const [selectedPreset, setSelectedPreset] = useState<string>(currentPreset);
-  const [selectedDay, setSelectedDay] = useState<number | null>(3);
+  const [preset, setPreset] = useState<DatePreset>(value.date);
+  const [from, setFrom] = useState<string>(value.from);
+  const [to, setTo] = useState<string>(value.to);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPreset(value.date);
+      setFrom(value.from);
+      setTo(value.to);
+    }
+  }, [isOpen, value.date, value.from, value.to]);
 
   if (!isOpen) return null;
 
-  const presetOptions = [
-    "Tất cả các ngày",
-    "Hôm nay",
-    "Ngày mai",
-    "Cuối tuần này",
-    "Tháng này"
-  ];
+  const rangeInvalid = preset === "custom" && Boolean(from) && Boolean(to) && from > to;
 
-  const septDays = Array.from({ length: 30 }, (_, i) => i + 1);
-  const octDays = Array.from({ length: 31 }, (_, i) => i + 1);
-
-  /** Đưa lựa chọn về "Tất cả các ngày" và bỏ chọn ngày. */
+  /** Đưa lựa chọn về "Tất cả các ngày" và xóa khoảng ngày. */
   const handleReset = () => {
-    setSelectedPreset("Tất cả các ngày");
-    setSelectedDay(null);
+    setPreset("all");
+    setFrom("");
+    setTo("");
   };
 
-  /** Gửi lựa chọn nhanh đã chọn lên cha rồi đóng hộp thoại. */
+  /** Gửi lựa chọn lên cha rồi đóng hộp thoại; khoảng tùy chọn bỏ trống cả hai đầu thì coi như không lọc ngày. */
   const handleApply = () => {
-    onApply(selectedPreset);
+    if (rangeInvalid) return;
+    if (preset === "custom" && !from && !to) {
+      onApply({ date: "all", from: "", to: "" });
+    } else {
+      onApply({ date: preset, from: preset === "custom" ? from : "", to: preset === "custom" ? to : "" });
+    }
     onClose();
   };
 
   return (
-    <div className="absolute top-full right-0 z-50 mt-2 w-[90vw] sm:w-[580px] app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in slide-in-from-top-2">
+    <div className="absolute top-full right-0 z-50 mt-2 w-[90vw] sm:w-105 app-bg-card border app-border rounded-3xl p-5 md:p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
       {/* Các nút lọc nhanh dạng viên thuốc */}
       <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-200/60 dark:border-slate-800/60">
-        {presetOptions.map((preset) => (
+        {PRESETS.map((item) => (
           <button
-            key={translate(preset)}
+            key={item.value}
             type="button"
-            onClick={() => setSelectedPreset(preset)}
+            aria-pressed={preset === item.value}
+            onClick={() => setPreset(item.value)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
-              selectedPreset === preset
+              preset === item.value
                 ? "border border-brand-primary app-text-brand bg-brand-primary/10 shadow-xs"
                 : "border app-border app-text-muted hover:app-text-main"
             }`}
           >
-            {translate(preset)}
+            {translate(item.label)}
           </button>
         ))}
       </div>
 
-      {/* Đầu lịch và hai tháng */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between font-extrabold text-xs md:text-sm app-text-main px-2">
-          <button type="button" className="p-1 hover:app-text-brand cursor-pointer">
-            <FiChevronLeft className="w-4 h-4" />
-          </button>
-          <span>{translate("Tháng 09, 2026")}</span>
-          <span className="hidden sm:inline">{translate("Tháng 10, 2026")}</span>
-          <button type="button" className="p-1 hover:app-text-brand cursor-pointer">
-            <FiChevronRight className="w-4 h-4" />
-          </button>
+      {/* Khoảng ngày tự chọn */}
+      <div className="space-y-2">
+        <h4 className="font-extrabold text-xs md:text-sm app-text-main">{translate("Chọn khoảng ngày")}</h4>
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <label className="space-y-1">
+            <span className="font-bold app-text-muted">{translate("Từ ngày")}</span>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                setPreset("custom");
+              }}
+              className="w-full px-3 py-2 rounded-xl app-bg-main border app-border app-text-main font-semibold"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="font-bold app-text-muted">{translate("Đến ngày")}</span>
+            <input
+              type="date"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => {
+                setTo(e.target.value);
+                setPreset("custom");
+              }}
+              className="w-full px-3 py-2 rounded-xl app-bg-main border app-border app-text-main font-semibold"
+            />
+          </label>
         </div>
-
-        {/* Lưới lịch hai tháng */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-          {/* Tháng 1: Tháng 09, 2026 */}
-          <div>
-            <div className="grid grid-cols-7 gap-1 text-center font-bold app-text-muted mb-2">
-              <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center font-semibold">
-              <span className="text-transparent">31</span>
-              {septDays.map((day) => (
-                <button
-                  key={`sept-${day}`}
-                  type="button"
-                  onClick={() => setSelectedDay(day)}
-                  className={`h-8 w-8 mx-auto rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                    selectedDay === day
-                      ? "gradient-btn text-white font-extrabold shadow-sm"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800 app-text-main"
-                  }`}
-                >
-                  {day}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Tháng 2: Tháng 10, 2026 */}
-          <div className="hidden sm:block">
-            <div className="grid grid-cols-7 gap-1 text-center font-bold app-text-muted mb-2">
-              <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center font-semibold">
-              <span className="text-transparent"></span>
-              <span className="text-transparent"></span>
-              <span className="text-transparent"></span>
-              {octDays.map((day) => (
-                <button
-                  key={`oct-${day}`}
-                  type="button"
-                  onClick={() => setSelectedDay(day + 30)}
-                  className={`h-8 w-8 mx-auto rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                    selectedDay === day + 30
-                      ? "gradient-btn text-white font-extrabold shadow-sm"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800 app-text-main"
-                  }`}
-                >
-                  {day}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        {rangeInvalid && (
+          <p role="alert" className="text-[11px] font-semibold text-rose-500">
+            {translate("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.")}
+          </p>
+        )}
       </div>
 
       {/* Các nút thao tác ở chân hộp thoại */}
@@ -140,13 +131,16 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({
           onClick={handleReset}
           className="flex-1 py-2.5 rounded-xl border border-brand-primary/40 text-xs font-extrabold app-text-brand hover:bg-brand-primary/10 transition-colors cursor-pointer"
         >
-          {translate("Thiết lập lại")}</button>
+          {translate("Thiết lập lại")}
+        </button>
         <button
           type="button"
           onClick={handleApply}
-          className="flex-1 py-2.5 rounded-xl gradient-btn text-white text-xs font-extrabold shadow-md hover:scale-102 active:scale-95 transition-transform cursor-pointer"
+          disabled={rangeInvalid}
+          className="flex-1 py-2.5 rounded-xl gradient-btn text-white text-xs font-extrabold shadow-md hover:scale-102 active:scale-95 transition-transform cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {translate("Áp dụng")}</button>
+          {translate("Áp dụng")}
+        </button>
       </div>
     </div>
   );

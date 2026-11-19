@@ -4,10 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 const searchEventsByNaturalLanguage = vi.fn();
-const getAllEvents = vi.fn();
+const searchEvents = vi.fn();
 
 vi.mock("@/services/aiApi", () => ({ aiApi: { searchEventsByNaturalLanguage: (...a: unknown[]) => searchEventsByNaturalLanguage(...a) } }));
-vi.mock("@/services/eventApi", () => ({ eventApi: { getAllEvents: (...a: unknown[]) => getAllEvents(...a) } }));
+vi.mock("@/services/eventApi", () => ({ eventApi: { searchEvents: (...a: unknown[]) => searchEvents(...a) } }));
 vi.mock("@/services/adminConfigApi", () => ({ adminConfigApi: { getCategories: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/components/common/EventCard", () => ({ EventCard: ({ event }: { event: { title?: string } }) => <div data-testid="event-card">{event.title}</div> }));
 
@@ -29,8 +29,13 @@ function renderAt(url: string) {
 
 beforeEach(() => {
   searchEventsByNaturalLanguage.mockReset();
-  getAllEvents.mockReset();
-  getAllEvents.mockResolvedValue(events);
+  searchEvents.mockReset();
+  // máy chủ tìm theo từ khóa trong tiêu đề, như thật
+  searchEvents.mockImplementation(async (params: { q?: string }) => {
+    const q = (params.q || "").toLowerCase();
+    const content = events.filter((e) => !q || e.title.toLowerCase().includes(q));
+    return { content, page: 0, size: 12, totalElements: content.length, totalPages: 1 };
+  });
 });
 afterEach(() => cleanup());
 

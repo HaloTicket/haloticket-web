@@ -301,7 +301,8 @@ export function PaymentMonitoring() {
 
   useEffect(() => {
     let active = true;
-    eventApi.getAllEvents().then((events) => {
+    // lấy cả sự kiện đã kết thúc để khoản chi trả của sự kiện cũ vẫn hiện được tên
+    eventApi.getAllEvents({ includeEnded: true }).then((events) => {
       if (active) setEventsById(Object.fromEntries(events.map((event) => [String(event.id), event])));
     }).catch(() => undefined);
     return () => { active = false; };
