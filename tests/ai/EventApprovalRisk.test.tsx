@@ -44,7 +44,8 @@ describe("review queue risk", () => {
     renderList();
     await screen.findByTestId("risk-cell-b");
     await waitFor(() => expect(getRiskBatch).toHaveBeenCalled());
-    expect(getRiskBatch.mock.calls[0][0].sort()).toEqual(["a", "b", "c"]); // the approved file is not scored
+    // mọi hồ sơ đang xem đều được chấm (kể cả hồ sơ đã duyệt) để các tab khác và bộ lọc rủi ro cũng có điểm
+    expect(getRiskBatch.mock.calls[0][0].sort()).toEqual(["a", "b", "c", "d"]);
     await waitFor(() => expect(within(screen.getByTestId("risk-cell-b")).getByTestId("risk-badge").getAttribute("data-level")).toBe("HIGH"));
     expect(titles()).toEqual(["Sự kiện B", "Sự kiện C", "Sự kiện A"]);
   });

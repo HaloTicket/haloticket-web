@@ -3018,5 +3018,13 @@
   "Không lưu được bản nháp. Vui lòng kiểm tra kết nối và thử lại.": "Could not save the draft. Please check your connection and try again.",
   "Không lưu được bản nháp.": "Could not save the draft.",
   "Thông tin thời gian hoặc vé chưa hợp lệ. Vui lòng kiểm tra lại bước 2.": "The time or ticket information is not valid. Please check step 2 again.",
-  "Thông tin thời gian hoặc vé chưa hợp lệ.": "The time or ticket information is not valid."
+  "Thông tin thời gian hoặc vé chưa hợp lệ.": "The time or ticket information is not valid.",
+  "Phân loại địa điểm": "Venue type",
+  "Hủy yêu cầu duyệt": "Cancel approval request",
+  "Hủy duyệt": "Cancel approval",
+  "Hủy yêu cầu duyệt sự kiện": "Cancel event approval request",
+  "Bạn có chắc chắn muốn hủy yêu cầu duyệt cho sự kiện \"{{title}}\"? Sự kiện sẽ được chuyển về trạng thái Bản nháp để bạn có thể tiếp tục chỉnh sửa.": "Are you sure you want to cancel the approval request for the event \"{{title}}\"? The event will return to Draft status so you can keep editing it.",
+  "Hủy yêu cầu": "Cancel request",
+  "Nếu cần chỉnh sửa lại thông tin sự kiện, bạn có thể hoàn tác yêu cầu duyệt để chuyển sự kiện về bản nháp.": "If you need to edit the event information again, you can undo the approval request to move the event back to draft.",
+  "Doanh thu & Rút tiền": "Revenue & Withdrawals"
 }

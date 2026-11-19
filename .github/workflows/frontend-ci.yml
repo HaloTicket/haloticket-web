@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js 20 & NPM Cache
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
@@ -23,6 +23,9 @@ jobs:
 
       - name: Type Check (TypeScript Validation)
         run: npx tsc --noEmit
+
+      - name: Unit tests (Vitest)
+        run: npx vitest run
 
       - name: Build Web App
         env:

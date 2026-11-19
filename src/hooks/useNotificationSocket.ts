@@ -166,6 +166,11 @@ export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
       const results = await Promise.allSettled(
         userIds.map((uid) => notificationApi.getUserNotifications(uid))
       );
+      // nếu mọi yêu cầu đều thất bại thì báo lỗi thay vì coi như danh sách rỗng
+      const firstRejected = results.find((res): res is PromiseRejectedResult => res.status === "rejected");
+      if (firstRejected && results.every((res) => res.status === "rejected")) {
+        throw firstRejected.reason;
+      }
       const allRaw: RawNotification[] = [];
       for (const res of results) {
         if (res.status === "fulfilled" && Array.isArray(res.value)) {
