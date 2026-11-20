@@ -8,6 +8,8 @@
   "tickets.quantity.buyable": "Available to buy: {{count}}",
   "tickets.error.quantityOutOfRange": "The quantity is outside the limits of this ticket type. Please choose the quantity again.",
   "tickets.error.soldOut": "The ticket type you chose is sold out or does not have enough tickets left. Please choose a different quantity or ticket type.",
+  "tickets.error.saleEnded": "Ticket sales for this showtime have ended. Please choose another showtime with tickets on sale.",
+  "tickets.error.saleNotStarted": "Ticket sales for this showtime have not started. Please check the sale dates or choose another showtime.",
   "tickets.error.stockBusy": "Tickets are being held for many orders at once. Please try again in a few seconds.",
   "tickets.error.reservationRefused": "We could not hold tickets for this order. Please go back, choose tickets and try again.",
   "tickets.error.reservationClosed": "The ticket hold for this order has closed. Please choose tickets and create a new order.",
