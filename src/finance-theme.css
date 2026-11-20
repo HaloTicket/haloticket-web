@@ -11,15 +11,15 @@
   background-color: var(--bg-page);
   accent-color: #005cff;
 }
-.finance-theme .app-bg-card { background-color: #fff; }
-.finance-theme.app-bg-card { background-color: #fff; }
-.finance-theme .app-border { border-color: #e2ebf7; }
-.finance-theme .app-text-main { color: #101c48; }
+.finance-theme .app-bg-card { background-color: var(--bg-card); }
+.finance-theme.app-bg-card { background-color: var(--bg-card); }
+.finance-theme .app-border { border-color: var(--border-color); }
+.finance-theme .app-text-main { color: var(--text-main); }
 .finance-theme .app-text-muted,
 .finance-theme .text-slate-500,
-.finance-theme .text-slate-600 { color: #62769c; }
-.finance-theme .text-slate-900 { color: #101c48; }
-.finance-theme h1, .finance-theme h2, .finance-theme h3 { color: #101c48; }
+.finance-theme .text-slate-600 { color: var(--text-muted); }
+.finance-theme .text-slate-900 { color: var(--text-main); }
+.finance-theme h1, .finance-theme h2, .finance-theme h3 { color: var(--text-main); }
 .finance-theme .bg-blue-600 { background-color: #005cff; }
 .finance-theme .text-blue-600, .finance-theme .text-blue-700 { color: #005cff; }
 .finance-theme .border-blue-600, .finance-theme .border-blue-500 { border-color: #005cff; }
@@ -30,23 +30,50 @@
 .finance-theme .text-amber-700, .finance-theme .text-orange-600 { color: #ed8a00; }
 .finance-theme .bg-amber-50, .finance-theme .bg-orange-50 { background-color: #fff5e6; }
 .finance-theme :is(input, select, textarea) {
-  border-color: #dce7f5;
-  background-color: #fff;
-  color: #101c48;
+  border-color: var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-main);
 }
 .finance-theme :is(input, select, textarea):focus-visible {
   outline: 2px solid #005cff;
   outline-offset: 2px;
 }
-.finance-theme thead { background-color: #f5f9ff; color: #62769c; }
-.finance-theme tbody tr { border-color: #edf2fa; }
-.finance-theme .divide-y > :not(:last-child) { border-color: #edf2fa; }
-.finance-theme tbody tr:hover { background-color: #f8fbff; }
+.finance-theme thead { background-color: var(--bg-secondary); color: var(--text-muted); }
+.finance-theme tbody tr { border-color: var(--border-color); }
+.finance-theme .divide-y > :not(:last-child) { border-color: var(--border-color); }
+.finance-theme tbody tr:hover { background-color: var(--bg-secondary); }
 .finance-theme button { transition: background-color .15s, border-color .15s, color .15s; }
 .finance-theme button.bg-blue-600:hover:not(:disabled) { background-color: #004ee1; }
 .finance-theme button:disabled { cursor: not-allowed; }
-.finance-theme .finance-panel { background: #fff; border: 1px solid #e2ebf7; border-radius: 12px; }
+.finance-theme .finance-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; }
 .finance-theme .finance-total { background: #effaf7; border-color: #dbf1e8; }
+.dark .finance-theme {
+  --bg-page: inherit;
+  --bg-card: inherit;
+  --bg-secondary: var(--bg-subnav);
+  --text-main: inherit;
+  --text-muted: inherit;
+  --border-color: inherit;
+  --border: inherit;
+  color-scheme: dark;
+}
+.dark .finance-theme :is(.bg-white, .bg-zinc-50, .bg-slate-50, .bg-slate-100, .bg-zinc-100) { background-color: var(--bg-secondary); }
+.dark .finance-theme :is(.text-slate-700, .text-slate-800, .text-zinc-700) { color: var(--text-main); }
+.dark .finance-theme .bg-blue-600 { background-color: var(--color-brand-primary); }
+.dark .finance-theme button.bg-blue-600:hover:not(:disabled) { background-color: var(--color-brand-hover); }
+.dark .finance-theme :is(.border-blue-600, .border-blue-500) { border-color: var(--color-brand-primary); }
+.dark .finance-theme :is(input, select, textarea):focus-visible { outline-color: var(--color-brand-primary); }
+.dark .finance-theme :is(.text-blue-600, .text-blue-700, .text-blue-800) { color: var(--color-blue-400); }
+.dark .finance-theme .bg-blue-50 { background-color: color-mix(in srgb, var(--color-blue-950) 50%, transparent); }
+.dark .finance-theme :is(.text-green-700, .text-emerald-700, .text-emerald-600, .text-emerald-800, .finance-money) { color: var(--color-success); }
+.dark .finance-theme :is(.bg-green-50, .bg-emerald-50, .finance-total) { background-color: color-mix(in srgb, var(--color-emerald-950) 40%, transparent); border-color: var(--border-color); }
+.dark .finance-theme :is(.text-amber-700, .text-amber-800, .text-orange-600, .text-orange-800) { color: var(--color-amber-400); }
+.dark .finance-theme :is(.bg-amber-50, .bg-orange-50) { background-color: color-mix(in srgb, var(--color-amber-950) 40%, transparent); }
+.dark .finance-theme :is(.text-rose-700, .text-rose-800) { color: var(--color-rose-300); }
+.dark .finance-theme .bg-rose-50 { background-color: color-mix(in srgb, var(--color-rose-950) 40%, transparent); }
+.dark .finance-theme .recharts-default-tooltip { background-color: var(--bg-card) !important; border-color: var(--border-color) !important; color: var(--text-main); }
+.dark .finance-theme .recharts-cartesian-axis-tick text { fill: var(--text-muted); }
+.dark .finance-theme .recharts-cartesian-grid line { stroke: var(--border-color); }
 @media (prefers-reduced-motion: reduce) {
   .finance-theme button { transition: none; }
 }

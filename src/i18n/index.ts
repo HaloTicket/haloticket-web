@@ -8,6 +8,7 @@ import ticketsEnglish from './locales/tickets.en.json';
 import ticketsVietnamese from './locales/tickets.vi.json';
 import aiEnglish from './locales/ai.en.json';
 import aiVietnamese from './locales/ai.vi.json';
+import financeEnglish from './locales/finance.en.json';
 
 /** Ngôn ngữ giao diện được hỗ trợ. */
 export type Language = 'vi' | 'en';
@@ -17,7 +18,7 @@ export function getInitialLanguage(): Language {
   catch { return 'vi'; }
 }
 
-const english = { ...publicEnglish, ...managementEnglish, ...invitationEnglish, ...ticketsEnglish, ...aiEnglish };
+const english = { ...publicEnglish, ...managementEnglish, ...invitationEnglish, ...ticketsEnglish, ...aiEnglish, ...financeEnglish };
 const vietnamese = {
   ...Object.fromEntries(Object.keys(english).map(key => [key, key])),
   ...invitationVietnamese,
