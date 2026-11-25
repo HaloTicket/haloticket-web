@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { i18n } from "@/i18n";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import OrganizerFinance from "./OrganizerFinance";
@@ -10,7 +11,6 @@ import { downloadOrganizerFinanceWorkbook } from "./finance/organizerFinanceExpo
 
 vi.mock("./finance/organizerFinanceExport", () => ({ downloadOrganizerFinanceWorkbook: vi.fn().mockResolvedValue(undefined) }));
 
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (value: string) => value }) }));
 vi.mock("@/services/payoutApi", () => ({ payoutApi: {
   getOrganizerSummary: vi.fn(), getOrganizerAnalytics: vi.fn(), getOrganizerEvents: vi.fn(), getOrganizerPayouts: vi.fn(), getEligibleEvents: vi.fn(),
   getPayoutQuote: vi.fn(), requestPayout: vi.fn(), lookupPayoutByKey: vi.fn(),
@@ -39,9 +39,23 @@ function setup(initialEntry = "/organizer/finance") {
   return render(<MemoryRouter initialEntries={[initialEntry]}><OrganizerFinance /></MemoryRouter>);
 }
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(async () => { cleanup(); vi.clearAllMocks(); await i18n.changeLanguage("vi"); document.documentElement.classList.remove("dark"); });
 
 describe("organizer withdrawal request", () => {
+  it("switches finance and its withdrawal dialog to English while mounted in dark mode", async () => {
+    document.documentElement.classList.add("dark");
+    setup();
+    await screen.findByRole("button", { name: "Rút tiền" });
+    await act(async () => { await i18n.changeLanguage("en"); });
+    expect(screen.getByText("Manage revenue, withdrawal requests and financial reports.")).toBeTruthy();
+    expect(screen.getByText("Revenue over time")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Request withdrawal" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText("Select events")).toBeTruthy();
+    expect((await screen.findByRole("dialog")).classList.contains("finance-theme")).toBe(true);
+    await act(async () => { await i18n.changeLanguage("vi"); });
+    expect(dialog.getByText("Chọn sự kiện")).toBeTruthy();
+  });
   it("filters organizer history using six status groups", async () => {
     setup("/organizer/finance?tab=history&from=2026-10-01&to=2026-10-31");
     vi.mocked(payoutApi.getOrganizerPayouts).mockResolvedValue([

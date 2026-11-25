@@ -24,6 +24,7 @@ import { eventApi } from "@/services/eventApi";
 import { ekycApi } from "@/services/ekycApi";
 import { TablePagination } from "@/components/common/TablePagination";
 import { getEventTabStatus, type MyEventTab } from "./myEventsTabs";
+import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
 
 /** Một sự kiện trong danh sách của ban tổ chức (dữ liệu từ API, các trường có thể thiếu). */
@@ -498,6 +499,9 @@ export const MyEvents: React.FC = () => {
 
       {/* Modal Popup: Yêu cầu xác thực eKYC */}
       <EkycRequiredModal isOpen={showEkycModal} onClose={() => setShowEkycModal(false)} />
+
+      {/* Floating Organizer AI Data Assistant Chatbot */}
+      <OrganizerAIChatWidget scope="managed_events" />
     </div>
   );
 };

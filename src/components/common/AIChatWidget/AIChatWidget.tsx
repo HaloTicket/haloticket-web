@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, X, Send, Loader2, Maximize2, Minimize2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Maximize2, Minimize2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { aiApi } from '../../../services/aiApi';
 import { getCachedUserProfile } from '../../../services/userApi';
 import type { AiChatMessage } from '../../../types/ai';
@@ -88,6 +88,7 @@ const AIChatWidget: React.FC = () => {
   }, [account]);
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [messages, setMessages] = useState<AiChatMessage[]>(() => {
     // khóa toàn cục cũ làm lẫn lịch sử giữa các tài khoản nên xóa một lần.
     safeStorage.remove(LEGACY_HISTORY_KEY);
@@ -246,12 +247,19 @@ const AIChatWidget: React.FC = () => {
 
           {/* Đầu khung */}
           <div className="gradient-btn p-4 flex justify-between items-center text-white shadow-sm">
-            <div>
-              <h3 className="font-bold flex items-center gap-2">
-                <span className="relative flex h-3 w-3" aria-hidden="true">
-                  <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative w-10 h-10 rounded-full bg-white shrink-0 shadow-xs flex items-center justify-center">
+                <span className="w-full h-full rounded-full overflow-hidden block">
+                  <img
+                    src="/assets/brand/logo-ai.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="w-full h-full object-cover scale-[1.08]"
+                  />
                 </span>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white" aria-hidden="true" />
+              </div>
+              <h3 className="font-bold flex items-center gap-2 truncate">
                 HaloTicket Assistant
               </h3>
             </div>
@@ -408,19 +416,36 @@ const AIChatWidget: React.FC = () => {
 
       {/* Nút nổi */}
       {!isOpen && (
-        <div className="fixed bottom-24 right-8 z-50">
+        <div className="fixed bottom-24 right-8 z-50 flex items-center gap-3 select-none pointer-events-none">
+          {isHovered && (
+            <div
+              data-testid="ai-chat-hover-tooltip"
+              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 dark:bg-[#1e1e22]/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] text-slate-900 dark:text-white text-xs sm:text-[13px] font-bold pointer-events-none motion-safe:animate-in motion-safe:fade-in-50 duration-150"
+            >
+              <Sparkles className="w-4 h-4 text-brand-primary shrink-0" aria-hidden="true" />
+              <span className="whitespace-nowrap">{t('ai.chat.hoverPrompt', 'Trò chuyện cùng trợ lí AI')}</span>
+            </div>
+          )}
           <button
             type="button"
-            onClick={() => setIsOpen(true)}
-            className="w-12 h-12 rounded-full gradient-btn hover:scale-110 text-white flex items-center justify-center shadow-xl transition-all duration-300 motion-reduce:transition-none relative group cursor-pointer"
+            onClick={() => {
+              setIsHovered(false);
+              setIsOpen(true);
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="pointer-events-auto relative w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-brand-primary hover:bg-brand-primary/95 shadow-[0_8px_28px_rgba(37,99,235,0.28)] hover:shadow-[0_10px_32px_rgba(37,99,235,0.38)] hover:scale-105 active:scale-95 transition-all duration-200 motion-reduce:transition-none flex items-center justify-center border-2 border-white/80 dark:border-white/20 p-1 group cursor-pointer"
             aria-label={t('ai.chat.open')}
             title={t('ai.chat.open')}
           >
-            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5" aria-hidden="true">
-              <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white dark:border-[#18181b]"></span>
-            </span>
-            <MessageCircle className="w-6 h-6 group-hover:-translate-y-0.5 transition-transform duration-300" aria-hidden="true" />
+            <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-0.5 shadow-xs overflow-hidden">
+              <img
+                src="/assets/brand/logo-ai.png"
+                alt=""
+                aria-hidden="true"
+                className="w-full h-full object-contain scale-125 group-hover:scale-135 transition-transform duration-200 motion-reduce:transition-none"
+              />
+            </div>
           </button>
         </div>
       )}
