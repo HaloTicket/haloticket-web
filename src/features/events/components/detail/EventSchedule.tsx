@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   FiCalendar,
   FiList,
@@ -15,6 +15,7 @@ import { isTicketInStock } from "@/utils/ticketQuantities";
 
 /** Props của phần lịch diễn: dữ liệu sự kiện và hàm gọi khi chọn một loại vé của một suất. */
 interface EventScheduleProps {
+  buyScrollRequest?: number;
   event: EventDetailData;
   onSelectTicket?: (showtime: Showtime, ticket: TicketTier) => void;
 }
@@ -23,6 +24,7 @@ interface EventScheduleProps {
 export const EventSchedule: React.FC<EventScheduleProps> = ({
   event,
   onSelectTicket,
+  buyScrollRequest = 0,
 }) => {
   const { t: translate } = useTranslation();
 
@@ -179,9 +181,43 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(initialDay);
 
   /** Mở hoặc thu gọn vé của một suất diễn (chỉ một suất được mở tại một thời điểm). */
+  const isShowtimeOnSale = (showtime: Showtime) => {
+    const parseDate = (value: unknown): number | null => {
+      if (!value) return null;
+      const date = Array.isArray(value)
+        ? new Date(value[0], value[1] - 1, value[2], value[3] || 0, value[4] || 0, value[5] || 0)
+        : new Date(value as string);
+      return Number.isNaN(date.getTime()) ? null : date.getTime();
+    };
+    const sale = showtime as Showtime & { saleStartTime?: unknown; saleEndTime?: unknown };
+    const start = parseDate(sale.saleStartTime) ?? parseDate(event.ticketSaleStartDate);
+    const end = parseDate(sale.saleEndTime) ?? parseDate(event.ticketSaleEndDate);
+    const now = Date.now();
+    return (start === null || now >= start) && (end === null || now <= end);
+  };
+
   const handleToggleShowtime = (id: string) => {
+    const showtime = showtimes.find((item) => item.id === id);
+    if (!showtime || !isShowtimeOnSale(showtime)) return;
     setExpandedShowtimeId((prev) => (prev === id ? "" : id));
   };
+
+  const selectTicket = (showtime: Showtime, ticket: TicketTier) => {
+    if (isShowtimeOnSale(showtime)) onSelectTicket?.(showtime, ticket);
+  };
+
+  useEffect(() => {
+    if (!buyScrollRequest) return;
+    if (viewMode !== "list") {
+      setViewMode("list");
+      return;
+    }
+    const row = document.querySelector<HTMLElement>("#schedule-section [data-bookable='true']");
+    const target = row ?? document.getElementById("schedule-section");
+    if (!target) return;
+    const headerHeight = document.getElementById("site-header")?.getBoundingClientRect().height ?? 0;
+    window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - 88), behavior: "instant" });
+  }, [buyScrollRequest, viewMode]);
 
   // Tính các tháng riêng biệt có suất diễn
   const availableMonths = useMemo(() => {
@@ -267,12 +303,13 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
         {viewMode === "list" && (
           <div className="space-y-4">
             {showtimes.map((st) => {
-              const isExpanded = expandedShowtimeId === st.id;
+              const isExpanded = expandedShowtimeId === st.id && isShowtimeOnSale(st);
               const hasAvailableTickets = st.tickets ? st.tickets.some((t) => t.available) : true;
 
               return (
                 <div
                   key={st.id}
+                  data-bookable={isShowtimeOnSale(st) && hasAvailableTickets}
                   className="rounded-2xl border app-border overflow-hidden transition-all duration-300 bg-slate-50/50 dark:bg-zinc-900/50"
                 >
                   {/* Đầu mục suất diễn dạng accordion */}
@@ -341,7 +378,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               if (onSelectTicket) {
-                                onSelectTicket(st, st.tickets ? st.tickets[0] : ({} as any));
+                                selectTicket(st, st.tickets ? st.tickets[0] : ({} as any));
                               } else {
                                 handleToggleShowtime(st.id);
                               }
@@ -380,7 +417,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                                 ? "app-bg-card border-slate-200/80 dark:border-zinc-700/80 hover:border-brand-primary cursor-pointer shadow-xs"
                                 : "bg-slate-200/50 dark:bg-zinc-800/40 border-slate-200/40 dark:border-zinc-800/40 opacity-70"
                               }`}
-                            onClick={() => t.available && onSelectTicket && onSelectTicket(st, t)}
+                            onClick={() => t.available && selectTicket(st, t)}
                           >
                             <span className="font-black text-sm md:text-base app-text-main">
                               {translate(t.name)}
@@ -556,7 +593,7 @@ export const EventSchedule: React.FC<EventScheduleProps> = ({
                           type="button"
                           onClick={() => {
                             if (onSelectTicket) {
-                              onSelectTicket(st, (st.tickets && st.tickets[0]) ? st.tickets[0] : ({} as any));
+                              selectTicket(st, (st.tickets && st.tickets[0]) ? st.tickets[0] : ({} as any));
                             }
                           }}
                           className="px-4 py-2 gradient-btn text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"

@@ -22,6 +22,17 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
   onBuyTicketsClick
 }) => {
   const { t: translate } = useTranslation();
+  const [headerHeight, setHeaderHeight] = React.useState(0);
+
+  React.useLayoutEffect(() => {
+    const header = document.getElementById("site-header");
+    if (!header) return;
+    const updateHeight = () => setHeaderHeight(header.getBoundingClientRect().height);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   const salesStatus = React.useMemo(() => {
     const now = new Date();
@@ -123,7 +134,8 @@ export const EventStickyHeader: React.FC<EventStickyHeaderProps> = ({
 
   return (
     <div
-      className={`fixed top-0 inset-x-0 z-[100] h-18 app-bg-header backdrop-blur-xl border-b app-border shadow-2xl transition-all duration-300 flex items-center justify-between px-4 md:px-12 lg:px-16 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+      style={{ top: headerHeight }}
+      className={`fixed inset-x-0 z-40 h-18 app-bg-header backdrop-blur-xl border-b app-border shadow-2xl transition-all duration-300 flex items-center justify-between px-4 md:px-12 lg:px-16 ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
         }`}
     >
       {/* Bên trái: tên sự kiện và địa điểm */}

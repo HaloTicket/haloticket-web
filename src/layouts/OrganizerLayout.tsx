@@ -11,7 +11,6 @@ import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
-import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
 import {
   FiStar,
@@ -429,8 +428,6 @@ export const OrganizerLayout: React.FC = () => {
         accentColor="blue"
       />
 
-      {/* Floating Organizer AI Data Assistant Chatbot */}
-      <OrganizerAIChatWidget />
     </div>
   );
 };

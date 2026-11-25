@@ -1912,4 +1912,42 @@ input[type="search"]::-webkit-search-results-decoration {
   }
 }
 
+/* Organizer AI Chat Typing Indicator (Scoped) */
+@keyframes ai-typing-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
 
+.organizer-ai-chat .ai-typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-brand-primary, #2563eb);
+  animation: ai-typing-bounce 1.3s infinite ease-in-out both;
+}
+
+.organizer-ai-chat .ai-typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.organizer-ai-chat .ai-typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.organizer-ai-chat .ai-typing-dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .organizer-ai-chat .ai-typing-dot {
+    animation: none;
+    opacity: 0.75;
+  }
+}

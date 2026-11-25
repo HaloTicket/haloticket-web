@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { AiChatMessage } from '../../../types/ai';
 import { 
-  Bot, 
   User, 
   Calendar, 
   Clock, 
@@ -926,8 +925,13 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
   return (
     <div className={`flex w-full mb-3.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center text-white mr-1.5 flex-shrink-0 shadow-sm mt-0.5">
-          <Bot size={15} />
+        <div className="w-8 h-8 rounded-full bg-white mr-2 flex-shrink-0 shadow-xs border border-brand-primary/20 overflow-hidden mt-0.5 flex items-center justify-center">
+          <img
+            src="/assets/brand/logo-ai.png"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover scale-[1.08]"
+          />
         </div>
       )}
 
