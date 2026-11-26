@@ -54,11 +54,12 @@ import OrganizerTerms from "@/features/organizer/OrganizerTerms";
 import EventManageLayout from "@/layouts/EventManageLayout";
 import { EventOverview } from "@/features/organizer/event-manage/EventOverview";
 import { EventManageIndexRedirect, EventManageRoleGate } from "@/features/organizer/event-manage/components/EventManageRoleGate";
-import { FULL_ACCESS_ROLES, VIEW_ACCESS_ROLES } from "@/features/organizer/event-manage/eventManageRoles";
+import { ANNOUNCEMENT_ROLES, FULL_ACCESS_ROLES, VIEW_ACCESS_ROLES } from "@/features/organizer/event-manage/eventManageRoles";
 import { EventOrderList } from "@/features/organizer/event-manage/EventOrderList";
 import { EventCheckin } from "@/features/organizer/event-manage/EventCheckin";
 import { EventMembers } from "@/features/organizer/event-manage/EventMembers";
 import { EventVouchers } from "@/features/organizer/event-manage/EventVouchers";
+import { EventAnnouncements } from "@/features/organizer/event-manage/EventAnnouncements";
 import { EventSeatingMap } from "@/features/organizer/event-manage/EventSeatingMap";
 import { EventSeatingAssigner } from "@/features/organizer/event-manage/EventSeatingAssigner";
 import { EventEditInfo } from "@/features/organizer/event-manage/EventEditInfo";
@@ -469,6 +470,14 @@ export const router = createBrowserRouter([
         element: (
           <EventManageRoleGate allow={VIEW_ACCESS_ROLES}>
             <EventMembers />
+          </EventManageRoleGate>
+        ),
+      },
+      {
+        path: "announcements",
+        element: (
+          <EventManageRoleGate allow={ANNOUNCEMENT_ROLES}>
+            <EventAnnouncements />
           </EventManageRoleGate>
         ),
       },

@@ -17,4 +17,7 @@ describe("adminNotificationTarget", () => {
     expect(adminNotificationTarget(item("GENERAL"))).toBeNull();
     expect(adminNotificationTarget(item("payment_exception"))).toBeNull();
   });
+  it("keeps announcement text in the inbox even when it contains an event reference", () => {
+    expect(adminNotificationTarget({ ...item("SYSTEM_ANNOUNCEMENT"), message: "Cập nhật EV_MUA_HE" })).toBeNull();
+  });
 });

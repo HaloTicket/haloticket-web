@@ -4,7 +4,7 @@ import { adminNotificationTarget } from "@/utils/adminNotificationTarget";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
-import { getCachedUserProfile, userApi } from "@/services/userApi";
+import { getCachedUserProfile, parseJwt, userApi } from "@/services/userApi";
 import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { eventApi } from "@/services/eventApi";
@@ -48,7 +48,14 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket("ADMIN");
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => getCachedUserProfile());
+  const token = getKeycloakSession().getCurrentToken();
+  const subject = token ? parseJwt(token)?.sub : undefined;
+  const profileMatchesSession = !subject || !userProfile?.keycloakId || userProfile.keycloakId === subject;
+  const notificationTargets = ["ADMIN", subject, profileMatchesSession ? userProfile?.keycloakId : undefined, profileMatchesSession ? userProfile?.id : undefined]
+    .filter((id): id is string => Boolean(id));
+  const notificationState = useNotificationSocket(notificationTargets);
+  const { notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, latestToast, clearToast, removeNotification, pendingIds, markingAll, loading, error, reload } = notificationState;
 
   const [pendingEventsCount, setPendingEventsCount] = useState<number>(0);
   const [pendingUpdatesCount, setPendingUpdatesCount] = useState<number>(0);
@@ -102,10 +109,6 @@ export const AdminLayout: React.FC = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const [systemUptime, setSystemUptime] = useState<string | null>(null);
-
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
-    getCachedUserProfile()
-  );
 
   // trạng thái đồng hồ thời gian thực
   const [currentTime, setCurrentTime] = useState("");
@@ -182,12 +185,12 @@ export const AdminLayout: React.FC = () => {
     };
   }, [userProfile?.roles]);
 
-  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang liên quan nếu thông báo có đích. */
-  const handleNotificationClick = async (n: NotificationItem) => {
-    await markAsRead(n.id);
+  /** Ẩn toast và chuyển tới trang liên quan nếu thông báo có đích. */
+  const handleNotificationClick = (n: NotificationItem) => {
     clearToast();
     const target = adminNotificationTarget(n);
     if (target) navigate(target);
+    else if (n.userId !== "ADMIN") navigate(`${PATHS.ADMIN_NOTIFICATIONS}?notificationId=${encodeURIComponent(n.id)}`);
   };
 
 
@@ -478,9 +481,17 @@ export const AdminLayout: React.FC = () => {
               notifications={notifications}
               unreadCount={unreadCount}
               onMarkAllAsRead={markAllAsRead}
+              onMarkAsRead={markAsRead}
+              onMarkAsUnread={markAsUnread}
+              onDelete={removeNotification}
+              pendingIds={pendingIds}
+              markingAll={markingAll}
+              loading={loading}
+              error={error}
+              onRetry={() => void reload()}
               onNotificationClick={handleNotificationClick}
-              viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL}
-              viewAllText={translate("Xem trang Kiểm duyệt Sự kiện →")}
+              viewAllLink={PATHS.ADMIN_NOTIFICATIONS}
+              viewAllText={translate("Xem tất cả thông báo")}
               titleText={translate("Thông báo hệ thống")}
             />
 
@@ -649,7 +660,7 @@ export const AdminLayout: React.FC = () => {
 
         {/* Dynamic Admin View Content Outlet */}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <Outlet />
+          <Outlet context={notificationState} />
         </main>
       </div>
 
@@ -658,7 +669,7 @@ export const AdminLayout: React.FC = () => {
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText={label("Nhấn để kiểm duyệt ngay →", "Click to review now →")}
+        actionText={latestToast?.userId === "ADMIN" ? label("Nhấn để kiểm duyệt ngay →", "Click to review now →") : label("Xem chi tiết thông báo", "View notification details")}
         accentColor="blue"
       />
 
