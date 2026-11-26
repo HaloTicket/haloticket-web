@@ -128,30 +128,25 @@ describe("EventAnnouncements", () => {
     expect((screen.getByRole("radio", { name: /Thông báo nội bộ/ }) as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByRole("radio", { name: /Quảng bá & ưu đãi/ })).toBeNull();
 
-    // Check 4 staff scopes in dropdown
     const scopeSelect = screen.getByLabelText(/Phạm vi nhận/) as HTMLSelectElement;
-    expect(Array.from(scopeSelect.options).map((o) => o.value)).toEqual(["ALL", "CHECKIN_STAFF", "ROLE", "MEMBER"]);
+    expect(Array.from(scopeSelect.options).map((option) => option.value)).toEqual(["ALL", "MEMBER"]);
 
-    // Switch to ROLE and verify localized role labels
-    fireEvent.change(scopeSelect, { target: { value: "ROLE" } });
-    const roleSelect = screen.getByLabelText(/Chọn vai trò nhân sự/) as HTMLSelectElement;
-    expect(Array.from(roleSelect.options).map((o) => o.text)).toContain("Nhân viên check-in");
-    expect(Array.from(roleSelect.options).map((o) => o.text)).toContain("Chủ sự kiện");
-
-    // Switch to MEMBER -> only active members with canonical userId appear
     fireEvent.change(scopeSelect, { target: { value: "MEMBER" } });
-    const memberSelect = await screen.findByLabelText(/Chọn thành viên/) as HTMLSelectElement;
-    await waitFor(() => expect(memberSelect.options.length).toBe(2));
-    expect(memberSelect.options[1].value).toBe("user-canon-1");
-    expect(memberSelect.options[1].text).toContain("Nguyễn Văn A");
-    expect(memberSelect.options[1].text).toContain("Nhân viên check-in");
+    const memberInput = await screen.findByRole("combobox", { name: /Chọn thành viên/ });
+    await waitFor(() => expect((memberInput as HTMLInputElement).disabled).toBe(false));
+
+    fireEvent.focus(memberInput);
+    expect(within(screen.getByRole("listbox")).getAllByRole("option")).toHaveLength(1);
+    fireEvent.change(memberInput, { target: { value: "a@halo.vn" } });
+    const suggestions = screen.getByRole("listbox");
+    const memberOption = within(suggestions).getByRole("option", { name: /Nguyễn Văn A.*a@halo.vn.*Nhân viên check-in/ });
 
     // Submit disabled until member selected
     const submitBtn = screen.getByRole("button", { name: "Gửi nội bộ" }) as HTMLButtonElement;
     expect(submitBtn.disabled).toBe(true);
 
     estimateAnnouncementRecipients.mockResolvedValueOnce({ recipientCount: 1 });
-    fireEvent.change(memberSelect, { target: { value: "user-canon-1" } });
+    fireEvent.click(memberOption);
     expect(await screen.findByText(/1 người/)).toBeTruthy();
     expect(submitBtn.disabled).toBe(false);
 
