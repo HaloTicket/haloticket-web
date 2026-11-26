@@ -761,11 +761,10 @@ export default Header;
 function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userIds);
+  const { notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, latestToast, clearToast, removeNotification, pendingIds, markingAll, loading, error, reload } = useNotificationSocket(userIds);
 
-  /** Đánh dấu đã đọc, tắt toast rồi chuyển tới trang đích của thông báo (nếu có). */
+  /** Tắt toast rồi chuyển tới trang đích của thông báo (nếu có). */
   const onClick = (item: NotificationItem) => {
-    void markAsRead(item.id);
     clearToast();
     const target = notificationTarget(item, "customer");
     if (target) navigate(target);
@@ -777,6 +776,14 @@ function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
         notifications={notifications}
         unreadCount={unreadCount}
         onMarkAllAsRead={markAllAsRead}
+        onMarkAsRead={markAsRead}
+        onMarkAsUnread={markAsUnread}
+        onDelete={removeNotification}
+        pendingIds={pendingIds}
+        markingAll={markingAll}
+        loading={loading}
+        error={error}
+        onRetry={() => void reload()}
         onNotificationClick={onClick}
         viewAllLink={PATHS.MY_EVENTS}
         titleText={t("Thông báo")}

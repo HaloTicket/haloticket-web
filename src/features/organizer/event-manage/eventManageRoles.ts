@@ -6,4 +6,5 @@ export interface EventManageContext {
 }
 
 export const FULL_ACCESS_ROLES = ["OWNER", "ADMIN"];
+export const ANNOUNCEMENT_ROLES = ["OWNER", "MANAGER"];
 export const VIEW_ACCESS_ROLES = ["OWNER", "ADMIN", "MANAGER"];

@@ -3,7 +3,7 @@ import { afterEach, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 import { EventManageIndexRedirect, EventManageRoleGate } from "@/features/organizer/event-manage/components/EventManageRoleGate";
-import { FULL_ACCESS_ROLES, VIEW_ACCESS_ROLES } from "@/features/organizer/event-manage/eventManageRoles";
+import { ANNOUNCEMENT_ROLES, FULL_ACCESS_ROLES, VIEW_ACCESS_ROLES } from "@/features/organizer/event-manage/eventManageRoles";
 
 afterEach(cleanup);
 
@@ -15,6 +15,7 @@ function renderAt(path: string, myRole: string | null, myRoleLoaded = true) {
           <Route index element={<EventManageIndexRedirect />} />
           <Route path="overview" element={<EventManageRoleGate allow={VIEW_ACCESS_ROLES}><p>overview page</p></EventManageRoleGate>} />
           <Route path="vouchers" element={<EventManageRoleGate allow={FULL_ACCESS_ROLES}><p>vouchers page</p></EventManageRoleGate>} />
+          <Route path="announcements" element={<EventManageRoleGate allow={ANNOUNCEMENT_ROLES}><p>announcements page</p></EventManageRoleGate>} />
           <Route path="checkin" element={<p>checkin page</p>} />
         </Route>
       </Routes>
@@ -60,4 +61,18 @@ it("does not redirect before the role is known, and lets an unknown role through
   cleanup();
   renderAt(`${base}/vouchers`, null, true);
   expect(screen.getByText("vouchers page")).toBeTruthy();
+});
+
+it("allows OWNER and MANAGER into announcements and redirects ADMIN and CHECKIN_STAFF", () => {
+  renderAt(`${base}/announcements`, "OWNER");
+  expect(screen.getByText("announcements page")).toBeTruthy();
+  cleanup();
+  renderAt(`${base}/announcements`, "MANAGER");
+  expect(screen.getByText("announcements page")).toBeTruthy();
+  cleanup();
+  renderAt(`${base}/announcements`, "ADMIN");
+  expect(screen.getByText("overview page")).toBeTruthy();
+  cleanup();
+  renderAt(`${base}/announcements`, "CHECKIN_STAFF");
+  expect(screen.getByText("checkin page")).toBeTruthy();
 });

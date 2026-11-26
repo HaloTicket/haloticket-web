@@ -93,11 +93,10 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
   }, []);
 
   const userTargetIds = [userProfile?.keycloakId, userProfile?.id].filter(Boolean) as string[];
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userTargetIds.length ? userTargetIds : "ORGANIZER");
+  const { notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, latestToast, clearToast, removeNotification, pendingIds, markingAll, loading, error, reload } = useNotificationSocket(userTargetIds, { channel: "ALL" });
 
-  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang đích của thông báo (nếu có). */
-  const handleNotificationClick = async (n: NotificationItem) => {
-    await markAsRead(n.id);
+  /** Ẩn toast và chuyển tới trang đích của thông báo (nếu có). */
+  const handleNotificationClick = (n: NotificationItem) => {
     clearToast();
     const target = notificationTarget(n, "organizer");
     if (target) navigate(target);
@@ -147,6 +146,7 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
     if (p.endsWith("/orders")) return t("Danh sách đơn hàng");
     if (p.endsWith("/checkin")) return t("Check-in soát vé");
     if (p.endsWith("/members")) return t("Thành viên Ban tổ chức");
+    if (p.endsWith("/announcements")) return t("Soạn thông báo");
     if (p.endsWith("/vouchers")) return t("Mã giảm giá (Voucher)");
     if (p.endsWith("/seating")) return t("Sơ đồ ghế & Khán phòng");
     if (p.endsWith("/ticket-assign")) return t("Cài đặt hạng vé");
@@ -217,9 +217,17 @@ export const EventManageHeader: React.FC<EventManageHeaderProps> = ({
             notifications={notifications}
             unreadCount={unreadCount}
             onMarkAllAsRead={markAllAsRead}
+            onMarkAsRead={markAsRead}
+            onMarkAsUnread={markAsUnread}
+            onDelete={removeNotification}
+            pendingIds={pendingIds}
+            markingAll={markingAll}
+            loading={loading}
+            error={error}
+            onRetry={() => void reload()}
             onNotificationClick={handleNotificationClick}
-            viewAllLink="/organizer/my-events"
-            viewAllText={t("Xem danh sách Sự kiện →")}
+            viewAllLink={eventId ? PATHS.EVENT_MANAGE_ANNOUNCEMENTS(eventId) : "/organizer/my-events"}
+            viewAllText={`${t("Xem tất cả thông báo")} →`}
             titleText={t("Thông báo Ban tổ chức")}
           />
 
