@@ -1945,6 +1945,17 @@ input[type="search"]::-webkit-search-results-decoration {
   animation-delay: 0s;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .notification-enter:not([hidden]) {
+    animation: notification-enter 180ms ease-out;
+  }
+
+  @keyframes notification-enter {
+    from { opacity: 0; translate: 0 6px; }
+    to { opacity: 1; translate: 0 0; }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .organizer-ai-chat .ai-typing-dot {
     animation: none;
