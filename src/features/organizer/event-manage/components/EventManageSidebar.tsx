@@ -19,6 +19,7 @@ import {
   FiRepeat
 } from "react-icons/fi";
 import { FaTicketAlt } from "react-icons/fa";
+import { LuMegaphone } from "react-icons/lu";
 
 /** Props của sidebar quản lý sự kiện: dữ liệu sự kiện, vai trò của người dùng, trạng thái mở (mobile) và thu gọn, cùng hàm đóng và thu gọn. */
 interface EventManageSidebarProps {
@@ -122,6 +123,12 @@ export const EventManageSidebar: React.FC<EventManageSidebarProps> = ({
     {
       groupTitle: t("MARKETING"),
       items: [
+        {
+          label: t("Thông báo"),
+          path: PATHS.EVENT_MANAGE_ANNOUNCEMENTS(eventId!),
+          icon: <LuMegaphone className="w-4.5 h-4.5 shrink-0" />,
+          visible: myRole === "OWNER" || isManager,
+        },
         {
           label: t("Voucher"),
           path: `/organizer/events/${eventId}/manage/vouchers`,

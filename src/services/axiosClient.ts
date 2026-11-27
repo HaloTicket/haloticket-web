@@ -65,6 +65,9 @@ function dispatchSessionExpiredOnce() {
 axiosClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {
+    if (error.response?.status === 401 && error.response?.data?.code === "AI_CHAT_OWNER_CHANGED") {
+      return Promise.reject(error);
+    }
     const originalRequest = error.config as
       (typeof error.config & AuthRequestMetadata) | undefined;
     if (

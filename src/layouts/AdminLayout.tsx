@@ -4,7 +4,7 @@ import { adminNotificationTarget } from "@/utils/adminNotificationTarget";
 import { PATHS } from "@/routes/paths";
 import { useTheme } from "@/hooks/useTheme";
 import { getKeycloakSession } from "@/services/keycloakSession";
-import { getCachedUserProfile, userApi } from "@/services/userApi";
+import { getCachedUserProfile, parseJwt, userApi } from "@/services/userApi";
 import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { eventApi } from "@/services/eventApi";
@@ -16,7 +16,7 @@ import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/compone
 import { aiApi } from "@/services/aiApi";
 import { payoutApi } from "@/services/payoutApi";
 import { adminReconciliationApi } from "@/services/adminReconciliationApi";
-import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
+import AdminAiChatWidget from "@/features/admin/AdminAiChatWidget";
 import {
   FiSun,
   FiMoon,
@@ -28,8 +28,6 @@ import {
   FiLogOut,
   FiSettings,
   FiUserCheck,
-  FiMessageSquare,
-  FiZap,
   FiCheckSquare,
   FiBarChart2,
   FiUsers,
@@ -48,7 +46,14 @@ export const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket("ADMIN");
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => getCachedUserProfile());
+  const token = getKeycloakSession().getCurrentToken();
+  const subject = token ? parseJwt(token)?.sub : undefined;
+  const profileMatchesSession = !subject || !userProfile?.keycloakId || userProfile.keycloakId === subject;
+  const notificationTargets = ["ADMIN", subject, profileMatchesSession ? userProfile?.keycloakId : undefined, profileMatchesSession ? userProfile?.id : undefined]
+    .filter((id): id is string => Boolean(id));
+  const notificationState = useNotificationSocket(notificationTargets);
+  const { notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, latestToast, clearToast, removeNotification, pendingIds, markingAll, loading, error, reload } = notificationState;
 
   const [pendingEventsCount, setPendingEventsCount] = useState<number>(0);
   const [pendingUpdatesCount, setPendingUpdatesCount] = useState<number>(0);
@@ -100,12 +105,7 @@ export const AdminLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const [systemUptime, setSystemUptime] = useState<string | null>(null);
-
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
-    getCachedUserProfile()
-  );
 
   // trạng thái đồng hồ thời gian thực
   const [currentTime, setCurrentTime] = useState("");
@@ -182,12 +182,12 @@ export const AdminLayout: React.FC = () => {
     };
   }, [userProfile?.roles]);
 
-  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang liên quan nếu thông báo có đích. */
-  const handleNotificationClick = async (n: NotificationItem) => {
-    await markAsRead(n.id);
+  /** Ẩn toast và chuyển tới trang liên quan nếu thông báo có đích. */
+  const handleNotificationClick = (n: NotificationItem) => {
     clearToast();
     const target = adminNotificationTarget(n);
     if (target) navigate(target);
+    else if (n.userId !== "ADMIN") navigate(`${PATHS.ADMIN_NOTIFICATIONS}?notificationId=${encodeURIComponent(n.id)}`);
   };
 
 
@@ -478,9 +478,17 @@ export const AdminLayout: React.FC = () => {
               notifications={notifications}
               unreadCount={unreadCount}
               onMarkAllAsRead={markAllAsRead}
+              onMarkAsRead={markAsRead}
+              onMarkAsUnread={markAsUnread}
+              onDelete={removeNotification}
+              pendingIds={pendingIds}
+              markingAll={markingAll}
+              loading={loading}
+              error={error}
+              onRetry={() => void reload()}
               onNotificationClick={handleNotificationClick}
-              viewAllLink={PATHS.ADMIN_EVENTS_APPROVAL}
-              viewAllText={translate("Xem trang Kiểm duyệt Sự kiện →")}
+              viewAllLink={PATHS.ADMIN_NOTIFICATIONS}
+              viewAllText={translate("Xem tất cả thông báo")}
               titleText={translate("Thông báo hệ thống")}
             />
 
@@ -649,7 +657,7 @@ export const AdminLayout: React.FC = () => {
 
         {/* Dynamic Admin View Content Outlet */}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <Outlet />
+          <Outlet context={notificationState} />
         </main>
       </div>
 
@@ -658,54 +666,12 @@ export const AdminLayout: React.FC = () => {
         toast={latestToast}
         onToastClick={handleNotificationClick}
         onClose={clearToast}
-        actionText={label("Nhấn để kiểm duyệt ngay →", "Click to review now →")}
+        actionText={latestToast?.userId === "ADMIN" ? label("Nhấn để kiểm duyệt ngay →", "Click to review now →") : label("Xem chi tiết thông báo", "View notification details")}
         accentColor="blue"
       />
 
 
-      {/* Floating AI Action Button */}
-      <button
-        type="button"
-        onClick={() => setIsAiDrawerOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 transition-all duration-300 cursor-pointer"
-        aria-label="Halo AI Assistant"
-        title="Halo AI Assistant"
-      >
-        <FiMessageSquare className="w-5 h-5" />
-      </button>
-
-      {/* AI Assistant Drawer */}
-      {isAiDrawerOpen && (
-        <div className="fixed inset-0 z-[60] flex justify-end">
-          <div 
-            className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm" 
-            onClick={() => setIsAiDrawerOpen(false)}
-          />
-          <div className="relative w-full max-w-sm md:max-w-md h-full app-bg-card shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="flex items-center justify-between p-3.5 border-b app-border app-bg-subnav">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
-                  <FiZap className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold app-text-main">{label("Halo AI Assistant", "Halo AI Assistant")}</h3>
-                  <p className="text-[10px] font-medium app-text-muted">{label("Luôn sẵn sàng hỗ trợ bạn", "Always ready to assist you")}</p>
-                </div>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setIsAiDrawerOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 app-text-main transition-colors cursor-pointer"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <AdminAiAssistant isDrawer={true} />
-            </div>
-          </div>
-        </div>
-      )}
+      <AdminAiChatWidget />
     </div>
   );
 };

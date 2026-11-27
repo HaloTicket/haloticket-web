@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificationApi } from "@/services/notificationApi";
-import type { NotificationItem } from "@/types";
+import type { NotificationChannel, NotificationItem } from "@/types";
 import { toast } from "sonner";
 import { CONFIG } from "@/config";
+import { getKeycloakSession } from "@/services/keycloakSession";
 
 /** Thông báo thô do API trả về, có thể dùng tên trường cũ (`subjectTemplate`, `bodyTemplate`) thay cho `title`, `message`. */
 interface RawNotification {
@@ -13,8 +14,15 @@ interface RawNotification {
   subjectTemplate?: string;
   message?: string;
   bodyTemplate?: string;
-  readStatus?: boolean;
+  readStatus?: boolean | null;
+  priority?: string;
+  variablesJson?: string | null;
   createdAt?: string;
+  source?: string;
+  eventId?: string;
+  eventTitle?: string;
+  category?: string;
+  visibility?: string;
   [key: string]: unknown;
 }
 
@@ -93,6 +101,8 @@ export async function playNotificationChime() {
 }
 
 const recentNotificationKeys = new Map<string, number>();
+// A late delivery must stay hidden even when navigation remounts the inbox.
+const deletedNotificationIds = new Set<string>();
 
 /** Tạo khóa nhận diện nội dung của thông báo (người nhận, loại, tiêu đề, nội dung; ưu tiên phần trong dấu nháy kép) để phát hiện thông báo trùng. */
 function extractNotificationKey(notif: { userId?: string; type?: string; title?: string; message?: string }): string {
@@ -126,211 +136,381 @@ function shouldProcessIncomingNotification(notif: NotificationItem): boolean {
   return true;
 }
 
-/** Loại bỏ các thông báo trùng `id`, giữ bản đầu tiên. */
-function deduplicateNotificationList(items: NotificationItem[]): NotificationItem[] {
-  const result: NotificationItem[] = [];
-  const seenIds = new Set<string>();
+type NotificationScope = {
+  key: string;
+  userIds: string[];
+  confirmedReads: Set<string>;
+  confirmedUnreads: Set<string>;
+  pending: Set<string>;
+  pendingAll: boolean;
+  revision: number;
+  request: number;
+  appliedRequest: number;
+};
 
-  for (const item of items) {
-    if (seenIds.has(item.id)) continue;
-    seenIds.add(item.id);
-    result.push(item);
-  }
-  return result;
+const emptyNotifications: NotificationItem[] = [];
+
+function formatNotification(item: RawNotification, target: string, push = false, fromStaffTopic = false): NotificationItem {
+  return {
+    id: item.id || `notif-${Date.now()}-${Math.random()}`,
+    userId: item.userId || target,
+    type: item.type || "GENERAL",
+    priority: item.priority === "IMPORTANT" || item.priority === "URGENT" ? item.priority : "NORMAL",
+    title: item.title || item.subjectTemplate || "Thông báo mới",
+    message: item.message || item.bodyTemplate || (push ? "Có thông báo mới" : "Có cập nhật mới từ hệ thống."),
+    readStatus: Boolean(item.readStatus),
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
+    variablesJson: item.variablesJson,
+    ...organizerMetadata(item, fromStaffTopic),
+  };
 }
 
-/** Hook nhận thông báo của một hoặc nhiều người nhận (mặc định `ADMIN`) bằng cách tải ban đầu, thăm dò mỗi 3 giây và lắng nghe WebSocket STOMP. Trả về danh sách thông báo, số chưa đọc, trạng thái tải, lỗi, thông báo toast mới nhất và các hàm đánh dấu đã đọc. */
-export function useNotificationSocket(targetId: string | string[] = "ADMIN") {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+const announcementCategories = new Set(["EVENT_UPDATE", "PROMOTION", "REMINDER", "INTERNAL"]);
+
+/**
+ * Chuẩn hóa nguồn cho cả REST lẫn STOMP: thiếu `source` nghĩa là HaloTicket. Tên sự kiện chỉ lấy từ trường cấp cao
+ * do dịch vụ gắn, không lấy từ nội dung `variablesJson`.
+ */
+function organizerMetadata(
+  item: RawNotification,
+  fromStaffTopic = false,
+): Pick<NotificationItem, "source" | "eventId" | "eventTitle" | "category" | "visibility"> {
+  const organizer = item.source === "ORGANIZER"
+    || item.type === "ORGANIZER_ANNOUNCEMENT"
+    || fromStaffTopic
+    || item.visibility === "STAFF";
+  const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : undefined;
+  const category = organizer && typeof item.category === "string" && announcementCategories.has(item.category)
+    ? item.category as NotificationItem["category"]
+    : undefined;
+  const visibility: NotificationItem["visibility"] = !organizer
+    ? undefined
+    : item.visibility === "STAFF" || fromStaffTopic || category === "INTERNAL"
+      ? "STAFF"
+      : item.visibility === "PUBLIC"
+        ? "PUBLIC"
+        : undefined;
+  return {
+    source: organizer ? "ORGANIZER" : "HALOTICKET",
+    eventId: organizer ? text(item.eventId) : undefined,
+    eventTitle: organizer ? text(item.eventTitle) : undefined,
+    category,
+    visibility,
+  };
+}
+
+function sortNotifications(items: NotificationItem[]) {
+  const time = (item: NotificationItem) => Date.parse(item.createdAt ?? "") || 0;
+  return items.sort((a, b) => time(b) - time(a));
+}
+
+export interface NotificationSocketOptions {
+  channel?: NotificationChannel;
+}
+
+export function useNotificationSocket(targetId: string | string[] = "ADMIN", options: NotificationSocketOptions = {}) {
+  const channel = options.channel;
+  const userIdsJson = JSON.stringify([...new Set([targetId].flat().filter((id) => id.trim()))]);
+  const key = `${channel ?? "PUBLIC"}:${userIdsJson}`;
+  const [inbox, setInbox] = useState<{ key: string; items: NotificationItem[] }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
-  const [latestToast, setLatestToast] = useState<NotificationItem | null>(null);
-  const hasLoadedNotifications = useRef(false);
-  const readRevision = useRef(0);
-  const unreadCount = notifications.filter((notification) => !notification.readStatus).length;
+  const [toastState, setToastState] = useState<{ scope: string; item: NotificationItem } | null>(null);
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
+  const [markingAll, setMarkingAll] = useState(false);
+  const activeScope = useRef<NotificationScope | null>(null);
+  const notifications = inbox?.key === key ? inbox.items : emptyNotifications;
+  const latestToast = toastState?.scope === key ? toastState.item : null;
 
-  const targetIdSerialized = JSON.stringify(targetId);
-  const userIds = useMemo(() => {
-    const list = Array.isArray(targetId) ? targetId : [targetId];
-    const filtered = list.filter((id) => Boolean(id && typeof id === "string" && id.trim().length > 0));
-    return filtered.length > 0 ? Array.from(new Set(filtered)) : ["ADMIN"];
-  }, [targetIdSerialized]);
-
-  // tải thông báo ban đầu từ cơ sở dữ liệu
-  /** Tải thông báo của mọi người nhận, gộp, loại trùng và sắp xếp mới nhất trước; bỏ qua kết quả cũ nếu trong lúc tải đã có thao tác đánh dấu đã đọc. */
   const loadNotifications = useCallback(async () => {
-    if (!hasLoadedNotifications.current) setLoading(true);
-    const requestReadRevision = readRevision.current;
-    try {
-      const results = await Promise.allSettled(
-        userIds.map((uid) => notificationApi.getUserNotifications(uid))
-      );
-      // nếu mọi yêu cầu đều thất bại thì báo lỗi thay vì coi như danh sách rỗng
-      const firstRejected = results.find((res): res is PromiseRejectedResult => res.status === "rejected");
-      if (firstRejected && results.every((res) => res.status === "rejected")) {
-        throw firstRejected.reason;
+    const scope = activeScope.current;
+    if (!scope || scope.key !== key) return;
+    const request = ++scope.request;
+    const revision = scope.revision;
+    const results = await Promise.allSettled(
+      scope.userIds.map((id) => (channel && id !== "ADMIN"
+        ? notificationApi.getUserNotifications(id, channel)
+        : notificationApi.getUserNotifications(id))),
+    );
+    if (scope !== activeScope.current || request <= scope.appliedRequest || revision !== scope.revision) return;
+    scope.appliedRequest = request;
+
+    const failure = results.find((result) => result.status === "rejected");
+    setError(failure && results.every((result) => result.status === "rejected")
+      ? failure.reason instanceof Error ? failure.reason.message : "Failed to load notifications"
+      : null);
+
+    const loaded = new Map<string, NotificationItem>();
+    const unavailableTargets = new Set<string>();
+    results.forEach((result, index) => {
+      const target = scope.userIds[index];
+      if (result.status === "rejected") {
+        unavailableTargets.add(target);
+        return;
       }
-      const allRaw: RawNotification[] = [];
-      for (const res of results) {
-        if (res.status === "fulfilled" && Array.isArray(res.value)) {
-          allRaw.push(...res.value);
+      for (const raw of result.value) {
+        const item = formatNotification(raw, target);
+        if (deletedNotificationIds.has(item.id)) continue;
+        const existing = loaded.get(item.id);
+        if (scope.confirmedUnreads.has(item.id)) item.readStatus = false;
+        else if (existing?.readStatus || scope.confirmedReads.has(item.id)) item.readStatus = true;
+        loaded.set(item.id, item);
+      }
+    });
+    setInbox((previous) => {
+      const visible = new Map(loaded);
+      if (previous?.key === key) {
+        for (const item of previous.items) {
+          if (!visible.has(item.id) && unavailableTargets.has(item.userId) && !deletedNotificationIds.has(item.id)) {
+            visible.set(item.id, item);
+          }
         }
       }
-      const formatted: NotificationItem[] = allRaw.map((item: RawNotification) => ({
-        id: item.id || `notif-${Date.now()}-${Math.random()}`,
-        userId: item.userId || userIds[0],
-        type: item.type || "GENERAL",
-        title: item.title || item.subjectTemplate || "Thông báo mới",
-        message: item.message || item.bodyTemplate || "Có cập nhật mới từ hệ thống.",
-        readStatus: Boolean(item.readStatus),
-        createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
-      }));
-      const deduped = deduplicateNotificationList(formatted);
-      deduped.sort((a, b) => {
-        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return tB - tA;
-      });
-      if (requestReadRevision === readRevision.current) setNotifications(deduped);
-      setError(null);
-      hasLoadedNotifications.current = true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notifications");
-    } finally {
-      hasLoadedNotifications.current = true;
-      setLoading(false);
-    }
-  }, [userIds]);
+      return { key, items: sortNotifications([...visible.values()]) };
+    });
+    setLoading(false);
+  }, [key, channel]);
 
   useEffect(() => {
+    const scope: NotificationScope = {
+      key,
+      userIds: JSON.parse(userIdsJson) as string[],
+      confirmedReads: new Set(),
+      confirmedUnreads: new Set(),
+      pending: new Set(),
+      pendingAll: false,
+      revision: 0,
+      request: 0,
+      appliedRequest: 0,
+    };
+    activeScope.current = scope;
+
     const initTimer = setTimeout(() => {
-      void loadNotifications();
+      setReadError(null);
+      setError(null);
+      setPendingIds(new Set());
+      setMarkingAll(false);
+      setLoading(scope.userIds.length > 0);
+      if (scope.userIds.length) void loadNotifications();
     }, 0);
+    if (!scope.userIds.length) return () => {
+      clearTimeout(initTimer);
+      activeScope.current = null;
+    };
 
-    // thăm dò mỗi 3 giây để đảm bảo cập nhật đầy đủ kể cả khi WebSocket bị chặn
+    // Polling also keeps the inbox usable when a proxy blocks WebSocket.
     const pollInterval = setInterval(loadNotifications, 3000);
+    const syncDeletion = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (!deletedNotificationIds.has(id)) return;
+      scope.revision += 1;
+      setInbox((previous) => previous?.key === key ? { key, items: previous.items.filter((item) => item.id !== id) } : previous);
+      setToastState((previous) => previous?.item.id === id ? null : previous);
+    };
+    window.addEventListener("notification-inbox-item-deleted", syncDeletion);
+    const url = new URL(CONFIG.API_BASE_URL, window.location.origin);
+    const wsUrl = `${url.protocol === "https:" ? "wss:" : "ws:"}//${url.host}/ws-notifications`;
+    let socket: WebSocket | undefined;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
 
-    // đồng bộ thời gian thực qua WebSocket STOMP
-    const url = new URL(CONFIG.API_BASE_URL);
-    const protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${url.host}/ws-notifications`;
-    let socket: WebSocket | null = null;
+    const subscriptions = scope.userIds.flatMap((id) => {
+      if (id === "ADMIN") return [{ userId: id, topic: "/topic/admin-notifications", staff: false }];
+      const list: { userId: string; topic: string; staff: boolean }[] = [];
+      if (channel !== "STAFF") list.push({ userId: id, topic: `/topic/user-notifications/${id}`, staff: false });
+      if (channel === "ALL" || channel === "STAFF") list.push({ userId: id, topic: `/topic/staff-notifications/${id}`, staff: true });
+      return list;
+    });
 
-    try {
-      socket = new WebSocket(wsUrl);
-
-      socket.onerror = () => {
-        
+    const connect = () => {
+      let connection: WebSocket;
+      try {
+        connection = new WebSocket(wsUrl);
+      } catch {
+        reconnectTimer = setTimeout(connect, 3000);
+        return;
+      }
+      socket = connection;
+      handshakeTimer = setTimeout(() => connection.close(), 10000);
+      connection.onclose = () => {
+        clearTimeout(handshakeTimer);
+        if (activeScope.current === scope) reconnectTimer = setTimeout(connect, 3000);
       };
-
-      socket.onopen = () => {
-        socket?.send("CONNECT\naccept-version:1.1,1.0\nheart-beat:10000,10000\n\n\0");
-        userIds.forEach((uid, idx) => {
-          const topic = uid === "ADMIN" ? "/topic/admin-notifications" : `/topic/user-notifications/${uid}`;
-          socket?.send(`SUBSCRIBE\nid:sub-${idx}\ndestination:${topic}\n\n\0`);
-        });
-      };
-
-      socket.onmessage = (event) => {
+      connection.onopen = async () => {
         try {
-          if (event.data.includes("MESSAGE")) {
-            const bodyStart = event.data.indexOf("\n\n");
-            if (bodyStart !== -1) {
-              const bodyStr = event.data.substring(bodyStart + 2).replace(/\0$/, "");
-              const parsed = JSON.parse(bodyStr);
-              const newNotif: NotificationItem = {
-                id: parsed.id || `notif-${Date.now()}`,
-                userId: parsed.userId || userIds[0],
-                type: parsed.type || "GENERAL",
-                title: parsed.title || "Thông báo mới",
-                message: parsed.message || "Có thông báo mới",
-                readStatus: false,
-                createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : undefined,
-              };
-
-              if (!shouldProcessIncomingNotification(newNotif)) {
-                return;
-              }
-
-              setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
-              setLatestToast(newNotif);
-              playNotificationChime();
-              window.dispatchEvent(new CustomEvent("approval-events-updated", { detail: newNotif }));
-              loadNotifications();
-            }
+          const token = await getKeycloakSession().getAccessToken();
+          if (activeScope.current !== scope || connection.readyState !== WebSocket.OPEN) return;
+          if (!token) {
+            connection.close();
+            return;
           }
+          connection.send(`CONNECT\naccept-version:1.1,1.0\nheart-beat:0,0\nAuthorization:Bearer ${token}\n\n\0`);
         } catch {
-          // bỏ qua lỗi phân tích cú pháp
+          if (activeScope.current === scope) connection.close();
         }
       };
-    } catch {
-      // bỏ qua lỗi, không làm gián đoạn giao diện
-    }
+      connection.onmessage = (event) => {
+        if (activeScope.current !== scope || typeof event.data !== "string") return;
+        for (const packet of event.data.split("\0")) {
+          const frame = packet.trimStart();
+          const command = frame.split(/\r?\n/, 1)[0];
+          if (command === "CONNECTED") {
+            clearTimeout(handshakeTimer);
+            subscriptions.forEach((sub, index) => {
+              connection.send(`SUBSCRIBE\nid:sub-${index}\ndestination:${sub.topic}\n\n\0`);
+            });
+            void loadNotifications();
+          } else if (command === "ERROR") {
+            connection.close();
+          } else if (command === "MESSAGE") {
+            const bodyStart = frame.match(/\r?\n\r?\n/);
+            if (bodyStart?.index === undefined) continue;
+            const subscription = frame.slice(0, bodyStart.index).match(/^subscription:sub-(\d+)\r?$/m)?.[1];
+            const sub = subscriptions[Number(subscription ?? 0)] ?? subscriptions[0];
+            const target = sub?.userId ?? scope.userIds[0];
+            let notification: NotificationItem;
+            try {
+              notification = formatNotification(JSON.parse(frame.slice(bodyStart.index + bodyStart[0].length)), target, true, Boolean(sub?.staff));
+            } catch {
+              continue;
+            }
+            if (deletedNotificationIds.has(notification.id) || scope.confirmedReads.has(notification.id)) continue;
+            setInbox((previous) => {
+              const items = previous?.key === key ? previous.items : emptyNotifications;
+              if (items.some((item) => item.id === notification.id)) return previous;
+              return { key, items: sortNotifications([notification, ...items]) };
+            });
+            if (shouldProcessIncomingNotification(notification)) {
+              setToastState({ scope: key, item: notification });
+              void playNotificationChime();
+              window.dispatchEvent(new CustomEvent("approval-events-updated", { detail: notification }));
+            }
+            void loadNotifications();
+          }
+        }
+      };
+    };
 
+    connect();
     return () => {
+      activeScope.current = null;
       clearTimeout(initTimer);
+      clearInterval(pollInterval);
+      clearTimeout(reconnectTimer);
+      clearTimeout(handshakeTimer);
+      window.removeEventListener("notification-inbox-item-deleted", syncDeletion);
       if (socket) {
         socket.onopen = null;
         socket.onmessage = null;
-        socket.onerror = null;
-        try {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.close();
-          }
-        } catch {
-          // ignore
+        socket.onclose = null;
+        socket.close();
+      }
+    };
+  }, [key, userIdsJson, channel, loadNotifications]);
+
+  const reportError = (err: unknown, fallback: string) => {
+    setReadError(err instanceof Error ? err.message : fallback);
+    toast.error(fallback);
+  };
+
+  const updateItem = async (id: string, action: "read" | "unread" | "delete") => {
+    const scope = activeScope.current;
+    const item = notifications.find((notification) => notification.id === id);
+    if (!scope || scope.key !== key || !item || scope.pending.has(id) || scope.pendingAll) return;
+    if (action === "read" && item.readStatus || action === "unread" && !item.readStatus) return;
+    if (action === "delete" && (item.userId === "ADMIN" || id.startsWith("notif-"))) return;
+
+    scope.pending.add(id);
+    setPendingIds(new Set(scope.pending));
+    setReadError(null);
+    try {
+      if (action === "read") await notificationApi.markNotificationAsRead(id);
+      else if (action === "unread") await notificationApi.markNotificationAsUnread(id);
+      else await notificationApi.deleteNotification(id);
+      if (action === "delete") {
+        deletedNotificationIds.add(id);
+        window.dispatchEvent(new CustomEvent("notification-inbox-item-deleted", { detail: id }));
+      } else if (scope === activeScope.current) {
+        scope.revision += 1;
+        if (action === "read") {
+          scope.confirmedReads.add(id);
+          scope.confirmedUnreads.delete(id);
+        } else {
+          scope.confirmedUnreads.add(id);
+          scope.confirmedReads.delete(id);
+        }
+        setInbox((previous) => ({ key, items: previous?.items.map((notification) => notification.id === id
+          ? { ...notification, readStatus: action === "read" }
+          : notification) ?? [] }));
+      }
+      return true;
+    } catch (err) {
+      if (scope === activeScope.current) reportError(err, action === "delete"
+        ? "Không thể xóa thông báo. Vui lòng thử lại."
+        : action === "read"
+          ? "Không thể đánh dấu thông báo đã đọc. Vui lòng thử lại."
+          : "Không thể đánh dấu thông báo chưa đọc. Vui lòng thử lại.");
+    } finally {
+      scope.pending.delete(id);
+      if (scope === activeScope.current) setPendingIds(new Set(scope.pending));
+    }
+  };
+
+  const markAllAsRead = async () => {
+    const scope = activeScope.current;
+    if (!scope || scope.key !== key || scope.pendingAll || scope.pending.size || !notifications.some((item) => !item.readStatus)) return;
+
+    scope.pendingAll = true;
+    setMarkingAll(true);
+    setReadError(null);
+    try {
+      // The personal endpoint resolves every verified alias with one server-side cutoff.
+      const targets = [scope.userIds.find((id) => id === "ADMIN"), scope.userIds.find((id) => id !== "ADMIN")]
+        .filter((id): id is string => Boolean(id));
+      const results = await Promise.allSettled(
+        targets.map((id) => (channel && id !== "ADMIN"
+          ? notificationApi.markAllNotificationsAsRead(id, channel)
+          : notificationApi.markAllNotificationsAsRead(id))),
+      );
+      if (scope !== activeScope.current) return;
+      const updated = new Set<string>();
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        for (const item of result.value) {
+          if (typeof item.id === "string" && item.readStatus === true) updated.add(item.id);
         }
       }
-      clearInterval(pollInterval);
-    };
-  }, [userIds, loadNotifications]);
-
-  /** Đánh dấu một thông báo là đã đọc qua API rồi cập nhật cục bộ; bỏ qua nếu đã đọc. */
-  const markAsRead = async (id: string) => {
-    const notification = notifications.find((item) => item.id === id);
-    if (!notification || notification.readStatus) return;
-    setReadError(null);
-    try {
-      await notificationApi.markNotificationAsRead(id);
-      readRevision.current += 1;
-      setNotifications((prev) => prev.map((item) => item.id === id ? { ...item, readStatus: true } : item));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to mark notification as read";
-      setReadError(message);
-      toast.error("Không thể đánh dấu thông báo đã đọc. Vui lòng thử lại.");
+      if (updated.size) {
+        scope.revision += 1;
+        updated.forEach((id) => {
+          scope.confirmedReads.add(id);
+          scope.confirmedUnreads.delete(id);
+        });
+        setInbox((previous) => ({ key, items: previous?.items.map((item) => updated.has(item.id) ? { ...item, readStatus: true } : item) ?? [] }));
+      }
+      const failure = results.find((result) => result.status === "rejected");
+      if (failure) reportError(failure.reason, "Không thể đánh dấu tất cả thông báo đã đọc. Vui lòng thử lại.");
+    } finally {
+      scope.pendingAll = false;
+      if (scope === activeScope.current) setMarkingAll(false);
     }
   };
-
-  /** Đánh dấu mọi thông báo chưa đọc là đã đọc cho tất cả người nhận. */
-  const markAllAsRead = async () => {
-    const unreadIds = new Set(notifications.filter((item) => !item.readStatus).map((item) => item.id));
-    if (!unreadIds.size) return;
-    setReadError(null);
-    try {
-      await Promise.allSettled(userIds.map((uid) => notificationApi.markAllNotificationsAsRead(uid)));
-      readRevision.current += 1;
-      setNotifications((prev) => prev.map((item) => unreadIds.has(item.id) ? { ...item, readStatus: true } : item));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to mark notifications as read";
-      setReadError(message);
-      toast.error("Không thể đánh dấu tất cả thông báo đã đọc. Vui lòng thử lại.");
-    }
-  };
-
-  /** Xóa toast thông báo mới nhất. */
-  const clearToast = () => setLatestToast(null);
 
   return {
     notifications,
-    unreadCount,
+    unreadCount: notifications.filter((notification) => !notification.readStatus).length,
     loading,
     error,
     readError,
     latestToast,
-    markAsRead,
+    pendingIds,
+    markingAll,
+    markAsRead: (id: string) => updateItem(id, "read"),
+    markAsUnread: (id: string) => updateItem(id, "unread"),
     markAllAsRead,
-    clearToast,
+    removeNotification: (id: string) => updateItem(id, "delete"),
+    clearToast: () => setToastState(null),
     reload: loadNotifications,
   };
 }

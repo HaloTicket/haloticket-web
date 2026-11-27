@@ -33,6 +33,21 @@ export interface AiChatMessage {
   timestamp: Date;
 }
 
+export type CustomerChatOwner = { subject: string } | { guest: string };
+
+export interface CustomerChatHistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  prompt?: string;
+}
+
+export interface CustomerChatHistory {
+  generation: number;
+  older_cursor: string | null;
+  messages: Array<Omit<CustomerChatHistoryItem, 'prompt'> & { id: string; system_actions?: AiSystemAction[] }>;
+}
+
 /** Một bước trong chuỗi xử lý của agent: nhận ý định, chạy công cụ, tổng hợp, hoàn tất hoặc lỗi. */
 export interface AgentPipelineStep {
   step: 'INTENT' | 'TOOL_EXECUTION' | 'SYNTHESIS' | 'COMPLETED' | 'ERROR';
@@ -103,14 +118,17 @@ export interface OrganizerChatResponse {
 export type OrganizerConversationScope = 'managed_events' | 'event';
 
 /** Tóm tắt một phiên hội thoại AI của ban tổ chức lưu trên máy chủ. */
-export interface OrganizerConversationSummary {
+export interface ChatConversationSummary {
   id: string;
-  scope: OrganizerConversationScope;
-  event_id: string | null;
   title: string;
   is_pinned: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface OrganizerConversationSummary extends ChatConversationSummary {
+  scope: OrganizerConversationScope;
+  event_id: string | null;
 }
 
 /** Dữ liệu đính kèm trên tin nhắn lịch sử của trợ lý AI ban tổ chức. */

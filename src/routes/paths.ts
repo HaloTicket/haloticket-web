@@ -42,6 +42,7 @@ export const PATHS = {
   /** Đường dẫn tab thành viên trong cổng quản lý sự kiện. */
   EVENT_MANAGE_MEMBERS: (id: string | number) => `/organizer/events/${id}/manage/members`,
   /** Đường dẫn tab voucher trong cổng quản lý sự kiện. */
+  EVENT_MANAGE_ANNOUNCEMENTS: (id: string | number) => `/organizer/events/${id}/manage/announcements`,
   EVENT_MANAGE_VOUCHERS: (id: string | number) => `/organizer/events/${id}/manage/vouchers`,
   /** Đường dẫn tab sơ đồ chỗ ngồi trong cổng quản lý sự kiện. */
   EVENT_MANAGE_SEATING: (id: string | number) => `/organizer/events/${id}/manage/seating`,

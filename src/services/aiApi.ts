@@ -6,6 +6,9 @@ import type {
   AiGeneratedEventContent,
   AiRiskScoreResponse,
   AttentionResponse,
+  CustomerChatHistory,
+  CustomerChatHistoryItem,
+  CustomerChatOwner,
   DashboardKpis,
   DashboardSummaryResponse,
   PinCreateInput,
@@ -29,6 +32,20 @@ import type {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const customerHistoryPath = '/customer/chat-history';
+
+const customerChatConfig = (owner: CustomerChatOwner, signal: AbortSignal) => ({
+  signal,
+  headers: 'subject' in owner ? { 'X-Customer-Chat-Subject': owner.subject } : { 'X-Customer-Chat-Guest': owner.guest },
+});
+
+function readCustomerHistory(value: unknown): CustomerChatHistory {
+  if (!isRecord(value) || !Array.isArray(value.messages) || typeof value.generation !== 'number') {
+    throw new Error('Invalid customer chat history');
+  }
+  return value as unknown as CustomerChatHistory;
+}
 
 const buildOrganizerScopeParams = (
   scope: OrganizerConversationScope,
@@ -80,15 +97,35 @@ const isOrganizerConversationDetail = (value: unknown): value is OrganizerConver
 };
 
 export const aiApi = {
-  /** Gửi tin nhắn tới trợ lý đặt vé thông minh dành cho khách hàng, kèm lịch sử hội thoại. */
-  chatWithSmartBooking: async (message: string, history: AiChatHistoryItem[] = [], selectedEventId?: string): Promise<AiChatResponse> => {
-    // gọi qua API gateway; mã sự kiện đang đặt vé (nếu có) giúp máy chủ giữ đúng ngữ cảnh khi lịch sử bị cắt
-    const response = await axiosClient.post('/customer/smart-booking-chat', {
+  getCustomerChat: async (owner: CustomerChatOwner, signal: AbortSignal, before?: string): Promise<CustomerChatHistory> =>
+    readCustomerHistory(await axiosClient.get(customerHistoryPath, { ...customerChatConfig(owner, signal), params: { before } })),
+
+  importCustomerChat: async (owner: CustomerChatOwner, messages: CustomerChatHistoryItem[], signal: AbortSignal) => {
+    const response: unknown = await axiosClient.put(customerHistoryPath, { messages }, customerChatConfig(owner, signal));
+    return { ...readCustomerHistory(response), imported: isRecord(response) && response.imported === true };
+  },
+
+  resetCustomerChat: async (owner: CustomerChatOwner, signal: AbortSignal): Promise<CustomerChatHistory> =>
+    readCustomerHistory(await axiosClient.delete(customerHistoryPath, customerChatConfig(owner, signal))),
+
+  /** Máy chủ dùng lịch sử MongoDB và lưu cả lượt trước khi trả lời. */
+  chatWithSmartBooking: async ({ owner, signal, message, displayMessage, requestId, generation, selectedEventId }: {
+    owner: CustomerChatOwner;
+    signal: AbortSignal;
+    message: string;
+    displayMessage: string;
+    requestId: string;
+    generation: number;
+    selectedEventId?: string;
+  }): Promise<CustomerChatHistory> => {
+    const response: unknown = await axiosClient.post('/customer/smart-booking-chat', {
       message,
-      history,
+      display_message: displayMessage,
+      request_id: requestId,
+      generation,
       ...(selectedEventId ? { selected_event_id: selectedEventId } : {}),
-    });
-    return response as unknown as AiChatResponse; // axiosClient interceptor returns data directly
+    }, customerChatConfig(owner, signal));
+    return readCustomerHistory(isRecord(response) ? response.conversation : undefined);
   },
 
   /** Tìm sự kiện bằng ngôn ngữ tự nhiên, trả về tối đa `top_k` kết quả. */

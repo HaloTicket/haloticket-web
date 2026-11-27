@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { AiChatMessage } from '../../../types/ai';
+import { ChatMessageTime } from '../ChatMessageTime';
 import { 
-  User, 
   Calendar, 
   Clock, 
   Plus, 
@@ -943,7 +943,10 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
             : 'max-w-[88%] bg-white dark:bg-[#1e1e22] text-text-main rounded-2xl rounded-tl-sm border border-gray-100 dark:border-gray-800'
       } px-3.5 py-2.5 shadow-xs overflow-hidden`}>
         {isUser ? (
-          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+          <>
+            <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+            <ChatMessageTime timestamp={message.timestamp} />
+          </>
         ) : (
           message.text ? (
             <div className="text-sm prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-table:my-2 prose-td:p-1.5 prose-th:p-1.5 prose-td:border prose-th:border prose-a:text-blue-500">
@@ -1191,11 +1194,6 @@ const AIChatMessage: React.FC<AIChatMessageProps> = ({ message, onSendMessage })
         )}
       </div>
 
-      {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 ml-2 flex-shrink-0 shadow-sm">
-          <User size={18} />
-        </div>
-      )}
     </div>
   );
 };

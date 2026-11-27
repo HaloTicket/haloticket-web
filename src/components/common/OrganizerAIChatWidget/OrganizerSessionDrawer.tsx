@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -11,18 +10,18 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { OrganizerConversationSummary } from '@/types/ai';
+import type { ChatConversationSummary, OrganizerConversationSummary } from '@/types/ai';
 import type { OrganizerChatScope } from './organizerChatStorage';
 import { filterAndGroupSessions, formatSessionTimestamp } from './organizerChatSessions';
 
-export interface OrganizerSessionDrawerProps {
+export interface OrganizerSessionDrawerProps<T extends ChatConversationSummary = OrganizerConversationSummary> {
   variant: 'overlay' | 'sidebar';
   sidebarWidth?: number;
   isOpen: boolean;
-  activeScope: OrganizerChatScope;
+  activeScope: OrganizerChatScope | 'admin';
   eventTitle?: string;
   eventId?: string;
-  sessions: OrganizerConversationSummary[];
+  sessions: T[];
   activeConversationId: string | null;
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
@@ -41,7 +40,7 @@ export interface OrganizerSessionDrawerProps {
   onConfirmClearAll: () => void;
   onSelectSession: (id: string) => void;
   onNewChat: () => void;
-  onTogglePin: (session: OrganizerConversationSummary) => void;
+  onTogglePin: (session: T) => void;
   onRefresh: () => void;
   onClose: () => void;
 }
@@ -51,7 +50,7 @@ export interface OrganizerSessionDrawerProps {
  * - Chế độ thu gọn / di động hẹp: trượt đè có lớp nền mờ (overlay)
  * - Chế độ phóng to trên màn hình rộng: cột trái có thể thay đổi kích thước
  */
-export const OrganizerSessionDrawer: React.FC<OrganizerSessionDrawerProps> = ({
+export function OrganizerSessionDrawer<T extends ChatConversationSummary>({
   variant,
   sidebarWidth,
   isOpen,
@@ -80,7 +79,7 @@ export const OrganizerSessionDrawer: React.FC<OrganizerSessionDrawerProps> = ({
   onTogglePin,
   onRefresh,
   onClose,
-}) => {
+}: OrganizerSessionDrawerProps<T>) {
   const { t, i18n } = useTranslation();
   const isEn = Boolean(i18n.language && i18n.language.startsWith('en'));
 
@@ -94,9 +93,11 @@ export const OrganizerSessionDrawer: React.FC<OrganizerSessionDrawerProps> = ({
   const scopeLabel =
     activeScope === 'event'
       ? eventTitle || eventId || t('ai.organizer.scopeEvent', isEn ? 'This Event' : 'Sự kiện này')
-      : t('ai.organizer.scopeManagedEvents', isEn ? 'My Managed Events' : 'Các sự kiện tôi quản lý');
+      : activeScope === 'admin'
+        ? t('ai.assist.adminTitle', isEn ? 'Admin Assistant' : 'Trợ lý Admin')
+        : t('ai.organizer.scopeManagedEvents', isEn ? 'My Managed Events' : 'Các sự kiện tôi quản lý');
 
-  const renderSessionItem = (session: OrganizerConversationSummary) => {
+  const renderSessionItem = (session: T) => {
     const isSelected = activeConversationId === session.id;
     const isConfirmingDelete = confirmDeleteId === session.id;
     const isItemMutating = mutatingSessionId === session.id;
@@ -455,7 +456,9 @@ export const OrganizerSessionDrawer: React.FC<OrganizerSessionDrawerProps> = ({
                   className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 space-y-2 text-[11px]"
                 >
                   <p className="text-red-800 dark:text-red-200 leading-snug font-medium">
-                    {activeScope === 'event'
+                    {activeScope === 'admin'
+                      ? t('ai.assist.confirmClearChats', isEn ? 'Delete all your saved Admin chats?' : 'Xóa toàn bộ hội thoại Admin của bạn?')
+                      : activeScope === 'event'
                       ? t(
                           'ai.organizer.sessions.confirmClearEvent',
                           isEn
