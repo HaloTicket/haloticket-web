@@ -185,7 +185,8 @@ describe("NotFoundPage (HaloBot Walk -> Trip -> Lost)", () => {
     );
 
     const section = container.querySelector("section");
-    expect(section?.className).toContain("rounded-2xl");
+    expect(section?.className).toContain("min-h-[100dvh]");
+    expect(section?.className).not.toContain("rounded-2xl");
     expect(screen.getByRole("button", { name: /Về trang quản trị/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Quay lại trang trước/i })).toBeTruthy();
 

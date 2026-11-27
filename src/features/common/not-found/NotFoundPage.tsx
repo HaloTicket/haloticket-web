@@ -95,9 +95,7 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ variant = "public" }
       ref={sectionRef}
       aria-labelledby="not-found-heading"
       className={`${
-        variant === "admin"
-          ? "min-h-[calc(100dvh-7.5rem)] rounded-2xl border border-slate-200/80 dark:border-slate-800/80"
-          : "notfound-page"
+        variant === "admin" ? "min-h-[100dvh]" : "notfound-page"
       } relative isolate flex w-full flex-col items-center justify-center overflow-hidden bg-[#dbe8fe] dark:bg-[#050f36] px-4 py-8 sm:px-6 sm:py-10 lg:py-12`}
     >
       <NotFoundBackground isDark={isDark} />
