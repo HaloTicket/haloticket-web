@@ -2,7 +2,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FiChevronDown, FiChevronLeft, FiChevronRight, FiSettings, FiX, FiActivity, FiBarChart2, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiShield, FiLayout, FiMapPin, FiSliders, FiUsers, FiZap } from "react-icons/fi";
+import { FiChevronDown, FiChevronLeft, FiChevronRight, FiSettings, FiX, FiActivity, FiBarChart2, FiBell, FiCalendar, FiCheckSquare, FiDollarSign, FiGrid, FiShield, FiLayout, FiMapPin, FiSliders, FiUsers, FiZap } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { useTranslation } from "react-i18next";
 
@@ -38,6 +38,7 @@ export const adminNavGroups: AdminNavGroup[] = [
   ] },
   { id: "monitoring", path: PATHS.ADMIN_SYSTEM_MONITORING, label: "Giám sát hệ thống", english: "System monitoring", icon: FiActivity, description: "Theo dõi tình trạng microservices, hiệu năng hạ tầng và nhật ký kiểm toán.", items: [
     { path: PATHS.ADMIN_SYSTEM_MONITORING, label: "Giám sát hệ thống", english: "System monitoring", icon: FiActivity, description: "Giám sát toàn bộ hệ thống và Audit logs." },
+    { path: PATHS.ADMIN_NOTIFICATIONS, label: "Thông báo hệ thống", english: "System notifications", icon: FiBell, description: "Xem hộp thư và gửi thông báo trong HaloTicket." },
   ] },
   { id: "system", path: PATHS.ADMIN_SYSTEM_SETTINGS, label: "Cài đặt", english: "Settings", icon: FiSettings, description: "Cấu hình vận hành, tích hợp và các quy tắc nền tảng.", items: [
     { path: PATHS.ADMIN_SYSTEM_SETTINGS, label: "Cài đặt", english: "Settings", icon: FiSliders, description: "Thiết lập chung, quyền, thông báo, tích hợp và nhật ký." },

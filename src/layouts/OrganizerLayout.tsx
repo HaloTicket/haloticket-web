@@ -11,7 +11,6 @@ import type { UserProfile, NotificationItem } from "@/types";
 import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
-import { OrganizerAIChatWidget } from "@/components/common/OrganizerAIChatWidget/OrganizerAIChatWidget";
 
 import {
   FiStar,
@@ -90,11 +89,10 @@ export const OrganizerLayout: React.FC = () => {
 
   const userTargetIds = [userProfile?.keycloakId, userProfile?.id].filter(Boolean) as string[];
   const isAdmin = Boolean(userProfile?.roles?.includes("ADMIN"));
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userTargetIds.length ? userTargetIds : "ORGANIZER");
+  const { notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, latestToast, clearToast, removeNotification, pendingIds, markingAll, loading, error, reload } = useNotificationSocket(userTargetIds, { channel: "ALL" });
 
-  /** Đánh dấu thông báo đã đọc, ẩn toast và chuyển tới trang liên quan dành cho ban tổ chức nếu có. */
-  const handleNotificationClick = async (n: NotificationItem) => {
-    await markAsRead(n.id);
+  /** Ẩn toast và chuyển tới trang liên quan dành cho ban tổ chức nếu có. */
+  const handleNotificationClick = (n: NotificationItem) => {
     clearToast();
     const target = notificationTarget(n, "organizer");
     if (target) navigate(target);
@@ -279,6 +277,14 @@ export const OrganizerLayout: React.FC = () => {
               notifications={notifications}
               unreadCount={unreadCount}
               onMarkAllAsRead={markAllAsRead}
+              onMarkAsRead={markAsRead}
+              onMarkAsUnread={markAsUnread}
+              onDelete={removeNotification}
+              pendingIds={pendingIds}
+              markingAll={markingAll}
+              loading={loading}
+              error={error}
+              onRetry={() => void reload()}
               onNotificationClick={handleNotificationClick}
               viewAllLink="/organizer/my-events"
               viewAllText={translate("Xem danh sách Sự kiện →")}
@@ -429,8 +435,6 @@ export const OrganizerLayout: React.FC = () => {
         accentColor="blue"
       />
 
-      {/* Floating Organizer AI Data Assistant Chatbot */}
-      <OrganizerAIChatWidget />
     </div>
   );
 };

@@ -22,6 +22,7 @@ export interface UserProfileUpdateRequest {
 
 /** Phần payload của JWT mà giao diện đọc: id, email, tên và các vai trò. */
 export interface JwtPayload {
+  iss?: string;
   sub?: string;
   email?: string;
   name?: string;

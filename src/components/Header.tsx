@@ -214,14 +214,14 @@ export const Header: React.FC = () => {
   const isBookingFlow = location.pathname.includes("select-ticket") || location.pathname.includes("checkout");
 
   return (
-    <header className={`${isBookingFlow ? 'relative z-30' : 'sticky top-0 z-50'} app-bg-header border-b app-border transition-colors duration-300`}>
+    <header id="site-header" className={`${isBookingFlow ? 'relative z-30' : 'sticky top-0 z-50'} app-bg-header border-b app-border transition-colors duration-300`}>
       {/* Top Header Bar */}
-      <div className="w-full max-w-[1340px] mx-auto px-6 md:px-12 lg:px-16 py-3.5 flex items-center justify-between gap-4">
+      <div className="w-full max-w-[1340px] mx-auto px-3 sm:px-6 md:px-12 lg:px-16 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo */}
         <Link
           to={PATHS.HOME}
           aria-label="HaloTicket — Trang chủ"
-          className="relative block h-14 w-36 min-[375px]:w-40 sm:w-48 lg:w-52 shrink-0 overflow-hidden rounded-md transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="relative block h-14 w-28 min-[375px]:w-32 sm:w-48 lg:w-52 shrink-0 overflow-hidden rounded-md transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <svg
             viewBox="40 80 2100 560"
@@ -291,7 +291,7 @@ export const Header: React.FC = () => {
         </div>
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           {/* Button Create Event (Desktop) */}
           <Link
             to="/organizer/create-event"
@@ -336,7 +336,8 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsAccountOpen((prev) => !prev)}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer active:scale-95"
+                className="flex h-9 w-9 sm:h-auto sm:w-auto shrink-0 items-center justify-center gap-2 sm:px-3.5 sm:py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer active:scale-95"
+                aria-label={translate("Tài khoản")}
                 aria-expanded={isAccountOpen}
                 aria-haspopup="menu"
               >
@@ -345,9 +346,9 @@ export const Header: React.FC = () => {
                     <img src={userProfile.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" onError={() => setFailedAvatar(userProfile.avatarUrl)} />
                   ) : userInitial}
                 </span>
-                <span>{translate("Tài khoản")}</span>
+                <span className="hidden sm:inline whitespace-nowrap">{translate("Tài khoản")}</span>
                 <FiChevronDown
-                  className={`w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
+                  className={`hidden sm:block w-3.5 h-3.5 opacity-80 transition-transform duration-200 ${isAccountOpen ? "rotate-180" : "group-hover:rotate-180"
                     }`}
                 />
               </button>
@@ -451,7 +452,7 @@ export const Header: React.FC = () => {
           )}
 
           {/* Language Flag Dropdown (Ảnh 2) */}
-          <div ref={langDropdownRef} className="relative group py-1">
+          <div ref={langDropdownRef} className="relative group hidden sm:block py-1">
             <button
               type="button"
               onClick={() => setIsLangOpen((prev) => !prev)}
@@ -580,15 +581,15 @@ export const Header: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={translate("Bạn tìm gì hôm nay?")}
-                  className="header-search-input w-full app-bg-subnav app-text-main placeholder-zinc-400 text-xs sm:text-sm rounded-xl pl-4 pr-12 py-2.5 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="header-search-input min-w-0 w-full h-11 app-bg-subnav app-text-main placeholder-zinc-400 text-xs sm:text-sm rounded-xl pl-4 pr-12 border app-border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                 />
                 <button
                   type="submit"
                   aria-label={translate("Tìm kiếm")}
-                  className="absolute right-1 grid place-items-center w-9 h-9 text-blue-600 dark:text-blue-400 hover:text-blue-700 rounded-lg transition-colors cursor-pointer"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center w-9 h-9 text-blue-600 dark:text-blue-400 hover:text-blue-700 rounded-lg transition-colors cursor-pointer"
                 >
                   <FiSearch className="w-5 h-5" aria-hidden="true" />
-                  <span>{translate("Tìm kiếm")}</span>
+                  <span className="sr-only">{translate("Tìm kiếm")}</span>
                 </button>
               </form>
 
@@ -760,11 +761,10 @@ export default Header;
 function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, latestToast, clearToast } = useNotificationSocket(userIds);
+  const { notifications, unreadCount, markAsRead, markAsUnread, markAllAsRead, latestToast, clearToast, removeNotification, pendingIds, markingAll, loading, error, reload } = useNotificationSocket(userIds);
 
-  /** Đánh dấu đã đọc, tắt toast rồi chuyển tới trang đích của thông báo (nếu có). */
+  /** Tắt toast rồi chuyển tới trang đích của thông báo (nếu có). */
   const onClick = (item: NotificationItem) => {
-    void markAsRead(item.id);
     clearToast();
     const target = notificationTarget(item, "customer");
     if (target) navigate(target);
@@ -776,6 +776,14 @@ function UnifiedNotificationBell({ userIds }: { userIds: string[] }) {
         notifications={notifications}
         unreadCount={unreadCount}
         onMarkAllAsRead={markAllAsRead}
+        onMarkAsRead={markAsRead}
+        onMarkAsUnread={markAsUnread}
+        onDelete={removeNotification}
+        pendingIds={pendingIds}
+        markingAll={markingAll}
+        loading={loading}
+        error={error}
+        onRetry={() => void reload()}
         onNotificationClick={onClick}
         viewAllLink={PATHS.MY_EVENTS}
         titleText={t("Thông báo")}

@@ -20,6 +20,7 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isStickyVisible, setIsStickyVisible] = useState(false);
+  const [buyScrollRequest, setBuyScrollRequest] = useState(0);
   const [eventData, setEventData] = useState<EventDetailData | null>(null);
   const [recommendedEvents, setRecommendedEvents] = useState<EventApiData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,41 +86,9 @@ export default function EventDetail() {
     if (typeof showtimeId === "string") {
       target = `/events/${id}/select-ticket?showtimeId=${showtimeId}`;
     } else {
-      // kiểm tra các suất diễn đang mở bán
-      if (!eventData) return;
-      
-      const now = new Date();
-      /** Chuyển giá trị ngày mở bán (mảng số hoặc chuỗi, số) thành {@code Date}; không hợp lệ thì trả về {@code null}. */
-      const parseSaleDate = (value: unknown): Date | null => {
-        if (Array.isArray(value)) {
-          const [year, month, day, hour = 0, minute = 0, second = 0] = value as number[];
-          const date = new Date(year, month - 1, day, hour, minute, second);
-          return Number.isNaN(date.getTime()) ? null : date;
-        }
-        if (typeof value !== "string" && typeof value !== "number") return null;
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? null : date;
-      };
-      const activeShowtimes = eventData.showtimes?.filter((st) => {
-        const saleStart = parseSaleDate((st as typeof st & { saleStartTime?: unknown }).saleStartTime) || parseSaleDate(eventData.ticketSaleStartDate);
-        const saleEnd = parseSaleDate((st as typeof st & { saleEndTime?: unknown }).saleEndTime) || parseSaleDate(eventData.ticketSaleEndDate);
-        const isUpcoming = saleStart && now < saleStart;
-        const isEnded = saleEnd && now > saleEnd;
-        return !isUpcoming && !isEnded;
-      }) || [];
-
-      if (activeShowtimes.length === 1) {
-        target = `/events/${id}/select-ticket?showtimeId=${activeShowtimes[0].id}`;
-      } else {
-        const scheduleEl = document.getElementById("event-schedule-section");
-        if (scheduleEl) {
-          scheduleEl.scrollIntoView({ behavior: "smooth" });
-          return;
-        } else {
-          const firstShowtime = eventData.showtimes?.[0]?.id || "st_default_1";
-          target = `/events/${id}/select-ticket?showtimeId=${firstShowtime}`;
-        }
-      }
+      setActiveTab("schedule");
+      setBuyScrollRequest((request) => request + 1);
+      return;
     }
 
     if (!getKeycloakSession().isAuthenticated()) {
@@ -248,6 +217,7 @@ export default function EventDetail() {
             <div id="event-schedule-section">
               <EventSchedule
                 event={eventData}
+                buyScrollRequest={buyScrollRequest}
                 onSelectTicket={(st) => handleGoToSelectTicket(st.id)}
               />
             </div>

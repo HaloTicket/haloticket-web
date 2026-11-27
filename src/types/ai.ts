@@ -33,6 +33,21 @@ export interface AiChatMessage {
   timestamp: Date;
 }
 
+export type CustomerChatOwner = { subject: string } | { guest: string };
+
+export interface CustomerChatHistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  prompt?: string;
+}
+
+export interface CustomerChatHistory {
+  generation: number;
+  older_cursor: string | null;
+  messages: Array<Omit<CustomerChatHistoryItem, 'prompt'> & { id: string; system_actions?: AiSystemAction[] }>;
+}
+
 /** Một bước trong chuỗi xử lý của agent: nhận ý định, chạy công cụ, tổng hợp, hoàn tất hoặc lỗi. */
 export interface AgentPipelineStep {
   step: 'INTENT' | 'TOOL_EXECUTION' | 'SYNTHESIS' | 'COMPLETED' | 'ERROR';
@@ -42,14 +57,100 @@ export interface AgentPipelineStep {
   duration_ms?: number;
 }
 
-/** Phản hồi của agent dành cho người tổ chức: câu trả lời, các bước xử lý, trạng thái cache và thời gian thực thi. */
-export interface OrganizerAgentResponse {
-  reply: string;
-  pipeline_steps: AgentPipelineStep[];
-  is_cached?: boolean;
-  execution_time_ms?: number;
-  actions?: AiSystemAction[];
+export interface OrganizerChatPeriod {
+  from: string;
+  to: string;
 }
+
+export interface OrganizerChatMetric {
+  key: string;
+  value: number | null;
+  unit: 'count' | 'VND' | 'percent';
+  period: OrganizerChatPeriod | null;
+  completeness: 'complete' | 'partial' | 'missing';
+}
+
+export interface OrganizerChatCard {
+  kind: 'event' | 'showtime' | 'ticket_type';
+  event_id: string;
+  event_title: string;
+  event_status: string | null;
+  showtime_id: string | null;
+  showtime_title: string | null;
+  ticket_type_id: string | null;
+  ticket_type_title: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  metrics: OrganizerChatMetric[];
+}
+
+export interface OrganizerChatWarning extends OrganizerChatCard {
+  code: 'paid_order_missing_tickets' | 'low_stock' | 'slow_showtime';
+}
+
+export interface OrganizerChatDraft {
+  title: string;
+  content: string;
+}
+
+export interface OrganizerChatFollowUp {
+  question: string;
+  options: { label: string; message: string }[];
+}
+
+export interface OrganizerChatResponse {
+  reply: string;
+  status: 'ok' | 'empty';
+  conversation_id?: string | null;
+  pipeline_steps: AgentPipelineStep[];
+  actions: AiSystemAction[];
+  cards: OrganizerChatCard[];
+  totals: OrganizerChatMetric[];
+  warnings: OrganizerChatWarning[];
+  drafts: OrganizerChatDraft[];
+  follow_up?: OrganizerChatFollowUp | null;
+  suggested_questions?: string[];
+  show_analytics?: boolean | null;
+  execution_time_ms: number | null;
+}
+
+/** Phạm vi hội thoại AI của ban tổ chức. */
+export type OrganizerConversationScope = 'managed_events' | 'event';
+
+/** Tóm tắt một phiên hội thoại AI của ban tổ chức lưu trên máy chủ. */
+export interface ChatConversationSummary {
+  id: string;
+  title: string;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizerConversationSummary extends ChatConversationSummary {
+  scope: OrganizerConversationScope;
+  event_id: string | null;
+}
+
+/** Dữ liệu đính kèm trên tin nhắn lịch sử của trợ lý AI ban tổ chức. */
+export type OrganizerStoredMessagePayload = Partial<OrganizerChatResponse>;
+
+/** Một tin nhắn lịch sử trong phiên hội thoại AI của ban tổ chức. */
+export interface OrganizerConversationMessageItem {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  status: 'ok' | 'empty';
+  payload: OrganizerChatResponse | OrganizerStoredMessagePayload | null;
+  created_at: string;
+}
+
+/** Chi tiết một phiên hội thoại AI của ban tổ chức kèm danh sách tin nhắn. */
+export interface OrganizerConversationDetail extends OrganizerConversationSummary {
+  messages: OrganizerConversationMessageItem[];
+}
+
+/** Phản hồi của agent dành cho người tổ chức (tương thích ngược). */
+export type OrganizerAgentResponse = OrganizerChatResponse;
 
 /** Một tin nhắn trong khung chat với agent của người tổ chức. */
 export interface OrganizerChatMessage {
@@ -58,8 +159,17 @@ export interface OrganizerChatMessage {
   text: string;
   pipelineSteps?: AgentPipelineStep[];
   isCached?: boolean;
-  executionTimeMs?: number;
+  executionTimeMs?: number | null;
   actions?: AiSystemAction[];
+  cards?: OrganizerChatCard[];
+  totals?: OrganizerChatMetric[];
+  warnings?: OrganizerChatWarning[];
+  drafts?: OrganizerChatDraft[];
+  followUp?: OrganizerChatFollowUp | null;
+  suggestedQuestions?: string[];
+  showAnalytics?: boolean | null;
+  status?: 'ok' | 'empty';
+  isError?: boolean;
   timestamp: Date;
 }
 

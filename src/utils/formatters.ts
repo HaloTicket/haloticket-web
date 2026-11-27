@@ -100,3 +100,16 @@ export const formatDatetimeLocal = (dateStr?: string): string => {
     return dateStr.slice(0, 16);
   }
 };
+
+/** Giờ hiển thị trên tin nhắn, theo múi giờ Việt Nam. */
+export function formatMessageTime(timestamp?: Date | string | number | null): string {
+  if (timestamp == null || timestamp === "") return "";
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}

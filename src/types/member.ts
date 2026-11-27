@@ -6,6 +6,8 @@ export type MemberStatus = "ACTIVE" | "PENDING" | "EXPIRED" | "DECLINED" | "REVO
 /** Một thành viên của sự kiện: thông tin, vai trò, trạng thái và hạn lời mời. */
 export interface MemberItem {
   id: string;
+  /** Mã người dùng chuẩn (canonical userId), khác với mã phân công `id`. */
+  userId?: string | null;
   name: string;
   email: string;
   avatar?: string;

@@ -48,6 +48,14 @@ beforeEach(() => localStorage.clear());
 afterEach(cleanup);
 
 describe("AI chat ticket selector", () => {
+  it("shows the timestamp with a customer message", () => {
+    render(<MemoryRouter><AIChatMessage message={{
+      id: "customer-message", sender: "user", text: "Còn vé không?",
+      timestamp: new Date("2026-11-27T06:45:00Z"),
+    }} /></MemoryRouter>);
+    expect(screen.getByText("13:45").getAttribute("datetime")).toBe("2026-11-27T06:45:00.000Z");
+  });
+
   it("a seated tier is sent to the seat map instead of becoming a fake free-admission order", () => {
     showTickets([{ id: "t1", name: "VIP", price: 3000000, is_seated: true, status: "ACTIVE" }]);
 

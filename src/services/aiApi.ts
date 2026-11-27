@@ -6,6 +6,9 @@ import type {
   AiGeneratedEventContent,
   AiRiskScoreResponse,
   AttentionResponse,
+  CustomerChatHistory,
+  CustomerChatHistoryItem,
+  CustomerChatOwner,
   DashboardKpis,
   DashboardSummaryResponse,
   PinCreateInput,
@@ -14,7 +17,11 @@ import type {
   RiskAgreementResponse,
   RiskBatchResponse,
   AiVoucherStrategyResponse,
-  OrganizerAgentResponse,
+  OrganizerChatResponse,
+  OrganizerConversationDetail,
+  OrganizerConversationMessageItem,
+  OrganizerConversationScope,
+  OrganizerConversationSummary,
   AiHealthResponse,
   AiSearchResponse,
   SslStatusResponse,
@@ -23,16 +30,102 @@ import type {
   SystemServiceStatus,
 } from '../types/ai';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const customerHistoryPath = '/customer/chat-history';
+
+const customerChatConfig = (owner: CustomerChatOwner, signal: AbortSignal) => ({
+  signal,
+  headers: 'subject' in owner ? { 'X-Customer-Chat-Subject': owner.subject } : { 'X-Customer-Chat-Guest': owner.guest },
+});
+
+function readCustomerHistory(value: unknown): CustomerChatHistory {
+  if (!isRecord(value) || !Array.isArray(value.messages) || typeof value.generation !== 'number') {
+    throw new Error('Invalid customer chat history');
+  }
+  return value as unknown as CustomerChatHistory;
+}
+
+const buildOrganizerScopeParams = (
+  scope: OrganizerConversationScope,
+  eventId?: string,
+): { scope: OrganizerConversationScope; event_id?: string } => {
+  if (scope === 'event') {
+    const cleanEventId = eventId?.trim();
+    if (!cleanEventId) {
+      throw new Error('eventId is required when scope is event');
+    }
+    return { scope: 'event', event_id: cleanEventId };
+  }
+  return { scope: 'managed_events' };
+};
+
+const isOrganizerConversationSummary = (value: unknown): value is OrganizerConversationSummary => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    value.id.length > 0 &&
+    (value.scope === 'managed_events' || value.scope === 'event') &&
+    (value.event_id === null || typeof value.event_id === 'string') &&
+    typeof value.title === 'string' &&
+    typeof value.is_pinned === 'boolean' &&
+    typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string'
+  );
+};
+
+const isOrganizerConversationMessageItem = (
+  value: unknown,
+): value is OrganizerConversationMessageItem => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    value.id.length > 0 &&
+    (value.role === 'user' || value.role === 'assistant') &&
+    typeof value.content === 'string' &&
+    (value.status === 'ok' || value.status === 'empty') &&
+    (value.payload === null || isRecord(value.payload)) &&
+    typeof value.created_at === 'string'
+  );
+};
+
+const isOrganizerConversationDetail = (value: unknown): value is OrganizerConversationDetail => {
+  if (!isOrganizerConversationSummary(value)) return false;
+  const candidate = value as unknown as Record<string, unknown>;
+  return Array.isArray(candidate.messages) && candidate.messages.every(isOrganizerConversationMessageItem);
+};
+
 export const aiApi = {
-  /** Gửi tin nhắn tới trợ lý đặt vé thông minh dành cho khách hàng, kèm lịch sử hội thoại. */
-  chatWithSmartBooking: async (message: string, history: AiChatHistoryItem[] = [], selectedEventId?: string): Promise<AiChatResponse> => {
-    // gọi qua API gateway; mã sự kiện đang đặt vé (nếu có) giúp máy chủ giữ đúng ngữ cảnh khi lịch sử bị cắt
-    const response = await axiosClient.post('/customer/smart-booking-chat', {
+  getCustomerChat: async (owner: CustomerChatOwner, signal: AbortSignal, before?: string): Promise<CustomerChatHistory> =>
+    readCustomerHistory(await axiosClient.get(customerHistoryPath, { ...customerChatConfig(owner, signal), params: { before } })),
+
+  importCustomerChat: async (owner: CustomerChatOwner, messages: CustomerChatHistoryItem[], signal: AbortSignal) => {
+    const response: unknown = await axiosClient.put(customerHistoryPath, { messages }, customerChatConfig(owner, signal));
+    return { ...readCustomerHistory(response), imported: isRecord(response) && response.imported === true };
+  },
+
+  resetCustomerChat: async (owner: CustomerChatOwner, signal: AbortSignal): Promise<CustomerChatHistory> =>
+    readCustomerHistory(await axiosClient.delete(customerHistoryPath, customerChatConfig(owner, signal))),
+
+  /** Máy chủ dùng lịch sử MongoDB và lưu cả lượt trước khi trả lời. */
+  chatWithSmartBooking: async ({ owner, signal, message, displayMessage, requestId, generation, selectedEventId }: {
+    owner: CustomerChatOwner;
+    signal: AbortSignal;
+    message: string;
+    displayMessage: string;
+    requestId: string;
+    generation: number;
+    selectedEventId?: string;
+  }): Promise<CustomerChatHistory> => {
+    const response: unknown = await axiosClient.post('/customer/smart-booking-chat', {
       message,
-      history,
+      display_message: displayMessage,
+      request_id: requestId,
+      generation,
       ...(selectedEventId ? { selected_event_id: selectedEventId } : {}),
-    });
-    return response as unknown as AiChatResponse; // axiosClient interceptor returns data directly
+    }, customerChatConfig(owner, signal));
+    return readCustomerHistory(isRecord(response) ? response.conversation : undefined);
   },
 
   /** Tìm sự kiện bằng ngôn ngữ tự nhiên, trả về tối đa `top_k` kết quả. */
@@ -157,15 +250,175 @@ export const aiApi = {
     await axiosClient.delete(`/admin/pins/${encodeURIComponent(pinId)}`);
   },
 
-  /** Gửi tin nhắn tới trợ lý AI của nhà tổ chức, có thể gắn với một sự kiện cụ thể. */
-  chatWithOrganizerAgent: async (message: string, history: AiChatHistoryItem[] = [], eventId?: string, eventTitle?: string): Promise<OrganizerAgentResponse> => {
-    const response = await axiosClient.post('/organizer/agent-chat', {
-      message,
-      history,
-      event_id: eventId,
-      event_title: eventTitle
+  /** Lấy danh sách phiên hội thoại AI của ban tổ chức theo phạm vi. */
+  listOrganizerConversations: async ({
+    scope,
+    eventId,
+    signal,
+  }: {
+    scope: OrganizerConversationScope;
+    eventId?: string;
+    signal?: AbortSignal;
+  }): Promise<OrganizerConversationSummary[]> => {
+    const params = buildOrganizerScopeParams(scope, eventId);
+    const response = (await axiosClient.get('/organizer/conversations', {
+      params,
+      ...(signal ? { signal } : {}),
+    })) as unknown;
+    if (!Array.isArray(response) || !response.every(isOrganizerConversationSummary)) {
+      throw new Error('Invalid organizer conversations response');
+    }
+    return response;
+  },
+
+  /** Tạo phiên hội thoại AI mới cho ban tổ chức trên máy chủ. */
+  createOrganizerConversation: async ({
+    scope,
+    eventId,
+    signal,
+  }: {
+    scope: OrganizerConversationScope;
+    eventId?: string;
+    signal?: AbortSignal;
+  }): Promise<OrganizerConversationSummary> => {
+    const body = buildOrganizerScopeParams(scope, eventId);
+    const response = (await axiosClient.post(
+      '/organizer/conversations',
+      body,
+      signal ? { signal } : undefined,
+    )) as unknown;
+    if (!isOrganizerConversationSummary(response)) {
+      throw new Error('Invalid organizer conversation summary response');
+    }
+    return response;
+  },
+
+  /** Lấy chi tiết một phiên hội thoại AI của ban tổ chức kèm toàn bộ tin nhắn. */
+  getOrganizerConversation: async (
+    conversationId: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<OrganizerConversationDetail> => {
+    const response = (await axiosClient.get(
+      `/organizer/conversations/${encodeURIComponent(conversationId)}`,
+      options?.signal ? { signal: options.signal } : undefined,
+    )) as unknown;
+    if (!isOrganizerConversationDetail(response)) {
+      throw new Error('Invalid organizer conversation detail response');
+    }
+    return response;
+  },
+
+  /** Bật hoặc tắt ghim cho một phiên hội thoại AI của ban tổ chức. */
+  pinOrganizerConversation: async (
+    conversationId: string,
+    isPinned: boolean,
+    options?: { signal?: AbortSignal },
+  ): Promise<OrganizerConversationSummary> => {
+    const response = (await axiosClient.patch(
+      `/organizer/conversations/${encodeURIComponent(conversationId)}/pin`,
+      { is_pinned: Boolean(isPinned) },
+      options?.signal ? { signal: options.signal } : undefined,
+    )) as unknown;
+    if (!isOrganizerConversationSummary(response)) {
+      throw new Error('Invalid organizer conversation pin response');
+    }
+    return response;
+  },
+
+  /** Xóa một phiên hội thoại AI của ban tổ chức theo mã phiên. */
+  deleteOrganizerConversation: async (
+    conversationId: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<void> => {
+    await axiosClient.delete(
+      `/organizer/conversations/${encodeURIComponent(conversationId)}`,
+      options?.signal ? { signal: options.signal } : undefined,
+    );
+  },
+
+  /** Xóa toàn bộ phiên hội thoại AI của ban tổ chức trong phạm vi hiện tại. */
+  clearOrganizerConversations: async ({
+    scope,
+    eventId,
+    signal,
+  }: {
+    scope: OrganizerConversationScope;
+    eventId?: string;
+    signal?: AbortSignal;
+  }): Promise<void> => {
+    const params = buildOrganizerScopeParams(scope, eventId);
+    await axiosClient.delete('/organizer/conversations', {
+      params,
+      ...(signal ? { signal } : {}),
     });
-    return response as unknown as OrganizerAgentResponse;
+  },
+
+  /** Gửi tin nhắn tới trợ lý AI của ban tổ chức trong phạm vi đã chọn. */
+  chatWithOrganizerAgent: async ({
+    scope,
+    eventId,
+    message,
+    history = [],
+    locale = 'vi',
+    conversationId,
+    requestId,
+    persist,
+    signal,
+  }: {
+    scope: OrganizerConversationScope;
+    eventId?: string;
+    message: string;
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    locale?: 'vi' | 'en';
+    conversationId?: string | null;
+    requestId?: string;
+    persist?: boolean;
+    signal?: AbortSignal;
+  }): Promise<OrganizerChatResponse> => {
+    const scopeFields = buildOrganizerScopeParams(scope, eventId);
+    const payload: Record<string, unknown> = {
+      ...scopeFields,
+      message: message.trim().slice(0, 1000),
+      locale,
+    };
+
+    if (persist) {
+      payload.persist = true;
+      if (conversationId) {
+        payload.conversation_id = conversationId;
+      }
+      if (requestId) {
+        payload.request_id = requestId;
+      }
+    } else {
+      payload.history = history
+        .filter(entry => entry.content.trim())
+        .slice(-8)
+        .map(entry => ({ role: entry.role, content: entry.content.trim().slice(0, 4000) }));
+      if (conversationId) {
+        payload.conversation_id = conversationId;
+      }
+      if (requestId) {
+        payload.request_id = requestId;
+      }
+    }
+
+    const response = (await axiosClient.post(
+      '/organizer/agent-chat',
+      payload,
+      signal ? { signal } : undefined,
+    )) as unknown;
+    if (!response || typeof response !== 'object' || typeof (response as OrganizerChatResponse).reply !== 'string') {
+      throw new Error('Invalid organizer chat response');
+    }
+    if (
+      persist &&
+      (typeof (response as OrganizerChatResponse).conversation_id !== 'string' ||
+        !(response as OrganizerChatResponse).conversation_id!.trim())
+    ) {
+      throw new Error('Missing conversation_id in persistent organizer chat response');
+    }
+    return response as OrganizerChatResponse;
   },
 
   /** Lấy tình trạng sức khỏe của các dịch vụ hệ thống; ném lỗi nếu phản hồi không phải danh sách. */
