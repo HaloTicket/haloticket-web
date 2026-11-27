@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type {
+  ChatConversationSummary,
   OrganizerChatMessage,
   OrganizerConversationDetail,
   OrganizerConversationScope,
@@ -30,9 +31,9 @@ const toEpochMs = (isoString: string): number => {
 };
 
 /** Sắp xếp danh sách phiên hội thoại: ưu tiên đã ghim trước, sau đó mới nhất theo updated_at. */
-export const sortOrganizerSessions = (
-  sessions: OrganizerConversationSummary[],
-): OrganizerConversationSummary[] => {
+export const sortOrganizerSessions = <T extends ChatConversationSummary>(
+  sessions: T[],
+): T[] => {
   return [...sessions].sort((a, b) => {
     if (a.is_pinned !== b.is_pinned) {
       return a.is_pinned ? -1 : 1;
@@ -77,12 +78,12 @@ const normalizeSearchText = (value: string): string =>
     .trim();
 
 /** Lọc và tách nhóm Đã ghim / Gần đây theo từ khóa tìm kiếm tiêu đề. */
-export const filterAndGroupSessions = (
-  sessions: OrganizerConversationSummary[],
+export const filterAndGroupSessions = <T extends ChatConversationSummary>(
+  sessions: T[],
   searchQuery: string,
 ): {
-  pinned: OrganizerConversationSummary[];
-  recent: OrganizerConversationSummary[];
+  pinned: T[];
+  recent: T[];
   totalMatched: number;
 } => {
   const sorted = sortOrganizerSessions(sessions);

@@ -169,22 +169,7 @@ export function formatVietnamDateTime(isoString?: string | null, isEn = false): 
   }
 }
 
-/** Định dạng giờ HH:mm ở chân bong bóng theo múi giờ Việt Nam; trả chuỗi rỗng nếu không hợp lệ. */
-export function formatMessageTime(timestamp?: Date | string | number | null): string {
-  if (timestamp === null || timestamp === undefined || timestamp === "") return "";
-  try {
-    const d = timestamp instanceof Date ? timestamp : new Date(timestamp);
-    if (Number.isNaN(d.getTime())) return "";
-    return new Intl.DateTimeFormat("vi-VN", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(d);
-  } catch {
-    return "";
-  }
-}
+export { formatMessageTime } from '@/utils/formatters';
 
 /**
  * Kiểm tra mốc thời gian có phải đúng nửa đêm 00:00:00.000 theo giờ Việt Nam (Asia/Ho_Chi_Minh)

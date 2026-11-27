@@ -105,15 +105,14 @@ it("expands the chat to the viewport and keeps the history toggle reachable", ()
   openWidget();
   const dialog = screen.getByRole("dialog");
   expect(dialog.parentElement).toBe(document.body);
-  expect(dialog.classList.contains("inset-0")).toBe(false);
+  expect(dialog.dataset.expanded).toBe("false");
 
   fireEvent.click(screen.getByRole("button", { name: "Phóng to" }));
-  expect(dialog.classList.contains("inset-0")).toBe(true);
-  expect(dialog.classList.contains("rounded-none")).toBe(true);
+  expect(dialog.dataset.expanded).toBe("true");
   expect(within(dialog).getByTestId("organizer-toggle-drawer-btn")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: "Thu nhỏ" }));
-  expect(dialog.classList.contains("inset-0")).toBe(false);
+  expect(dialog.dataset.expanded).toBe("false");
 });
 
 it("shows the direct answer without adding details even when metric data is attached", async () => {

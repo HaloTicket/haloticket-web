@@ -3,8 +3,6 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import {
-  Sparkles,
-  Lightbulb,
   X,
   Send,
   Loader2,
@@ -21,6 +19,11 @@ import type {
   OrganizerChatMessage,
   OrganizerConversationSummary,
 } from '@/types/ai';
+import { ChatSuggestionBar, ChatTypingBubble } from '../ChatFeedback';
+import { ChatWindow, type ChatAnchor } from '../ChatWindow';
+import { ChatLauncher } from '../ChatLauncher';
+import { ChatHistoryResizeHandle } from '../ChatHistoryResizeHandle';
+import { useChatWindowPresence } from '../useChatWindowPresence';
 import OrganizerAIChatMessage from './OrganizerAIChatMessage';
 import OrganizerSessionDrawer from './OrganizerSessionDrawer';
 import {
@@ -48,9 +51,6 @@ import {
 
 export type { OrganizerChatScope };
 
-const HISTORY_MIN_WIDTH = 192;
-const HISTORY_MAX_WIDTH = 340;
-const clampHistoryWidth = (width: number) => Math.min(HISTORY_MAX_WIDTH, Math.max(HISTORY_MIN_WIDTH, width));
 
 const isAbortError = (err: unknown, signal?: AbortSignal): boolean =>
   Boolean(
@@ -112,7 +112,10 @@ interface OrganizerAIChatInnerProps {
   activeScope: OrganizerChatScope;
   activeEventId?: string;
   propEventTitle?: string;
+  isOpen: boolean;
   isExpanded: boolean;
+  onExited: () => void;
+  anchor?: ChatAnchor;
   onToggleExpand: () => void;
   onClose: () => void;
 }
@@ -126,7 +129,10 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
   activeScope,
   activeEventId,
   propEventTitle,
+  isOpen,
   isExpanded,
+  onExited,
+  anchor,
   onToggleExpand,
   onClose,
 }) => {
@@ -149,7 +155,6 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [historyWidth, setHistoryWidth] = useState(224);
-  const historyDragRef = useRef<{ x: number; width: number } | null>(null);
 
   const [isLoadingSessions, setIsLoadingSessions] = useState<boolean>(canFetchScope);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -496,10 +501,11 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
 
   // Đưa tiêu điểm vào ô nhập khi mở khung chat và xử lý phím Escape phân lớp
   useEffect(() => {
-    textareaRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (isOpen) textareaRef.current?.focus({ preventScroll: true });
+  }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (confirmDeleteId !== null) {
@@ -522,7 +528,7 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [confirmClearAll, confirmDeleteId, closeHistory, isDrawerOpen, onClose]);
+  }, [isOpen, confirmClearAll, confirmDeleteId, closeHistory, isDrawerOpen, onClose]);
 
   /** Mở bản nháp cục bộ mới (lần gửi đầu tiên sẽ tự tạo hội thoại trên máy chủ). */
   const handleStartNewDraft = useCallback(() => {
@@ -963,101 +969,6 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
     [activeScope, isEn, messages],
   );
 
-  const suggestionsScrollRef = useRef<HTMLDivElement>(null);
-  const suggestionsDragRef = useRef<{
-    active: boolean;
-    pointerId: number | null;
-    startX: number;
-    startScrollLeft: number;
-    moved: boolean;
-  }>({ active: false, pointerId: null, startX: 0, startScrollLeft: 0, moved: false });
-  const suppressSuggestionClickRef = useRef(false);
-  const suppressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isDraggingSuggestions, setIsDraggingSuggestions] = useState(false);
-
-  useEffect(() => {
-    if (suggestionsScrollRef.current) {
-      suggestionsScrollRef.current.scrollLeft = 0;
-    }
-  }, [suggestedChips]);
-
-  useEffect(() => {
-    return () => {
-      if (suppressTimerRef.current) {
-        clearTimeout(suppressTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleSuggestionsPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (isDockedSidebar || e.button !== 0 || e.pointerType === 'touch') return;
-      suggestionsDragRef.current = {
-        active: true,
-        pointerId: e.pointerId,
-        startX: e.clientX,
-        startScrollLeft: e.currentTarget.scrollLeft,
-        moved: false,
-      };
-    },
-    [isDockedSidebar],
-  );
-
-  const handleSuggestionsPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = suggestionsDragRef.current;
-    if (!drag.active) return;
-    const deltaX = e.clientX - drag.startX;
-    if (!drag.moved && Math.abs(deltaX) > 4) {
-      drag.moved = true;
-      suppressSuggestionClickRef.current = true;
-      setIsDraggingSuggestions(true);
-      try {
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-      } catch {
-        // ignore if pointer capture is unavailable in synthetic tests
-      }
-    }
-    if (drag.moved) {
-      e.currentTarget.scrollLeft = drag.startScrollLeft - deltaX;
-      e.preventDefault();
-    }
-  }, []);
-
-  const handleSuggestionsPointerEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = suggestionsDragRef.current;
-    if (!drag.active) return;
-    if (drag.moved) {
-      try {
-        if (drag.pointerId !== null && e.currentTarget.hasPointerCapture?.(drag.pointerId)) {
-          e.currentTarget.releasePointerCapture?.(drag.pointerId);
-        }
-      } catch {
-        // ignore
-      }
-      if (suppressTimerRef.current) {
-        clearTimeout(suppressTimerRef.current);
-      }
-      suppressTimerRef.current = setTimeout(() => {
-        suppressSuggestionClickRef.current = false;
-      }, 0);
-    }
-    suggestionsDragRef.current = {
-      active: false,
-      pointerId: null,
-      startX: 0,
-      startScrollLeft: 0,
-      moved: false,
-    };
-    setIsDraggingSuggestions(false);
-  }, []);
-
-  const handleSuggestionsClickCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (suppressSuggestionClickRef.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      suppressSuggestionClickRef.current = false;
-    }
-  }, []);
 
   const canRetrySend =
     !isSending &&
@@ -1104,15 +1015,8 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
   );
 
   return (
-    <div
-      role="dialog"
-      aria-label={t('ai.organizer.assistantTitle', 'HaloTicket Organizer Assistant')}
-      className={`organizer-ai-chat fixed z-100 bg-white dark:bg-[#18181b] shadow-[0_12px_40px_rgb(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.6)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden origin-bottom-right transition-all duration-300 ease-in-out motion-reduce:transition-none ${
-        isExpanded
-          ? 'inset-0 rounded-none border-0 shadow-none'
-          : 'bottom-4 right-4 sm:bottom-5 sm:right-6 w-[calc(100%-2rem)] sm:w-110 md:w-115 lg:w-120 h-160 max-h-[85dvh] rounded-2xl motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-reduce:animate-none'
-      }`}
-    >
+    <ChatWindow className="organizer-ai-chat" label={t('ai.organizer.assistantTitle', 'HaloTicket Organizer Assistant')}
+      isOpen={isOpen} isExpanded={isExpanded} anchor={anchor} onExited={onExited}>
       {/* Thanh tiêu đề & Hành động */}
       <div className="min-h-12 px-2 sm:px-3 flex justify-between items-center gap-2 bg-brand-primary dark:bg-blue-700 text-white shrink-0">
         <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
@@ -1215,45 +1119,7 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
       <div className="relative flex-1 min-h-0 flex overflow-hidden">
         {drawerElement}
         {isDockedSidebar && isDrawerOpen && (
-          <div
-            role="separator"
-            tabIndex={0}
-            aria-orientation="vertical"
-            aria-controls="organizer-session-drawer"
-            aria-label={t('ai.organizer.sessions.resize')}
-            aria-valuemin={HISTORY_MIN_WIDTH}
-            aria-valuemax={HISTORY_MAX_WIDTH}
-            aria-valuenow={historyWidth}
-            title={t('ai.organizer.sessions.resize')}
-            className="group relative z-10 -mx-1 grid w-2 shrink-0 cursor-col-resize touch-none select-none place-items-center transition-colors hover:bg-brand-primary/20 active:bg-brand-primary/30 focus-visible:bg-brand-primary/20 focus-visible:outline-2 focus-visible:outline-brand-primary"
-            onPointerDown={(event) => {
-              if (event.button !== 0 || !event.isPrimary) return;
-              event.currentTarget.focus({ preventScroll: true });
-              event.currentTarget.setPointerCapture(event.pointerId);
-              historyDragRef.current = { x: event.clientX, width: historyWidth };
-            }}
-            onPointerMove={(event) => {
-              const start = historyDragRef.current;
-              if (start && event.currentTarget.hasPointerCapture(event.pointerId)) {
-                setHistoryWidth(clampHistoryWidth(start.width + event.clientX - start.x));
-              }
-            }}
-            onLostPointerCapture={() => { historyDragRef.current = null; }}
-            onKeyDown={(event) => {
-              const widths: Record<string, number> = {
-                ArrowLeft: historyWidth - 16,
-                ArrowRight: historyWidth + 16,
-                Home: HISTORY_MIN_WIDTH,
-                End: HISTORY_MAX_WIDTH,
-              };
-              const width = widths[event.key];
-              if (typeof width !== 'number') return;
-              event.preventDefault();
-              setHistoryWidth(clampHistoryWidth(width));
-            }}
-          >
-            <span aria-hidden="true" className="h-8 w-1 rounded-full bg-gray-300 dark:bg-gray-600 transition-colors group-hover:bg-brand-primary group-active:bg-brand-primary group-focus-visible:bg-brand-primary" />
-          </div>
+          <ChatHistoryResizeHandle label={t('ai.organizer.sessions.resize')} width={historyWidth} setHistoryWidth={setHistoryWidth} />
         )}
 
         <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
@@ -1367,89 +1233,19 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
                     </button>
                   )}
 
-                  {/* Bong bóng AI 3 chấm nảy kèm avatar logo-ai.png */}
                   {isSending && (
-                    <div
-                      data-testid="organizer-ai-typing-bubble"
-                      className="flex items-start justify-start mb-3.5"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-white mr-2 shrink-0 ring-2 ring-brand-primary/75 overflow-hidden mt-0.5 flex items-center justify-center">
-                        <img
-                          src="/assets/brand/logo-ai.png"
-                          alt=""
-                          aria-hidden="true"
-                          className="w-full h-full object-cover scale-[1.08]"
-                        />
-                      </div>
-                      <div className="bg-white dark:bg-[#1e1e22] border border-gray-100 dark:border-gray-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 shadow-xs flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 py-1" aria-hidden="true">
-                          <span className="ai-typing-dot" />
-                          <span className="ai-typing-dot" />
-                          <span className="ai-typing-dot" />
-                        </div>
-                        <span role="status" className="sr-only">
-                          {t('ai.organizer.analyzing', isEn ? 'AI is analyzing data...' : 'AI đang phân tích số liệu...')}
-                        </span>
-                      </div>
-                    </div>
+                    <ChatTypingBubble testId="organizer-ai-typing-bubble"
+                      status={t('ai.organizer.analyzing', isEn ? 'AI is analyzing data...' : 'AI đang phân tích số liệu...')} />
                   )}
                 </>
               )}
             </div>
           </div>
 
-          {/* Thanh chip gợi ý tiếp nối hiển thị ổn định xuyên suốt cuộc trò chuyện */}
-          <div className="shrink-0 bg-gray-50/80 dark:bg-[#18181b]/90 border-t border-gray-100 dark:border-gray-800">
-            <div
-              data-testid="organizer-suggested-questions"
-              className={`${contentColumnClass} px-3 py-2 flex ${isDockedSidebar ? 'items-start' : 'items-center'} gap-2`}
-            >
-              <div
-                data-testid="organizer-suggestions-label"
-                className={`inline-flex items-center gap-1 shrink-0 text-[11px] font-semibold text-brand-primary dark:text-blue-400 select-none ${isDockedSidebar ? 'pt-1' : ''}`}
-              >
-                <Lightbulb
-                  size={14}
-                  className="text-brand-primary dark:text-blue-400 shrink-0"
-                  aria-hidden="true"
-                />
-                <span>{t('ai.organizer.suggestionsLabel', isEn ? 'Suggestions:' : 'Gợi ý:')}</span>
-              </div>
-              <div
-                ref={suggestionsScrollRef}
-                data-testid="organizer-suggested-questions-scroll"
-                onPointerDown={handleSuggestionsPointerDown}
-                onPointerMove={handleSuggestionsPointerMove}
-                onPointerUp={handleSuggestionsPointerEnd}
-                onPointerCancel={handleSuggestionsPointerEnd}
-                onClickCapture={handleSuggestionsClickCapture}
-                onDragStart={(e) => e.preventDefault()}
-                className={`min-w-0 flex-1 flex items-center gap-1.5 ${
-                  isDockedSidebar
-                    ? 'flex-wrap'
-                    : `flex-nowrap overflow-x-auto no-scrollbar select-none ${
-                        isDraggingSuggestions ? 'cursor-grabbing' : 'cursor-grab'
-                      }`
-                }`}
-              >
-                {suggestedChips.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    onClick={() => fillDraft(question)}
-                    disabled={isSending || isLoadingDetail || isClearingAll}
-                    className={`${
-                      isDockedSidebar ? 'max-w-full whitespace-normal' : 'whitespace-nowrap shrink-0'
-                    } rounded-xl border border-gray-200 bg-white px-2.5 py-1 text-left text-[11px] font-medium text-brand-primary transition-colors hover:bg-brand-primary/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-primary disabled:opacity-50 ${
-                      isDraggingSuggestions ? 'cursor-grabbing' : 'cursor-pointer'
-                    } dark:border-gray-700 dark:bg-[#27272a] dark:text-brand-accent`}
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <ChatSuggestionBar questions={suggestedChips}
+            label={t('ai.organizer.suggestionsLabel', isEn ? 'Suggestions:' : 'Gợi ý:')}
+            onSelect={fillDraft} disabled={isSending || isLoadingDetail || isClearingAll}
+            testIdPrefix="organizer" columnClassName={contentColumnClass} wrap={isDockedSidebar} />
 
           {/* Khu vực nhập liệu (có chặn gửi nhầm khi gõ tổ hợp phím IME Tiếng Việt) */}
           <div className="shrink-0 p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#18181b]">
@@ -1503,7 +1299,7 @@ const OrganizerAIChatInner: React.FC<OrganizerAIChatInnerProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </ChatWindow>
   );
 };
 
@@ -1528,9 +1324,9 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
   const activeEventId = propEventId || routeParams.eventId;
   const activeScope: OrganizerChatScope = propScope || (activeEventId ? 'event' : 'managed_events');
 
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, isPresent, openWindow, closeWindow, finishClose } = useChatWindowPresence();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const [anchor, setAnchor] = useState<ChatAnchor>();
   const triggerBtnRef = useRef<HTMLButtonElement>(null);
   const userSubject = useOrganizerChatSubject();
 
@@ -1545,25 +1341,29 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
   }, [isOpen, isExpanded]);
 
   const innerChatKey = getSessionStorageKey(userSubject, activeScope, activeEventId);
-  if (!innerChatKey || !userSubject) return null;
 
-  const handleClose = () => {
-    setIsOpen(false);
+  const handleClose = useCallback(() => {
+    closeWindow();
     setTimeout(() => {
       triggerBtnRef.current?.focus({ preventScroll: true });
     }, 0);
-  };
+  }, [closeWindow]);
+
+  if (!innerChatKey || !userSubject) return null;
 
   return (
     <>
-      {isOpen && createPortal(
+      {isPresent && createPortal(
         <OrganizerAIChatInner
           key={innerChatKey}
           userSubject={userSubject}
           activeScope={activeScope}
           activeEventId={activeEventId}
           propEventTitle={propEventTitle}
+          isOpen={isOpen}
           isExpanded={isExpanded}
+          onExited={finishClose}
+          anchor={anchor}
           onToggleExpand={() => setIsExpanded((prev) => !prev)}
           onClose={handleClose}
         />,
@@ -1571,41 +1371,9 @@ export const OrganizerAIChatWidget: React.FC<OrganizerAIChatWidgetProps> = ({
       )}
 
       {/* Nút nổi tròn mở chat */}
-      {!isOpen && (
-        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 select-none pointer-events-none">
-          {isHovered && (
-            <div
-              data-testid="organizer-chat-hover-tooltip"
-              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 dark:bg-[#1e1e22]/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] text-slate-900 dark:text-white text-xs sm:text-[13px] font-bold pointer-events-none motion-safe:animate-in motion-safe:fade-in-50 duration-150 motion-reduce:animate-none"
-            >
-              <Sparkles className="w-4 h-4 text-brand-primary shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap">{t('ai.chat.hoverPrompt', 'Trò chuyện cùng trợ lí AI')}</span>
-            </div>
-          )}
-          <button
-            ref={triggerBtnRef}
-            type="button"
-            onClick={() => {
-              setIsHovered(false);
-              setIsOpen(true);
-            }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="pointer-events-auto relative w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-brand-primary hover:bg-brand-primary/95 shadow-[0_8px_28px_rgba(37,99,235,0.28)] hover:shadow-[0_10px_32px_rgba(37,99,235,0.38)] hover:scale-105 active:scale-95 transition-all duration-200 motion-reduce:transition-none flex items-center justify-center border-2 border-white/80 dark:border-white/20 p-1 group cursor-pointer"
-            aria-label={t('ai.organizer.chatWithAi', 'Chat với AI')}
-            title={t('ai.organizer.chatWithAi', 'Chat với AI')}
-          >
-            <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-0.5 shadow-xs overflow-hidden">
-              <img
-                src="/assets/brand/logo-ai.png"
-                alt=""
-                aria-hidden="true"
-                className="w-full h-full object-contain scale-125 group-hover:scale-135 transition-transform duration-200 motion-reduce:transition-none"
-              />
-            </div>
-          </button>
-        </div>
-      )}
+      <ChatLauncher kind="organizer" label={t('ai.organizer.chatWithAi', 'Chat với AI')} hidden={isOpen}
+        buttonRef={triggerBtnRef} hintTestId="organizer-chat-hover-tooltip"
+        onOpen={location => { setAnchor(location); openWindow(); }} />
     </>
   );
 };

@@ -17,6 +17,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
+import { ChatMessageTime } from '../ChatMessageTime';
 import {
   buildCardsComparisonMatrix,
   buildKpiCards,
@@ -843,7 +844,10 @@ export const OrganizerAIChatMessage: React.FC<OrganizerAIChatMessageProps> = ({
       >
         {/* Nội dung văn bản / Markdown */}
         {isUser ? (
-          <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+          <>
+            <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+            <ChatMessageTime timestamp={message.timestamp} />
+          </>
         ) : renderMarkdown(summary)}
         {!detailsOpen && !summary && preview && (
           <p className="text-sm leading-6 text-gray-800 dark:text-gray-100">{preview}</p>
