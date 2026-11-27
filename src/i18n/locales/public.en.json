@@ -658,5 +658,15 @@
   "Chưa có giá": "No price yet",
   "Giữ chỗ": "Hold",
   "Vé tự do / Vào cổng": "Free admission / Entry",
-  "Xác nhận thông tin đặt vé": "Confirm your booking"
+  "Xác nhận thông tin đặt vé": "Confirm your booking",
+  "Oops! Bạn đã": "Oops! You've",
+  "lạc đường": "lost your way",
+  "Có vẻ {{name}} cũng đã mất phương hướng!": "Looks like {{name}} got lost too!",
+  "Trang bạn tìm kiếm không tồn tại hoặc đã được di chuyển.": "The page you're looking for doesn't exist or has been moved.",
+  "Về trang chủ": "Back to home",
+  "HaloBoo đang ngồi cầm bản đồ với biểu cảm ngơ ngác vì bị lạc đường": "HaloBoo sitting with a map looking confused and lost in space",
+  "HaloBoo đang bước đi xem bản đồ": "HaloBoo walking happily while looking at a map",
+  "Lỗi 404 - Không tìm thấy trang": "404 Error – Page not found",
+  "Về trang quản trị": "Back to admin dashboard",
+  "Quay lại trang trước": "Go back"
 }

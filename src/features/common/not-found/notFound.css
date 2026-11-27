@@ -1,0 +1,414 @@
+/* Scoped 404 "HaloBot Lost in Space" animations & layout utilities */
+
+.notfound-page {
+  min-height: calc(100dvh - var(--notfound-header-height, 84px));
+}
+
+@media (min-width: 1024px) {
+  .notfound-page {
+    --notfound-header-height: 120px;
+  }
+}
+
+/* Subtle background space drift */
+.notfound-bg-drift {
+  transform-origin: center center;
+  will-change: transform;
+  animation: notfound-bg-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes notfound-bg-drift {
+  0% {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.075) translate3d(-0.8%, -0.6%, 0);
+  }
+}
+
+/* 404 display number: entrance + slow depth float */
+.notfound-code-enter {
+  will-change: transform, opacity;
+  animation: notfound-code-enter 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.notfound-code-float {
+  will-change: transform;
+  animation: notfound-code-float 7.2s ease-in-out infinite;
+}
+
+@keyframes notfound-code-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes notfound-code-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+/* HaloBot outer wrapper: gentle space floating */
+.notfound-bot-float {
+  will-change: transform;
+  animation: notfound-bot-float 4.6s ease-in-out infinite;
+}
+
+@keyframes notfound-bot-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-1.6deg);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotate(1.6deg);
+  }
+}
+
+/* HaloBot inner wrapper: periodic curious/confused tilt */
+.notfound-bot-confused {
+  transform-origin: 50% 68%;
+  will-change: transform;
+  animation: notfound-bot-confused 8.5s ease-in-out infinite;
+}
+
+@keyframes notfound-bot-confused {
+  0%,
+  58%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  66% {
+    transform: rotate(-3.2deg) scale(1.012);
+  }
+  75% {
+    transform: rotate(2.6deg) scale(1.012);
+  }
+  84% {
+    transform: rotate(-1.2deg) scale(1.005);
+  }
+  92% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+/* Grounded shadow synced with HaloBot float */
+.notfound-bot-shadow {
+  will-change: transform, opacity;
+  animation: notfound-bot-shadow 4.6s ease-in-out infinite;
+}
+
+@keyframes notfound-bot-shadow {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.18;
+    transform: scaleX(0.86);
+  }
+}
+
+/* Elliptical space orbits */
+.notfound-orbit-spin-slow {
+  will-change: transform;
+  animation: notfound-orbit-spin 18s linear infinite;
+}
+
+.notfound-orbit-spin-reverse {
+  will-change: transform;
+  animation: notfound-orbit-spin 24s linear infinite reverse;
+}
+
+@keyframes notfound-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Subtle star sparkles */
+.notfound-star-twinkle {
+  will-change: transform, opacity;
+  animation: notfound-star-twinkle 4.2s ease-in-out infinite;
+}
+
+@keyframes notfound-star-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.72);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.12);
+  }
+}
+
+/* Staggered text and action entrance */
+.notfound-fade-up {
+  will-change: transform, opacity;
+  animation: notfound-fade-up 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes notfound-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Stage 1: HaloBot walking happily from left toward center */
+.notfound-bot-walk {
+  transform-origin: 50% 90%;
+  will-change: transform;
+  animation: notfound-bot-walk 1150ms linear forwards;
+}
+
+@keyframes notfound-bot-walk {
+  0% {
+    transform: translate3d(clamp(-170px, -26vw, -88px), 0, 0) rotate(-3deg) scale(1);
+  }
+  14% {
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.8), -11px, 0) rotate(5deg) scale(0.98, 1.03);
+  }
+  28% {
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.64), 0, 0) rotate(0deg) scale(1.03, 0.96);
+  }
+  44% {
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.45), -11px, 0) rotate(-5deg) scale(0.98, 1.03);
+  }
+  60% {
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.28), 0, 0) rotate(0deg) scale(1.03, 0.96);
+  }
+  78% {
+    transform: translate3d(-22px, -11px, 0) rotate(5deg) scale(0.98, 1.03);
+  }
+  100% {
+    transform: translate3d(-6px, 0, 0) rotate(2deg) scale(1, 1);
+  }
+}
+
+/* Stage 2: HaloBot trips, pitches forward, and falls */
+.notfound-bot-trip {
+  transform-origin: 50% 82%;
+  will-change: transform, opacity;
+  animation: notfound-bot-trip 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes notfound-bot-trip {
+  0% {
+    opacity: 1;
+    transform: translate3d(-6px, 0, 0) rotate(2deg) scale(1);
+  }
+  28% {
+    opacity: 1;
+    transform: translate3d(8px, -20px, 0) rotate(20deg) scale(0.96, 1.05);
+  }
+  62% {
+    opacity: 1;
+    transform: translate3d(14px, -4px, 0) rotate(42deg) scale(1.02, 0.97);
+  }
+  88% {
+    opacity: 0.9;
+    transform: translate3d(6px, 16px, 0) rotate(-8deg) scale(1.08, 0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) rotate(-10deg) scale(1.06, 0.92);
+  }
+}
+
+/* Stage 3: Sitting lost HaloBot plop-landing bounce */
+.notfound-bot-land {
+  transform-origin: 50% 86%;
+  will-change: transform, opacity;
+  animation: notfound-bot-land 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes notfound-bot-land {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -16px, 0) scale(0.9, 1.08) rotate(-7deg);
+  }
+  32% {
+    opacity: 1;
+    transform: translate3d(0, 7px, 0) scale(1.07, 0.92) rotate(3.5deg);
+  }
+  64% {
+    opacity: 1;
+    transform: translate3d(0, -5px, 0) scale(0.98, 1.02) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1, 1) rotate(0deg);
+  }
+}
+
+/* Walking & tripping ground shadow */
+.notfound-walk-shadow {
+  will-change: transform, opacity;
+  animation: notfound-walk-shadow 1150ms linear forwards;
+}
+
+@keyframes notfound-walk-shadow {
+  0% {
+    opacity: 0.28;
+    transform: translate3d(clamp(-170px, -26vw, -88px), 0, 0) scaleX(0.95);
+  }
+  14% {
+    opacity: 0.16;
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.8), 0, 0) scaleX(0.8);
+  }
+  28% {
+    opacity: 0.3;
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.64), 0, 0) scaleX(1);
+  }
+  44% {
+    opacity: 0.16;
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.45), 0, 0) scaleX(0.8);
+  }
+  60% {
+    opacity: 0.3;
+    transform: translate3d(calc(clamp(-170px, -26vw, -88px) * 0.28), 0, 0) scaleX(1);
+  }
+  78% {
+    opacity: 0.16;
+    transform: translate3d(-22px, 0, 0) scaleX(0.8);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translate3d(-6px, 0, 0) scaleX(1);
+  }
+}
+
+.notfound-trip-shadow {
+  will-change: transform, opacity;
+  animation: notfound-trip-shadow 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes notfound-trip-shadow {
+  0% {
+    opacity: 0.3;
+    transform: translate3d(-6px, 0, 0) scaleX(1);
+  }
+  28% {
+    opacity: 0.14;
+    transform: translate3d(8px, 0, 0) scaleX(0.75);
+  }
+  88%,
+  100% {
+    opacity: 0.38;
+    transform: translate3d(0, 0, 0) scaleX(1.16);
+  }
+}
+
+/* Walking step puffs */
+.notfound-step-puff {
+  will-change: transform, opacity;
+  animation: notfound-step-puff 500ms ease-out forwards;
+}
+
+@keyframes notfound-step-puff {
+  0% {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-20px, -10px, 0) scale(1.35);
+  }
+}
+
+/* Impact puffs and stars on fall */
+.notfound-impact-puff-left {
+  will-change: transform, opacity;
+  animation: notfound-impact-puff-left 550ms ease-out forwards;
+}
+
+@keyframes notfound-impact-puff-left {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(0, 0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-28px, -14px, 0) scale(1.4);
+  }
+}
+
+.notfound-impact-puff-right {
+  will-change: transform, opacity;
+  animation: notfound-impact-puff-right 550ms ease-out forwards;
+}
+
+@keyframes notfound-impact-puff-right {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(0, 0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(28px, -14px, 0) scale(1.4);
+  }
+}
+
+.notfound-impact-star {
+  will-change: transform, opacity;
+  animation: notfound-impact-star 550ms ease-out forwards;
+}
+
+@keyframes notfound-impact-star {
+  0% {
+    opacity: 0.95;
+    transform: translate3d(0, 4px, 0) scale(0.4) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0) scale(1.15) rotate(35deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notfound-bg-drift,
+  .notfound-code-enter,
+  .notfound-code-float,
+  .notfound-bot-float,
+  .notfound-bot-confused,
+  .notfound-bot-shadow,
+  .notfound-bot-walk,
+  .notfound-bot-trip,
+  .notfound-bot-land,
+  .notfound-walk-shadow,
+  .notfound-trip-shadow,
+  .notfound-step-puff,
+  .notfound-impact-puff-left,
+  .notfound-impact-puff-right,
+  .notfound-impact-star,
+  .notfound-orbit-spin-slow,
+  .notfound-orbit-spin-reverse,
+  .notfound-star-twinkle,
+  .notfound-fade-up {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    opacity: 1;
+    transform: none;
+  }
+}
+

@@ -13,6 +13,7 @@ import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { NotificationToast } from "@/components/notifications/NotificationToast";
 import { adminNavGroups, resolveAdminNavigation } from "@/features/admin/components/AdminSidebar";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { aiApi } from "@/services/aiApi";
 import { payoutApi } from "@/services/payoutApi";
 import { adminReconciliationApi } from "@/services/adminReconciliationApi";
@@ -296,26 +297,23 @@ export const AdminLayout: React.FC = () => {
         <div className="space-y-4 flex-1 flex flex-col min-h-0">
           {/* Logo Branding */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
-            <Link to={PATHS.ADMIN_DASHBOARD} className="flex items-center gap-2.5 overflow-hidden group px-0.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 flex items-center justify-center text-white font-black shadow-md shrink-0 border border-blue-400/20 group-hover:scale-105 transition-transform">
-                <span className="text-sm font-black tracking-tighter text-white">HT</span>
-              </div>
-              {!isCollapsed && (
-                <div className="truncate">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black tracking-wider text-blue-600 dark:text-blue-400 block leading-tight">
-                      HALOTICKET
-                    </span>
-                    <span className="text-[9px] font-extrabold px-1 py-0.2 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      ADMIN
-                    </span>
-                  </div>
-                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">
-                      {label("Quản lý hệ thống", "System Management")}
-                    </span>
+            {isCollapsed ? (
+              <Link to={PATHS.ADMIN_DASHBOARD} className="flex items-center justify-center w-full group" aria-label="HaloTicket Admin">
+                <BrandLogo variant="mark" className="h-8 w-10 shrink-0 transition-transform group-hover:scale-105" />
+              </Link>
+            ) : (
+              <Link to={PATHS.ADMIN_DASHBOARD} className="flex flex-col items-start gap-1 overflow-hidden group px-0.5 min-w-0">
+                <BrandLogo className="h-8 w-[120px] shrink-0 transition-opacity group-hover:opacity-90" />
+                <div className="flex items-center gap-1.5 pl-0.5 max-w-full">
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 leading-none shrink-0">
+                    ADMIN
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate leading-none">
+                    {label("Quản lý hệ thống", "System Management")}
+                  </span>
                 </div>
-              )}
-            </Link>
+              </Link>
+            )}
 
             {/* Mobile close button */}
             <button
