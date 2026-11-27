@@ -1,456 +1,497 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, X, Send, Loader2, Maximize2, Minimize2, RotateCcw, AlertTriangle } from 'lucide-react';
-import { aiApi } from '../../../services/aiApi';
-import { getCachedUserProfile } from '../../../services/userApi';
-import type { AiChatMessage } from '../../../types/ai';
-import { resolveAiError, aiErrorMessage, type AiErrorInfo } from '../../../utils/aiErrors';
+import { AlertTriangle, CalendarDays, Loader2, MapPin, Maximize2, Minimize2, Music2, RotateCcw, Send, Theater, X } from 'lucide-react';
+import { aiApi } from '@/services/aiApi';
+import { getKeycloakSession } from '@/services/keycloakSession';
+import type { AiChatMessage, CustomerChatHistory } from '@/types/ai';
+import { aiErrorMessage, resolveAiError, type AiErrorInfo } from '@/utils/aiErrors';
+import { ChatSuggestionBar, ChatTypingBubble } from '../ChatFeedback';
+import { ChatWindow, type ChatAnchor } from '../ChatWindow';
+import { ChatLauncher } from '../ChatLauncher';
+import { useChatWindowPresence } from '../useChatWindowPresence';
 import AIChatMessage from './AIChatMessage';
 import { dropStaleActions, findSelectedEventId } from './bookingConfirmation';
+import { clearLegacyHistory, getCustomerChatIdentity, randomHex, readLegacyHistory, removeLegacyHistory, type CustomerChatIdentity } from './customerChatStorage';
 
-/** Số ký tự tối đa khách gõ: máy chủ nhận tối đa 500 ký tự gồm cả ngữ cảnh ẩn (mã sự kiện) gửi kèm. */
 const MAX_INPUT_CHARS = 400;
+const logo = '/assets/brand/logo-ai.png';
+const headerButton = 'grid size-9 place-items-center rounded-lg hover:bg-white/15 transition-colors cursor-pointer disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-white';
+const topics = [
+  { key: 'Hot', icon: CalendarDays },
+  { key: 'Music', icon: Music2 },
+  { key: 'Theatre', icon: Theater },
+  { key: 'Hcm', icon: MapPin },
+] as const;
+const followUps = {
+  discovery: ['moreEvents', 'weekendEvents', 'freeEvents'],
+  tickets: ['ticketPrices', 'seatMap', 'ticketAvailability'],
+  confirmation: ['reviewBooking', 'otherTickets'],
+} as const;
 
-const LEGACY_HISTORY_KEY = 'ai_chat_history';
-const HISTORY_KEY_PREFIX = 'ai_chat_history:v2:';
-
-/** Tài khoản sở hữu lịch sử chat: id hồ sơ, nếu không có thì email, nếu không có nữa thì ẩn danh (`anon`). */
-function getChatAccount(): string {
-  try {
-    const profile = getCachedUserProfile();
-    return String(profile?.id ?? profile?.email ?? 'anon');
-  } catch {
-    return 'anon';
-  }
+function fromServer(history: CustomerChatHistory) {
+  const messages = history.messages.map<AiChatMessage>(({ id, role, content, created_at, system_actions }) => ({
+    id,
+    sender: role === 'user' ? 'user' : 'ai',
+    text: content,
+    timestamp: new Date(created_at),
+    actions: system_actions?.length ? system_actions : undefined,
+  }));
+  return {
+    generation: history.generation,
+    olderCursor: history.older_cursor,
+    messages: dropStaleActions(messages, Date.now()),
+  };
 }
 
-/** Khóa `localStorage` lưu lịch sử chat của một tài khoản. */
-const chatHistoryKey = (account: string) => `${HISTORY_KEY_PREFIX}${account}`;
+const emptyConversation = { generation: 0, olderCursor: null, messages: [] };
 
-/** Bọc `localStorage` để không ném lỗi khi trình duyệt chặn hoặc bộ nhớ đầy. */
-const safeStorage = {
-  /** Đọc giá trị theo khóa; trả về `null` nếu lỗi. */
-  get(key: string): string | null {
-    try { return localStorage.getItem(key); } catch { return null; }
-  },
-  /** Ghi giá trị, bỏ qua lỗi. */
-  set(key: string, value: string) {
-    try { localStorage.setItem(key, value); } catch { /* localStorage có thể không dùng được hoặc đã đầy */ }
-  },
-  /** Xóa khóa, bỏ qua lỗi. */
-  remove(key: string) {
-    try { localStorage.removeItem(key); } catch { /* localStorage có thể không dùng được */ }
-  },
-};
-
-/** Mốc thời gian hiện tại (ms) dùng làm id tin nhắn; chỉ gọi từ các hàm xử lý sự kiện. */
-const nowMs = (): number => Date.now();
-
-/** Tạo tin chào đầu tiên của trợ lý (id `1`). */
-const greetingMessage = (text: string): AiChatMessage => ({ id: '1', sender: 'ai', text, timestamp: new Date() });
-
-/** Nạp lịch sử chat của tài khoản từ `localStorage`; nếu không có hoặc hỏng thì bắt đầu cuộc trò chuyện mới với tin chào. */
-function loadHistory(account: string, greeting: string): AiChatMessage[] {
-  const saved = safeStorage.get(chatHistoryKey(account));
-  if (saved) {
-    try {
-      const parsed: unknown = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // thẻ giá, tình trạng vé và xác nhận chỉ đúng tại thời điểm trả lời: bỏ những thẻ đã cũ khi mở lại cuộc trò chuyện
-        return dropStaleActions((parsed as AiChatMessage[]).map(m => ({ ...m, timestamp: new Date(m.timestamp) })), Date.now());
-      }
-    } catch {
-      // rơi xuống nhánh tạo cuộc trò chuyện mới
-    }
-  }
-  return [greetingMessage(greeting)];
+interface PendingTurn {
+  message: AiChatMessage;
+  prompt: string;
+  generation: number;
+  selectedEventId?: string;
 }
 
-/** Lỗi gần nhất khi gọi AI: thông tin lỗi, nội dung đã gửi (để gửi lại), ngữ cảnh ẩn và id tin nhắn người dùng. */
-interface ChatError {
-  info: AiErrorInfo;
-  text: string;
-  hiddenContext?: string;
-  userMessageId: string;
+interface PanelProps {
+  identity: CustomerChatIdentity | null;
+  isOpen: boolean;
+  isPresent: boolean;
+  anchor?: ChatAnchor;
+  isExpanded: boolean;
+  onExited: () => void;
+  onExpand: () => void;
+  onClose: () => void;
 }
 
-/**
- * Khung chat nổi của trợ lý AI cho khách (đặt vé thông minh): lịch sử lưu theo tài khoản, xử lý lỗi kèm đếm ngược
- * chờ gửi lại, xác nhận xóa cuộc trò chuyện và đóng bằng Esc.
- */
-const AIChatWidget: React.FC = () => {
+function CustomerChatPanel({ identity, isOpen, isPresent, isExpanded, anchor, onExited, onExpand, onClose }: PanelProps) {
   const { t } = useTranslation();
-  const greeting = t('ai.chat.greeting');
-  const [account, setAccount] = useState<string>(getChatAccount);
-  const accountRef = useRef<string>(account);
-  useEffect(() => {
-    accountRef.current = account;
-  }, [account]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [messages, setMessages] = useState<AiChatMessage[]>(() => {
-    // khóa toàn cục cũ làm lẫn lịch sử giữa các tài khoản nên xóa một lần.
-    safeStorage.remove(LEGACY_HISTORY_KEY);
-    return loadHistory(getChatAccount(), t('ai.chat.greeting'));
-  });
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [chatError, setChatError] = useState<ChatError | null>(null);
+  const [conversation, setConversation] = useState<ReturnType<typeof fromServer>>(emptyConversation);
+  const { generation, olderCursor, messages } = conversation;
+  const [draft, setDraft] = useState('');
+  const [pending, setPending] = useState<PendingTurn | null>(null);
+  const [phase, setPhase] = useState<'loading' | 'ready' | 'load-error' | 'sending' | 'resetting'>('loading');
+  const [error, setError] = useState<AiErrorInfo | null>(null);
+  const [resetError, setResetError] = useState<AiErrorInfo | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [confirmReset, setConfirmReset] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sendingRef = useRef(false);
-
-  // Giữ lịch sử theo đúng tài khoản đang đăng nhập (hoặc ẩn danh).
-  useEffect(() => {
-    /** Khi tài khoản đổi: xóa lịch sử của tài khoản cũ, nạp lịch sử tài khoản mới và đặt lại lỗi, ô nhập. */
-    const syncAccount = () => {
-      const next = getChatAccount();
-      const previous = accountRef.current;
-      if (next === previous) return;
-      safeStorage.remove(chatHistoryKey(previous));
-      accountRef.current = next;
-      setAccount(next);
-      setMessages(loadHistory(next, t('ai.chat.greeting')));
-      setChatError(null);
-      setConfirmReset(false);
-      setInputText('');
-    };
-    window.addEventListener('auth-changed', syncAccount);
-    window.addEventListener('storage', syncAccount);
-    return () => {
-      window.removeEventListener('auth-changed', syncAccount);
-      window.removeEventListener('storage', syncAccount);
-    };
-  }, [t]);
-
-  // Chỉ lưu các lượt hội thoại thật; bong bóng lỗi nằm ngoài `messages`.
-  useEffect(() => {
-    safeStorage.set(chatHistoryKey(account), JSON.stringify(messages));
-  }, [messages, account]);
+  const [reload, setReload] = useState(0);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState<AiErrorInfo | null>(null);
+  const historyRequest = useRef<AbortController | null>(null);
+  const activeMutation = useRef<AbortController | null>(null);
+  const scrollAnchor = useRef<{ height: number; top: number } | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const messagesEnd = useRef<HTMLDivElement>(null);
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const composerDisabled = phase !== 'ready';
+  const canLoad = useEffectEvent(() => !activeMutation.current && !pending);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [messages, isOpen, chatError, isLoading]);
+    if (!isOpen || !identity || !canLoad()) return;
+    const { owner, legacyAccounts } = identity;
+    historyRequest.current?.abort();
+    const controller = new AbortController();
+    const { signal } = controller;
+    historyRequest.current = controller;
+    async function load() {
+      try {
+        const legacy = readLegacyHistory(legacyAccounts);
+        const history = legacy
+          ? await aiApi.importCustomerChat(owner, legacy.messages, signal)
+          : await aiApi.getCustomerChat(owner, signal);
+        if (signal.aborted) return;
+        if (legacy?.complete && 'imported' in history && history.imported) removeLegacyHistory(legacy.key);
+        setConversation(fromServer(history));
+        setError(null);
+        setOlderError(null);
+        setPhase('ready');
+      } catch (failure) {
+        if (signal.aborted) return;
+        setError(resolveAiError(failure));
+        setPhase('load-error');
+      } finally {
+        if (historyRequest.current === controller) historyRequest.current = null;
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [identity, isOpen, reload]);
+
+  useEffect(() => () => {
+    historyRequest.current?.abort();
+    activeMutation.current?.abort();
+  }, []);
+
+  useLayoutEffect(() => {
+    const anchor = scrollAnchor.current;
+    const log = logRef.current;
+    if (anchor && log) {
+      log.scrollTop = anchor.top + log.scrollHeight - anchor.height;
+      scrollAnchor.current = null;
+      return;
+    }
+    messagesEnd.current?.scrollIntoView?.({ block: 'end' });
+  }, [isOpen, messages, pending, phase, error]);
+
+  useEffect(() => {
+    if (isOpen && !composerDisabled && !confirmReset) textarea.current?.focus({ preventScroll: true });
+  }, [isOpen, composerDisabled, confirmReset]);
 
   useEffect(() => {
     if (!isOpen) return;
-    textareaRef.current?.focus();
-    /** Nhấn Esc: đóng hộp xác nhận xóa nếu đang mở, ngược lại đóng khung chat. */
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (confirmReset) setConfirmReset(false);
-      else setIsOpen(false);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (!confirmReset) onClose();
+      else if (phase !== 'resetting') setConfirmReset(false);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, confirmReset]);
+  }, [isOpen, confirmReset, onClose, phase]);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = window.setTimeout(() => setCooldown(c => Math.max(0, c - 1)), 1000);
+    if (!cooldown) return;
+    const timer = window.setTimeout(() => setCooldown(seconds => seconds - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [cooldown]);
 
-  /**
-   * Gọi agent đặt vé và thêm câu trả lời vào hội thoại; khi lỗi thì lưu `chatError` và đặt thời gian chờ nếu có.
-   * @param text nội dung hiển thị của người dùng
-   * @param hiddenContext ngữ cảnh ẩn gửi kèm cho AI
-   * @param userMessageId id tin nhắn người dùng liên quan
-   * @param history các tin nhắn trước đó dùng làm ngữ cảnh
-   */
-  const requestReply = useCallback(async (text: string, hiddenContext: string | undefined, userMessageId: string, history: AiChatMessage[]) => {
-    sendingRef.current = true;
-    setIsLoading(true);
-    setChatError(null);
+  async function loadOlder() {
+    if (!identity || !olderCursor || historyRequest.current || activeMutation.current) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    historyRequest.current = controller;
+    setLoadingOlder(true);
+    setOlderError(null);
     try {
-      const historyPayload = history.map(m => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.hiddenContext ? `${m.text} ${m.hiddenContext}` : m.text
-      }));
-      const finalContent = hiddenContext ? `${text} ${hiddenContext}` : text;
-      const response = await aiApi.chatWithSmartBooking(finalContent, historyPayload, findSelectedEventId(history));
-      const aiMessage: AiChatMessage = {
-        id: `${nowMs() + 1}`,
-        sender: 'ai',
-        text: response.reply,
-        actions: response.system_actions,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      const info = resolveAiError(error);
-      setChatError({ info, text, hiddenContext, userMessageId });
+      const history = await aiApi.getCustomerChat(identity.owner, signal, olderCursor);
+      if (signal.aborted) return;
+      if (history.generation !== generation) {
+        setPending(null);
+        setConversation(emptyConversation);
+        setPhase('loading');
+        setReload(value => value + 1);
+        return;
+      }
+      const log = logRef.current;
+      if (log) scrollAnchor.current = { height: log.scrollHeight, top: log.scrollTop };
+      const previous = fromServer(history);
+      setConversation({ ...previous, messages: [...previous.messages, ...messages] });
+    } catch (failure) {
+      if (!signal.aborted) setOlderError(resolveAiError(failure));
+    } finally {
+      if (historyRequest.current === controller) historyRequest.current = null;
+      setLoadingOlder(false);
+    }
+  }
+
+  async function submit(turn: PendingTurn) {
+    if (!identity || activeMutation.current || composerDisabled || confirmReset) return;
+    historyRequest.current?.abort();
+    const controller = new AbortController();
+    const { signal } = controller;
+    activeMutation.current = controller;
+    setPending(turn);
+    setError(null);
+    setPhase('sending');
+    try {
+      const history = await aiApi.chatWithSmartBooking({
+        owner: identity.owner,
+        signal,
+        message: turn.prompt,
+        displayMessage: turn.message.text,
+        requestId: turn.message.id,
+        generation: turn.generation,
+        selectedEventId: turn.selectedEventId,
+      });
+      if (signal.aborted) return;
+      setConversation(fromServer(history));
+      setPending(null);
+    } catch (failure) {
+      if (signal.aborted) return;
+      const info = resolveAiError(failure);
+      if (info.code === 'AI_CHAT_RESET') {
+        setPending(null);
+        setConversation(emptyConversation);
+        setDraft(turn.message.text);
+        setPhase('loading');
+        setReload(value => value + 1);
+        return;
+      }
+      setError(info);
       setCooldown(info.retryAfterSeconds ?? 0);
     } finally {
-      sendingRef.current = false;
-      setIsLoading(false);
+      activeMutation.current = null;
+      if (!signal.aborted) setPhase(current => current === 'sending' ? 'ready' : current);
+    }
+  }
+
+  function sendMessage(text: string, hiddenContext?: string) {
+    const content = text.trim();
+    if (!content) return;
+    void submit({
+      message: { id: randomHex(16), sender: 'user', text: content, timestamp: new Date() },
+      prompt: hiddenContext ? content + ' ' + hiddenContext : content,
+      generation,
+      selectedEventId: findSelectedEventId(dropStaleActions(messages, Date.now())),
+    });
+  }
+
+  function sendDraft() {
+    if (!draft.trim() || activeMutation.current || composerDisabled || confirmReset) return;
+    sendMessage(draft);
+    setDraft('');
+  }
+
+  async function resetConversation() {
+    if (!identity || activeMutation.current || composerDisabled) return;
+    historyRequest.current?.abort();
+    const controller = new AbortController();
+    const { signal } = controller;
+    activeMutation.current = controller;
+    setPhase('resetting');
+    setResetError(null);
+    try {
+      const history = await aiApi.resetCustomerChat(identity.owner, signal);
+      if (signal.aborted) return;
+      clearLegacyHistory(identity.legacyAccounts);
+      setConversation(fromServer(history));
+      setPending(null);
+      setError(null);
+      setOlderError(null);
+      setCooldown(0);
+      setConfirmReset(false);
+    } catch (failure) {
+      if (!signal.aborted) setResetError(resolveAiError(failure));
+    } finally {
+      activeMutation.current = null;
+      if (!signal.aborted) setPhase('ready');
+    }
+  }
+
+  if (!isPresent) return null;
+
+  const latestReply = messages.at(-1);
+  const actions = latestReply?.actions;
+  const suggestedQuestions = actions?.some(action => action.action === 'USER_CONFIRMATION_REQUIRED')
+    ? followUps.confirmation
+    : actions?.some(action => action.action === 'SHOW_TICKET_TYPES' || action.action === 'SHOW_SEATMAP')
+      ? followUps.tickets
+      : followUps.discovery;
+
+  return createPortal(
+    <ChatWindow label={t('ai.chat.title')} isOpen={isOpen} isExpanded={isExpanded} anchor={anchor} onExited={onExited}>
+      <header className="flex min-h-12 shrink-0 items-center justify-between gap-2 bg-brand-primary px-3 text-white dark:bg-blue-700">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="relative size-7 shrink-0">
+            <img src={logo} alt="" className="size-full rounded-full bg-white object-cover" />
+            <span aria-hidden="true" className="absolute -right-0.5 bottom-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-brand-primary dark:ring-blue-700" />
+          </div>
+          <h3 className="truncate text-sm font-semibold">{t('ai.chat.title')}</h3>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button type="button" onClick={() => { setConfirmReset(true); setResetError(null); }} disabled={composerDisabled}
+            className={headerButton} title={t('ai.chat.reset')} aria-label={t('ai.chat.reset')}>
+            <RotateCcw size={17} aria-hidden="true" />
+          </button>
+          <button type="button" onClick={onExpand} className={headerButton}
+            title={t(isExpanded ? 'ai.chat.collapse' : 'ai.chat.expand')}
+            aria-label={t(isExpanded ? 'ai.chat.collapse' : 'ai.chat.expand')}>
+            {isExpanded ? <Minimize2 size={18} aria-hidden="true" /> : <Maximize2 size={18} aria-hidden="true" />}
+          </button>
+          <button type="button" onClick={onClose} className={headerButton} title={t('ai.chat.close')} aria-label={t('ai.chat.close')}>
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      {confirmReset && (
+        <div role="alertdialog" aria-label={t('ai.chat.resetConfirm')} className="shrink-0 border-b border-gray-200 bg-gray-50 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#202024]">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2">
+            <span className="font-medium text-text-main">{t('ai.chat.resetConfirm')}</span>
+            <span className="flex gap-2">
+              <button type="button" onClick={() => setConfirmReset(false)} disabled={phase === 'resetting'}
+                className="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-text-main disabled:opacity-50 dark:border-zinc-600">
+                {t('ai.chat.resetConfirmNo')}
+              </button>
+              <button type="button" onClick={() => void resetConversation()} disabled={phase === 'resetting'}
+                className="cursor-pointer rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+                {t(phase === 'resetting' ? 'ai.chat.resetting' : 'ai.chat.resetConfirmYes')}
+              </button>
+            </span>
+            {resetError && <p role="alert" className="basis-full text-red-700 dark:text-red-300">{aiErrorMessage(resetError)}</p>}
+          </div>
+        </div>
+      )}
+
+      <div ref={logRef} role="log" aria-live="polite" aria-relevant="additions text" aria-label={t('ai.chat.conversation')}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50/60 dark:bg-[#18181b]">
+        <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4">
+          {olderCursor && (
+            <div className="mb-4 text-center text-sm">
+              <button type="button" onClick={() => void loadOlder()} disabled={composerDisabled || loadingOlder || confirmReset}
+                className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 font-semibold text-brand-primary hover:border-brand-primary/50 disabled:opacity-50 dark:border-zinc-700 dark:bg-[#202024] dark:text-brand-accent">
+                {t(loadingOlder ? 'ai.chat.loadingHistory' : 'ai.chat.loadOlder')}
+              </button>
+              {olderError && <p role="alert" className="mt-1 text-red-700 dark:text-red-300">{aiErrorMessage(olderError)}</p>}
+            </div>
+          )}
+          {phase === 'loading' && (
+            <div role="status" className="flex items-center gap-2 text-sm text-text-muted">
+              <Loader2 size={16} className="motion-safe:animate-spin text-brand-primary" aria-hidden="true" />
+              {t('ai.chat.loadingHistory')}
+            </div>
+          )}
+          {phase === 'ready' && !messages.length && !pending && (
+            <section className="py-1.5">
+              <div className="flex items-start gap-2.5">
+                <img src={logo} alt="" className="mt-1 size-8 shrink-0 rounded-full bg-white object-cover ring-2 ring-brand-primary/60" />
+                <p className="rounded-2xl border border-brand-primary/15 bg-white px-3.5 py-3 text-sm leading-relaxed text-gray-700 shadow-xs dark:bg-[#202024] dark:text-gray-200">
+                  {t('ai.chat.greeting')}
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-2 min-[375px]:grid-cols-2 sm:ml-[42px]">
+                {topics.map(({ key, icon: Icon }) => (
+                  <button key={key} type="button" disabled={confirmReset}
+                    onClick={() => { setDraft(t(`ai.chat.suggest${key}Text`)); textarea.current?.focus(); }}
+                    className="group flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-start text-xs font-semibold text-gray-800 shadow-2xs transition-colors hover:border-brand-primary/50 hover:bg-brand-primary/5 focus-visible:outline-2 focus-visible:outline-brand-primary disabled:opacity-50 dark:border-zinc-700 dark:bg-[#202024] dark:text-gray-100">
+                    <Icon size={16} className="shrink-0 text-brand-primary dark:text-brand-accent" aria-hidden="true" />
+                    {t(`ai.chat.suggest${key}`)}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          {messages.map(message => <AIChatMessage key={message.id} message={message} onSendMessage={sendMessage} />)}
+          {pending && <AIChatMessage key={pending.message.id} message={pending.message} onSendMessage={sendMessage} />}
+          {phase === 'sending' && <ChatTypingBubble status={t('ai.chat.replying')} />}
+          {error && (
+            <div role="alert" className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p data-ai-error-kind={error.kind}>{error.code === 'AI_CHAT_CHANGED' ? t('ai.chat.changed') : aiErrorMessage(error)}</p>
+                {phase === 'load-error' && (
+                  <button type="button" className="mt-1 cursor-pointer font-semibold underline underline-offset-2"
+                    onClick={() => { setPhase('loading'); setError(null); setReload(value => value + 1); }}>
+                    {t('ai.action.retry')}
+                  </button>
+                )}
+                {pending && error.retryable && (
+                  <button type="button" onClick={() => void submit(pending)} disabled={cooldown > 0 || confirmReset}
+                    className="mt-1 cursor-pointer font-semibold underline underline-offset-2 disabled:opacity-50">
+                    {t('ai.action.resend')}{cooldown > 0 ? ` (${cooldown}s)` : ''}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <div ref={messagesEnd} />
+        </div>
+      </div>
+
+      <footer className="shrink-0">
+        {latestReply?.sender === 'ai' && (
+          <ChatSuggestionBar questions={suggestedQuestions.map(question => t(`ai.chat.followUp.${question}`))}
+            label={t('ai.organizer.suggestionsLabel')} ariaLabel={t('ai.chat.followUp.label')}
+            onSelect={text => { setDraft(text); textarea.current?.focus(); }} disabled={composerDisabled || confirmReset}
+            testIdPrefix="customer" columnClassName="mx-auto w-full max-w-3xl" />
+        )}
+        <div className="border-t border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#18181b]">
+          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1.5 shadow-inner transition-colors focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/30 dark:border-gray-700 dark:bg-[#27272a]">
+            <textarea ref={textarea} value={draft} maxLength={MAX_INPUT_CHARS} rows={1}
+              aria-label={t('ai.chat.inputLabel')} placeholder={t('ai.chat.inputPlaceholder')}
+              onChange={event => setDraft(event.target.value.slice(0, MAX_INPUT_CHARS))}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+                  event.preventDefault();
+                  sendDraft();
+                }
+              }}
+              disabled={composerDisabled || confirmReset}
+              className="min-h-9 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-1.5 text-sm leading-6 text-text-main outline-none dark:text-white"
+            />
+            {draft.length >= MAX_INPUT_CHARS - 80 && (
+              <span className="self-center font-mono text-[10px] text-text-muted" aria-live="polite">{draft.length}/{MAX_INPUT_CHARS}</span>
+            )}
+            <button type="button" onClick={sendDraft} disabled={!draft.trim() || composerDisabled || confirmReset}
+              aria-label={t('ai.chat.send')} title={t('ai.chat.send')}
+              className="gradient-btn grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-white shadow-sm transition-colors hover:brightness-110 focus-visible:outline-2 focus-visible:outline-brand-primary disabled:opacity-50 disabled:grayscale">
+              <Send size={17} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </footer>
+    </ChatWindow>,
+    document.body,
+  );
+}
+
+export default function AIChatWidget() {
+  const { t } = useTranslation();
+  const [identity, setIdentity] = useState<CustomerChatIdentity | null>(null);
+  const { isOpen, isPresent, openWindow, closeWindow, finishClose } = useChatWindowPresence();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [anchor, setAnchor] = useState<ChatAnchor>();
+  const launcher = useRef<HTMLButtonElement>(null);
+  const identityAttempt = useRef({ latest: 0 });
+
+  const syncIdentity = useCallback(() => {
+    const attempts = identityAttempt.current;
+    const attempt = ++attempts.latest;
+    const session = getKeycloakSession();
+    const commit = (token: string | null) => {
+      if (attempt !== attempts.latest) return;
+      const next = getCustomerChatIdentity(token);
+      setIdentity(previous => previous?.key === next.key ? previous : next);
+    };
+    const token = session.getCurrentToken();
+    if (!token && (session.hasKeycloakSession() || session.isAuthenticated())) {
+      setIdentity(null);
+      void session.getAccessToken().then(commit, () => commit(null));
+    } else {
+      commit(token);
     }
   }, []);
 
-  /**
-   * Thêm tin của người dùng vào hội thoại rồi xin câu trả lời; bỏ qua nội dung rỗng hoặc khi đang chờ phản hồi.
-   * @param text nội dung người dùng
-   * @param hiddenContext ngữ cảnh ẩn gửi kèm (không hiện ra)
-   */
-  const sendMessage = (text: string, hiddenContext?: string) => {
-    if (!text.trim() || sendingRef.current) return;
-    const userMessage: AiChatMessage = {
-      id: nowMs().toString(),
-      sender: 'user',
-      text: text.trim(),
-      hiddenContext,
-      timestamp: new Date()
+  useEffect(() => {
+    removeLegacyHistory();
+    if (!isOpen) return;
+    const attempts = identityAttempt.current;
+    const events = ['auth-changed', 'storage', 'session-expired'];
+    for (const name of events) window.addEventListener(name, syncIdentity);
+    return () => {
+      attempts.latest++;
+      for (const name of events) window.removeEventListener(name, syncIdentity);
     };
-    // bỏ tin chào chung đầu tiên khỏi lịch sử gửi đi
-    const history = messages.slice(1);
-    setMessages(prev => [...prev, userMessage]);
-    void requestReply(userMessage.text, hiddenContext, userMessage.id, history);
-  };
+  }, [isOpen, syncIdentity]);
 
-  /** Gửi lại yêu cầu vừa lỗi với lịch sử đến trước tin nhắn đó; không làm gì khi đang gửi hoặc còn đang chờ. */
-  const resend = () => {
-    if (!chatError || sendingRef.current || cooldown > 0) return;
-    const index = messages.findIndex(m => m.id === chatError.userMessageId);
-    const history = index > 0 ? messages.slice(1, index) : messages.slice(1);
-    void requestReply(chatError.text, chatError.hiddenContext, chatError.userMessageId, history);
-  };
+  useEffect(() => {
+    if (!isOpen || !isExpanded) return;
+    const { style } = document.documentElement;
+    const previous = style.overflow;
+    style.overflow = 'hidden';
+    return () => { style.overflow = previous; };
+  }, [isOpen, isExpanded]);
 
-  /** Gửi nội dung ô nhập rồi xóa ô nhập. */
-  const handleSendMessage = () => {
-    sendMessage(inputText);
-    setInputText('');
-  };
-
-  /** Xóa lịch sử đã lưu và đưa cuộc trò chuyện về tin chào ban đầu. */
-  const resetConversation = () => {
-    safeStorage.remove(chatHistoryKey(accountRef.current));
-    setMessages([greetingMessage(greeting)]);
-    setChatError(null);
-    setConfirmReset(false);
-  };
+  const close = useCallback(() => {
+    closeWindow();
+    requestAnimationFrame(() => launcher.current?.focus({ preventScroll: true }));
+  }, [closeWindow]);
 
   return (
     <>
-      {/* Cửa sổ chat */}
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-label={t('ai.chat.title')}
-          className={`fixed z-[100] bg-white dark:bg-[#18181b] shadow-[0_12px_40px_rgb(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.6)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden origin-bottom-right transition-all duration-300 ease-in-out motion-reduce:transition-none ${
-          isExpanded
-            ? 'bottom-0 right-0 w-full md:w-screen h-[100dvh] max-h-none rounded-none'
-            : 'bottom-5 right-4 sm:right-6 w-[95vw] sm:w-[440px] md:w-[460px] h-[640px] max-h-[85vh] rounded-2xl motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95'
-        }`}>
-
-          {/* Đầu khung */}
-          <div className="gradient-btn p-4 flex justify-between items-center text-white shadow-sm">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative w-10 h-10 rounded-full bg-white shrink-0 shadow-xs flex items-center justify-center">
-                <span className="w-full h-full rounded-full overflow-hidden block">
-                  <img
-                    src="/assets/brand/logo-ai.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="w-full h-full object-cover scale-[1.08]"
-                  />
-                </span>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white" aria-hidden="true" />
-              </div>
-              <h3 className="font-bold flex items-center gap-2 truncate">
-                HaloTicket Assistant
-              </h3>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setConfirmReset(true)}
-                className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                title={t('ai.chat.reset')}
-                aria-label={t('ai.chat.reset')}
-              >
-                <RotateCcw size={16} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                title={isExpanded ? t('ai.chat.collapse') : t('ai.chat.expand')}
-                aria-label={isExpanded ? t('ai.chat.collapse') : t('ai.chat.expand')}
-              >
-                {isExpanded ? <Minimize2 size={18} aria-hidden="true" /> : <Maximize2 size={18} aria-hidden="true" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="hover:bg-white/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                title={t('ai.chat.close')}
-                aria-label={t('ai.chat.close')}
-              >
-                <X size={20} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          {confirmReset && (
-            <div role="alertdialog" aria-label={t('ai.chat.resetConfirm')} className="px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-2 text-sm text-amber-900 dark:text-amber-200">
-              <span>{t('ai.chat.resetConfirm')}</span>
-              <span className="flex gap-2 shrink-0">
-                <button type="button" onClick={() => setConfirmReset(false)} className="px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-xs font-semibold cursor-pointer">
-                  {t('ai.chat.resetConfirmNo')}
-                </button>
-                <button type="button" onClick={resetConversation} className="px-2.5 py-1 rounded-lg bg-red-600 text-white text-xs font-semibold cursor-pointer">
-                  {t('ai.chat.resetConfirmYes')}
-                </button>
-              </span>
-            </div>
-          )}
-
-          {/* Khu vực tin nhắn */}
-          <div
-            role="log"
-            aria-live="polite"
-            aria-relevant="additions text"
-            aria-label={t('ai.chat.conversation')}
-            className="flex-1 p-4 overflow-y-auto bg-gray-50/50 dark:bg-[#18181b]"
-          >
-            {messages.map((msg, index) => (
-              <AIChatMessage
-                key={msg.id}
-                message={index === 0 && msg.id === '1' ? { ...msg, text: greeting } : msg}
-                onSendMessage={sendMessage}
-              />
-            ))}
-            {isLoading && (
-              <div className="flex items-center text-text-muted gap-2 ml-2 mb-4" role="status">
-                <Loader2 size={16} className="motion-safe:animate-spin text-brand-primary" aria-hidden="true" />
-                <span className="text-sm italic">{t('ai.chat.thinking')}</span>
-              </div>
-            )}
-            {chatError && !isLoading && (
-              <div role="alert" className="mb-4 mr-8 flex items-start gap-2 rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-2.5 text-sm text-red-800 dark:text-red-200">
-                <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                <div className="min-w-0">
-                  <p data-ai-error-kind={chatError.info.kind}>{aiErrorMessage(chatError.info)}</p>
-                  {chatError.info.retryable && (
-                    <button
-                      type="button"
-                      onClick={resend}
-                      disabled={cooldown > 0}
-                      className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-red-300 dark:border-red-800 px-2.5 py-1 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 cursor-pointer"
-                    >
-                      <RotateCcw size={12} aria-hidden="true" />
-                      {t('ai.action.resend')}{cooldown > 0 ? ` (${cooldown}s)` : ''}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Gợi ý nhanh */}
-          {messages.length <= 2 && (
-            <div className="px-3 py-2 bg-gray-50/80 dark:bg-[#18181b]/80 border-t border-gray-100 dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {[
-                { label: t('ai.chat.suggestHot'), text: t('ai.chat.suggestHotText') },
-                { label: t('ai.chat.suggestMusic'), text: t('ai.chat.suggestMusicText') },
-                { label: t('ai.chat.suggestTheatre'), text: t('ai.chat.suggestTheatreText') },
-                { label: t('ai.chat.suggestHcm'), text: t('ai.chat.suggestHcmText') }
-              ].map((chip, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => sendMessage(chip.text)}
-                  disabled={isLoading}
-                  className="px-2.5 py-1 text-[11px] font-medium bg-white dark:bg-[#27272a] text-brand-primary dark:text-brand-accent border border-gray-200 dark:border-gray-700 rounded-full hover:bg-brand-primary/10 transition-colors whitespace-nowrap cursor-pointer shrink-0 disabled:opacity-50"
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Khu vực nhập liệu */}
-          <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#18181b]">
-            <div className="flex items-end gap-2 bg-gray-50 dark:bg-[#27272a] p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/30 transition-all shadow-inner">
-              <label htmlFor="ai-chat-input" className="sr-only">{t('ai.chat.inputLabel')}</label>
-              <textarea
-                id="ai-chat-input"
-                ref={textareaRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value.slice(0, MAX_INPUT_CHARS))}
-                maxLength={MAX_INPUT_CHARS}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder={t('ai.chat.inputPlaceholder')}
-                className="flex-1 bg-transparent border-none focus:outline-none resize-none max-h-32 text-sm py-1.5 px-2 text-text-main dark:text-white"
-                rows={1}
-                disabled={isLoading}
-              />
-              {inputText.length >= MAX_INPUT_CHARS - 80 && (
-                <span className="self-center text-[10px] font-mono text-gray-400" aria-live="polite">
-                  {inputText.length}/{MAX_INPUT_CHARS}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleSendMessage}
-                disabled={!inputText.trim() || isLoading}
-                className="p-2 gradient-btn text-white rounded-lg disabled:opacity-50 disabled:grayscale hover:brightness-110 transition-all shadow-sm cursor-pointer"
-                title={t('ai.chat.send')}
-                aria-label={t('ai.chat.send')}
-              >
-                <Send size={18} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </div>
+      {(identity || isPresent) && (
+        <CustomerChatPanel key={identity?.key ?? 'loading-owner'} identity={identity}
+          isOpen={isOpen} isPresent={isPresent} isExpanded={isExpanded} anchor={anchor} onExited={finishClose}
+          onExpand={() => setIsExpanded(value => !value)} onClose={close} />
       )}
-
-      {/* Nút nổi */}
-      {!isOpen && (
-        <div className="fixed bottom-24 right-8 z-50 flex items-center gap-3 select-none pointer-events-none">
-          {isHovered && (
-            <div
-              data-testid="ai-chat-hover-tooltip"
-              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 dark:bg-[#1e1e22]/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] text-slate-900 dark:text-white text-xs sm:text-[13px] font-bold pointer-events-none motion-safe:animate-in motion-safe:fade-in-50 duration-150"
-            >
-              <Sparkles className="w-4 h-4 text-brand-primary shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap">{t('ai.chat.hoverPrompt', 'Trò chuyện cùng trợ lí AI')}</span>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setIsHovered(false);
-              setIsOpen(true);
-            }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="pointer-events-auto relative w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-brand-primary hover:bg-brand-primary/95 shadow-[0_8px_28px_rgba(37,99,235,0.28)] hover:shadow-[0_10px_32px_rgba(37,99,235,0.38)] hover:scale-105 active:scale-95 transition-all duration-200 motion-reduce:transition-none flex items-center justify-center border-2 border-white/80 dark:border-white/20 p-1 group cursor-pointer"
-            aria-label={t('ai.chat.open')}
-            title={t('ai.chat.open')}
-          >
-            <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-0.5 shadow-xs overflow-hidden">
-              <img
-                src="/assets/brand/logo-ai.png"
-                alt=""
-                aria-hidden="true"
-                className="w-full h-full object-contain scale-125 group-hover:scale-135 transition-transform duration-200 motion-reduce:transition-none"
-              />
-            </div>
-          </button>
-        </div>
-      )}
+      <ChatLauncher kind="customer" label={t('ai.chat.open')} hidden={isOpen} buttonRef={launcher}
+        hintTestId="ai-chat-hover-tooltip"
+        onOpen={location => {
+          setAnchor(location);
+          syncIdentity();
+          if (!isPresent) setIsExpanded(false);
+          openWindow();
+        }} />
     </>
   );
-};
-
-export default AIChatWidget;
+}

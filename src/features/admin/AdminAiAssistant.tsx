@@ -1,14 +1,20 @@
-import React, { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
-import { useTranslation } from "react-i18next";
-import { FiSend, FiLoader, FiZap, FiDatabase, FiTrash2 } from "react-icons/fi";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { useEffect, useEffectEvent, useRef, useState, type ComponentPropsWithoutRef, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Activity, ClipboardCheck, BarChart3, Loader2, Maximize2, Minimize2, PanelLeftOpen, Plus, Send, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { aiApi } from "@/services/aiApi";
-import { eventApi } from "@/services/eventApi";
-import { resolveAiError, aiErrorMessage, type AiErrorInfo } from "@/utils/aiErrors";
-import { Link } from "react-router-dom";
-import { PATHS } from "@/routes/paths";
+import { aiApi } from '@/services/aiApi';
+import { adminChatApi } from '@/services/adminChatApi';
+import { eventApi } from '@/services/eventApi';
+import type { ChatConversationSummary } from '@/types/ai';
+import { resolveAiError, aiErrorMessage, type AiErrorInfo } from '@/utils/aiErrors';
+import { Link } from 'react-router-dom';
+import { PATHS } from '@/routes/paths';
+import { ChatSuggestionBar, ChatTypingBubble } from '@/components/common/ChatFeedback';
+import { ChatMessageTime } from '@/components/common/ChatMessageTime';
+import { ChatHistoryResizeHandle } from '@/components/common/ChatHistoryResizeHandle';
+import OrganizerSessionDrawer from '@/components/common/OrganizerAIChatWidget/OrganizerSessionDrawer';
+import { createRequestId, sortOrganizerSessions } from '@/components/common/OrganizerAIChatWidget/organizerChatSessions';
 
 /** Sự kiện chờ duyệt mà trợ lý gợi ý thao tác nhanh: id, tên và ban tổ chức. */
 interface ActionableEvent {
@@ -44,252 +50,408 @@ function withoutNode<T extends object>(props: T): Omit<T, "node"> {
   return rest as Omit<T, "node">;
 }
 
-/** Tin nhắn dạng đã lưu trong `localStorage`, thời gian là chuỗi hoặc số thay vì `Date`. */
-type StoredMessage = Omit<ChatMessage, "timestamp"> & { timestamp?: string | number };
+const logo = '/assets/brand/logo-ai.png';
+const headerButton = 'grid size-9 shrink-0 place-items-center rounded-lg hover:bg-white/15 cursor-pointer disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-white';
+const topics = [
+  { key: 'overview', icon: BarChart3 },
+  { key: 'pending', icon: ClipboardCheck },
+  { key: 'health', icon: Activity },
+] as const;
 
-/** Sinh id tin nhắn duy nhất từ thời gian hiện tại và chuỗi ngẫu nhiên ngắn. */
-const newMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+function isApprovalQuestion(text: string) {
+  return /duyệt|approv/i.test(text) && /sự kiện|event/i.test(text);
+}
 
-/**
- * Khung chat trợ lý AI cho quản trị viên (trang riêng hoặc dạng ngăn kéo): lưu lịch sử trong `localStorage`
- * (khóa `admin_ai_chat_history`), hiện lỗi AI dưới dạng bong bóng hệ thống có thể gửi lại, và gợi ý nhanh các sự kiện chờ duyệt
- * khi câu hỏi liên quan tới duyệt sự kiện.
- * @param isDrawer hiển thị dạng ngăn kéo
- * @param initialPrompt nội dung ô nhập do cha truyền vào
- */
-export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" }: { isDrawer?: boolean, initialPrompt?: string }) {
-  const { t, i18n } = useTranslation();
-  /** Chọn nhãn theo ngôn ngữ hiện tại: bản tiếng Anh khi ngôn ngữ là `en`, còn lại bản tiếng Việt. */
-  const label = (vi: string, en: string) => t(vi, { defaultValue: i18n.language.startsWith("en") ? en : vi });
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+async function approvalEvents(question: string, usedTools?: string[]) {
+  if (!isApprovalQuestion(question) && !usedTools?.includes('list_pending_events')) return;
+  try {
+    const events = await eventApi.getApprovalEvents('PENDING');
+    return events.flatMap((event): ActionableEvent[] => {
+      const { id, title, organizer } = event;
+      if ((typeof id !== 'string' && typeof id !== 'number') || typeof title !== 'string') return [];
+      const name = organizer && typeof organizer === 'object' && 'name' in organizer ? organizer.name : undefined;
+      return [{ id, title, organizer: typeof name === 'string' ? { name } : undefined }];
+    }).slice(0, 3);
+  } catch {
+    // The answer remains usable even if the live approval list is unavailable.
+  }
+}
 
-  /** Tạo tin chào đầu tiên của trợ lý theo ngôn ngữ hiện tại. */
-  const getWelcomeMessage = (): ChatMessage => ({
-    id: "welcome-1",
-    sender: "ai",
-    text: label(
-      "Xin chào, tôi là trợ lý AI dành cho Quản trị viên. Tôi có thể giúp bạn kiểm tra hệ thống, tóm tắt sự kiện hoặc tra cứu Audit Logs. Bạn cần giúp gì hôm nay?",
-      "Hello, I am your Admin AI Assistant. I can help you check system health, summarize events, or query Audit Logs. How can I help you today?"
-    ),
-    timestamp: new Date(),
-  });
+interface PendingTurn {
+  message: ChatMessage;
+  requestId: string;
+  conversationId: string;
+  history: ChatMessage[];
+}
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem('admin_ai_chat_history');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((m: StoredMessage) => ({
-            ...m,
-            timestamp: new Date(m.timestamp || Date.now())
-          }));
-        }
-      }
-    } catch {
-      // lịch sử đã lưu không đọc được hoặc hỏng: bắt đầu lại từ tin chào
-    }
-    return [getWelcomeMessage()];
-  });
+interface Props {
+  owner?: string;
+  isOpen?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+  onClose?: () => void;
+}
 
-  const [inputText, setInputText] = useState(initialPrompt);
+export default function AdminAiAssistant({ owner, isOpen = true, isExpanded = false, onToggleExpand, onClose }: Props) {
+  const { t } = useTranslation();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessions, setSessions] = useState<ChatConversationSummary[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [inputText, setInputText] = useState('');
+  const [isDrawerOpen, setDrawerOpen] = useState(false);
+  const [historyWidth, setHistoryWidth] = useState(224);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [isLoadingSessions, setLoadingSessions] = useState(Boolean(owner));
+  const [isLoadingDetail, setLoadingDetail] = useState(false);
+  const [isClearingAll, setClearingAll] = useState(false);
+  const [mutatingSessionId, setMutatingSessionId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // lỗi hiện dưới dạng bong bóng hệ thống nằm ngoài `messages`: không bao giờ được lưu và không bao giờ gửi lại làm lịch sử.
-  const [chatError, setChatError] = useState<{ info: AiErrorInfo; text: string; userMessageId: string } | null>(null);
+  const [pending, setPending] = useState<PendingTurn | null>(null);
+  const [chatError, setChatError] = useState<AiErrorInfo | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const [isWide, setWide] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const historyToggle = useRef<HTMLButtonElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const operation = useRef<AbortController | null>(null);
+  const isBusy = isLoading || isLoadingDetail || isLoadingSessions;
+  const composerDisabled = isBusy || isClearingAll || Boolean(mutatingSessionId);
+  const sidebar = isExpanded && isWide;
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('admin_ai_chat_history', JSON.stringify(messages));
-    } catch (e) {
-      console.warn("Storage quota exceeded", e);
-    }
-  }, [messages]);
-
-  /** Xóa cuộc trò chuyện, đưa về tin chào và ghi đè lịch sử đã lưu. */
-  const clearChatHistory = () => {
-    const fresh = [getWelcomeMessage()];
-    setMessages(fresh);
-    setChatError(null);
-    localStorage.setItem('admin_ai_chat_history', JSON.stringify(fresh));
-  };
-
-  // prompt mới do cha truyền vào sẽ thay bản nháp (điều chỉnh state ngay lúc render thay vì dùng effect)
-  const [seenPrompt, setSeenPrompt] = useState(initialPrompt);
-  if (initialPrompt !== seenPrompt) {
-    setSeenPrompt(initialPrompt);
-    if (initialPrompt) setInputText(initialPrompt);
+  function fillDraft(text: string) {
+    setInputText(text);
+    inputRef.current?.focus({ preventScroll: true });
   }
 
-  /** Cuộn khung tin nhắn xuống cuối. */
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, chatError]);
-
-  /** Thêm tin của quản trị viên vào hội thoại rồi xin câu trả lời; bỏ qua nội dung rỗng. */
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!inputText.trim()) return;
-
-    const userMessage = {
-      id: newMessageId(),
-      sender: "user" as const,
-      text: inputText.trim(),
-      timestamp: new Date()
-    };
-    
-    const history = messages.slice(1);
-    setMessages(prev => [...prev, userMessage]);
-    setInputText("");
-    void requestReply(userMessage.text, userMessage.id, history);
-  };
-
-  /** Gửi lại câu hỏi vừa lỗi với lịch sử đến trước tin đó; không làm gì khi đang tải hoặc không có lỗi. */
-  const resendLast = () => {
-    if (!chatError || isLoading) return;
-    const index = messages.findIndex(m => m.id === chatError.userMessageId);
-    void requestReply(chatError.text, chatError.userMessageId, index > 0 ? messages.slice(1, index) : messages.slice(1));
-  };
-
-  /**
-   * Gọi trợ lý admin và thêm câu trả lời; với câu hỏi về duyệt sự kiện thì lấy thêm tối đa 3 sự kiện đang chờ duyệt để gợi ý thao tác.
-   * @param text nội dung câu hỏi
-   * @param userMessageId id tin nhắn người dùng (để gửi lại khi lỗi)
-   * @param previous các tin nhắn trước đó dùng làm lịch sử
-   */
-  const requestReply = async (text: string, userMessageId: string, previous: ChatMessage[]) => {
-    const userMessage = { text };
+  function clearDraft() {
+    setPending(null);
     setChatError(null);
-    setIsLoading(true);
+    setCooldown(0);
+    setInputText('');
+  }
 
+  function newConversation() {
+    if (operation.current) return;
+    clearDraft();
+    setActiveId(null);
+    setMessages([]);
+    if (!sidebar) setDrawerOpen(false);
+    inputRef.current?.focus({ preventScroll: true });
+  }
+
+  async function runTask(task: (signal: AbortSignal) => Promise<void>, onError: (message: string) => void) {
+    if (operation.current) return;
+    const controller = new AbortController();
+    operation.current = controller;
     try {
-      const history = previous.map(m => ({ 
-        role: m.sender === "user" ? "user" : "assistant", 
-        content: m.text 
-      }));
-      const isApprovalQuestion = userMessage.text.toLowerCase().includes("duyệt") && (userMessage.text.toLowerCase().includes("sự kiện") || userMessage.text.toLowerCase().includes("event"));
-      let actionableEvents: ActionableEvent[] | undefined = undefined;
-
-      const response = await aiApi.chatAdminAssistant(userMessage.text, history);
-
-      if (isApprovalQuestion) {
-         try {
-            const pendingEvents = await eventApi.getApprovalEvents("PENDING");
-            if (pendingEvents && pendingEvents.length > 0) {
-               actionableEvents = pendingEvents.slice(0, 3) as unknown as ActionableEvent[];
-            }
-         } catch (e) {
-            console.error("Failed to load actionable events for AI:", e);
-         }
-      }
-
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        sender: "ai",
-        text: response.reply,
-        actionableEvents,
-        toolsUsed: Array.isArray(response.tools_used) ? response.tools_used : undefined,
-        grounded: typeof response.grounded === "boolean" ? response.grounded : undefined,
-        timestamp: new Date()
-      }]);
+      await task(controller.signal);
     } catch (error) {
-      console.error("AI Assistant Error:", error);
-      setChatError({ info: resolveAiError(error), text, userMessageId });
+      if (!controller.signal.aborted) onError(aiErrorMessage(resolveAiError(error)));
     } finally {
-      setIsLoading(false);
+      if (operation.current === controller) operation.current = null;
+    }
+  }
+
+  async function loadConversation(id: string, signal: AbortSignal) {
+    if (!owner) return;
+    setLoadingDetail(true);
+    setSessionsError(null);
+    try {
+      const detail = await adminChatApi(owner, signal).get(id);
+      if (signal.aborted) return;
+      const restored = detail.messages.map((message): ChatMessage => ({
+        id: message.id,
+        sender: message.role === 'user' ? 'user' : 'ai',
+        text: message.content,
+        timestamp: new Date(message.created_at),
+        toolsUsed: message.tools_used,
+        grounded: message.grounded,
+      }));
+      clearDraft();
+      setActiveId(id);
+      setMessages(restored);
+      if (!sidebar) setDrawerOpen(false);
+      const latest = restored.at(-1);
+      if (latest?.sender === 'ai') {
+        void approvalEvents(restored.at(-2)?.text ?? '', latest.toolsUsed).then(events => {
+          if (!signal.aborted && events?.length) {
+            setMessages(current => current.map(message => message.id === latest.id ? { ...message, actionableEvents: events } : message));
+          }
+        });
+      }
+    } finally {
+      if (!signal.aborted) setLoadingDetail(false);
+    }
+  }
+
+  const refresh = async (signal: AbortSignal, selectLatest = false) => {
+    if (!owner) return;
+    setLoadingSessions(true);
+    setSessionsError(null);
+    try {
+      const saved = await adminChatApi(owner, signal).list();
+      if (signal.aborted) return;
+      setSessions(saved);
+      if (activeId && !saved.some(session => session.id === activeId)) {
+        clearDraft();
+        setActiveId(null);
+        setMessages([]);
+      }
+      if (selectLatest && saved.length) {
+        const [latest] = [...saved].sort((first, second) => Date.parse(second.updated_at) - Date.parse(first.updated_at));
+        await loadConversation(latest.id, signal);
+      }
+    } finally {
+      if (!signal.aborted) setLoadingSessions(false);
     }
   };
 
-  return (
-    <div className={`flex flex-col min-h-0 space-y-4 ${isDrawer ? 'h-full' : 'h-[calc(100vh-100px)]'}`}>
-      {!isDrawer ? (
-        <AdminPageHeader
-          title={label("Trợ lý AI Quản trị viên", "Admin AI Assistant")}
-          description={label(
-            "Hỗ trợ phân tích dữ liệu, giải đáp thắc mắc và đề xuất hướng xử lý cho các tác vụ quản trị.",
-            "Supports data analysis, answers queries, and suggests actions for administrative tasks."
-          )}
-          actions={
-            messages.length > 1 ? (
-              <button
-                type="button"
-                onClick={clearChatHistory}
-                className="inline-flex min-h-9 items-center gap-2 rounded-md border app-border app-bg-card px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-              >
-                <FiTrash2 className="w-3.5 h-3.5" />
-                <span>{label("Xóa lịch sử trò chuyện", "Clear conversation")}</span>
-              </button>
-            ) : undefined
+  useEffect(() => {
+    const media = window.matchMedia?.('(min-width: 768px)');
+    const update = () => setWide(media?.matches ?? false);
+    media?.addEventListener?.('change', update);
+    return () => media?.removeEventListener?.('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && !composerDisabled) inputRef.current?.focus({ preventScroll: true });
+  }, [isOpen, composerDisabled]);
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      if (confirmDeleteId) setConfirmDeleteId(null);
+      else if (confirmClearAll) setConfirmClearAll(false);
+      else if (isDrawerOpen) {
+        setDrawerOpen(false);
+        historyToggle.current?.focus();
+      } else onClose();
+    };
+    document.addEventListener('keydown', keydown);
+    return () => document.removeEventListener('keydown', keydown);
+  }, [isOpen, onClose, confirmDeleteId, confirmClearAll, isDrawerOpen]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [messages, pending, isLoading, chatError]);
+
+  useEffect(() => {
+    if (!cooldown) return;
+    const timer = window.setTimeout(() => setCooldown(seconds => seconds - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
+
+  const initialize = useEffectEvent(() => void runTask(signal => refresh(signal, true), setSessionsError));
+
+  useEffect(() => {
+    if (owner) initialize();
+    return () => {
+      operation.current?.abort();
+      operation.current = null;
+    };
+  }, [owner]);
+
+  function selectConversation(id: string) {
+    void runTask(signal => loadConversation(id, signal), setSessionsError);
+  }
+
+  function pinConversation(session: ChatConversationSummary) {
+    if (!owner) return;
+    void runTask(async signal => {
+      setMutatingSessionId(session.id);
+      setMutationError(null);
+      try {
+        const updated = await adminChatApi(owner, signal).pin(session.id, !session.is_pinned);
+        if (!signal.aborted) setSessions(current => current.map(row => row.id === updated.id ? updated : row));
+      } finally {
+        if (!signal.aborted) setMutatingSessionId(null);
+      }
+    }, setMutationError);
+  }
+
+  function deleteConversations(id?: string) {
+    if (!owner) return;
+    void runTask(async signal => {
+      if (id) setMutatingSessionId(id);
+      else setClearingAll(true);
+      setMutationError(null);
+      try {
+        await adminChatApi(owner, signal).remove(id);
+        if (signal.aborted) return;
+        setSessions(current => id ? current.filter(row => row.id !== id) : []);
+        setConfirmDeleteId(null);
+        setConfirmClearAll(false);
+        if (!id || activeId === id) {
+          clearDraft();
+          setActiveId(null);
+          setMessages([]);
+        }
+      } finally {
+        if (!signal.aborted) {
+          setMutatingSessionId(null);
+          setClearingAll(false);
+        }
+      }
+    }, setMutationError);
+  }
+
+  function requestReply(turn: PendingTurn) {
+    if (composerDisabled) return;
+    void runTask(async signal => {
+      setPending(turn);
+      setChatError(null);
+      setIsLoading(true);
+      try {
+        let response;
+        if (owner) {
+          const api = adminChatApi(owner, signal);
+          if (activeId !== turn.conversationId) {
+            const created = await api.create(turn.conversationId);
+            if (signal.aborted) return;
+            setActiveId(created.id);
+            setSessions(current => [created, ...current.filter(row => row.id !== created.id)]);
           }
-        />
-      ) : (
-        <div className="flex justify-between items-center px-2 pb-1 border-b app-border">
-          <span className="text-xs font-bold app-text-main flex items-center gap-1.5"><FiZap className="w-3.5 h-3.5 text-blue-500" /> System AI</span>
-          {messages.length > 1 && (
-            <button
-              type="button"
-              onClick={clearChatHistory}
-              className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
-            >
-              <FiTrash2 className="w-3 h-3" />
-              <span>{label("Xóa lịch sử", "Clear")}</span>
-            </button>
-          )}
-        </div>
-      )}
+          response = await api.send(turn.message.text, turn.conversationId, turn.requestId);
+        } else {
+          response = await aiApi.chatAdminAssistant(turn.message.text, turn.history.map(entry => ({
+            role: entry.sender === 'user' ? 'user' : 'assistant', content: entry.text,
+          })));
+        }
+        if (signal.aborted) return;
+        const replyId = createRequestId();
+        setMessages(current => [...current, turn.message, {
+          id: replyId, sender: 'ai', text: response.reply, timestamp: new Date(),
+          toolsUsed: response.tools_used, grounded: response.grounded,
+        }]);
+        void approvalEvents(turn.message.text, response.tools_used).then(events => {
+          if (!signal.aborted && events?.length) {
+            setMessages(current => current.map(message => message.id === replyId ? { ...message, actionableEvents: events } : message));
+          }
+        });
+        setPending(null);
+        if (owner) {
+          const updatedAt = new Date().toISOString();
+          setSessions(current => current.map(row => row.id === turn.conversationId
+            ? { ...row, title: row.title || Array.from(turn.message.text).slice(0, 60).join(''), updated_at: updatedAt }
+            : row));
+        }
+      } catch (error) {
+        if (!signal.aborted) {
+          const info = resolveAiError(error);
+          setChatError(info);
+          setCooldown(info.retryAfterSeconds ?? 0);
+        }
+      } finally {
+        if (!signal.aborted) setIsLoading(false);
+      }
+    }, setMutationError);
+  }
 
-      <div className={`flex-1 min-h-0 flex flex-col shadow-xs ${isDrawer ? '' : 'border app-border rounded-lg app-bg-card'}`}>
-        {/* Danh sách tin nhắn */}
-        <div role="log" aria-live="polite" aria-label={label("Cuộc trò chuyện với trợ lý AI", "Conversation with the AI assistant")} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
-          {messages.length === 1 && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
-              <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                <FiZap className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold app-text-main mb-1">
-                  {label("Tôi có thể giúp gì cho bạn?", "How can I help you?")}
-                </h3>
-                <p className="text-[11px] app-text-muted max-w-md mx-auto">
-                  {label("Bạn có thể đặt câu hỏi về doanh thu, sự kiện đang chờ duyệt, hoặc kiểm tra trạng thái của các microservices.", "You can ask about revenue, pending events, or check the status of microservices.")}
+  function onSend(event: FormEvent) {
+    event.preventDefault();
+    const text = inputText.trim();
+    if (!text || pending || composerDisabled || operation.current) return;
+    setInputText('');
+    const requestId = createRequestId();
+    requestReply({
+      requestId, conversationId: activeId ?? createRequestId(), history: messages,
+      message: { id: requestId, sender: 'user', text, timestamp: new Date() },
+    });
+  }
+
+  const last = messages.at(-1);
+  const suggestions = last?.toolsUsed?.includes('list_pending_events')
+    ? ['pending', 'reviewDetails', 'health']
+    : last?.toolsUsed?.includes('get_attention_feed')
+      ? ['health', 'systemErrors', 'pending']
+      : ['overview', 'pending', 'health'];
+  const visibleMessages = pending ? [...messages, pending.message] : messages;
+  const column = isExpanded ? 'mx-auto w-full max-w-4xl' : 'w-full';
+
+  return (
+    <>
+      <header className="flex min-h-12 shrink-0 items-center gap-2 bg-brand-primary px-3 text-white dark:bg-blue-700">
+        {owner && <button ref={historyToggle} type="button" className={headerButton}
+          aria-label={t('ai.organizer.sessions.toggleHistory')} aria-expanded={isDrawerOpen}
+          aria-controls={isDrawerOpen ? 'organizer-session-drawer' : undefined}
+          onClick={() => setDrawerOpen(value => !value)}><PanelLeftOpen size={18} aria-hidden="true" /></button>}
+        <span className="relative size-7 shrink-0">
+          <img src={logo} alt="" className="size-full rounded-full bg-white object-cover" />
+          <span className="absolute -right-0.5 bottom-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-brand-primary dark:ring-blue-700" />
+        </span>
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{t('ai.assist.adminTitle')}</h3>
+        {owner && <button type="button" className={headerButton} disabled={composerDisabled}
+          aria-label={t('ai.organizer.sessions.newChat')} onClick={newConversation}><Plus size={18} aria-hidden="true" /></button>}
+        {onToggleExpand && <button type="button" className={headerButton} onClick={onToggleExpand}
+          aria-label={t(isExpanded ? 'ai.chat.collapse' : 'ai.chat.expand')}>
+          {isExpanded ? <Minimize2 size={18} aria-hidden="true" /> : <Maximize2 size={18} aria-hidden="true" />}
+        </button>}
+        {onClose && <button type="button" className={headerButton} aria-label={t('ai.chat.close')} onClick={onClose}><X size={20} aria-hidden="true" /></button>}
+      </header>
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        {owner && <OrganizerSessionDrawer
+          variant={sidebar ? 'sidebar' : 'overlay'} sidebarWidth={historyWidth} isOpen={isDrawerOpen} activeScope="admin"
+          sessions={sortOrganizerSessions(sessions)} activeConversationId={activeId}
+          searchQuery={searchQuery} onSearchQueryChange={setSearchQuery}
+          isLoadingSessions={isLoadingSessions} sessionsError={sessionsError} mutationError={mutationError}
+          onDismissMutationError={() => setMutationError(null)} isBusy={isBusy} isClearingAll={isClearingAll}
+          mutatingSessionId={mutatingSessionId} confirmDeleteId={confirmDeleteId}
+          onRequestDeleteSession={setConfirmDeleteId} onConfirmDeleteSession={deleteConversations}
+          confirmClearAll={confirmClearAll} onRequestClearAll={setConfirmClearAll}
+          onConfirmClearAll={() => deleteConversations()} onSelectSession={selectConversation}
+          onNewChat={newConversation} onTogglePin={pinConversation}
+          onRefresh={() => void runTask(signal => refresh(signal, activeId === null && !messages.length), setSessionsError)}
+          onClose={() => { setDrawerOpen(false); historyToggle.current?.focus(); }}
+        />}
+        {sidebar && isDrawerOpen && (
+          <ChatHistoryResizeHandle label={t('ai.organizer.sessions.resize')} width={historyWidth} setHistoryWidth={setHistoryWidth} />
+        )}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div role="log" aria-live="polite" aria-label={t('ai.chat.conversation')}
+            className="min-h-0 flex-1 overflow-y-auto bg-gray-50/60 dark:bg-[#18181b]">
+            <div className={`${column} space-y-3.5 px-3 py-4 sm:px-4`}>
+              {(isLoadingDetail || isLoadingSessions) && (
+                <p role="status" className="flex items-center gap-2 text-sm text-text-muted">
+                  <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" /> {t('ai.chat.loadingHistory')}
                 </p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
-                {[
-                  label("Tóm tắt doanh thu tháng này", "Summarize this month's revenue"),
-                  label("Có sự kiện nào cần duyệt không?", "Any events pending approval?"),
-                  label("Kiểm tra sức khỏe hệ thống", "Check system health")
-                ].map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setInputText(prompt);
-                    }}
-                    className="px-3.5 py-1.5 rounded-md border app-border text-[11px] font-semibold app-text-main hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors shadow-xs hover:border-blue-500"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, idx) => (
+              )}
+              {!isDrawerOpen && sessionsError && (
+                <div role="alert" className="text-sm text-red-700 dark:text-red-300">
+                  {sessionsError}{' '}
+                  <button type="button" className="font-semibold underline"
+                    onClick={() => void runTask(signal => refresh(signal, activeId === null), setSessionsError)}>{t('ai.action.retry')}</button>
+                </div>
+              )}
+              {!visibleMessages.length && !isLoadingDetail && !isLoadingSessions && (
+                <section className="py-1.5">
+                  <div className="flex items-start gap-2.5">
+                    <img src={logo} alt="" className="mt-1 size-8 shrink-0 rounded-full bg-white ring-2 ring-brand-primary/60" />
+                    <p className="rounded-2xl border border-brand-primary/15 bg-white px-3.5 py-3 text-sm text-gray-700 dark:bg-[#202024] dark:text-gray-200">
+                      {t('ai.assist.welcome')}
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:ml-[42px] sm:grid-cols-2">
+                    {topics.map(({ key, icon: Icon }) => <button key={key} type="button" onClick={() => fillDraft(t(`ai.assist.prompt.${key}`))}
+                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left text-xs font-semibold hover:border-brand-primary/50 dark:border-zinc-700 dark:bg-[#202024]">
+                      <Icon size={16} className="shrink-0 text-brand-primary" aria-hidden="true" /> {t(`ai.assist.prompt.${key}`)}
+                    </button>)}
+                  </div>
+                </section>
+              )}
+          {visibleMessages.map(msg => (
             <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[90%] sm:max-w-[85%] px-4 py-3 text-xs shadow-xs ${
+              {msg.sender === "ai" && <img src={logo} alt="" className="mt-0.5 mr-2 size-8 shrink-0 rounded-full bg-white object-cover ring-2 ring-brand-primary/60" />}
+              <div className={`min-w-0 max-w-[90%] sm:max-w-[85%] px-3.5 py-2.5 text-sm shadow-xs ${
                 msg.sender === "user" 
                   ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm" 
-                  : "bg-white dark:bg-[#18181b] app-text-main rounded-2xl rounded-tl-sm border border-slate-200 dark:border-slate-800"
+                  : "bg-white dark:bg-[#1e1e22] app-text-main rounded-2xl rounded-tl-sm border border-slate-200 dark:border-slate-800"
               }`}>
-                {msg.sender === "ai" && idx === 0 ? (
-                  <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800 text-blue-600 dark:text-blue-400">
-                    <FiDatabase className="w-3.5 h-3.5" />
-                    <span className="text-[11px] font-bold uppercase tracking-wider">System AI</span>
-                  </div>
-                ) : null}
                 <div className="leading-relaxed text-xs">
                   {msg.sender === "ai" ? (
                     <ReactMarkdown
@@ -395,61 +557,56 @@ export default function AdminAiAssistant({ isDrawer = false, initialPrompt = "" 
                     {t("ai.assist.toolsUsed", { tools: Array.from(new Set(msg.toolsUsed)).map((tool) => t(`ai.assist.tool.${tool}`, { defaultValue: tool })).join(", ") })}
                   </p>
                 )}
-                <div className={`text-[10px] mt-2 ${msg.sender === "user" ? "text-blue-100 text-right" : "app-text-muted"}`}>
-                  {msg.timestamp.toLocaleTimeString(i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                </div>
+                <ChatMessageTime timestamp={msg.timestamp} outgoing={msg.sender === 'user'} />
               </div>
             </div>
           ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white dark:bg-[#18181b] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2 border border-slate-200 dark:border-slate-800 shadow-xs">
-                <FiLoader className="w-4 h-4 text-blue-600 motion-safe:animate-spin" />
-                <span className="text-[11px] font-medium app-text-muted">{label("Đang phân tích...", "Analyzing...")}</span>
-              </div>
+              {isLoading && <ChatTypingBubble status={t('ai.chat.replying')} />}
+              {chatError && !isLoading && (
+                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                  <p>{aiErrorMessage(chatError)}</p>
+                  {pending && chatError.retryable && (
+                    <button type="button" onClick={() => requestReply(pending)} disabled={cooldown > 0 || composerDisabled}
+                      className="mt-1 cursor-pointer font-semibold underline disabled:opacity-50">
+                      {t('ai.action.resend')}{cooldown > 0 ? ` (${cooldown}s)` : ''}
+                    </button>
+                  )}
+                  <button type="button" className="ml-2 cursor-pointer font-semibold underline"
+                    onClick={() => {
+                      if (owner && activeId && chatError.status !== 404) selectConversation(activeId);
+                      else if (chatError.status === 404) newConversation();
+                      else clearDraft();
+                    }}>{t('ai.assist.dismissSend')}</button>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
-          )}
-          {chatError && !isLoading && (
-            <div className="flex justify-start">
-              <div role="alert" className="max-w-[90%] sm:max-w-[85%] rounded-2xl rounded-tl-sm border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-xs text-rose-800 dark:text-rose-200">
-                <p>{aiErrorMessage(chatError.info)}</p>
-                {chatError.info.retryable && (
-                  <button type="button" onClick={resendLast} className="mt-2 inline-flex items-center rounded-md border border-rose-300 dark:border-rose-800 px-2.5 py-1 text-[11px] font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer">
-                    {label("Gửi lại", "Resend")}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Khu vực nhập liệu */}
-        <div className="p-3.5 app-bg-subnav border-t app-border rounded-b-md">
-          <form onSubmit={handleSendMessage} className="relative flex items-center">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              aria-label={label("Nhập tin nhắn cho trợ lý AI", "Type a message to the AI assistant")}
-              className="w-full app-bg-card border app-border rounded-xl pl-3.5 pr-11 min-h-9 py-2 text-xs font-medium app-text-main focus:outline-none focus:border-blue-500 shadow-xs transition-all placeholder:text-slate-400"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={!inputText.trim() || isLoading}
-              className="absolute right-1.5 h-7 w-7 flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
-            >
-              <FiSend className="w-3.5 h-3.5" />
-            </button>
-          </form>
-          <div className="text-center mt-2">
-            <span className="text-[10px] app-text-muted">
-              {label("AI có thể đưa ra thông tin không chính xác. Hãy kiểm tra lại các quyết định quan trọng.", "AI can make mistakes. Consider verifying important decisions.")}
-            </span>
           </div>
+          {last?.sender === 'ai' && (
+            <ChatSuggestionBar questions={suggestions.map(key => t(`ai.assist.prompt.${key}`))}
+              label={t('ai.organizer.suggestionsLabel')} columnClassName={column} wrap={sidebar}
+              onSelect={fillDraft} disabled={composerDisabled} testIdPrefix="admin" />
+          )}
+          <footer className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#18181b]">
+            <form onSubmit={onSend} className={`${column} flex items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1.5 shadow-inner focus-within:border-brand-primary/60 dark:border-gray-700 dark:bg-[#27272a]`}>
+              <textarea ref={inputRef} value={inputText} maxLength={4000} rows={1} disabled={composerDisabled}
+                onChange={event => setInputText(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                placeholder={t('ai.assist.inputPlaceholder')} aria-label={t('ai.chat.inputLabel')}
+                className="min-h-9 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-1.5 text-sm leading-6 text-text-main outline-none [field-sizing:content] dark:text-white" />
+              <button type="submit" disabled={!inputText.trim() || Boolean(pending) || composerDisabled} aria-label={t('ai.chat.send')}
+                className="gradient-btn grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-white shadow-sm disabled:opacity-50">
+                <Send size={17} aria-hidden="true" />
+              </button>
+            </form>
+          </footer>
         </div>
       </div>
-    </div>
+    </>
   );
 }

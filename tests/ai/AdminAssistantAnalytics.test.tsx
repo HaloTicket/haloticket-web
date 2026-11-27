@@ -8,6 +8,13 @@ const analyzeData = vi.fn();
 const createPin = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
+const adminHistory = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), pin: vi.fn(), remove: vi.fn(), send: vi.fn() }));
+vi.mock("@/services/adminChatApi", () => ({ adminChatApi: () => adminHistory }));
+vi.mock("@/services/keycloakSession", () => ({
+  getKeycloakSession: () => ({
+    getCurrentToken: () => `x.${btoa(JSON.stringify({ sub: "admin-a", iss: "https://realm.test" }))}.x`,
+  }),
+}));
 
 vi.mock("@/services/aiApi", () => ({
   aiApi: {
@@ -23,6 +30,7 @@ vi.mock("recharts", () => {
 
 import "@/i18n";
 import AdminAiAssistant from "@/features/admin/AdminAiAssistant";
+import AdminAiChatWidget from "@/features/admin/AdminAiChatWidget";
 import { AdminAiAnalytics } from "@/features/admin/AdminAiAnalytics";
 
 beforeEach(() => {
@@ -39,6 +47,34 @@ async function send(text: string) {
 }
 
 describe("AdminAiAssistant tools", () => {
+  it("shows the shared launcher prompt on hover", () => {
+    render(<MemoryRouter><AdminAiChatWidget /></MemoryRouter>);
+    const launcher = screen.getByRole("button", { name: "Trợ lý AI quản trị" });
+    expect(screen.queryByText("Trò chuyện cùng trợ lí AI")).toBeNull();
+    fireEvent.mouseEnter(launcher);
+    expect(screen.getByText("Trò chuyện cùng trợ lí AI")).toBeTruthy();
+    fireEvent.mouseLeave(launcher);
+    expect(screen.queryByText("Trò chuyện cùng trợ lí AI")).toBeNull();
+  });
+
+  it("opens a MongoDB conversation and starts a separate chat from the window header", async () => {
+    const stored = { id: "admin-chat-1", title: "Báo cáo đã lưu", is_pinned: false, updated_at: "2026-11-27T00:00:00Z", created_at: "2026-11-27T00:00:00Z" };
+    adminHistory.list.mockResolvedValue([stored]);
+    adminHistory.get.mockResolvedValue({ ...stored, messages: [{ id: "msg", role: "assistant", content: "Kết quả đã lưu", created_at: stored.created_at, tools_used: ["get_kpis"] }] });
+    render(<MemoryRouter><AdminAiAssistant owner="https://realm.test#admin" /></MemoryRouter>);
+    await screen.findByText("Kết quả đã lưu");
+    expect(screen.getByTestId("assistant-tools").textContent).toContain("số liệu tổng quan");
+    fireEvent.click(screen.getByRole("button", { name: "Đoạn chat mới" }));
+    expect(screen.queryByText("Kết quả đã lưu")).toBeNull();
+    adminHistory.create.mockImplementation(async (id: string) => ({ ...stored, id }));
+    adminHistory.send.mockResolvedValue({ reply: "Phản hồi mới", tools_used: [], grounded: true });
+    await send("Kiểm tra trạng thái");
+    await screen.findByText("Phản hồi mới");
+    const id = adminHistory.create.mock.calls.at(-1)?.[0];
+    expect(id).not.toBe(stored.id);
+    expect(adminHistory.send).toHaveBeenCalledWith("Kiểm tra trạng thái", id, expect.any(String));
+  });
+
   it("shows which read-only tools the answer used", async () => {
     chatAdminAssistant.mockResolvedValue({ reply: "Có 4 sự kiện chờ duyệt.", system_actions: [], tools_used: ["get_kpis", "list_pending_events", "get_kpis"], grounded: true });
     render(<MemoryRouter><AdminAiAssistant /></MemoryRouter>);
