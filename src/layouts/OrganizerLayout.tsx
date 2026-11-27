@@ -33,7 +33,8 @@ import {
   LuLogOut,
   LuUser,
 } from "react-icons/lu";
-import { FaTicketAlt } from "react-icons/fa";
+import { BrandLogo } from "@/components/common/BrandLogo";
+import { OrganizerSidebarBackground } from "@/components/common/OrganizerSidebarBackground";
 
 /** Bố cục khu vực ban tổ chức: thanh bên điều hướng, thanh trên cùng có tiêu đề, chuông thông báo và menu tài khoản, cùng vùng nội dung trang con. */
 export const OrganizerLayout: React.FC = () => {
@@ -164,66 +165,65 @@ export const OrganizerLayout: React.FC = () => {
     <div className="min-h-screen flex app-bg-page transition-colors duration-300 font-sans antialiased">
       {/* Left side bar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 app-bg-card border-r app-border flex flex-col justify-between p-4 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 isolate bg-[#eef5ff] dark:bg-[#0b0f17] border-r border-blue-200/70 dark:border-white/10 flex flex-col transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           }`}
       >
-        <div className="space-y-6">
-          {/* Brand Logo & Organizer Center Title */}
-          <div className="flex items-center justify-between pb-3 border-b app-border">
-            <Link to={PATHS.HOME} className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform">
-                <FaTicketAlt className="w-4 h-4 transform -rotate-12" />
-              </div>
-              <div>
-                <span className="text-base font-extrabold tracking-tight text-blue-600 dark:text-blue-400 block leading-none">
-                  {translate("Organizer Center")} </span>
-                <span className="text-[10px] app-text-muted font-semibold">
-                  {translate("HaloTicket Platform")} </span>
-              </div>
-            </Link>
+        <div className="relative flex-1 min-h-0 flex flex-col">
+          <OrganizerSidebarBackground />
 
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-1.5 rounded-lg app-text-muted hover:app-text-main cursor-pointer"
-            >
-              <FiX className="w-5 h-5" />
-            </button>
+          <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar p-4 space-y-6">
+            {/* Brand Logo & Organizer Center Title */}
+            <div className="flex items-center justify-between pb-3 border-b border-blue-200/70 dark:border-white/10">
+              <Link to={PATHS.HOME} className="flex flex-col items-start gap-1 group min-w-0">
+                <BrandLogo className="h-9 w-[135px] shrink-0 transition-opacity group-hover:opacity-90" />
+                <span className="pl-0.5 text-[11px] font-extrabold tracking-tight text-blue-600 dark:text-blue-400 leading-none">
+                  {translate("Organizer Center")}
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="lg:hidden p-1.5 rounded-lg app-text-muted hover:app-text-main cursor-pointer"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="space-y-1.5">
+              {sidebarItems.map((item) => {
+                const isActive = location.pathname === item.path || (item.path === PATHS.FINANCE && location.pathname.startsWith(`${PATHS.FINANCE}/withdrawals/`));
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.search ? { pathname: item.path, search: item.search } : item.path}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
+                      ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                      : "text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-white/10"
+                      }`}
+                  >
+                    {item.icon}
+                    <span>{translate(item.label)}</span>
+                  </Link>
+                );
+              })}
+
+              <Link
+                to={PATHS.HOME}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer mt-4 border-t border-blue-200/70 dark:border-white/10 pt-3"
+              >
+                <FiHome className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>{translate("Quay lại HaloTicket")}</span>
+              </Link>
+            </nav>
           </div>
-
-          {/* Navigation Links */}
-          <nav className="space-y-1.5">
-            {sidebarItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path === PATHS.FINANCE && location.pathname.startsWith(`${PATHS.FINANCE}/withdrawals/`));
-              return (
-                <Link
-                  key={item.label}
-                  to={item.search ? { pathname: item.path, search: item.search } : item.path}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "app-text-main hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                >
-                  {item.icon}
-                  <span>{translate(item.label)}</span>
-                </Link>
-              );
-            })}
-
-            <Link
-              to={PATHS.HOME}
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold app-text-muted hover:app-text-main hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer mt-4 border-t app-border pt-3"
-            >
-              <FiHome className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-              <span>{translate("Quay lại HaloTicket")}</span>
-            </Link>
-          </nav>
         </div>
 
         {/* Bottom Language Switcher */}
-        <div className="pt-4 border-t app-border flex items-center justify-between">
-          <span className="text-xs font-bold app-text-muted">{translate("Ngôn ngữ")}</span>
+        <div className="relative z-20 shrink-0 px-4 py-3 border-t border-blue-300/60 dark:border-white/10 bg-gradient-to-b from-[#b3d2fe] to-[#c7dffe] dark:from-[#0a0f1b] dark:to-[#080d17] flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{translate("Ngôn ngữ")}</span>
           <LanguageSwitcher direction="up" />
         </div>
       </aside>

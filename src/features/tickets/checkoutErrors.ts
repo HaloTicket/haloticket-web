@@ -1,6 +1,8 @@
 /** Khóa thông báo lỗi (i18n) hiển thị cho người mua khi tạo đơn thất bại. */
 export type CheckoutErrorKey =
   | "tickets.error.soldOut"
+  | "tickets.error.saleEnded"
+  | "tickets.error.saleNotStarted"
   | "tickets.error.stockBusy"
   | "tickets.error.reservationRefused"
   | "tickets.error.reservationClosed"
@@ -15,6 +17,8 @@ export type CheckoutErrorKey =
 interface CheckoutErrorRule { key: CheckoutErrorKey; backToSelection: boolean }
 
 export const CHECKOUT_ERROR_CODES: Record<string, CheckoutErrorRule> = {
+  SHOWTIME_SALE_ENDED: { key: "tickets.error.saleEnded", backToSelection: true },
+  SHOWTIME_SALE_NOT_STARTED: { key: "tickets.error.saleNotStarted", backToSelection: true },
   TICKET_SOLD_OUT: { key: "tickets.error.soldOut", backToSelection: true },
   TICKET_STOCK_UNAVAILABLE: { key: "tickets.error.stockBusy", backToSelection: false },
   TICKET_RESERVATION_REFUSED: { key: "tickets.error.reservationRefused", backToSelection: false },

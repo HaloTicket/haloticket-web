@@ -31,6 +31,15 @@ describe("checkout error mapping", () => {
     expect(resolveCheckoutError(new Error("BOOKING_CREATE_FAILED")).key).toBe("tickets.error.bookingCreateFailed");
   });
 
+  it("explains closed and future sales and sends the buyer back to select a showtime", () => {
+    expect(resolveCheckoutError(viaCode("SHOWTIME_SALE_ENDED"))).toMatchObject({
+      key: "tickets.error.saleEnded", backToSelection: true,
+    });
+    expect(resolveCheckoutError(viaCode("SHOWTIME_SALE_NOT_STARTED"))).toMatchObject({
+      key: "tickets.error.saleNotStarted", backToSelection: true,
+    });
+  });
+
   it("goes back to ticket selection for sold out, out of range, closed and seat count cases only", () => {
     for (const code of ["TICKET_SOLD_OUT", "QUANTITY_OUT_OF_RANGE", "RESERVATION_CLOSED", "SEAT_COUNT_MISMATCH", "SEAT_COUNT_EXCEEDS_QUANTITY"]) {
       expect(resolveCheckoutError(viaData(code)).backToSelection).toBe(true);

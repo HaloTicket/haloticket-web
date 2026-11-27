@@ -15,6 +15,10 @@ import Home from "@/features/events/Home";
 import EventSearch from "@/features/events/EventSearch";
 import EventDetail from "@/features/events/EventDetail";
 
+// Tính năng Blog công khai
+import BlogListPage from "@/features/blog/BlogListPage";
+import BlogDetailPage from "@/features/blog/BlogDetailPage";
+
 // Tính năng xác thực
 import Login from "@/features/auth/Login";
 import Register from "@/features/auth/Register";
@@ -302,6 +306,14 @@ export const router = createBrowserRouter([
       {
         path: "/events/:id",
         element: <EventDetail />,
+      },
+      {
+        path: PATHS.BLOG,
+        element: <BlogListPage />,
+      },
+      {
+        path: "/blog/:slug",
+        element: <BlogDetailPage />,
       },
       {
         path: "/resale-ticket",
@@ -633,6 +645,14 @@ export const router = createBrowserRouter([
     element: (
       <AdminProtectedRoute>
         <AdminVenueSeatmapDesigner />
+      </AdminProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/*",
+    element: (
+      <AdminProtectedRoute>
+        <NotFound variant="admin" />
       </AdminProtectedRoute>
     ),
   },
