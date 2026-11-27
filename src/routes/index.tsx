@@ -626,6 +626,10 @@ export const router = createBrowserRouter([
         path: PATHS.ADMIN_VENUES_MANAGEMENT,
         element: <AdminVenuesManagement />,
       },
+      {
+        path: "/admin/*",
+        element: <NotFound variant="admin" />,
+      },
     ],
   },
   {
