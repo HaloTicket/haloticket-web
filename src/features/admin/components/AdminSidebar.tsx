@@ -7,6 +7,7 @@ import type { IconType } from "react-icons";
 import { useTranslation } from "react-i18next";
 
 import { PATHS } from "@/routes/paths";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 /** Một mục điều hướng quản trị: đường dẫn, nhãn tiếng Việt và tiếng Anh, biểu tượng, mô tả. */
 export interface AdminNavItem { path: string; label: string; english: string; icon: IconType; description: string; }
@@ -116,9 +117,17 @@ export function AdminSidebar({ collapsed, mobileOpen, pendingEventsCount, onMobi
   return <>
     <aside ref={sidebarRef} className={`fixed lg:sticky top-0 z-50 lg:z-40 flex flex-col min-h-screen app-bg-card border-r app-border transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full lg:translate-x-0'} ${!mobileOpen && collapsed ? 'lg:w-20' : (!mobileOpen ? 'lg:w-64' : '')}`} role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen ? "true" : undefined} aria-label={label("Điều hướng quản trị", "Admin navigation")}>
       <div className="flex items-center justify-between h-[68px] px-6 border-b app-border shrink-0">
-        <Link to={PATHS.ADMIN_DASHBOARD} onClick={onMobileClose} className="flex items-center gap-3 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" aria-label="HaloTicket Admin">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-sm shrink-0" aria-hidden="true">HT</span>
-          {showLabels && <span className="flex flex-col text-sm leading-tight app-text-main truncate"><strong>HALOTICKET</strong><small className="text-[10px] app-text-muted font-bold tracking-wider">ADMIN</small></span>}
+        <Link to={PATHS.ADMIN_DASHBOARD} onClick={onMobileClose} className={`flex overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded group ${showLabels ? "flex-col items-start gap-1 min-w-0" : "items-center justify-center w-full"}`} aria-label="HaloTicket Admin">
+          {showLabels ? (
+            <>
+              <BrandLogo className="h-8 w-[120px] shrink-0 transition-opacity group-hover:opacity-90" />
+              <span className="ml-0.5 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 leading-none">
+                ADMIN
+              </span>
+            </>
+          ) : (
+            <BrandLogo variant="mark" className="h-8 w-10 shrink-0 transition-transform group-hover:scale-105" />
+          )}
         </Link>
         <button ref={closeRef} type="button" className="flex lg:hidden items-center justify-center w-8 h-8 rounded-full app-text-muted hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label={label("Đóng menu", "Close menu")} onClick={onMobileClose}><FiX size={20} /></button>
       </div>
